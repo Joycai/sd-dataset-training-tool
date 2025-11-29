@@ -1,0 +1,10 @@
+{
+  "@@locale": "en",
+  "appTitle": "DataSet Training Tool",
+  "editor": "Editor",
+  "settings": "Settings",
+  "toggleTheme": "Toggle Theme",
+  "editorView": "Editor View",
+  "settingsView": "Settings View",
+  "language": "Language"
+}

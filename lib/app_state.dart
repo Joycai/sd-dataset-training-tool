@@ -1,0 +1,106 @@
+import 'package:flutter/material.dart';
+import 'services/settings_service.dart';
+
+enum MainView {
+  editor,
+  settings,
+}
+
+class AppState extends ChangeNotifier {
+  final SettingsService _settingsService;
+
+  AppState(this._settingsService);
+
+  // --- 新增：编辑器状态 ---
+  late int _crossAxisCount;
+  int get crossAxisCount => _crossAxisCount;
+
+  late bool _includeSubdirectories;
+  bool get includeSubdirectories => _includeSubdirectories;
+
+  // 浏览目录的状态之前已经有了，现在我们确保它被正确加载
+  String? _browsingDirectory;
+  String? get browsingDirectory => _browsingDirectory;
+
+  void updateCrossAxisCount(int count) async {
+    if (_crossAxisCount == count) return;
+    _crossAxisCount = count;
+    notifyListeners();
+    await _settingsService.saveCrossAxisCount(count);
+  }
+
+  void updateIncludeSubdirectories(bool value) async {
+    if (_includeSubdirectories == value) return;
+    _includeSubdirectories = value;
+    notifyListeners();
+    await _settingsService.saveIncludeSubdirectories(value);
+  }
+
+  // setBrowsingDirectory 方法之前已经有了，现在我们确保它能被持久化
+  void setBrowsingDirectory(String? path) async {
+    if (_browsingDirectory == path) return;
+    _browsingDirectory = path;
+    notifyListeners();
+    await _settingsService.saveBrowsingDirectory(path);
+  }
+
+  // --- 加载设置的方法 ---
+  Future<void> loadSettings() async {
+    // 加载已有设置
+    _locale = await _settingsService.loadLocale();
+    _themeMode = await _settingsService.loadThemeMode();
+    
+    // 加载新增的编辑器设置
+    _crossAxisCount = await _settingsService.loadCrossAxisCount();
+    _includeSubdirectories = await _settingsService.loadIncludeSubdirectories();
+    _browsingDirectory = await _settingsService.loadBrowsingDirectory();
+
+    notifyListeners();
+  }
+
+  // --- 其他状态保持不变 ---
+  late Locale _locale;
+  Locale get currentLocale => _locale;
+
+  void updateLocale(Locale locale) async {
+    if (_locale == locale) return;
+    _locale = locale;
+    notifyListeners();
+    await _settingsService.saveLocale(locale);
+  }
+
+  late ThemeMode _themeMode;
+  ThemeMode get currentThemeMode => _themeMode;
+
+  void updateThemeMode(ThemeMode mode) async {
+    if (_themeMode == mode) return;
+    _themeMode = mode;
+    notifyListeners();
+    await _settingsService.saveThemeMode(mode);
+  }
+
+  MainView _mainView = MainView.editor;
+  MainView get currentView => _mainView;
+
+  void updateView(MainView view) {
+    if (_mainView == view) return;
+    _mainView = view;
+    notifyListeners();
+  }
+
+  String? _cachePath;
+  String? get cachePath => _cachePath;
+
+  String? _outputDirectory;
+  String? get outputDirectory => _outputDirectory;
+
+  void setCachePath(String path) {
+    _cachePath = path;
+    notifyListeners();
+  }
+
+  void setOutputDirectory(String path) {
+    _outputDirectory = path;
+    notifyListeners();
+  }
+}

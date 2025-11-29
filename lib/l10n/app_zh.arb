@@ -1,0 +1,10 @@
+{
+  "@@locale": "zh",
+  "appTitle": "数据集训练工具",
+  "editor": "编辑器",
+  "settings": "设置",
+  "toggleTheme": "切换主题",
+  "editorView": "编辑器视图",
+  "settingsView": "设置视图",
+  "language": "语言"
+}
