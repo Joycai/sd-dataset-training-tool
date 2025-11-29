@@ -139,6 +139,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Language'**
   String get language;
+
+  /// No description provided for @captionExtension.
+  ///
+  /// In en, this message translates to:
+  /// **'Caption Extension'**
+  String get captionExtension;
+
+  /// No description provided for @resetSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Settings'**
+  String get resetSettings;
+
+  /// No description provided for @resetSettingsConfirmationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Reset'**
+  String get resetSettingsConfirmationTitle;
+
+  /// No description provided for @resetSettingsConfirmationContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to reset all settings to their default values? This action cannot be undone.'**
+  String get resetSettingsConfirmationContent;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get confirm;
 }
 
 class _AppLocalizationsDelegate

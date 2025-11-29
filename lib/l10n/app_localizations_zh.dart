@@ -28,4 +28,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get language => '语言';
+
+  @override
+  String get captionExtension => '描述文件扩展名';
+
+  @override
+  String get resetSettings => '重置设置';
+
+  @override
+  String get resetSettingsConfirmationTitle => '确认重置';
+
+  @override
+  String get resetSettingsConfirmationContent => '您确定要将所有设置重置为默认值吗？此操作无法撤销。';
+
+  @override
+  String get cancel => '取消';
+
+  @override
+  String get confirm => '确认';
 }

@@ -2,7 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsService {
-  // --- 新增：编辑器设置 ---
+  // --- 新增：Caption Extension ---
+  Future<void> saveCaptionExtension(String extension) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('captionExtension', extension);
+  }
+
+  Future<String> loadCaptionExtension() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('captionExtension') ?? '.txt'; // 默认 .txt
+  }
+
+  // --- 新增：重置所有设置 ---
+  Future<void> resetSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    // 注意：这会清除所有 SharedPreferences 数据！
+    await prefs.clear();
+  }
+
+  // --- 编辑器设置 (保持不变) ---
   Future<void> saveCrossAxisCount(int count) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('crossAxisCount', count);
@@ -10,7 +28,7 @@ class SettingsService {
 
   Future<int> loadCrossAxisCount() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('crossAxisCount') ?? 4; // 默认每行 4 个
+    return prefs.getInt('crossAxisCount') ?? 4;
   }
 
   Future<void> saveIncludeSubdirectories(bool value) async {
@@ -20,7 +38,7 @@ class SettingsService {
 
   Future<bool> loadIncludeSubdirectories() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('includeSubdirectories') ?? false; // 默认不包含
+    return prefs.getBool('includeSubdirectories') ?? false;
   }
 
   Future<void> saveBrowsingDirectory(String? path) async {

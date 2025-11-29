@@ -6,5 +6,11 @@
   "toggleTheme": "切换主题",
   "editorView": "编辑器视图",
   "settingsView": "设置视图",
-  "language": "语言"
+  "language": "语言",
+  "captionExtension": "描述文件扩展名",
+  "resetSettings": "重置设置",
+  "resetSettingsConfirmationTitle": "确认重置",
+  "resetSettingsConfirmationContent": "您确定要将所有设置重置为默认值吗？此操作无法撤销。",
+  "cancel": "取消",
+  "confirm": "确认"
 }

@@ -28,4 +28,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get language => 'Language';
+
+  @override
+  String get captionExtension => 'Caption Extension';
+
+  @override
+  String get resetSettings => 'Reset Settings';
+
+  @override
+  String get resetSettingsConfirmationTitle => 'Confirm Reset';
+
+  @override
+  String get resetSettingsConfirmationContent =>
+      'Are you sure you want to reset all settings to their default values? This action cannot be undone.';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get confirm => 'Confirm';
 }

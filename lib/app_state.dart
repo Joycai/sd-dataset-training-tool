@@ -11,14 +11,43 @@ class AppState extends ChangeNotifier {
 
   AppState(this._settingsService);
 
-  // --- 新增：编辑器状态 ---
+  // --- 新增：Caption Extension 状态 ---
+  late String _captionExtension;
+  String get captionExtension => _captionExtension;
+
+  void updateCaptionExtension(String extension) async {
+    if (_captionExtension == extension) return;
+    _captionExtension = extension;
+    notifyListeners();
+    await _settingsService.saveCaptionExtension(extension);
+  }
+
+  // --- 新增：重置设置方法 ---
+  Future<void> resetSettings() async {
+    await _settingsService.resetSettings();
+    // 重置后，重新加载所有设置以恢复到默认值
+    await loadSettings();
+  }
+
+  // --- 加载设置的方法 ---
+  Future<void> loadSettings() async {
+    _locale = await _settingsService.loadLocale();
+    _themeMode = await _settingsService.loadThemeMode();
+    _crossAxisCount = await _settingsService.loadCrossAxisCount();
+    _includeSubdirectories = await _settingsService.loadIncludeSubdirectories();
+    _browsingDirectory = await _settingsService.loadBrowsingDirectory();
+    _captionExtension = await _settingsService.loadCaptionExtension(); // 加载新设置
+
+    notifyListeners();
+  }
+
+  // --- 其他状态保持不变 ---
   late int _crossAxisCount;
   int get crossAxisCount => _crossAxisCount;
 
   late bool _includeSubdirectories;
   bool get includeSubdirectories => _includeSubdirectories;
 
-  // 浏览目录的状态之前已经有了，现在我们确保它被正确加载
   String? _browsingDirectory;
   String? get browsingDirectory => _browsingDirectory;
 
@@ -36,7 +65,6 @@ class AppState extends ChangeNotifier {
     await _settingsService.saveIncludeSubdirectories(value);
   }
 
-  // setBrowsingDirectory 方法之前已经有了，现在我们确保它能被持久化
   void setBrowsingDirectory(String? path) async {
     if (_browsingDirectory == path) return;
     _browsingDirectory = path;
@@ -44,21 +72,6 @@ class AppState extends ChangeNotifier {
     await _settingsService.saveBrowsingDirectory(path);
   }
 
-  // --- 加载设置的方法 ---
-  Future<void> loadSettings() async {
-    // 加载已有设置
-    _locale = await _settingsService.loadLocale();
-    _themeMode = await _settingsService.loadThemeMode();
-    
-    // 加载新增的编辑器设置
-    _crossAxisCount = await _settingsService.loadCrossAxisCount();
-    _includeSubdirectories = await _settingsService.loadIncludeSubdirectories();
-    _browsingDirectory = await _settingsService.loadBrowsingDirectory();
-
-    notifyListeners();
-  }
-
-  // --- 其他状态保持不变 ---
   late Locale _locale;
   Locale get currentLocale => _locale;
 
