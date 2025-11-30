@@ -15,8 +15,9 @@ dependencies:
   shared_preferences: ^2.2.3
   file_picker: ^10.3.7
   path: ^1.9.0
-  desktop_multi_window: ^0.2.1 # For the separate preview window
-  file_saver: ^0.3.0        # For saving the image
+  desktop_multi_window: ^0.2.1
+  file_saver: ^0.3.0
+  reorderable_grid_view: ^2.2.7 # 替换为这个库
   cupertino_icons: ^1.0.6
 
 dev_dependencies:

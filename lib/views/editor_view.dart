@@ -1,9 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'image_browser.dart';
-import 'workspace_view.dart'; // 1. Import the new workspace view
+import 'workspace_view.dart';
 
-// 2. Convert to StatefulWidget
 class EditorView extends StatefulWidget {
   const EditorView({super.key});
 
@@ -12,7 +11,6 @@ class EditorView extends StatefulWidget {
 }
 
 class _EditorViewState extends State<EditorView> {
-  // 3. Add state to hold the selected image
   File? _selectedImage;
 
   @override
@@ -21,8 +19,8 @@ class _EditorViewState extends State<EditorView> {
       children: [
         // Left Panel: Image Browser
         Expanded(
-          flex: 6,
-          // 4. Pass the callback to ImageBrowser
+          // 1. Change flex from 6 to 4
+          flex: 4,
           child: ImageBrowser(
             onImageSelected: (file) {
               setState(() {
@@ -34,8 +32,8 @@ class _EditorViewState extends State<EditorView> {
         const VerticalDivider(width: 1, thickness: 1),
         // Right Panel: Workspace
         Expanded(
-          flex: 4,
-          // 5. Pass the selected image to WorkspaceView
+          // 2. Change flex from 4 to 6
+          flex: 6,
           child: WorkspaceView(
             selectedImage: _selectedImage,
           ),

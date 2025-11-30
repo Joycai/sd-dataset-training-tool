@@ -22,5 +22,6 @@
   "add": "Add",
   "delete": "Delete",
   "addTagsTitle": "Add Common Tags",
-  "addTagsContent": "Paste comma-separated tags to add to the existing list."
+  "addTagsContent": "Paste comma-separated tags to add to the existing list.",
+  "imageTags": "Image Tags"
 }

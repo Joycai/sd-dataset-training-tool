@@ -79,4 +79,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get addTagsContent =>
       'Paste comma-separated tags to add to the existing list.';
+
+  @override
+  String get imageTags => 'Image Tags';
 }

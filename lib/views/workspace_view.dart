@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 import '../app_state.dart';
 import '../l10n/app_localizations.dart';
 
@@ -20,7 +21,6 @@ class _WorkspaceViewState extends State<WorkspaceView> {
   bool _tagViewEnabled = false;
   bool _isLoading = false;
   String _captionFilePath = '';
-  // --- New State for Common Tag Selection ---
   final Set<String> _selectedCommonTags = {};
 
   @override
@@ -36,7 +36,7 @@ class _WorkspaceViewState extends State<WorkspaceView> {
   void didUpdateWidget(WorkspaceView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.selectedImage != oldWidget.selectedImage) {
-      setState(() => _selectedCommonTags.clear()); // Clear selection on image change
+      setState(() => _selectedCommonTags.clear());
       if (widget.selectedImage != null) {
         _loadCaption(widget.selectedImage!);
       } else {
@@ -153,7 +153,6 @@ class _WorkspaceViewState extends State<WorkspaceView> {
     }
   }
 
-  // --- New Dialog for Adding Tags ---
   Future<void> _showAddTagsDialog() async {
     final l10n = AppLocalizations.of(context)!;
     final addController = TextEditingController();
@@ -179,6 +178,15 @@ class _WorkspaceViewState extends State<WorkspaceView> {
     }
   }
 
+  void _addCommonTagToImageTags(String tag) {
+    if (!_imageTags.contains(tag)) {
+      setState(() {
+        _imageTags.add(tag);
+        _rebuildCaptionFromTags();
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -200,8 +208,8 @@ class _WorkspaceViewState extends State<WorkspaceView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            flex: 2,
+          SizedBox(
+            height: 120,
             child: TextField(
               controller: _captionController,
               maxLines: null,
@@ -215,45 +223,82 @@ class _WorkspaceViewState extends State<WorkspaceView> {
             const Text('Tag View'),
             Switch(value: _tagViewEnabled, onChanged: (v) => setState(() { _tagViewEnabled = v; _onCaptionTextChanged(); })),
           ]),
-          _buildSection(
-            title: 'Image Tags',
-            child: _buildTagWrap(_imageTags, onDoubleTap: (index) => _editTag(index), onDeleted: (index) {
-              setState(() { _imageTags.removeAt(index); _rebuildCaptionFromTags(); });
-            }),
-          ),
-          const SizedBox(height: 8),
-          _buildSection(
-            title: l10n.commonTags,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(icon: const Icon(Icons.add_circle_outline), tooltip: l10n.add, onPressed: _showAddTagsDialog),
-                IconButton(icon: const Icon(Icons.delete_outline), tooltip: l10n.delete, color: Colors.red, onPressed: _selectedCommonTags.isEmpty ? null : () {
-                  context.read<AppState>().removeCommonTags(_selectedCommonTags.toList());
-                  setState(() => _selectedCommonTags.clear());
-                }),
-                IconButton(icon: const Icon(Icons.input), tooltip: l10n.import, onPressed: _showImportDialog),
-              ],
+          // Use the new i18n key
+          Text(l10n.imageTags, style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 4),
+          Expanded(
+            flex: 1,
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Theme.of(context).dividerColor),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Opacity(
+                opacity: _tagViewEnabled ? 1.0 : 0.4,
+                child: _buildReorderableImageTagGrid(),
+              ),
             ),
-            child: _buildTagWrap(appState.commonTags, imageTagSet: imageTagSet, onTagTap: (tag) {
-              setState(() {
-                if (_selectedCommonTags.contains(tag)) {
-                  _selectedCommonTags.remove(tag);
-                } else {
-                  _selectedCommonTags.add(tag);
-                }
-              });
-            }),
           ),
           const SizedBox(height: 8),
-          if (_tagViewEnabled && newTags.isNotEmpty)
-            _buildSection(
-              title: l10n.newTags,
-              child: _buildTagWrap(newTags, isNewTag: true, onTagTap: (tag) {
-                context.read<AppState>().addCommonTags([tag]);
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text(l10n.commonTags, style: Theme.of(context).textTheme.titleSmall),
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(icon: const Icon(Icons.add_circle_outline), tooltip: l10n.add, onPressed: _showAddTagsDialog),
+              IconButton(icon: const Icon(Icons.delete_outline), tooltip: l10n.delete, color: Colors.red, onPressed: _selectedCommonTags.isEmpty ? null : () {
+                context.read<AppState>().removeCommonTags(_selectedCommonTags.toList());
+                setState(() => _selectedCommonTags.clear());
               }),
+              IconButton(icon: const Icon(Icons.input), tooltip: l10n.import, onPressed: _showImportDialog),
+            ]),
+          ]),
+          const SizedBox(height: 4),
+          Expanded(
+            flex: 1,
+            child: AbsorbPointer(
+              absorbing: !_tagViewEnabled,
+              child: Opacity(
+                opacity: _tagViewEnabled ? 1.0 : 0.4,
+                child: Container(
+                  decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor), borderRadius: BorderRadius.circular(4)),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(8.0),
+                    child: _buildTagWrap(
+                      appState.commonTags,
+                      imageTagSet: imageTagSet,
+                      onTagTap: (tag) => setState(() {
+                        if (_selectedCommonTags.contains(tag)) { _selectedCommonTags.remove(tag); } else { _selectedCommonTags.add(tag); }
+                      }),
+                      onTagDoubleTap: (tag) => _addCommonTagToImageTags(tag),
+                    ),
+                  ),
+                ),
+              ),
             ),
-          const Spacer(),
+          ),
+          const SizedBox(height: 8),
+          if (_tagViewEnabled && newTags.isNotEmpty) ...[
+            Text(l10n.newTags, style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 4),
+            Expanded(
+              flex: 1,
+              child: AbsorbPointer(
+                absorbing: !_tagViewEnabled,
+                child: Opacity(
+                  opacity: _tagViewEnabled ? 1.0 : 0.4,
+                  child: Container(
+                    decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor), borderRadius: BorderRadius.circular(4)),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(8.0),
+                      child: _buildTagWrap(newTags, isNewTag: true, onTagTap: (tag) {
+                        context.read<AppState>().addCommonTags([tag]);
+                      }),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           ElevatedButton.icon(
             icon: const Icon(Icons.save),
             label: Text(l10n.save),
@@ -265,38 +310,45 @@ class _WorkspaceViewState extends State<WorkspaceView> {
     );
   }
 
-  Widget _buildSection({required String title, Widget? trailing, required Widget child}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleSmall),
-            if (trailing != null) trailing,
-          ],
-        ),
-        const SizedBox(height: 4),
-        Container(
-          height: 100,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            border: Border.all(color: Theme.of(context).dividerColor),
-            borderRadius: BorderRadius.circular(4),
+  Widget _buildReorderableImageTagGrid() {
+    if (_imageTags.isEmpty) return const Center(child: Text('No tags.'));
+
+    return ReorderableGridView.builder(
+      padding: const EdgeInsets.all(8.0),
+      itemCount: _imageTags.length,
+      dragEnabled: _tagViewEnabled,
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 150,
+        mainAxisSpacing: 4.0,
+        crossAxisSpacing: 8.0,
+        childAspectRatio: 2.5,
+      ),
+      onReorder: (int oldIndex, int newIndex) {
+        setState(() {
+          final String tag = _imageTags.removeAt(oldIndex);
+          _imageTags.insert(newIndex, tag);
+          _rebuildCaptionFromTags();
+        });
+      },
+      itemBuilder: (context, index) {
+        return GestureDetector(
+          key: ValueKey(_imageTags[index] + index.toString()),
+          onDoubleTap: !_tagViewEnabled ? null : () => _editTag(index),
+          child: Chip(
+            label: Text(_imageTags[index]),
+            onDeleted: !_tagViewEnabled ? null : () {
+              setState(() {
+                _imageTags.removeAt(index);
+                _rebuildCaptionFromTags();
+              });
+            },
           ),
-          child: AbsorbPointer(
-            absorbing: !_tagViewEnabled,
-            child: Opacity(
-              opacity: _tagViewEnabled ? 1.0 : 0.4,
-              child: SingleChildScrollView(padding: const EdgeInsets.all(8.0), child: child),
-            ),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 
-  Widget _buildTagWrap(List<String> tags, {void Function(int)? onDoubleTap, void Function(int)? onDeleted, Set<String>? imageTagSet, bool isNewTag = false, void Function(String)? onTagTap}) {
+  Widget _buildTagWrap(List<String> tags, {void Function(int)? onDoubleTap, void Function(int)? onDeleted, Set<String>? imageTagSet, bool isNewTag = false, void Function(String)? onTagTap, void Function(String)? onTagDoubleTap}) {
     if (tags.isEmpty) return const Center(child: Text('No tags.'));
     
     return Wrap(
@@ -307,16 +359,16 @@ class _WorkspaceViewState extends State<WorkspaceView> {
         Color? chipColor;
         bool isSelected = false;
 
-        if (imageTagSet != null) { // Common Tags Area
+        if (imageTagSet != null) {
           chipColor = imageTagSet.contains(tag) ? Colors.green.shade100 : Colors.orange.shade100;
           isSelected = _selectedCommonTags.contains(tag);
         }
-        if (isNewTag) { // New Tags Area
+        if (isNewTag) {
           chipColor = Colors.grey.shade300;
         }
 
         return GestureDetector(
-          onDoubleTap: onDoubleTap != null ? () => onDoubleTap(index) : null,
+          onDoubleTap: onTagDoubleTap != null ? () => onTagDoubleTap(tag) : (onDoubleTap != null ? () => onDoubleTap(index) : null),
           onTap: onTagTap != null ? () => onTagTap(tag) : null,
           child: Chip(
             label: Text(tag),

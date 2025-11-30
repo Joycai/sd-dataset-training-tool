@@ -235,6 +235,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Paste comma-separated tags to add to the existing list.'**
   String get addTagsContent;
+
+  /// No description provided for @imageTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Image Tags'**
+  String get imageTags;
 }
 
 class _AppLocalizationsDelegate

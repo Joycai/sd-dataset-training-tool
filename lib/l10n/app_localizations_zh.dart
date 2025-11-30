@@ -76,4 +76,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get addTagsContent => '在此处粘贴以逗号分隔的标签，以添加到现有列表。';
+
+  @override
+  String get imageTags => '图片标签';
 }
