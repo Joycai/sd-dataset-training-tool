@@ -54,14 +54,26 @@ class AppLocalizationsZh extends AppLocalizations {
   String get commonTags => '公共标签';
 
   @override
-  String get import => '导入';
+  String get import => '导入/替换';
 
   @override
   String get newTags => '新标签 (点击添加)';
 
   @override
-  String get importTagsTitle => '导入公共标签';
+  String get importTagsTitle => '导入/替换公共标签';
 
   @override
-  String get importTagsContent => '在此处粘贴以逗号分隔的标签。';
+  String get importTagsContent => '在此处粘贴以逗号分隔的标签。这将会替换所有现有的公共标签。';
+
+  @override
+  String get add => '添加';
+
+  @override
+  String get delete => '删除';
+
+  @override
+  String get addTagsTitle => '添加公共标签';
+
+  @override
+  String get addTagsContent => '在此处粘贴以逗号分隔的标签，以添加到现有列表。';
 }

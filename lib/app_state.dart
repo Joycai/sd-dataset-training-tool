@@ -11,7 +11,7 @@ class AppState extends ChangeNotifier {
 
   AppState(this._settingsService);
 
-  // --- 新增：Common Tags 状态 ---
+  // --- Common Tags State ---
   late List<String> _commonTags;
   List<String> get commonTags => _commonTags;
 
@@ -21,15 +21,22 @@ class AppState extends ChangeNotifier {
     await _settingsService.saveCommonTags(tags);
   }
 
-  void addCommonTag(String tag) async {
-    if (!_commonTags.contains(tag)) {
-      _commonTags.add(tag);
+  void addCommonTags(List<String> tags) async {
+    final newTags = tags.where((tag) => !_commonTags.contains(tag)).toList();
+    if (newTags.isNotEmpty) {
+      _commonTags.addAll(newTags);
       notifyListeners();
       await _settingsService.saveCommonTags(_commonTags);
     }
   }
 
-  // --- 加载设置的方法 ---
+  void removeCommonTags(List<String> tags) async {
+    _commonTags.removeWhere((tag) => tags.contains(tag));
+    notifyListeners();
+    await _settingsService.saveCommonTags(_commonTags);
+  }
+
+  // --- Other states remain unchanged ---
   Future<void> loadSettings() async {
     _locale = await _settingsService.loadLocale();
     _themeMode = await _settingsService.loadThemeMode();
@@ -37,12 +44,11 @@ class AppState extends ChangeNotifier {
     _includeSubdirectories = await _settingsService.loadIncludeSubdirectories();
     _browsingDirectory = await _settingsService.loadBrowsingDirectory();
     _captionExtension = await _settingsService.loadCaptionExtension();
-    _commonTags = await _settingsService.loadCommonTags(); // 加载新设置
+    _commonTags = await _settingsService.loadCommonTags();
 
     notifyListeners();
   }
 
-  // --- 其他状态保持不变 ---
   Future<void> resetSettings() async {
     await _settingsService.resetSettings();
     await loadSettings();

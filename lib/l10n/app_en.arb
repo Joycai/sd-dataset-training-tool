@@ -15,8 +15,12 @@
   "confirm": "Confirm",
   "save": "Save",
   "commonTags": "Common Tags",
-  "import": "Import",
+  "import": "Import/Replace",
   "newTags": "New Tags (Click to add)",
-  "importTagsTitle": "Import Common Tags",
-  "importTagsContent": "Paste comma-separated tags here."
+  "importTagsTitle": "Import/Replace Common Tags",
+  "importTagsContent": "Paste comma-separated tags here. This will replace all existing common tags.",
+  "add": "Add",
+  "delete": "Delete",
+  "addTagsTitle": "Add Common Tags",
+  "addTagsContent": "Paste comma-separated tags to add to the existing list."
 }

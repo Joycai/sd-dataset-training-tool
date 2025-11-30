@@ -55,14 +55,28 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonTags => 'Common Tags';
 
   @override
-  String get import => 'Import';
+  String get import => 'Import/Replace';
 
   @override
   String get newTags => 'New Tags (Click to add)';
 
   @override
-  String get importTagsTitle => 'Import Common Tags';
+  String get importTagsTitle => 'Import/Replace Common Tags';
 
   @override
-  String get importTagsContent => 'Paste comma-separated tags here.';
+  String get importTagsContent =>
+      'Paste comma-separated tags here. This will replace all existing common tags.';
+
+  @override
+  String get add => 'Add';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get addTagsTitle => 'Add Common Tags';
+
+  @override
+  String get addTagsContent =>
+      'Paste comma-separated tags to add to the existing list.';
 }

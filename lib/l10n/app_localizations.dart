@@ -191,7 +191,7 @@ abstract class AppLocalizations {
   /// No description provided for @import.
   ///
   /// In en, this message translates to:
-  /// **'Import'**
+  /// **'Import/Replace'**
   String get import;
 
   /// No description provided for @newTags.
@@ -203,14 +203,38 @@ abstract class AppLocalizations {
   /// No description provided for @importTagsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Import Common Tags'**
+  /// **'Import/Replace Common Tags'**
   String get importTagsTitle;
 
   /// No description provided for @importTagsContent.
   ///
   /// In en, this message translates to:
-  /// **'Paste comma-separated tags here.'**
+  /// **'Paste comma-separated tags here. This will replace all existing common tags.'**
   String get importTagsContent;
+
+  /// No description provided for @add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get add;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @addTagsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Common Tags'**
+  String get addTagsTitle;
+
+  /// No description provided for @addTagsContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste comma-separated tags to add to the existing list.'**
+  String get addTagsContent;
 }
 
 class _AppLocalizationsDelegate
