@@ -12,5 +12,6 @@
   "resetSettingsConfirmationTitle": "Confirm Reset",
   "resetSettingsConfirmationContent": "Are you sure you want to reset all settings to their default values? This action cannot be undone.",
   "cancel": "Cancel",
-  "confirm": "Confirm"
+  "confirm": "Confirm",
+  "save": "Save"
 }

@@ -12,5 +12,6 @@
   "resetSettingsConfirmationTitle": "确认重置",
   "resetSettingsConfirmationContent": "您确定要将所有设置重置为默认值吗？此操作无法撤销。",
   "cancel": "取消",
-  "confirm": "确认"
+  "confirm": "确认",
+  "save": "保存"
 }

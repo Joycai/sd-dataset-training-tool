@@ -8,7 +8,9 @@ import 'package:path/path.dart' as p;
 import '../app_state.dart';
 
 class ImageBrowser extends StatefulWidget {
-  const ImageBrowser({super.key});
+  final ValueChanged<File?>? onImageSelected;
+
+  const ImageBrowser({super.key, this.onImageSelected});
 
   @override
   State<ImageBrowser> createState() => _ImageBrowserState();
@@ -17,16 +19,19 @@ class ImageBrowser extends StatefulWidget {
 class _ImageBrowserState extends State<ImageBrowser> {
   List<File> _imageFiles = [];
   bool _isLoading = false;
-  // FIX: We will store the window ID directly, not a key.
   int? _previewWindowId;
+  int? _selectedIndex;
 
   @override
   void initState() {
     super.initState();
-    final initialDirectory = context.read<AppState>().browsingDirectory;
-    if (initialDirectory != null && Directory(initialDirectory).existsSync()) {
-      _scanDirectory();
-    }
+    // FIX: Defer the initial scan until after the first frame is built.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final initialDirectory = context.read<AppState>().browsingDirectory;
+      if (initialDirectory != null && Directory(initialDirectory).existsSync()) {
+        _scanDirectory();
+      }
+    });
   }
 
   Future<void> _scanDirectory() async {
@@ -37,7 +42,11 @@ class _ImageBrowserState extends State<ImageBrowser> {
     setState(() {
       _isLoading = true;
       _imageFiles = [];
+      _selectedIndex = null;
     });
+    // This call is now safe because it's triggered by user actions or post-frame callbacks,
+    // not during the initial build.
+    widget.onImageSelected?.call(null);
 
     final directory = Directory(directoryPath);
     final List<File> foundFiles = [];
@@ -59,10 +68,13 @@ class _ImageBrowserState extends State<ImageBrowser> {
       print('Error scanning directory: $e');
     }
 
-    setState(() {
-      _imageFiles = foundFiles;
-      _isLoading = false;
-    });
+    // Check if the widget is still in the tree before calling setState
+    if (mounted) {
+      setState(() {
+        _imageFiles = foundFiles;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _openDirectoryPicker() async {
@@ -73,7 +85,6 @@ class _ImageBrowserState extends State<ImageBrowser> {
     }
   }
 
-  // --- Completely Reworked Function ---
   Future<void> _showPreviewWindow(int index) async {
     final allImagePaths = _imageFiles.map((f) => f.path).toList();
     final args = {
@@ -90,7 +101,6 @@ class _ImageBrowserState extends State<ImageBrowser> {
     }
 
     if (windowExists) {
-      // Window exists, just send data to update it and bring to front
       DesktopMultiWindow.invokeMethod(
         _previewWindowId!,
         'update_image',
@@ -98,9 +108,7 @@ class _ImageBrowserState extends State<ImageBrowser> {
       );
       WindowController.fromWindowId(_previewWindowId!).show();
     } else {
-      // Window does not exist (or was closed), create it
       final window = await DesktopMultiWindow.createWindow(jsonEncode(args));
-      // Store the new window's ID
       _previewWindowId = window.windowId;
       window
         ..setFrame(const Offset(0, 0) & const Size(800, 600))
@@ -185,23 +193,37 @@ class _ImageBrowserState extends State<ImageBrowser> {
       itemCount: _imageFiles.length,
       itemBuilder: (context, index) {
         final file = _imageFiles[index];
+        final isSelected = _selectedIndex == index;
+
         return GestureDetector(
+          onTap: () {
+            setState(() => _selectedIndex = index);
+            widget.onImageSelected?.call(file);
+          },
           onDoubleTap: () => _showPreviewWindow(index),
-          child: GridTile(
-            footer: GridTileBar(
-              backgroundColor: Colors.black45,
-              title: Text(
-                p.basename(file.path),
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-              ),
+          child: Container(
+            decoration: BoxDecoration(
+              border: isSelected
+                  ? Border.all(color: Theme.of(context).primaryColor, width: 3)
+                  : null,
+              borderRadius: BorderRadius.circular(4),
             ),
-            child: Image.file(
-              file,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(child: Icon(Icons.broken_image));
-              },
+            child: GridTile(
+              footer: GridTileBar(
+                backgroundColor: Colors.black45,
+                title: Text(
+                  p.basename(file.path),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              child: Image.file(
+                file,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(child: Icon(Icons.broken_image));
+                },
+              ),
             ),
           ),
         );
