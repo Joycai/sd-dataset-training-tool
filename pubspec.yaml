@@ -17,13 +17,14 @@ dependencies:
   path: ^1.9.0
   desktop_multi_window: ^0.2.1
   file_saver: ^0.3.0
-  reorderable_grid_view: ^2.2.7 # 替换为这个库
+  reorderable_grid_view: ^2.2.7
   cupertino_icons: ^1.0.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1 # 添加此行
 
 flutter:
   uses-material-design: true
