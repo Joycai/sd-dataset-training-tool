@@ -30,14 +30,13 @@ class _ImagePreviewWindowState extends State<ImagePreviewWindow> {
     _imagePaths = List<String>.from(widget.args['imagePaths']);
     _currentIndex = widget.args['currentIndex'];
 
-    // Listen for messages from the main window to update the image
     DesktopMultiWindow.setMethodHandler((call, fromWindowId) async {
       if (call.method == 'update_image') {
         final args = jsonDecode(call.arguments) as Map<String, dynamic>;
         setState(() {
           _imagePaths = List<String>.from(args['imagePaths']);
           _currentIndex = args['currentIndex'];
-          _resetZoom(); // Reset zoom when image changes
+          _resetZoom();
         });
       }
       return '';
@@ -77,16 +76,13 @@ class _ImagePreviewWindowState extends State<ImagePreviewWindow> {
         backgroundColor: Colors.black,
         body: Column(
           children: [
-            // Main Preview Area
             Expanded(
               child: Row(
                 children: [
-                  // Previous Button
                   IconButton(
                     icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
                     onPressed: _currentIndex > 0 ? () => _changeImage(_currentIndex - 1) : null,
                   ),
-                  // Interactive Image Viewer
                   Expanded(
                     child: InteractiveViewer(
                       transformationController: _transformationController,
@@ -95,7 +91,6 @@ class _ImagePreviewWindowState extends State<ImagePreviewWindow> {
                       child: Image.file(imageFile, fit: BoxFit.contain),
                     ),
                   ),
-                  // Next Button
                   IconButton(
                     icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
                     onPressed: _currentIndex < _imagePaths.length - 1
@@ -105,9 +100,9 @@ class _ImagePreviewWindowState extends State<ImagePreviewWindow> {
                 ],
               ),
             ),
-            // Bottom Control Bar
+            // FIX: Use withAlpha instead of withOpacity
             Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withAlpha(128), // 0.5 opacity
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,

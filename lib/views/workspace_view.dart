@@ -223,7 +223,6 @@ class _WorkspaceViewState extends State<WorkspaceView> {
             const Text('Tag View'),
             Switch(value: _tagViewEnabled, onChanged: (v) => setState(() { _tagViewEnabled = v; _onCaptionTextChanged(); })),
           ]),
-          // Use the new i18n key
           Text(l10n.imageTags, style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 4),
           Expanded(

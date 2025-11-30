@@ -1,5 +1,7 @@
 # DataSet Training Tool
 
+![preview](./.images/preview_en.png)
+
 This is a desktop application built with Flutter, designed to help users efficiently manage and edit image dataset captions, especially for the preprocessing stage of AI model training.
 
 ## ✨ Features

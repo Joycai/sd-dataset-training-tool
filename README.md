@@ -1,5 +1,7 @@
 # 数据集训练工具 (DataSet Training Tool)
 
+![软件截图](./.images/preview_cn.png)
+
 这是一个使用 Flutter 构建的桌面应用程序，旨在帮助用户高效地管理和编辑图像数据集的描述文件（captions），特别适用于 AI 模型训练的预处理阶段。
 
 ## ✨ 功能特性

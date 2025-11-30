@@ -13,7 +13,6 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
     final currentView = appState.currentView;
     final currentMode = appState.currentThemeMode;
 
-    // --- Theme toggle logic (unchanged) ---
     IconData getThemeIcon() {
       switch (currentMode) {
         case ThemeMode.light:
@@ -34,7 +33,15 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
       }[currentMode];
       appState.updateThemeMode(nextMode!);
     }
-    // --- End of Theme Logic ---
+
+    void toggleLanguage() {
+      final appState = context.read<AppState>();
+      final nextLocale =
+          appState.currentLocale.languageCode == 'en'
+              ? const Locale('zh')
+              : const Locale('en');
+      appState.updateLocale(nextLocale);
+    }
 
     return AppBar(
       backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -48,10 +55,12 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
             ).copyWith(
-              backgroundColor: MaterialStateProperty.resolveWith<Color?>(
-                (Set<MaterialState> states) {
+              // FIX: Use WidgetStateProperty and withAlpha
+              backgroundColor: WidgetStateProperty.resolveWith<Color?>(
+                (Set<WidgetState> states) {
                   if (currentView == MainView.editor) {
-                    return Theme.of(context).colorScheme.primary.withOpacity(0.2);
+                    // FIX: Use withAlpha instead of withOpacity
+                    return Theme.of(context).colorScheme.primary.withAlpha(51); // 0.2 opacity
                   }
                   return null;
                 },
@@ -68,7 +77,6 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.settings),
           tooltip: l10n.settings,
           isSelected: currentView == MainView.settings,
-          // 1. 恢复按钮的正确行为：切换到设置视图
           onPressed: () {
             context.read<AppState>().updateView(MainView.settings);
           },
