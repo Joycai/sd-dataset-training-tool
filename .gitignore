@@ -45,6 +45,7 @@ app.*.map.json
 /android/app/release
 ### Flutter template
 # Flutter/Dart/Pub related
+/wiki/
 **/doc/api/
 .dart_tool/
 .flutter-plugins
