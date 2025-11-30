@@ -50,4 +50,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get save => 'Save';
+
+  @override
+  String get commonTags => 'Common Tags';
+
+  @override
+  String get import => 'Import';
+
+  @override
+  String get newTags => 'New Tags (Click to add)';
+
+  @override
+  String get importTagsTitle => 'Import Common Tags';
+
+  @override
+  String get importTagsContent => 'Paste comma-separated tags here.';
 }

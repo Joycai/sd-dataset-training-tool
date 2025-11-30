@@ -11,7 +11,43 @@ class AppState extends ChangeNotifier {
 
   AppState(this._settingsService);
 
-  // --- 新增：Caption Extension 状态 ---
+  // --- 新增：Common Tags 状态 ---
+  late List<String> _commonTags;
+  List<String> get commonTags => _commonTags;
+
+  void updateCommonTags(List<String> tags) async {
+    _commonTags = tags;
+    notifyListeners();
+    await _settingsService.saveCommonTags(tags);
+  }
+
+  void addCommonTag(String tag) async {
+    if (!_commonTags.contains(tag)) {
+      _commonTags.add(tag);
+      notifyListeners();
+      await _settingsService.saveCommonTags(_commonTags);
+    }
+  }
+
+  // --- 加载设置的方法 ---
+  Future<void> loadSettings() async {
+    _locale = await _settingsService.loadLocale();
+    _themeMode = await _settingsService.loadThemeMode();
+    _crossAxisCount = await _settingsService.loadCrossAxisCount();
+    _includeSubdirectories = await _settingsService.loadIncludeSubdirectories();
+    _browsingDirectory = await _settingsService.loadBrowsingDirectory();
+    _captionExtension = await _settingsService.loadCaptionExtension();
+    _commonTags = await _settingsService.loadCommonTags(); // 加载新设置
+
+    notifyListeners();
+  }
+
+  // --- 其他状态保持不变 ---
+  Future<void> resetSettings() async {
+    await _settingsService.resetSettings();
+    await loadSettings();
+  }
+
   late String _captionExtension;
   String get captionExtension => _captionExtension;
 
@@ -22,26 +58,6 @@ class AppState extends ChangeNotifier {
     await _settingsService.saveCaptionExtension(extension);
   }
 
-  // --- 新增：重置设置方法 ---
-  Future<void> resetSettings() async {
-    await _settingsService.resetSettings();
-    // 重置后，重新加载所有设置以恢复到默认值
-    await loadSettings();
-  }
-
-  // --- 加载设置的方法 ---
-  Future<void> loadSettings() async {
-    _locale = await _settingsService.loadLocale();
-    _themeMode = await _settingsService.loadThemeMode();
-    _crossAxisCount = await _settingsService.loadCrossAxisCount();
-    _includeSubdirectories = await _settingsService.loadIncludeSubdirectories();
-    _browsingDirectory = await _settingsService.loadBrowsingDirectory();
-    _captionExtension = await _settingsService.loadCaptionExtension(); // 加载新设置
-
-    notifyListeners();
-  }
-
-  // --- 其他状态保持不变 ---
   late int _crossAxisCount;
   int get crossAxisCount => _crossAxisCount;
 

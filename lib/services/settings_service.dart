@@ -2,7 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsService {
-  // --- 新增：Caption Extension ---
+  // --- 新增：Common Tags ---
+  Future<void> saveCommonTags(List<String> tags) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('commonTags', tags);
+  }
+
+  Future<List<String>> loadCommonTags() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('commonTags') ?? []; // 默认空列表
+  }
+
+  // --- 其他设置 (保持不变) ---
+  Future<void> resetSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+  }
+  
   Future<void> saveCaptionExtension(String extension) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('captionExtension', extension);
@@ -10,17 +26,9 @@ class SettingsService {
 
   Future<String> loadCaptionExtension() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('captionExtension') ?? '.txt'; // 默认 .txt
+    return prefs.getString('captionExtension') ?? '.txt';
   }
 
-  // --- 新增：重置所有设置 ---
-  Future<void> resetSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    // 注意：这会清除所有 SharedPreferences 数据！
-    await prefs.clear();
-  }
-
-  // --- 编辑器设置 (保持不变) ---
   Future<void> saveCrossAxisCount(int count) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('crossAxisCount', count);
@@ -55,7 +63,6 @@ class SettingsService {
     return prefs.getString('browsingDirectory');
   }
 
-  // --- 主题和语言设置 (保持不变) ---
   Future<void> saveThemeMode(ThemeMode themeMode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('themeMode', themeMode.name);

@@ -181,6 +181,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save'**
   String get save;
+
+  /// No description provided for @commonTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Common Tags'**
+  String get commonTags;
+
+  /// No description provided for @import.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get import;
+
+  /// No description provided for @newTags.
+  ///
+  /// In en, this message translates to:
+  /// **'New Tags (Click to add)'**
+  String get newTags;
+
+  /// No description provided for @importTagsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Common Tags'**
+  String get importTagsTitle;
+
+  /// No description provided for @importTagsContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste comma-separated tags here.'**
+  String get importTagsContent;
 }
 
 class _AppLocalizationsDelegate

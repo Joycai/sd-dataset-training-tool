@@ -13,5 +13,10 @@
   "resetSettingsConfirmationContent": "Are you sure you want to reset all settings to their default values? This action cannot be undone.",
   "cancel": "Cancel",
   "confirm": "Confirm",
-  "save": "Save"
+  "save": "Save",
+  "commonTags": "Common Tags",
+  "import": "Import",
+  "newTags": "New Tags (Click to add)",
+  "importTagsTitle": "Import Common Tags",
+  "importTagsContent": "Paste comma-separated tags here."
 }

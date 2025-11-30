@@ -13,5 +13,10 @@
   "resetSettingsConfirmationContent": "您确定要将所有设置重置为默认值吗？此操作无法撤销。",
   "cancel": "取消",
   "confirm": "确认",
-  "save": "保存"
+  "save": "保存",
+  "commonTags": "公共标签",
+  "import": "导入",
+  "newTags": "新标签 (点击添加)",
+  "importTagsTitle": "导入公共标签",
+  "importTagsContent": "在此处粘贴以逗号分隔的标签。"
 }

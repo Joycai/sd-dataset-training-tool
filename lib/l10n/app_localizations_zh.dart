@@ -49,4 +49,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get save => '保存';
+
+  @override
+  String get commonTags => '公共标签';
+
+  @override
+  String get import => '导入';
+
+  @override
+  String get newTags => '新标签 (点击添加)';
+
+  @override
+  String get importTagsTitle => '导入公共标签';
+
+  @override
+  String get importTagsContent => '在此处粘贴以逗号分隔的标签。';
 }
