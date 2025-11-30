@@ -1,5 +1,21 @@
 # 数据集训练工具 (DataSet Training Tool)
 
+<div align="center">
+  <a href="https://flutter.dev" target="_blank">
+    <img src="https://img.shields.io/badge/Framework-Flutter_3.22%2B-02569B?logo=flutter" alt="Flutter">
+  </a>
+  <a href="https://dart.dev" target="_blank">
+    <img src="https://img.shields.io/badge/Language-Dart-0175C2?logo=dart" alt="Dart">
+  </a>
+  <a href="./LICENSE" target="_blank">
+    <img src="https://img.shields.io/badge/License-GPL_3.0-blue.svg" alt="License">
+  </a>
+  <br>
+  <img src="https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows" alt="Windows">
+  <img src="https://img.shields.io/badge/Platform-macOS-000000?logo=apple" alt="macOS">
+  <img src="https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux" alt="Linux">
+</div>
+
 ![软件截图](./.images/preview_cn.png)
 
 这是一个使用 Flutter 构建的桌面应用程序，旨在帮助用户高效地管理和编辑图像数据集的描述文件（captions），特别适用于 AI 模型训练的预处理阶段。
