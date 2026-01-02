@@ -12,23 +12,26 @@ import 'widgets/main_app_bar.dart';
 
 void main(List<String> args) async {
   if (args.firstOrNull == 'multi_window') {
+    WidgetsFlutterBinding.ensureInitialized();
     final windowId = int.parse(args[1]);
     // FIX: Explicitly type the empty map to avoid type mismatch.
     final arguments = args[2].isEmpty
         ? const <String, dynamic>{}
         : jsonDecode(args[2]) as Map<String, dynamic>;
 
-    final settingsService = SettingsService();
-    final appState = AppState(settingsService);
-    await appState.loadSettings();
+    // In the secondary window, we might not need to load all settings or use shared_preferences
+    // if it's causing channel connection issues.
+    // For now, let's skip loading settings in the secondary window to avoid the crash.
+    // If settings are needed, we should pass them as arguments or initialize the plugin correctly.
+    
+    // final settingsService = SettingsService();
+    // final appState = AppState(settingsService);
+    // await appState.loadSettings();
     
     runApp(
-      ChangeNotifierProvider.value(
-        value: appState,
-        child: ImagePreviewWindow(
-          windowController: WindowController.fromWindowId(windowId),
-          args: arguments,
-        ),
+      ImagePreviewWindow(
+        windowController: WindowController.fromWindowId(windowId),
+        args: arguments,
       ),
     );
 

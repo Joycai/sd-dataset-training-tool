@@ -139,44 +139,52 @@ class _ImageBrowserState extends State<ImageBrowser> {
   Widget _buildControlBar(AppState appState) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-      child: Row(
-        children: [
-          ElevatedButton.icon(
-            icon: const Icon(Icons.folder_open),
-            label: const Text('Open'),
-            onPressed: _openDirectoryPicker,
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-            onPressed: _scanDirectory,
-          ),
-          const Spacer(),
-          const Text('Columns:'),
-          SizedBox(
-            width: 150,
-            child: Slider(
-              value: appState.crossAxisCount.toDouble(),
-              min: 1,
-              max: 10,
-              divisions: 9,
-              label: appState.crossAxisCount.toString(),
-              onChanged: (value) {
-                appState.updateCrossAxisCount(value.toInt());
-              },
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            ElevatedButton.icon(
+              icon: const Icon(Icons.folder_open),
+              label: const Text('Open'),
+              onPressed: _openDirectoryPicker,
             ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(Icons.subdirectory_arrow_right),
-          Switch(
-            value: appState.includeSubdirectories,
-            onChanged: (value) {
-              appState.updateIncludeSubdirectories(value);
-              _scanDirectory();
-            },
-          ),
-        ],
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Refresh',
+              onPressed: _scanDirectory,
+            ),
+            const SizedBox(width: 16), // Replaced Spacer with fixed width
+            const Text('Columns:'),
+            SizedBox(
+              width: 150,
+              child: Slider(
+                value: appState.crossAxisCount.toDouble(),
+                min: 1,
+                max: 10,
+                divisions: 9,
+                label: appState.crossAxisCount.toString(),
+                onChanged: (value) {
+                  appState.updateCrossAxisCount(value.toInt());
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.subdirectory_arrow_right),
+                Switch(
+                  value: appState.includeSubdirectories,
+                  onChanged: (value) {
+                    appState.updateIncludeSubdirectories(value);
+                    _scanDirectory();
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
