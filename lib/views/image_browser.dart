@@ -19,7 +19,7 @@ class ImageBrowser extends StatefulWidget {
 class _ImageBrowserState extends State<ImageBrowser> {
   List<File> _imageFiles = [];
   bool _isLoading = false;
-  int? _previewWindowId;
+  WindowController? _previewWindow;
   int? _selectedIndex;
 
   @override
@@ -51,6 +51,7 @@ class _ImageBrowserState extends State<ImageBrowser> {
     final directory = Directory(directoryPath);
     final List<File> foundFiles = [];
     final supportedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+    String? errorMessage;
 
     try {
       final stream = directory.list(
@@ -65,8 +66,11 @@ class _ImageBrowserState extends State<ImageBrowser> {
         }
       }
     } catch (e) {
-      print('Error scanning directory: $e');
+      errorMessage = 'Error scanning directory: $e';
     }
+
+    // Stable, platform-independent ordering.
+    foundFiles.sort((a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()));
 
     // Check if the widget is still in the tree before calling setState
     if (mounted) {
@@ -74,12 +78,15 @@ class _ImageBrowserState extends State<ImageBrowser> {
         _imageFiles = foundFiles;
         _isLoading = false;
       });
+      if (errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage)));
+      }
     }
   }
 
   Future<void> _openDirectoryPicker() async {
-    final String? directoryPath = await FilePicker.platform.getDirectoryPath();
-    if (directoryPath != null) {
+    final String? directoryPath = await FilePicker.getDirectoryPath();
+    if (directoryPath != null && mounted) {
       context.read<AppState>().setBrowsingDirectory(directoryPath);
       _scanDirectory();
     }
@@ -87,35 +94,28 @@ class _ImageBrowserState extends State<ImageBrowser> {
 
   Future<void> _showPreviewWindow(int index) async {
     final allImagePaths = _imageFiles.map((f) => f.path).toList();
-    final args = {
+    final args = jsonEncode({
       'imagePaths': allImagePaths,
       'currentIndex': index,
-    };
+    });
 
-    bool windowExists = false;
-    if (_previewWindowId != null) {
-      final allWindowIds = await DesktopMultiWindow.getAllSubWindowIds();
-      if (allWindowIds.contains(_previewWindowId)) {
-        windowExists = true;
+    final existing = _previewWindow;
+    if (existing != null) {
+      try {
+        await existing.invokeMethod('update_image', args);
+        await existing.show();
+        return;
+      } on WindowChannelException {
+        // The preview window was closed; create a new one below.
+        _previewWindow = null;
       }
     }
 
-    if (windowExists) {
-      DesktopMultiWindow.invokeMethod(
-        _previewWindowId!,
-        'update_image',
-        jsonEncode(args),
-      );
-      WindowController.fromWindowId(_previewWindowId!).show();
-    } else {
-      final window = await DesktopMultiWindow.createWindow(jsonEncode(args));
-      _previewWindowId = window.windowId;
-      window
-        ..setFrame(const Offset(0, 0) & const Size(800, 600))
-        ..center()
-        ..setTitle('Image Preview')
-        ..show();
-    }
+    final window = await WindowController.create(
+      WindowConfiguration(arguments: args),
+    );
+    _previewWindow = window;
+    await window.show();
   }
 
   @override
@@ -139,42 +139,61 @@ class _ImageBrowserState extends State<ImageBrowser> {
   Widget _buildControlBar(AppState appState) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-      child: Row(
+      // Wrap instead of Row so the controls flow onto extra lines when the
+      // browser panel is too narrow to fit them all side by side.
+      child: Wrap(
+        spacing: 8.0,
+        runSpacing: 4.0,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          ElevatedButton.icon(
-            icon: const Icon(Icons.folder_open),
-            label: const Text('Open'),
-            onPressed: _openDirectoryPicker,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton.icon(
+                icon: const Icon(Icons.folder_open),
+                label: const Text('Open'),
+                onPressed: _openDirectoryPicker,
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                tooltip: 'Refresh',
+                onPressed: _scanDirectory,
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-            onPressed: _scanDirectory,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Columns:'),
+              SizedBox(
+                width: 150,
+                child: Slider(
+                  value: appState.crossAxisCount.toDouble(),
+                  min: 1,
+                  max: 10,
+                  divisions: 9,
+                  label: appState.crossAxisCount.toString(),
+                  onChanged: (value) {
+                    appState.updateCrossAxisCount(value.toInt());
+                  },
+                ),
+              ),
+            ],
           ),
-          const Spacer(),
-          const Text('Columns:'),
-          SizedBox(
-            width: 150,
-            child: Slider(
-              value: appState.crossAxisCount.toDouble(),
-              min: 1,
-              max: 10,
-              divisions: 9,
-              label: appState.crossAxisCount.toString(),
-              onChanged: (value) {
-                appState.updateCrossAxisCount(value.toInt());
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(Icons.subdirectory_arrow_right),
-          Switch(
-            value: appState.includeSubdirectories,
-            onChanged: (value) {
-              appState.updateIncludeSubdirectories(value);
-              _scanDirectory();
-            },
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.subdirectory_arrow_right),
+              Switch(
+                value: appState.includeSubdirectories,
+                onChanged: (value) {
+                  appState.updateIncludeSubdirectories(value);
+                  _scanDirectory();
+                },
+              ),
+            ],
           ),
         ],
       ),
@@ -220,6 +239,10 @@ class _ImageBrowserState extends State<ImageBrowser> {
               child: Image.file(
                 file,
                 fit: BoxFit.contain,
+                // Decode at thumbnail size instead of full resolution —
+                // large training images (1024px+) would otherwise eat
+                // hundreds of MB of memory in a big grid.
+                cacheWidth: 384,
                 errorBuilder: (context, error, stackTrace) {
                   return const Center(child: Icon(Icons.broken_image));
                 },

@@ -34,15 +34,6 @@ class MainAppBar extends StatelessWidget implements PreferredSizeWidget {
       appState.updateThemeMode(nextMode!);
     }
 
-    void toggleLanguage() {
-      final appState = context.read<AppState>();
-      final nextLocale =
-          appState.currentLocale.languageCode == 'en'
-              ? const Locale('zh')
-              : const Locale('en');
-      appState.updateLocale(nextLocale);
-    }
-
     return AppBar(
       backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       title: Row(

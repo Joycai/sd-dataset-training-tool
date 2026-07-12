@@ -30,7 +30,7 @@ class _ImagePreviewWindowState extends State<ImagePreviewWindow> {
     _imagePaths = List<String>.from(widget.args['imagePaths']);
     _currentIndex = widget.args['currentIndex'];
 
-    DesktopMultiWindow.setMethodHandler((call, fromWindowId) async {
+    widget.windowController.setWindowMethodHandler((call) async {
       if (call.method == 'update_image') {
         final args = jsonDecode(call.arguments) as Map<String, dynamic>;
         setState(() {

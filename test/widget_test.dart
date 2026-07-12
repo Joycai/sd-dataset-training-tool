@@ -1,30 +1,78 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/main.dart';
+import 'package:dataset_training_tool/services/settings_service.dart';
+
+Future<AppState> _createAppState({Map<String, Object> prefs = const {}}) async {
+  SharedPreferences.setMockInitialValues(prefs);
+  final appState = AppState(SettingsService());
+  await appState.loadSettings();
+  return appState;
+}
+
+Widget _wrapApp(AppState appState) {
+  return ChangeNotifierProvider.value(
+    value: appState,
+    child: const MyApp(),
+  );
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('App builds and shows the editor view by default',
+      (WidgetTester tester) async {
+    final appState = await _createAppState();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(_wrapApp(appState));
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Editor view: image browser (left) prompts to open a directory,
+    // workspace (right) prompts to select an image.
+    expect(find.text('Open'), findsOneWidget);
+    expect(find.text('Select an image to start editing.'), findsOneWidget);
+    expect(find.byIcon(Icons.settings), findsOneWidget);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('Settings button switches to the settings view',
+      (WidgetTester tester) async {
+    final appState = await _createAppState();
+
+    await tester.pumpWidget(_wrapApp(appState));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.settings));
+    await tester.pumpAndSettle();
+
+    expect(appState.currentView, MainView.settings);
+    // Language dropdown is only present on the settings page.
+    expect(find.byType(DropdownButton<Locale>), findsOneWidget);
+  });
+
+  test('Settings load defaults from empty preferences', () async {
+    final appState = await _createAppState();
+
+    expect(appState.captionExtension, '.txt');
+    expect(appState.crossAxisCount, 4);
+    expect(appState.includeSubdirectories, false);
+    expect(appState.browsingDirectory, isNull);
+    expect(appState.commonTags, isEmpty);
+    expect(appState.currentLocale, const Locale('en'));
+    expect(appState.currentThemeMode, ThemeMode.system);
+  });
+
+  test('Common tags add/remove persist and de-duplicate', () async {
+    final appState = await _createAppState();
+
+    await appState.addCommonTags(['1girl', 'solo', '1girl']);
+    expect(appState.commonTags, ['1girl', 'solo']);
+
+    await appState.addCommonTags(['solo', 'highres']);
+    expect(appState.commonTags, ['1girl', 'solo', 'highres']);
+
+    await appState.removeCommonTags(['solo']);
+    expect(appState.commonTags, ['1girl', 'highres']);
   });
 }

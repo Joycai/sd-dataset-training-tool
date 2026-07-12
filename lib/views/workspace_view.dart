@@ -53,44 +53,66 @@ class _WorkspaceViewState extends State<WorkspaceView> {
   }
 
   void _onCaptionTextChanged() {
-    if (_tagViewEnabled) {
-      setState(() {
-        _imageTags = _captionController.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
-      });
-    }
+    setState(() {
+      // Parse and de-duplicate (duplicate tags are noise in training captions,
+      // and unique tags give the reorderable grid stable keys).
+      final seen = <String>{};
+      _imageTags = _captionController.text
+          .split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty && seen.add(s))
+          .toList();
+    });
+  }
+
+  void _showMessage(String message, {bool isError = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Theme.of(context).colorScheme.error : null,
+      ),
+    );
   }
 
   Future<void> _loadCaption(File imageFile) async {
-    setState(() => _isLoading = true);
-    final appState = context.read<AppState>();
-    final extension = appState.captionExtension;
-    _captionFilePath = '${p.withoutExtension(imageFile.path)}$extension';
+    final extension = context.read<AppState>().captionExtension;
+    final captionFilePath = '${p.withoutExtension(imageFile.path)}$extension';
+    setState(() {
+      _isLoading = true;
+      _captionFilePath = captionFilePath;
+    });
 
     String content = '';
+    String? errorMessage;
     try {
-      final captionFile = File(_captionFilePath);
+      final captionFile = File(captionFilePath);
       if (await captionFile.exists()) {
         content = await captionFile.readAsString();
       }
     } catch (e) {
-      print("Error loading caption: $e");
+      errorMessage = 'Failed to load caption: $e';
     }
 
+    // Guard against stale results: the user may have selected another image
+    // (which started a newer load) while this one was still reading.
+    if (!mounted || _captionFilePath != captionFilePath) return;
+
     _captionController.text = content;
-    _onCaptionTextChanged();
     setState(() => _isLoading = false);
+    if (errorMessage != null) {
+      _showMessage(errorMessage, isError: true);
+    }
   }
 
   Future<void> _saveCaption() async {
     if (_captionFilePath.isEmpty) return;
+    final path = _captionFilePath;
     try {
-      final captionFile = File(_captionFilePath);
-      await captionFile.writeAsString(_captionController.text);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Caption saved to $_captionFilePath')),
-      );
+      await File(path).writeAsString(_captionController.text);
+      _showMessage('Caption saved to $path');
     } catch (e) {
-      print("Error saving caption: $e");
+      _showMessage('Failed to save caption: $e', isError: true);
     }
   }
 
@@ -120,9 +142,17 @@ class _WorkspaceViewState extends State<WorkspaceView> {
       ),
     );
 
-    if (newTag != null && newTag.isNotEmpty) {
+    if (newTag != null) {
+      // Sanitize: commas would split into multiple tags, so handle that
+      // explicitly instead of producing surprise entries on the next parse.
+      final parts = newTag
+          .split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      if (parts.isEmpty) return;
       setState(() {
-        _imageTags[index] = newTag;
+        _imageTags.replaceRange(index, index + 1, parts);
         _rebuildCaptionFromTags();
       });
     }
@@ -147,7 +177,7 @@ class _WorkspaceViewState extends State<WorkspaceView> {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed == true && mounted) {
       final tags = importController.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
       context.read<AppState>().updateCommonTags(tags);
     }
@@ -172,7 +202,7 @@ class _WorkspaceViewState extends State<WorkspaceView> {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed == true && mounted) {
       final tags = addController.text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
       context.read<AppState>().addCommonTags(tags);
     }
@@ -208,8 +238,9 @@ class _WorkspaceViewState extends State<WorkspaceView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            height: 120,
+          // 1. Caption Text Editor (now in an Expanded)
+          Expanded(
+            flex: 1,
             child: TextField(
               controller: _captionController,
               maxLines: null,
@@ -219,10 +250,14 @@ class _WorkspaceViewState extends State<WorkspaceView> {
             ),
           ),
           const SizedBox(height: 8),
+
+          // 2. Tag View Toggle
           Row(children: [
             const Text('Tag View'),
             Switch(value: _tagViewEnabled, onChanged: (v) => setState(() { _tagViewEnabled = v; _onCaptionTextChanged(); })),
           ]),
+
+          // 3. Image Tags Section
           Text(l10n.imageTags, style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 4),
           Expanded(
@@ -239,6 +274,8 @@ class _WorkspaceViewState extends State<WorkspaceView> {
             ),
           ),
           const SizedBox(height: 8),
+
+          // 4. Common Tags Section
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text(l10n.commonTags, style: Theme.of(context).textTheme.titleSmall),
             Row(mainAxisSize: MainAxisSize.min, children: [
@@ -275,29 +312,39 @@ class _WorkspaceViewState extends State<WorkspaceView> {
             ),
           ),
           const SizedBox(height: 8),
-          if (_tagViewEnabled && newTags.isNotEmpty) ...[
-            Text(l10n.newTags, style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 4),
+
+          // 5. New Tags Section
+          if (_tagViewEnabled && newTags.isNotEmpty)
             Expanded(
               flex: 1,
-              child: AbsorbPointer(
-                absorbing: !_tagViewEnabled,
-                child: Opacity(
-                  opacity: _tagViewEnabled ? 1.0 : 0.4,
-                  child: Container(
-                    decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor), borderRadius: BorderRadius.circular(4)),
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(8.0),
-                      child: _buildTagWrap(newTags, isNewTag: true, onTagTap: (tag) {
-                        context.read<AppState>().addCommonTags([tag]);
-                      }),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(l10n.newTags, style: Theme.of(context).textTheme.titleSmall),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: AbsorbPointer(
+                      absorbing: !_tagViewEnabled,
+                      child: Opacity(
+                        opacity: _tagViewEnabled ? 1.0 : 0.4,
+                        child: Container(
+                          decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor), borderRadius: BorderRadius.circular(4)),
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(8.0),
+                            child: _buildTagWrap(newTags, isNewTag: true, onTagTap: (tag) {
+                              context.read<AppState>().addCommonTags([tag]);
+                            }),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-          ],
+          
+          // 6. Save Button
           ElevatedButton.icon(
             icon: const Icon(Icons.save),
             label: Text(l10n.save),
@@ -330,8 +377,10 @@ class _WorkspaceViewState extends State<WorkspaceView> {
         });
       },
       itemBuilder: (context, index) {
+        // Tags are de-duplicated on parse, so the tag itself is a unique,
+        // position-independent key (stable across reorders).
         return GestureDetector(
-          key: ValueKey(_imageTags[index] + index.toString()),
+          key: ValueKey(_imageTags[index]),
           onDoubleTap: !_tagViewEnabled ? null : () => _editTag(index),
           child: Chip(
             label: Text(_imageTags[index]),

@@ -12,6 +12,7 @@ class SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<SettingsView> {
   late TextEditingController _captionController;
+  final FocusNode _captionFocusNode = FocusNode();
 
   @override
   void initState() {
@@ -24,9 +25,11 @@ class _SettingsViewState extends State<SettingsView> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // 当 AppState 的 captionExtension 发生变化时（例如重置后），更新文本框内容
+    // 当 AppState 的 captionExtension 发生变化时（例如重置后），更新文本框内容。
+    // 正在输入时（有焦点）不同步，避免覆盖用户未提交的输入。
     final appState = context.watch<AppState>();
-    if (_captionController.text != appState.captionExtension) {
+    if (!_captionFocusNode.hasFocus &&
+        _captionController.text != appState.captionExtension) {
       _captionController.text = appState.captionExtension;
     }
   }
@@ -34,7 +37,25 @@ class _SettingsViewState extends State<SettingsView> {
   @override
   void dispose() {
     _captionController.dispose();
+    _captionFocusNode.dispose();
     super.dispose();
+  }
+
+  // 校验并提交扩展名：失焦或回车时才生效，避免输入中间态（如 "." 或 "txt"）
+  // 被立即保存导致查找错误的 caption 文件。
+  void _commitCaptionExtension() {
+    final appState = context.read<AppState>();
+    var value = _captionController.text.trim();
+    if (value.isEmpty || value == '.') {
+      // 非法输入：还原为当前设置
+      _captionController.text = appState.captionExtension;
+      return;
+    }
+    if (!value.startsWith('.')) {
+      value = '.$value';
+    }
+    _captionController.text = value;
+    appState.updateCaptionExtension(value);
   }
 
   // 显示重置确认对话框
@@ -59,7 +80,7 @@ class _SettingsViewState extends State<SettingsView> {
       ),
     );
 
-    if (confirmed == true) {
+    if (confirmed == true && mounted) {
       await context.read<AppState>().resetSettings();
     }
   }
@@ -97,17 +118,20 @@ class _SettingsViewState extends State<SettingsView> {
           title: Text(l10n.captionExtension),
           trailing: SizedBox(
             width: 100,
-            child: TextFormField(
-              controller: _captionController,
-              textAlign: TextAlign.center,
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              ),
-              onChanged: (value) {
-                // 使用 Debounce 或者在 onEditingComplete 中更新会更好，但为了简单起见，我们直接更新
-                appState.updateCaptionExtension(value);
+            child: Focus(
+              focusNode: _captionFocusNode,
+              onFocusChange: (hasFocus) {
+                if (!hasFocus) _commitCaptionExtension();
               },
+              child: TextFormField(
+                controller: _captionController,
+                textAlign: TextAlign.center,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                ),
+                onFieldSubmitted: (_) => _commitCaptionExtension(),
+              ),
             ),
           ),
         ),
