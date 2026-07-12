@@ -48,8 +48,26 @@ class AppState extends ChangeNotifier {
     _captionExtension = await _settingsService.loadCaptionExtension();
     _commonTags = await _settingsService.loadCommonTags();
     _autoSave = await _settingsService.loadAutoSave();
+    final (leftWidth, rightWidth) = await _settingsService.loadPanelWidths();
+    _leftPanelWidth = leftWidth;
+    _rightPanelWidth = rightWidth;
 
     notifyListeners();
+  }
+
+  late double _leftPanelWidth;
+  late double _rightPanelWidth;
+  double get leftPanelWidth => _leftPanelWidth;
+  double get rightPanelWidth => _rightPanelWidth;
+
+  /// Called on drag end (not per pixel) so preferences are written once per
+  /// resize gesture.
+  Future<void> updatePanelWidths(double left, double right) async {
+    if (_leftPanelWidth == left && _rightPanelWidth == right) return;
+    _leftPanelWidth = left;
+    _rightPanelWidth = right;
+    notifyListeners();
+    await _settingsService.savePanelWidths(left, right);
   }
 
   late bool _autoSave;

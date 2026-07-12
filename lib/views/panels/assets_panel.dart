@@ -30,11 +30,9 @@ class AssetsPanel extends StatelessWidget {
     final dataset = context.watch<DatasetState>();
     final appState = context.watch<AppState>();
 
+    // The divider to the center column is drawn by the resize handle.
     return Container(
-      decoration: BoxDecoration(
-        color: semantic.panel,
-        border: Border(right: BorderSide(color: semantic.line)),
-      ),
+      color: semantic.panel,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

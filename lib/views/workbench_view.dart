@@ -7,8 +7,10 @@ import 'package:provider/provider.dart';
 
 import '../app_state.dart';
 import '../services/preview_window_launcher.dart';
+import '../services/settings_service.dart';
 import '../state/dataset_state.dart';
 import '../state/editor_session.dart';
+import '../widgets/resize_handle.dart';
 import '../widgets/status_bar.dart';
 import '../widgets/workbench_top_bar.dart';
 import 'panels/assets_panel.dart';
@@ -26,15 +28,27 @@ class WorkbenchView extends StatefulWidget {
 }
 
 class _WorkbenchViewState extends State<WorkbenchView> {
+  // Side panels stay usable within these bounds; the center column always
+  // keeps at least [_centerMinWidth] for the preview and editor.
+  static const double _panelMinWidth = 200;
+  static const double _panelMaxWidth = 480;
+  static const double _centerMinWidth = 320;
+  static const double _handleWidth = 7;
+
   final DatasetState _dataset = DatasetState();
   final EditorSession _session = EditorSession();
   final PreviewWindowLauncher _previewWindow = PreviewWindowLauncher();
   final FocusNode _libraryFilterFocus = FocusNode();
   String? _lastLoadedPath;
+  late double _leftWidth;
+  late double _rightWidth;
 
   @override
   void initState() {
     super.initState();
+    final appState = context.read<AppState>();
+    _leftWidth = appState.leftPanelWidth;
+    _rightWidth = appState.rightPanelWidth;
     _session.onSaved = _dataset.markCaptioned;
     _dataset.addListener(_onDatasetChanged);
 
@@ -100,6 +114,21 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     await _previewWindow.show(visible.map((f) => f.path).toList(), index);
   }
 
+  /// Clamps a panel width to its own bounds and to whatever room the window
+  /// leaves after the other panel and the center minimum.
+  double _clampPanelWidth(double value, double otherPanel, double total) {
+    final available =
+        total - otherPanel - _centerMinWidth - 2 * _handleWidth;
+    final max = available < _panelMinWidth
+        ? _panelMinWidth
+        : available.clamp(_panelMinWidth, _panelMaxWidth).toDouble();
+    return value.clamp(_panelMinWidth, max).toDouble();
+  }
+
+  void _persistPanelWidths() {
+    context.read<AppState>().updatePanelWidths(_leftWidth, _rightWidth);
+  }
+
   @override
   Widget build(BuildContext context) {
     // Keep the session's autosave behavior in sync with the setting.
@@ -127,48 +156,81 @@ class _WorkbenchViewState extends State<WorkbenchView> {
             children: [
               WorkbenchTopBar(onOpenFolder: _openFolder),
               Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      width: 264,
-                      child: AssetsPanel(
-                        onOpenFolder: _openFolder,
-                        onRefresh: _refresh,
-                        onOpenExternalPreview: _openExternalPreview,
+                child: LayoutBuilder(builder: (context, constraints) {
+                  final total = constraints.maxWidth;
+                  final left = _clampPanelWidth(_leftWidth, _rightWidth, total);
+                  final right = _clampPanelWidth(_rightWidth, left, total);
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        width: left,
+                        child: AssetsPanel(
+                          onOpenFolder: _openFolder,
+                          onRefresh: _refresh,
+                          onOpenExternalPreview: _openExternalPreview,
+                        ),
                       ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Expanded(
-                            flex: 4,
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(14, 14, 14, 0),
-                              child: PreviewPanel(
-                                onOpenExternalPreview: _openExternalPreview,
+                      ResizeHandle(
+                        onDrag: (delta) => setState(() {
+                          _leftWidth = _clampPanelWidth(
+                              left + delta, right, total);
+                        }),
+                        onDragEnd: _persistPanelWidths,
+                        onReset: () {
+                          setState(() {
+                            _leftWidth = SettingsService.defaultLeftPanelWidth;
+                          });
+                          _persistPanelWidths();
+                        },
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Expanded(
+                              flex: 4,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(8, 14, 8, 0),
+                                child: PreviewPanel(
+                                  onOpenExternalPreview: _openExternalPreview,
+                                ),
                               ),
                             ),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: const CaptionPanel(),
+                            Expanded(
+                              flex: 3,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(8, 14, 8, 14),
+                                child: const CaptionPanel(),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    SizedBox(
-                      width: 300,
-                      child: TagLibraryPanel(
-                        filterFocusNode: _libraryFilterFocus,
+                      ResizeHandle(
+                        onDrag: (delta) => setState(() {
+                          _rightWidth = _clampPanelWidth(
+                              right - delta, left, total);
+                        }),
+                        onDragEnd: _persistPanelWidths,
+                        onReset: () {
+                          setState(() {
+                            _rightWidth =
+                                SettingsService.defaultRightPanelWidth;
+                          });
+                          _persistPanelWidths();
+                        },
                       ),
-                    ),
-                  ],
-                ),
+                      SizedBox(
+                        width: right,
+                        child: TagLibraryPanel(
+                          filterFocusNode: _libraryFilterFocus,
+                        ),
+                      ),
+                    ],
+                  );
+                }),
               ),
               const StatusBar(),
             ],

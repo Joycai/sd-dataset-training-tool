@@ -136,11 +136,9 @@ class _TagLibraryPanelState extends State<TagLibraryPanel> {
         ? session.tags.where((t) => !commonSet.contains(t)).toList()
         : const <String>[];
 
+    // The divider to the center column is drawn by the resize handle.
     return Container(
-      decoration: BoxDecoration(
-        color: semantic.panel,
-        border: Border(left: BorderSide(color: semantic.line)),
-      ),
+      color: semantic.panel,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

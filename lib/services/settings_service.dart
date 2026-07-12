@@ -77,6 +77,23 @@ class SettingsService {
     );
   }
 
+  static const double defaultLeftPanelWidth = 264;
+  static const double defaultRightPanelWidth = 300;
+
+  Future<void> savePanelWidths(double left, double right) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('leftPanelWidth', left);
+    await prefs.setDouble('rightPanelWidth', right);
+  }
+
+  Future<(double, double)> loadPanelWidths() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (
+      prefs.getDouble('leftPanelWidth') ?? defaultLeftPanelWidth,
+      prefs.getDouble('rightPanelWidth') ?? defaultRightPanelWidth,
+    );
+  }
+
   Future<void> saveAutoSave(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('autoSave', value);
