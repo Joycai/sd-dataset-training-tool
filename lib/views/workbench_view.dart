@@ -42,6 +42,11 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   String? _lastLoadedPath;
   late double _leftWidth;
   late double _rightWidth;
+  // Drag anchor: pointer x and panel width at drag start. Widths are computed
+  // from the anchor on every update, so events arriving between frames can
+  // never be lost to a stale build snapshot.
+  double _dragAnchorX = 0;
+  double _dragStartWidth = 0;
 
   @override
   void initState() {
@@ -172,9 +177,15 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                         ),
                       ),
                       ResizeHandle(
-                        onDrag: (delta) => setState(() {
+                        onDragStart: (x) {
+                          _dragAnchorX = x;
+                          _dragStartWidth = left;
+                        },
+                        onDragUpdate: (x) => setState(() {
                           _leftWidth = _clampPanelWidth(
-                              left + delta, right, total);
+                              _dragStartWidth + (x - _dragAnchorX),
+                              right,
+                              total);
                         }),
                         onDragEnd: _persistPanelWidths,
                         onReset: () {
@@ -209,9 +220,15 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                         ),
                       ),
                       ResizeHandle(
-                        onDrag: (delta) => setState(() {
+                        onDragStart: (x) {
+                          _dragAnchorX = x;
+                          _dragStartWidth = right;
+                        },
+                        onDragUpdate: (x) => setState(() {
                           _rightWidth = _clampPanelWidth(
-                              right - delta, left, total);
+                              _dragStartWidth - (x - _dragAnchorX),
+                              left,
+                              total);
                         }),
                         onDragEnd: _persistPanelWidths,
                         onReset: () {

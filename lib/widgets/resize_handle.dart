@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -5,16 +6,25 @@ import '../theme/app_theme.dart';
 /// Vertical drag handle between panels. Draws the panel divider line and
 /// widens/highlights it while hovered or dragged; double-tap restores the
 /// panel's default width.
+///
+/// Reports absolute pointer positions rather than per-event deltas: deltas
+/// accumulated against a build-time snapshot lose events that arrive between
+/// frames, which makes the drag lag behind the pointer.
 class ResizeHandle extends StatefulWidget {
   const ResizeHandle({
     super.key,
-    required this.onDrag,
+    required this.onDragStart,
+    required this.onDragUpdate,
     this.onDragEnd,
     this.onReset,
   });
 
-  /// Horizontal drag delta in logical pixels (positive = pointer moved right).
-  final ValueChanged<double> onDrag;
+  /// Global x position where the drag started.
+  final ValueChanged<double> onDragStart;
+
+  /// Current global x position of the pointer during the drag.
+  final ValueChanged<double> onDragUpdate;
+
   final VoidCallback? onDragEnd;
   final VoidCallback? onReset;
 
@@ -38,8 +48,15 @@ class _ResizeHandleState extends State<ResizeHandle> {
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onHorizontalDragUpdate: (details) => widget.onDrag(details.delta.dx),
-        onHorizontalDragStart: (_) => setState(() => _dragging = true),
+        // Anchor the gesture at pointer-down so the initial touch slop is
+        // included in the first update instead of showing up as a dead zone.
+        dragStartBehavior: DragStartBehavior.down,
+        onHorizontalDragStart: (details) {
+          setState(() => _dragging = true);
+          widget.onDragStart(details.globalPosition.dx);
+        },
+        onHorizontalDragUpdate: (details) =>
+            widget.onDragUpdate(details.globalPosition.dx),
         onHorizontalDragEnd: (_) {
           setState(() => _dragging = false);
           widget.onDragEnd?.call();

@@ -87,21 +87,22 @@ void main() {
     expect(tester.getSize(find.byType(AssetsPanel)).width,
         SettingsService.defaultLeftPanelWidth);
 
-    // Drag the left handle to the right: the assets panel grows and the new
-    // width is persisted. (The exact delta loses a few px to gesture slop.)
+    // Drag the left handle 60px to the right: the assets panel grows by
+    // exactly the pointer travel (anchor-based drag, no slop dead zone).
     await tester.drag(find.byType(ResizeHandle).first, const Offset(60, 0));
     await tester.pumpAndSettle();
-    final leftWidth = tester.getSize(find.byType(AssetsPanel)).width;
-    expect(leftWidth, greaterThan(SettingsService.defaultLeftPanelWidth + 30));
-    expect(appState.leftPanelWidth, leftWidth);
+    expect(tester.getSize(find.byType(AssetsPanel)).width,
+        SettingsService.defaultLeftPanelWidth + 60);
+    expect(
+        appState.leftPanelWidth, SettingsService.defaultLeftPanelWidth + 60);
 
-    // Drag the right handle to the right: the library shrinks.
+    // Drag the right handle 80px to the right: the library shrinks.
     await tester.drag(find.byType(ResizeHandle).last, const Offset(80, 0));
     await tester.pumpAndSettle();
-    final rightWidth = tester.getSize(find.byType(TagLibraryPanel)).width;
-    expect(rightWidth,
-        lessThan(SettingsService.defaultRightPanelWidth - 40));
-    expect(appState.rightPanelWidth, rightWidth);
+    expect(tester.getSize(find.byType(TagLibraryPanel)).width,
+        SettingsService.defaultRightPanelWidth - 80);
+    expect(appState.rightPanelWidth,
+        SettingsService.defaultRightPanelWidth - 80);
 
     // Widths never shrink below the panel minimum.
     await tester.drag(find.byType(ResizeHandle).last, const Offset(500, 0));
