@@ -47,8 +47,19 @@ class AppState extends ChangeNotifier {
     _browsingDirectory = await _settingsService.loadBrowsingDirectory();
     _captionExtension = await _settingsService.loadCaptionExtension();
     _commonTags = await _settingsService.loadCommonTags();
+    _autoSave = await _settingsService.loadAutoSave();
 
     notifyListeners();
+  }
+
+  late bool _autoSave;
+  bool get autoSave => _autoSave;
+
+  Future<void> updateAutoSave(bool value) async {
+    if (_autoSave == value) return;
+    _autoSave = value;
+    notifyListeners();
+    await _settingsService.saveAutoSave(value);
   }
 
   Future<void> resetSettings() async {

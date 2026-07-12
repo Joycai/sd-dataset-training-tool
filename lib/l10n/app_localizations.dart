@@ -241,6 +241,360 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Image Tags'**
   String get imageTags;
+
+  /// No description provided for @assetsPanelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assets'**
+  String get assetsPanelTitle;
+
+  /// No description provided for @searchFilenameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search filenames'**
+  String get searchFilenameHint;
+
+  /// No description provided for @filterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get filterAll;
+
+  /// No description provided for @filterUntagged.
+  ///
+  /// In en, this message translates to:
+  /// **'Untagged'**
+  String get filterUntagged;
+
+  /// No description provided for @filterTagged.
+  ///
+  /// In en, this message translates to:
+  /// **'Tagged'**
+  String get filterTagged;
+
+  /// No description provided for @columnsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} col'**
+  String columnsCount(int count);
+
+  /// No description provided for @openFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Folder'**
+  String get openFolder;
+
+  /// No description provided for @refresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get refresh;
+
+  /// No description provided for @noImagesFound.
+  ///
+  /// In en, this message translates to:
+  /// **'No images yet. Open a folder to start.'**
+  String get noImagesFound;
+
+  /// No description provided for @noMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No images match the current filter.'**
+  String get noMatches;
+
+  /// No description provided for @scanError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to scan directory: {error}'**
+  String scanError(String error);
+
+  /// No description provided for @noDatasetOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'No folder open'**
+  String get noDatasetOpen;
+
+  /// No description provided for @imageCountShort.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} images'**
+  String imageCountShort(int count);
+
+  /// No description provided for @selectImageHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an image from the assets panel.'**
+  String get selectImageHint;
+
+  /// No description provided for @previousImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous image'**
+  String get previousImage;
+
+  /// No description provided for @nextImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Next image'**
+  String get nextImage;
+
+  /// No description provided for @fitToWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit to window'**
+  String get fitToWindow;
+
+  /// No description provided for @openInNewWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in separate window'**
+  String get openInNewWindow;
+
+  /// No description provided for @textTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Text'**
+  String get textTab;
+
+  /// No description provided for @tagsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get tagsTab;
+
+  /// No description provided for @tagCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tags'**
+  String tagCount(int count);
+
+  /// No description provided for @savedAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved {time}'**
+  String savedAt(String time);
+
+  /// No description provided for @unsavedChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsaved changes'**
+  String get unsavedChanges;
+
+  /// No description provided for @savingNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving'**
+  String get savingNow;
+
+  /// No description provided for @saveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Save failed'**
+  String get saveFailed;
+
+  /// No description provided for @captionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write the caption here, tags separated by commas'**
+  String get captionHint;
+
+  /// No description provided for @addTagHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a tag and press Enter'**
+  String get addTagHint;
+
+  /// No description provided for @noTagsYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags yet.'**
+  String get noTagsYet;
+
+  /// No description provided for @editTagTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Tag'**
+  String get editTagTitle;
+
+  /// No description provided for @tagLibraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag Library'**
+  String get tagLibraryTitle;
+
+  /// No description provided for @filterTagsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter tags'**
+  String get filterTagsHint;
+
+  /// No description provided for @clickToApplyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Click to apply, click again to remove'**
+  String get clickToApplyHint;
+
+  /// No description provided for @newTagsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'New in this image'**
+  String get newTagsSection;
+
+  /// No description provided for @addAllToLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Add all'**
+  String get addAllToLibrary;
+
+  /// No description provided for @legendApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied'**
+  String get legendApplied;
+
+  /// No description provided for @legendNotApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Not applied'**
+  String get legendNotApplied;
+
+  /// No description provided for @legendNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get legendNew;
+
+  /// No description provided for @removeFromLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from library'**
+  String get removeFromLibrary;
+
+  /// No description provided for @libraryEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'The library is empty. Use the plus button to add tags.'**
+  String get libraryEmpty;
+
+  /// No description provided for @taggedProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Tagged {tagged} / {total}'**
+  String taggedProgress(int tagged, int total);
+
+  /// No description provided for @autoSaveOnStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-save on'**
+  String get autoSaveOnStatus;
+
+  /// No description provided for @autoSaveOffStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-save off'**
+  String get autoSaveOffStatus;
+
+  /// No description provided for @saveShortcutHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Ctrl+S to save now'**
+  String get saveShortcutHint;
+
+  /// No description provided for @appearanceSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get appearanceSection;
+
+  /// No description provided for @datasetSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Dataset'**
+  String get datasetSection;
+
+  /// No description provided for @dangerZone.
+  ///
+  /// In en, this message translates to:
+  /// **'Danger Zone'**
+  String get dangerZone;
+
+  /// No description provided for @languageDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface display language'**
+  String get languageDesc;
+
+  /// No description provided for @themeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get themeTitle;
+
+  /// No description provided for @themeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark is easier on the eyes for long sessions'**
+  String get themeDesc;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get themeLight;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get themeDark;
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get themeSystem;
+
+  /// No description provided for @captionExtensionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Suffix of the caption file that shares the image\'s name, e.g. .txt or .caption'**
+  String get captionExtensionDesc;
+
+  /// No description provided for @includeSubdirsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Include subdirectories'**
+  String get includeSubdirsTitle;
+
+  /// No description provided for @includeSubdirsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Recursively scan all folders inside the opened directory'**
+  String get includeSubdirsDesc;
+
+  /// No description provided for @autoSaveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-save'**
+  String get autoSaveTitle;
+
+  /// No description provided for @autoSaveDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Write the caption file 0.8 s after you stop editing'**
+  String get autoSaveDesc;
+
+  /// No description provided for @resetDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore defaults and clear the tag library. Images and caption files are not touched.'**
+  String get resetDesc;
+
+  /// No description provided for @resetAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get resetAction;
 }
 
 class _AppLocalizationsDelegate

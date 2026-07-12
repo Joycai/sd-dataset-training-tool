@@ -30,10 +30,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get language => '语言';
 
   @override
-  String get captionExtension => '描述文件扩展名';
+  String get captionExtension => 'Caption 文件扩展名';
 
   @override
-  String get resetSettings => '重置设置';
+  String get resetSettings => '重置所有设置';
 
   @override
   String get resetSettingsConfirmationTitle => '确认重置';
@@ -51,7 +51,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get save => '保存';
 
   @override
-  String get commonTags => '公共标签';
+  String get commonTags => '常用标签';
 
   @override
   String get import => '导入/替换';
@@ -60,10 +60,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get newTags => '新标签 (点击添加)';
 
   @override
-  String get importTagsTitle => '导入/替换公共标签';
+  String get importTagsTitle => '导入/替换常用标签';
 
   @override
-  String get importTagsContent => '在此处粘贴以逗号分隔的标签。这将会替换所有现有的公共标签。';
+  String get importTagsContent => '在此处粘贴以逗号分隔的标签。这将会替换所有现有的常用标签。';
 
   @override
   String get add => '添加';
@@ -72,11 +72,200 @@ class AppLocalizationsZh extends AppLocalizations {
   String get delete => '删除';
 
   @override
-  String get addTagsTitle => '添加公共标签';
+  String get addTagsTitle => '添加常用标签';
 
   @override
   String get addTagsContent => '在此处粘贴以逗号分隔的标签，以添加到现有列表。';
 
   @override
   String get imageTags => '图片标签';
+
+  @override
+  String get assetsPanelTitle => '素材';
+
+  @override
+  String get searchFilenameHint => '搜索文件名';
+
+  @override
+  String get filterAll => '全部';
+
+  @override
+  String get filterUntagged => '未打标';
+
+  @override
+  String get filterTagged => '已打标';
+
+  @override
+  String columnsCount(int count) {
+    return '$count 列';
+  }
+
+  @override
+  String get openFolder => '打开文件夹';
+
+  @override
+  String get refresh => '刷新';
+
+  @override
+  String get noImagesFound => '还没有图片，打开一个文件夹开始。';
+
+  @override
+  String get noMatches => '没有符合当前筛选条件的图片。';
+
+  @override
+  String scanError(String error) {
+    return '扫描目录失败：$error';
+  }
+
+  @override
+  String get noDatasetOpen => '未打开文件夹';
+
+  @override
+  String imageCountShort(int count) {
+    return '$count 张';
+  }
+
+  @override
+  String get selectImageHint => '在左侧素材面板选择一张图片。';
+
+  @override
+  String get previousImage => '上一张';
+
+  @override
+  String get nextImage => '下一张';
+
+  @override
+  String get fitToWindow => '适应窗口';
+
+  @override
+  String get openInNewWindow => '在独立窗口打开';
+
+  @override
+  String get textTab => '文本';
+
+  @override
+  String get tagsTab => '标签';
+
+  @override
+  String tagCount(int count) {
+    return '$count 个标签';
+  }
+
+  @override
+  String savedAt(String time) {
+    return '已保存 $time';
+  }
+
+  @override
+  String get unsavedChanges => '未保存的更改';
+
+  @override
+  String get savingNow => '保存中';
+
+  @override
+  String get saveFailed => '保存失败';
+
+  @override
+  String get captionHint => '在这里编写 caption，标签之间用逗号分隔';
+
+  @override
+  String get addTagHint => '输入标签后按回车添加';
+
+  @override
+  String get noTagsYet => '还没有标签。';
+
+  @override
+  String get editTagTitle => '编辑标签';
+
+  @override
+  String get tagLibraryTitle => '常用标签库';
+
+  @override
+  String get filterTagsHint => '筛选标签';
+
+  @override
+  String get clickToApplyHint => '单击应用，再次单击移除';
+
+  @override
+  String get newTagsSection => '本图新标签';
+
+  @override
+  String get addAllToLibrary => '全部入库';
+
+  @override
+  String get legendApplied => '已应用';
+
+  @override
+  String get legendNotApplied => '未应用';
+
+  @override
+  String get legendNew => '新标签';
+
+  @override
+  String get removeFromLibrary => '从库中移除';
+
+  @override
+  String get libraryEmpty => '标签库是空的，点击加号添加标签。';
+
+  @override
+  String taggedProgress(int tagged, int total) {
+    return '已打标 $tagged / $total';
+  }
+
+  @override
+  String get autoSaveOnStatus => '自动保存已开启';
+
+  @override
+  String get autoSaveOffStatus => '自动保存已关闭';
+
+  @override
+  String get saveShortcutHint => 'Ctrl+S 立即保存';
+
+  @override
+  String get appearanceSection => '外观';
+
+  @override
+  String get datasetSection => '数据集';
+
+  @override
+  String get dangerZone => '危险区';
+
+  @override
+  String get languageDesc => '界面显示语言';
+
+  @override
+  String get themeTitle => '主题';
+
+  @override
+  String get themeDesc => '暗色更适合长时间看图';
+
+  @override
+  String get themeLight => '亮色';
+
+  @override
+  String get themeDark => '暗色';
+
+  @override
+  String get themeSystem => '跟随系统';
+
+  @override
+  String get captionExtensionDesc => '与图片同名的标注文件后缀，常见 .txt / .caption';
+
+  @override
+  String get includeSubdirsTitle => '默认包含子目录';
+
+  @override
+  String get includeSubdirsDesc => '打开目录时递归扫描其下所有子文件夹';
+
+  @override
+  String get autoSaveTitle => '自动保存';
+
+  @override
+  String get autoSaveDesc => '停止编辑 0.8 秒后自动写入 caption 文件';
+
+  @override
+  String get resetDesc => '恢复默认值并清空常用标签库，不影响任何图片与 caption 文件';
+
+  @override
+  String get resetAction => '重置';
 }

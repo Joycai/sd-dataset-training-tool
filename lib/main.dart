@@ -7,10 +7,10 @@ import 'package:provider/provider.dart';
 import 'app_state.dart';
 import 'l10n/app_localizations.dart';
 import 'services/settings_service.dart';
-import 'views/editor_view.dart';
+import 'theme/app_theme.dart';
 import 'views/image_preview_window.dart';
 import 'views/settings_view.dart';
-import 'widgets/main_app_bar.dart';
+import 'views/workbench_view.dart';
 
 bool get _isDesktop =>
     !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
@@ -62,15 +62,8 @@ class MyApp extends StatelessWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       locale: appState.currentLocale,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        brightness: Brightness.light,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.deepPurple, brightness: Brightness.dark),
-        brightness: Brightness.dark,
-      ),
+      theme: buildAppTheme(Brightness.light),
+      darkTheme: buildAppTheme(Brightness.dark),
       themeMode: appState.currentThemeMode,
       home: const MyHomePage(),
     );
@@ -84,16 +77,12 @@ class MyHomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
 
-    const Widget editorView = EditorView();
-    const Widget settingsView = SettingsView();
-
     return Scaffold(
-      appBar: const MainAppBar(),
       body: IndexedStack(
         index: appState.currentView.index,
-        children: [
-          editorView,
-          settingsView,
+        children: const [
+          WorkbenchView(),
+          SettingsView(),
         ],
       ),
     );

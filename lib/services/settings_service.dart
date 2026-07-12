@@ -77,6 +77,16 @@ class SettingsService {
     );
   }
 
+  Future<void> saveAutoSave(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('autoSave', value);
+  }
+
+  Future<bool> loadAutoSave() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('autoSave') ?? true;
+  }
+
   Future<void> saveLocale(Locale locale) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('languageCode', locale.languageCode);

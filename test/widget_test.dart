@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/main.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
+import 'package:dataset_training_tool/state/dataset_state.dart';
 
 Future<AppState> _createAppState({Map<String, Object> prefs = const {}}) async {
   SharedPreferences.setMockInitialValues(prefs);
@@ -22,18 +23,18 @@ Widget _wrapApp(AppState appState) {
 }
 
 void main() {
-  testWidgets('App builds and shows the editor view by default',
+  testWidgets('App builds and shows the workbench by default',
       (WidgetTester tester) async {
     final appState = await _createAppState();
 
     await tester.pumpWidget(_wrapApp(appState));
     await tester.pumpAndSettle();
 
-    // Editor view: image browser (left) prompts to open a directory,
-    // workspace (right) prompts to select an image.
-    expect(find.text('Open'), findsOneWidget);
-    expect(find.text('Select an image to start editing.'), findsOneWidget);
-    expect(find.byIcon(Icons.settings), findsOneWidget);
+    // Assets panel empty state prompts to open a folder; the preview and
+    // caption editor both hint at selecting an image.
+    expect(find.text('Open Folder'), findsOneWidget);
+    expect(find.text('Select an image from the assets panel.'), findsWidgets);
+    expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
   });
 
   testWidgets('Settings button switches to the settings view',
@@ -43,12 +44,17 @@ void main() {
     await tester.pumpWidget(_wrapApp(appState));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.settings));
+    await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
 
     expect(appState.currentView, MainView.settings);
     // Language dropdown is only present on the settings page.
     expect(find.byType(DropdownButton<Locale>), findsOneWidget);
+
+    // Back arrow returns to the workbench.
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.pumpAndSettle();
+    expect(appState.currentView, MainView.editor);
   });
 
   test('Settings load defaults from empty preferences', () async {
@@ -59,6 +65,7 @@ void main() {
     expect(appState.includeSubdirectories, false);
     expect(appState.browsingDirectory, isNull);
     expect(appState.commonTags, isEmpty);
+    expect(appState.autoSave, isTrue);
     expect(appState.currentLocale, const Locale('en'));
     expect(appState.currentThemeMode, ThemeMode.system);
   });
@@ -74,5 +81,17 @@ void main() {
 
     await appState.removeCommonTags(['solo']);
     expect(appState.commonTags, ['1girl', 'highres']);
+  });
+
+  test('Dataset filters and selection navigate the visible list', () {
+    final dataset = DatasetState();
+    expect(dataset.visibleFiles, isEmpty);
+    expect(dataset.selectByOffset(1), isNull);
+    expect(dataset.selectedVisibleIndex, -1);
+
+    dataset.setQuery('foo');
+    expect(dataset.query, 'foo');
+    dataset.setFilter(CaptionFilter.untagged);
+    expect(dataset.filter, CaptionFilter.untagged);
   });
 }
