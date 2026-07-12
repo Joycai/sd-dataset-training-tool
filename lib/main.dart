@@ -1,53 +1,53 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'app_state.dart';
 import 'l10n/app_localizations.dart';
 import 'services/settings_service.dart';
-import 'views/editor_view.dart';
+import 'theme/app_theme.dart';
 import 'views/image_preview_window.dart';
 import 'views/settings_view.dart';
-import 'widgets/main_app_bar.dart';
+import 'views/workbench_view.dart';
+
+bool get _isDesktop =>
+    !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
 void main(List<String> args) async {
-  if (args.firstOrNull == 'multi_window') {
-    final windowId = int.parse(args[1]);
-    // FIX: Explicitly type the empty map to avoid type mismatch.
-    final arguments = args[2].isEmpty
-        ? const <String, dynamic>{}
-        : jsonDecode(args[2]) as Map<String, dynamic>;
+  WidgetsFlutterBinding.ensureInitialized();
 
-    final settingsService = SettingsService();
-    final appState = AppState(settingsService);
-    await appState.loadSettings();
-    
-    runApp(
-      ChangeNotifierProvider.value(
-        value: appState,
-        child: ImagePreviewWindow(
-          windowController: WindowController.fromWindowId(windowId),
-          args: arguments,
+  final settingsService = SettingsService();
+  final appState = AppState(settingsService);
+  await appState.loadSettings();
+
+  if (_isDesktop) {
+    final windowController = await WindowController.fromCurrentEngine();
+    // Sub-windows are created with a JSON payload as arguments; the main
+    // window has none.
+    if (windowController.arguments.isNotEmpty) {
+      final arguments =
+          jsonDecode(windowController.arguments) as Map<String, dynamic>;
+      runApp(
+        ChangeNotifierProvider.value(
+          value: appState,
+          child: ImagePreviewWindow(
+            windowController: windowController,
+            args: arguments,
+          ),
         ),
-      ),
-    );
-
-  } else {
-    // This is the main window
-    WidgetsFlutterBinding.ensureInitialized();
-
-    final settingsService = SettingsService();
-    final appState = AppState(settingsService);
-
-    await appState.loadSettings();
-
-    runApp(
-      ChangeNotifierProvider.value(
-        value: appState,
-        child: const MyApp(),
-      ),
-    );
+      );
+      return;
+    }
   }
+
+  runApp(
+    ChangeNotifierProvider.value(
+      value: appState,
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -62,15 +62,8 @@ class MyApp extends StatelessWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       locale: appState.currentLocale,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        brightness: Brightness.light,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-            seedColor: Colors.deepPurple, brightness: Brightness.dark),
-        brightness: Brightness.dark,
-      ),
+      theme: buildAppTheme(Brightness.light),
+      darkTheme: buildAppTheme(Brightness.dark),
       themeMode: appState.currentThemeMode,
       home: const MyHomePage(),
     );
@@ -84,16 +77,12 @@ class MyHomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
 
-    const Widget editorView = EditorView();
-    const Widget settingsView = SettingsView();
-
     return Scaffold(
-      appBar: const MainAppBar(),
       body: IndexedStack(
         index: appState.currentView.index,
-        children: [
-          editorView,
-          settingsView,
+        children: const [
+          WorkbenchView(),
+          SettingsView(),
         ],
       ),
     );

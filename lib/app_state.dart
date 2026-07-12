@@ -15,14 +15,16 @@ class AppState extends ChangeNotifier {
   late List<String> _commonTags;
   List<String> get commonTags => _commonTags;
 
-  void updateCommonTags(List<String> tags) async {
+  Future<void> updateCommonTags(List<String> tags) async {
     _commonTags = tags;
     notifyListeners();
     await _settingsService.saveCommonTags(tags);
   }
 
-  void addCommonTags(List<String> tags) async {
-    final newTags = tags.where((tag) => !_commonTags.contains(tag)).toList();
+  Future<void> addCommonTags(List<String> tags) async {
+    // De-duplicate against existing tags and within the input itself.
+    final seen = _commonTags.toSet();
+    final newTags = tags.where(seen.add).toList();
     if (newTags.isNotEmpty) {
       _commonTags.addAll(newTags);
       notifyListeners();
@@ -30,7 +32,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void removeCommonTags(List<String> tags) async {
+  Future<void> removeCommonTags(List<String> tags) async {
     _commonTags.removeWhere((tag) => tags.contains(tag));
     notifyListeners();
     await _settingsService.saveCommonTags(_commonTags);
@@ -45,8 +47,37 @@ class AppState extends ChangeNotifier {
     _browsingDirectory = await _settingsService.loadBrowsingDirectory();
     _captionExtension = await _settingsService.loadCaptionExtension();
     _commonTags = await _settingsService.loadCommonTags();
+    _autoSave = await _settingsService.loadAutoSave();
+    final (leftWidth, rightWidth) = await _settingsService.loadPanelWidths();
+    _leftPanelWidth = leftWidth;
+    _rightPanelWidth = rightWidth;
 
     notifyListeners();
+  }
+
+  late double _leftPanelWidth;
+  late double _rightPanelWidth;
+  double get leftPanelWidth => _leftPanelWidth;
+  double get rightPanelWidth => _rightPanelWidth;
+
+  /// Called on drag end (not per pixel) so preferences are written once per
+  /// resize gesture.
+  Future<void> updatePanelWidths(double left, double right) async {
+    if (_leftPanelWidth == left && _rightPanelWidth == right) return;
+    _leftPanelWidth = left;
+    _rightPanelWidth = right;
+    notifyListeners();
+    await _settingsService.savePanelWidths(left, right);
+  }
+
+  late bool _autoSave;
+  bool get autoSave => _autoSave;
+
+  Future<void> updateAutoSave(bool value) async {
+    if (_autoSave == value) return;
+    _autoSave = value;
+    notifyListeners();
+    await _settingsService.saveAutoSave(value);
   }
 
   Future<void> resetSettings() async {
@@ -57,7 +88,7 @@ class AppState extends ChangeNotifier {
   late String _captionExtension;
   String get captionExtension => _captionExtension;
 
-  void updateCaptionExtension(String extension) async {
+  Future<void> updateCaptionExtension(String extension) async {
     if (_captionExtension == extension) return;
     _captionExtension = extension;
     notifyListeners();
@@ -73,21 +104,21 @@ class AppState extends ChangeNotifier {
   String? _browsingDirectory;
   String? get browsingDirectory => _browsingDirectory;
 
-  void updateCrossAxisCount(int count) async {
+  Future<void> updateCrossAxisCount(int count) async {
     if (_crossAxisCount == count) return;
     _crossAxisCount = count;
     notifyListeners();
     await _settingsService.saveCrossAxisCount(count);
   }
 
-  void updateIncludeSubdirectories(bool value) async {
+  Future<void> updateIncludeSubdirectories(bool value) async {
     if (_includeSubdirectories == value) return;
     _includeSubdirectories = value;
     notifyListeners();
     await _settingsService.saveIncludeSubdirectories(value);
   }
 
-  void setBrowsingDirectory(String? path) async {
+  Future<void> setBrowsingDirectory(String? path) async {
     if (_browsingDirectory == path) return;
     _browsingDirectory = path;
     notifyListeners();
@@ -97,7 +128,7 @@ class AppState extends ChangeNotifier {
   late Locale _locale;
   Locale get currentLocale => _locale;
 
-  void updateLocale(Locale locale) async {
+  Future<void> updateLocale(Locale locale) async {
     if (_locale == locale) return;
     _locale = locale;
     notifyListeners();
@@ -107,7 +138,7 @@ class AppState extends ChangeNotifier {
   late ThemeMode _themeMode;
   ThemeMode get currentThemeMode => _themeMode;
 
-  void updateThemeMode(ThemeMode mode) async {
+  Future<void> updateThemeMode(ThemeMode mode) async {
     if (_themeMode == mode) return;
     _themeMode = mode;
     notifyListeners();

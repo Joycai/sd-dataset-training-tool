@@ -23,5 +23,101 @@
   "delete": "Delete",
   "addTagsTitle": "Add Common Tags",
   "addTagsContent": "Paste comma-separated tags to add to the existing list.",
-  "imageTags": "Image Tags"
+  "imageTags": "Image Tags",
+
+  "assetsPanelTitle": "Assets",
+  "searchFilenameHint": "Search filenames",
+  "filterAll": "All",
+  "filterUntagged": "Untagged",
+  "filterTagged": "Tagged",
+  "columnsCount": "{count} col",
+  "@columnsCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "openFolder": "Open Folder",
+  "refresh": "Refresh",
+  "noImagesFound": "No images yet. Open a folder to start.",
+  "noMatches": "No images match the current filter.",
+  "scanError": "Failed to scan directory: {error}",
+  "@scanError": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "noDatasetOpen": "No folder open",
+  "imageCountShort": "{count} images",
+  "@imageCountShort": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "selectImageHint": "Select an image from the assets panel.",
+  "previousImage": "Previous image",
+  "nextImage": "Next image",
+  "fitToWindow": "Fit to window",
+  "openInNewWindow": "Open in separate window",
+
+  "textTab": "Text",
+  "tagsTab": "Tags",
+  "tagCount": "{count} tags",
+  "@tagCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "savedAt": "Saved {time}",
+  "@savedAt": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "unsavedChanges": "Unsaved changes",
+  "savingNow": "Saving",
+  "saveFailed": "Save failed",
+  "captionHint": "Write the caption here, tags separated by commas",
+  "addTagHint": "Type a tag and press Enter",
+  "noTagsYet": "No tags yet.",
+  "editTagTitle": "Edit Tag",
+
+  "tagLibraryTitle": "Tag Library",
+  "filterTagsHint": "Filter tags",
+  "clickToApplyHint": "Click to apply, click again to remove",
+  "newTagsSection": "New in this image",
+  "addAllToLibrary": "Add all",
+  "legendApplied": "Applied",
+  "legendNotApplied": "Not applied",
+  "legendNew": "New",
+  "removeFromLibrary": "Remove from library",
+  "libraryEmpty": "The library is empty. Use the plus button to add tags.",
+
+  "taggedProgress": "Tagged {tagged} / {total}",
+  "@taggedProgress": {
+    "placeholders": {
+      "tagged": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "autoSaveOnStatus": "Auto-save on",
+  "autoSaveOffStatus": "Auto-save off",
+  "saveShortcutHint": "Ctrl+S to save now",
+
+  "appearanceSection": "Appearance",
+  "datasetSection": "Dataset",
+  "dangerZone": "Danger Zone",
+  "languageDesc": "Interface display language",
+  "themeTitle": "Theme",
+  "themeDesc": "Dark is easier on the eyes for long sessions",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "themeSystem": "System",
+  "captionExtensionDesc": "Suffix of the caption file that shares the image's name, e.g. .txt or .caption",
+  "includeSubdirsTitle": "Include subdirectories",
+  "includeSubdirsDesc": "Recursively scan all folders inside the opened directory",
+  "autoSaveTitle": "Auto-save",
+  "autoSaveDesc": "Write the caption file 0.8 s after you stop editing",
+  "resetDesc": "Restore defaults and clear the tag library. Images and caption files are not touched.",
+  "resetAction": "Reset"
 }
