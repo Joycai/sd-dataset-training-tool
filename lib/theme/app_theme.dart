@@ -206,6 +206,9 @@ ThemeData buildAppTheme(Brightness brightness, {String? fontFamily}) {
 
   return base.copyWith(
     extensions: [semantic],
+    // DropdownButton 的弹出菜单以 canvasColor 为底；默认是 surface(bg0)，
+    // 与 raised 卡片(bg2)不一致，暗色下会显得发黑。
+    canvasColor: semantic.raised,
     dividerTheme: DividerThemeData(
       color: semantic.line,
       thickness: 1,
