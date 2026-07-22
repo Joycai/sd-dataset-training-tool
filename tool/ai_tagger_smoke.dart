@@ -2,6 +2,11 @@
 /// AiApiServer. Run with:  dart run tool/ai_tagger_smoke.dart [imagePath]
 ///
 /// Not part of the app; pure Dart, safe to delete.
+library;
+
+// This is a CLI diagnostic script — print is the intended output channel.
+// ignore_for_file: avoid_print
+
 import 'dart:io';
 
 import 'package:dataset_training_tool/models/ai_tagger_models.dart';
