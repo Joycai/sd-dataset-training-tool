@@ -74,47 +74,51 @@ void main() {
     expect(dataset.selectedVisibleIndex, 0);
   });
 
-  test('session loads caption, applies tags, saves and reports status',
-      () async {
-    final session = EditorSession()..autoSaveEnabled = false;
-    final saved = <(String, bool)>[];
-    session.onSaved = (path, has) => saved.add((path, has));
+  test(
+    'session loads caption, applies tags, saves and reports status',
+    () async {
+      final session = EditorSession()..autoSaveEnabled = false;
+      final saved = <(String, String)>[];
+      session.onSaved = (path, text) => saved.add((path, text));
 
-    final image = File(p.join(tempDir.path, '001.png'));
-    await session.load(image, '.txt');
-    expect(session.tags, ['1girl', 'solo']);
-    expect(session.saveState, SaveState.clean);
+      final image = File(p.join(tempDir.path, '001.png'));
+      await session.load(image, '.txt');
+      expect(session.tags, ['1girl', 'solo']);
+      expect(session.saveState, SaveState.clean);
 
-    session.applyTag('long hair');
-    expect(session.tags, ['1girl', 'solo', 'long hair']);
-    expect(session.captionController.text, '1girl, solo, long hair');
-    expect(session.saveState, SaveState.dirty);
+      session.applyTag('long hair');
+      expect(session.tags, ['1girl', 'solo', 'long hair']);
+      expect(session.captionController.text, '1girl, solo, long hair');
+      expect(session.saveState, SaveState.dirty);
 
-    session.toggleTag('solo');
-    expect(session.tags, ['1girl', 'long hair']);
+      session.toggleTag('solo');
+      expect(session.tags, ['1girl', 'long hair']);
 
-    session.reorderTag(1, 0);
-    expect(session.captionController.text, 'long hair, 1girl');
+      session.reorderTag(1, 0);
+      expect(session.captionController.text, 'long hair, 1girl');
 
-    await session.save();
-    expect(session.saveState, SaveState.saved);
-    expect(await File(p.join(tempDir.path, '001.txt')).readAsString(),
-        'long hair, 1girl');
-    expect(saved.single, (image.path, true));
+      await session.save();
+      expect(session.saveState, SaveState.saved);
+      expect(
+        await File(p.join(tempDir.path, '001.txt')).readAsString(),
+        'long hair, 1girl',
+      );
+      expect(saved.single, (image.path, 'long hair, 1girl'));
 
-    session.dispose();
-  });
+      session.dispose();
+    },
+  );
 
   test('saving an emptied caption marks the image untagged', () async {
     final session = EditorSession()..autoSaveEnabled = false;
-    final saved = <(String, bool)>[];
-    session.onSaved = (path, has) => saved.add((path, has));
+    final saved = <(String, String)>[];
+    session.onSaved = (path, text) => saved.add((path, text));
 
     final image = File(p.join(tempDir.path, '001.png'));
     await session.load(image, '.txt');
     session.captionController.text = '';
     await session.save();
-    expect(saved.single.$2, isFalse);
+    expect(saved.single.$2, isEmpty);
 
     session.dispose();
   });
@@ -128,8 +132,10 @@ void main() {
 
     // Loading the next image flushes the previous caption to disk.
     await session.load(File(p.join(tempDir.path, '003.png')), '.txt');
-    expect(await File(p.join(tempDir.path, '001.txt')).readAsString(),
-        '1girl, solo, new tag, another');
+    expect(
+      await File(p.join(tempDir.path, '001.txt')).readAsString(),
+      '1girl, solo, new tag, another',
+    );
     expect(session.tags, isEmpty);
 
     session.dispose();

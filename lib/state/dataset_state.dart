@@ -3,10 +3,20 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../utils/tag_text.dart';
+
 enum CaptionFilter { all, untagged, tagged }
 
-/// Scans a dataset directory and tracks per-image caption status, the
-/// search/filter state of the assets panel, and the current selection.
+/// A tag that appears somewhere in the dataset and how many images carry it.
+class DatasetTag {
+  const DatasetTag(this.tag, this.count);
+
+  final String tag;
+  final int count;
+}
+
+/// Scans a dataset directory and tracks per-image caption status and tags,
+/// the search/filter state of the assets panel, and the current selection.
 class DatasetState extends ChangeNotifier {
   static const supportedExtensions = {
     '.jpg',
@@ -19,10 +29,15 @@ class DatasetState extends ChangeNotifier {
 
   List<File> _files = [];
   final Map<String, bool> _hasCaption = {};
+  final Map<String, List<String>> _tagsByPath = {};
+  List<DatasetTag>? _tagCountsCache;
+  String _captionExtension = '.txt';
   bool _isLoading = false;
   String? _error;
   String _query = '';
   CaptionFilter _filter = CaptionFilter.all;
+  String? _tagFilter;
+  bool _tagFilterExclude = false;
   String? _selectedPath;
   int _scanGeneration = 0;
 
@@ -31,19 +46,59 @@ class DatasetState extends ChangeNotifier {
   String get query => _query;
   CaptionFilter get filter => _filter;
 
+  /// Active dataset-tag filter, if any; [tagFilterExclude] flips it to
+  /// "images without this tag".
+  String? get tagFilter => _tagFilter;
+  bool get tagFilterExclude => _tagFilterExclude;
+
   List<File> get allFiles => _files;
   int get totalCount => _files.length;
   int get taggedCount =>
       _files.where((f) => _hasCaption[f.path] == true).length;
   int get untaggedCount => totalCount - taggedCount;
 
-  /// Files after search + caption-status filtering; the grid and the
+  /// Every tag in the dataset with its image count, most frequent first
+  /// (alphabetical within equal counts). Cached until captions change.
+  List<DatasetTag> get datasetTags => _tagCountsCache ??= _computeTagCounts();
+
+  List<DatasetTag> _computeTagCounts() {
+    final counts = <String, int>{};
+    for (final tags in _tagsByPath.values) {
+      for (final tag in tags) {
+        counts[tag] = (counts[tag] ?? 0) + 1;
+      }
+    }
+    final list =
+        [for (final entry in counts.entries) DatasetTag(entry.key, entry.value)]
+          ..sort((a, b) {
+            final byCount = b.count.compareTo(a.count);
+            if (byCount != 0) return byCount;
+            return a.tag.toLowerCase().compareTo(b.tag.toLowerCase());
+          });
+    return list;
+  }
+
+  /// Parsed tags of an image's caption ([] when uncaptioned).
+  List<String> tagsOf(String imagePath) => _tagsByPath[imagePath] ?? const [];
+
+  /// Caption file path for an image, using the extension of the last scan.
+  String captionPathFor(String imagePath) =>
+      '${p.withoutExtension(imagePath)}$_captionExtension';
+
+  /// Files after search + caption-status + tag filtering; the grid and the
   /// previous/next navigation both operate on this list.
   List<File> get visibleFiles {
     final q = _query.trim().toLowerCase();
     return _files.where((f) {
       if (q.isNotEmpty && !p.basename(f.path).toLowerCase().contains(q)) {
         return false;
+      }
+      final tagFilter = _tagFilter;
+      if (tagFilter != null) {
+        final has = _tagsByPath[f.path]?.contains(tagFilter) ?? false;
+        // Include mode drops images without the tag; exclude mode drops
+        // images with it.
+        if (has == _tagFilterExclude) return false;
       }
       switch (_filter) {
         case CaptionFilter.all:
@@ -83,6 +138,20 @@ class DatasetState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setTagFilter(String tag, {required bool exclude}) {
+    if (_tagFilter == tag && _tagFilterExclude == exclude) return;
+    _tagFilter = tag;
+    _tagFilterExclude = exclude;
+    notifyListeners();
+  }
+
+  void clearTagFilter() {
+    if (_tagFilter == null) return;
+    _tagFilter = null;
+    _tagFilterExclude = false;
+    notifyListeners();
+  }
+
   void select(String? path) {
     if (_selectedPath == path) return;
     _selectedPath = path;
@@ -104,12 +173,36 @@ class DatasetState extends ChangeNotifier {
     return visible[next];
   }
 
-  /// Called after a caption write so the status dot and the filter counts
-  /// follow the file on disk without a rescan.
-  void markCaptioned(String imagePath, bool captioned) {
-    if (_hasCaption[imagePath] == captioned) return;
-    _hasCaption[imagePath] = captioned;
+  /// Called after a caption write so the status dot, the filter counts and
+  /// the dataset tag index follow the file on disk without a rescan.
+  void updateCaptionText(String imagePath, String text) {
+    if (!_applyCaptionText(imagePath, text)) return;
+    _tagCountsCache = null;
     notifyListeners();
+  }
+
+  /// Batch variant for dataset-wide rewrites: one notification for the whole
+  /// operation instead of one rebuild per touched file.
+  void updateCaptionTexts(Map<String, String> textByPath) {
+    var changed = false;
+    textByPath.forEach((path, text) {
+      changed = _applyCaptionText(path, text) || changed;
+    });
+    if (!changed) return;
+    _tagCountsCache = null;
+    notifyListeners();
+  }
+
+  bool _applyCaptionText(String imagePath, String text) {
+    final tags = parseTagText(text);
+    final captioned = text.trim().isNotEmpty;
+    if (_hasCaption[imagePath] == captioned &&
+        listEquals(_tagsByPath[imagePath], tags)) {
+      return false;
+    }
+    _hasCaption[imagePath] = captioned;
+    _tagsByPath[imagePath] = tags;
+    return true;
   }
 
   Future<void> scan({
@@ -124,29 +217,33 @@ class DatasetState extends ChangeNotifier {
 
     final found = <File>[];
     final captioned = <String, bool>{};
+    final tagsByPath = <String, List<String>>{};
     String? error;
     try {
-      final stream = Directory(directoryPath).list(
-        recursive: recursive,
-        followLinks: false,
-      );
+      final stream = Directory(
+        directoryPath,
+      ).list(recursive: recursive, followLinks: false);
       await for (final entity in stream) {
         if (entity is! File) continue;
-        if (!supportedExtensions
-            .contains(p.extension(entity.path).toLowerCase())) {
+        if (!supportedExtensions.contains(
+          p.extension(entity.path).toLowerCase(),
+        )) {
           continue;
         }
         found.add(entity);
-        final captionFile =
-            File('${p.withoutExtension(entity.path)}$captionExtension');
-        bool has = false;
+        final captionFile = File(
+          '${p.withoutExtension(entity.path)}$captionExtension',
+        );
+        String content = '';
         try {
-          has = await captionFile.exists() &&
-              (await captionFile.length()) > 0;
+          if (await captionFile.exists()) {
+            content = await captionFile.readAsString();
+          }
         } catch (_) {
           // Unreadable caption file: treat as untagged.
         }
-        captioned[entity.path] = has;
+        captioned[entity.path] = content.trim().isNotEmpty;
+        tagsByPath[entity.path] = parseTagText(content);
       }
     } catch (e) {
       error = e.toString();
@@ -160,6 +257,11 @@ class DatasetState extends ChangeNotifier {
     _hasCaption
       ..clear()
       ..addAll(captioned);
+    _tagsByPath
+      ..clear()
+      ..addAll(tagsByPath);
+    _tagCountsCache = null;
+    _captionExtension = captionExtension;
     _isLoading = false;
     _error = error;
     if (_selectedPath != null && !captioned.containsKey(_selectedPath)) {
@@ -172,7 +274,11 @@ class DatasetState extends ChangeNotifier {
     _scanGeneration++;
     _files = [];
     _hasCaption.clear();
+    _tagsByPath.clear();
+    _tagCountsCache = null;
     _selectedPath = null;
+    _tagFilter = null;
+    _tagFilterExclude = false;
     _isLoading = false;
     _error = null;
     notifyListeners();

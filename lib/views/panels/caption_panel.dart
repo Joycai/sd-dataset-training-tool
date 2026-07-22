@@ -6,6 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../state/ai_tagger_state.dart';
 import '../../state/editor_session.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/panel_widgets.dart';
 import 'ai_compare_view.dart';
 import 'ai_params_dialog.dart';
 
@@ -133,12 +134,12 @@ class _CaptionPanelState extends State<CaptionPanel> {
                 final compact = constraints.maxWidth < 420;
                 return Row(
                   children: [
-                    _EditorTab(
+                    PanelTab(
                       label: l10n.textTab,
                       selected: _tab == _tabText,
                       onTap: () => setState(() => _tab = _tabText),
                     ),
-                    _EditorTab(
+                    PanelTab(
                       label: l10n.tagsTab,
                       selected: _tab == _tabTags,
                       onTap: () => setState(() => _tab = _tabTags),
@@ -341,47 +342,6 @@ class _AiRunButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         minimumSize: const Size(0, 28),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
-    );
-  }
-}
-
-class _EditorTab extends StatelessWidget {
-  const _EditorTab({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final semantic = context.semantic;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: selected ? scheme.primary : Colors.transparent,
-              width: 2,
-            ),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected ? scheme.onSurface : semantic.muted,
-          ),
-        ),
       ),
     );
   }

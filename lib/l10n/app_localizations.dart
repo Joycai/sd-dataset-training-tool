@@ -614,6 +614,180 @@ abstract class AppLocalizations {
   /// **'AI tagging failed: {error}'**
   String aiFailed(String error);
 
+  /// No description provided for @rightTabLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get rightTabLibrary;
+
+  /// No description provided for @rightTabDataset.
+  ///
+  /// In en, this message translates to:
+  /// **'Dataset'**
+  String get rightTabDataset;
+
+  /// No description provided for @datasetTagsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Dataset Tags'**
+  String get datasetTagsTitle;
+
+  /// No description provided for @datasetTagsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags in this dataset yet.'**
+  String get datasetTagsEmpty;
+
+  /// No description provided for @datasetTagsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Green = on the current image. Right-click for actions'**
+  String get datasetTagsHint;
+
+  /// No description provided for @clearTagFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear tag filter'**
+  String get clearTagFilter;
+
+  /// No description provided for @menuFilterInclude.
+  ///
+  /// In en, this message translates to:
+  /// **'Only images with this tag'**
+  String get menuFilterInclude;
+
+  /// No description provided for @menuFilterExclude.
+  ///
+  /// In en, this message translates to:
+  /// **'Only images without this tag'**
+  String get menuFilterExclude;
+
+  /// No description provided for @menuReplaceAppend.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace / append…'**
+  String get menuReplaceAppend;
+
+  /// No description provided for @menuDeleteGlobal.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete from all images'**
+  String get menuDeleteGlobal;
+
+  /// No description provided for @deleteTagConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete tag everywhere'**
+  String get deleteTagConfirmTitle;
+
+  /// No description provided for @deleteTagConfirmContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{tag}\" from {count} images? This can be undone from the toolbar.'**
+  String deleteTagConfirmContent(int count, String tag);
+
+  /// No description provided for @replaceDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace / append'**
+  String get replaceDialogTitle;
+
+  /// No description provided for @replaceModeReplace.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace with'**
+  String get replaceModeReplace;
+
+  /// No description provided for @replaceModeBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert before'**
+  String get replaceModeBefore;
+
+  /// No description provided for @replaceModeAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert after'**
+  String get replaceModeAfter;
+
+  /// No description provided for @replaceInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Comma-separated tags'**
+  String get replaceInputHint;
+
+  /// No description provided for @apply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get apply;
+
+  /// No description provided for @filesUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} files updated'**
+  String filesUpdated(int count);
+
+  /// No description provided for @noFilesChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'No files needed changes.'**
+  String get noFilesChanged;
+
+  /// No description provided for @filterActiveInclude.
+  ///
+  /// In en, this message translates to:
+  /// **'Only with: {tag}'**
+  String filterActiveInclude(String tag);
+
+  /// No description provided for @filterActiveExclude.
+  ///
+  /// In en, this message translates to:
+  /// **'Only without: {tag}'**
+  String filterActiveExclude(String tag);
+
+  /// No description provided for @undo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get undo;
+
+  /// No description provided for @redo.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get redo;
+
+  /// No description provided for @undoTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo: {action}'**
+  String undoTooltip(String action);
+
+  /// No description provided for @redoTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo: {action}'**
+  String redoTooltip(String action);
+
+  /// No description provided for @opDeleteLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'delete \"{tag}\"'**
+  String opDeleteLabel(String tag);
+
+  /// No description provided for @opReplaceLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'replace \"{tag}\"'**
+  String opReplaceLabel(String tag);
+
+  /// No description provided for @opInsertLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'append next to \"{tag}\"'**
+  String opInsertLabel(String tag);
+
   /// No description provided for @tagLibraryTitle.
   ///
   /// In en, this message translates to:

@@ -136,6 +136,82 @@
     }
   },
 
+  "rightTabLibrary": "Library",
+  "rightTabDataset": "Dataset",
+  "datasetTagsTitle": "Dataset Tags",
+  "datasetTagsEmpty": "No tags in this dataset yet.",
+  "datasetTagsHint": "Green = on the current image. Right-click for actions",
+  "clearTagFilter": "Clear tag filter",
+  "menuFilterInclude": "Only images with this tag",
+  "menuFilterExclude": "Only images without this tag",
+  "menuReplaceAppend": "Replace / append…",
+  "menuDeleteGlobal": "Delete from all images",
+  "deleteTagConfirmTitle": "Delete tag everywhere",
+  "deleteTagConfirmContent": "Remove \"{tag}\" from {count} images? This can be undone from the toolbar.",
+  "@deleteTagConfirmContent": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "tag": { "type": "String" }
+    }
+  },
+  "replaceDialogTitle": "Replace / append",
+  "replaceModeReplace": "Replace with",
+  "replaceModeBefore": "Insert before",
+  "replaceModeAfter": "Insert after",
+  "replaceInputHint": "Comma-separated tags",
+  "apply": "Apply",
+  "filesUpdated": "{count} files updated",
+  "@filesUpdated": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noFilesChanged": "No files needed changes.",
+  "filterActiveInclude": "Only with: {tag}",
+  "@filterActiveInclude": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+  "filterActiveExclude": "Only without: {tag}",
+  "@filterActiveExclude": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+  "undo": "Undo",
+  "redo": "Redo",
+  "undoTooltip": "Undo: {action}",
+  "@undoTooltip": {
+    "placeholders": {
+      "action": { "type": "String" }
+    }
+  },
+  "redoTooltip": "Redo: {action}",
+  "@redoTooltip": {
+    "placeholders": {
+      "action": { "type": "String" }
+    }
+  },
+  "opDeleteLabel": "delete \"{tag}\"",
+  "@opDeleteLabel": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+  "opReplaceLabel": "replace \"{tag}\"",
+  "@opReplaceLabel": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+  "opInsertLabel": "append next to \"{tag}\"",
+  "@opInsertLabel": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+
   "tagLibraryTitle": "Tag Library",
   "filterTagsHint": "Filter tags",
   "clickToApplyHint": "Click to apply, click again to remove",
