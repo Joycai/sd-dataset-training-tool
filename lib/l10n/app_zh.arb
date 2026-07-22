@@ -65,6 +65,20 @@
   "aiModelLabel": "模型",
   "aiNoModels": "暂无模型，点击刷新获取",
   "aiRefreshModels": "刷新模型列表",
+  "aiModelGroupTag": "标签模型 · Danbooru 标签风",
+  "aiModelGroupCaption": "自然语言描述",
+  "aiModelLegacyGroup": "旧版模型 ({count})",
+  "@aiModelLegacyGroup": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "aiModelFilterHint": "筛选模型…",
+  "aiModelFilterNoMatch": "没有匹配的模型",
+  "aiBadgeRecommended": "推荐",
+  "aiBadgeUncensored": "无审查",
+  "aiVramFootnote": "显存为估算值，黄色表示需求较高。",
+  "aiThresholdCaptionNote": "当前模型输出自然语言描述，阈值不生效。",
   "aiThresholdLabel": "阈值",
   "aiUseModelDefault": "模型默认",
   "aiThresholdDesc": "阈值越低，识别出的标签越多。",

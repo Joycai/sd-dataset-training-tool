@@ -202,6 +202,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiRefreshModels => '刷新模型列表';
 
   @override
+  String get aiModelGroupTag => '标签模型 · Danbooru 标签风';
+
+  @override
+  String get aiModelGroupCaption => '自然语言描述';
+
+  @override
+  String aiModelLegacyGroup(Object count) {
+    return '旧版模型 ($count)';
+  }
+
+  @override
+  String get aiModelFilterHint => '筛选模型…';
+
+  @override
+  String get aiModelFilterNoMatch => '没有匹配的模型';
+
+  @override
+  String get aiBadgeRecommended => '推荐';
+
+  @override
+  String get aiBadgeUncensored => '无审查';
+
+  @override
+  String get aiVramFootnote => '显存为估算值，黄色表示需求较高。';
+
+  @override
+  String get aiThresholdCaptionNote => '当前模型输出自然语言描述，阈值不生效。';
+
+  @override
   String get aiThresholdLabel => '阈值';
 
   @override

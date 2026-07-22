@@ -159,11 +159,29 @@ class ModelBaseInfo:
     ModelName: str
     SupportedVideo: bool
     RepositoryLink: str
+    # Grouping/badge metadata for client-side pickers. Category is derived
+    # from the model's type tag ("tag" / "caption" / "edit" / "translate");
+    # the rest come from models.MODEL_METADATA and default to neutral values
+    # so unannotated models still list fine.
+    Category: str
+    Recommended: bool
+    Uncensored: bool
+    Legacy: bool
+    VramGB: float
+    Description: str
+    Advice: str
 
     def __init__(self):
         self.SupportedVideo = False
         self.RepositoryLink = ""
         self.ModelName = ""
+        self.Category = ""
+        self.Recommended = False
+        self.Uncensored = False
+        self.Legacy = False
+        self.VramGB = 0.0
+        self.Description = ""
+        self.Advice = ""
 
 
 @dataclass_json
