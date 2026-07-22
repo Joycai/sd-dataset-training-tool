@@ -312,6 +312,31 @@
   "themeLight": "Light",
   "themeDark": "Dark",
   "themeSystem": "System",
+  "fontTitle": "Font",
+  "fontDesc": "UI font. HarmonyOS Sans and MiSans are downloaded on first use",
+  "fontSystem": "System font",
+  "fontHarmony": "HarmonyOS Sans",
+  "fontMiSans": "MiSans",
+  "fontDownloadConfirmTitle": "Download font",
+  "fontDownloadConfirmContent": "Using {font} for the first time requires downloading the official font package into the app data directory. This only happens once. Download now?",
+  "@fontDownloadConfirmContent": {
+    "placeholders": {
+      "font": { "type": "String" }
+    }
+  },
+  "fontDownloadAction": "Download",
+  "fontDownloadingTitle": "Downloading {font}…",
+  "@fontDownloadingTitle": {
+    "placeholders": {
+      "font": { "type": "String" }
+    }
+  },
+  "fontDownloadFailed": "Font download failed: {error}",
+  "@fontDownloadFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
   "captionExtensionDesc": "Suffix of the caption file that shares the image's name, e.g. .txt or .caption",
   "includeSubdirsTitle": "Include subdirectories",
   "includeSubdirsDesc": "Recursively scan all folders inside the opened directory",

@@ -313,105 +313,50 @@ class _CompactSwitch extends StatelessWidget {
   }
 }
 
-/// Input-styled field that opens a themed, compact model menu. Replaces
-/// DropdownButtonFormField, whose overlay ignores the app theme and forces
-/// 48 px items.
+/// Standard dropdown, styled by the shared input decoration theme. The
+/// hand-drawn showMenu variant it replaces existed because dropdown
+/// overlays ignored the app theme; canvasColor now covers that.
 class _ModelPickerField extends StatelessWidget {
   const _ModelPickerField({required this.ai, required this.l10n});
 
   final AiTaggerState ai;
   final AppLocalizations l10n;
 
-  Future<void> _openMenu(BuildContext context) async {
-    final semantic = context.semantic;
-    final scheme = Theme.of(context).colorScheme;
-    final box = context.findRenderObject() as RenderBox;
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
-    final origin =
-        box.localToGlobal(Offset(0, box.size.height + 4), ancestor: overlay);
-
-    final selected = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromRect(
-        origin & box.size,
-        Offset.zero & overlay.size,
-      ),
-      color: semantic.raised,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: semantic.line),
-      ),
-      constraints: BoxConstraints(
-        minWidth: box.size.width,
-        maxWidth: box.size.width,
-        maxHeight: 320,
-      ),
-      items: [
-        for (final m in ai.models)
-          PopupMenuItem(
-            value: m.modelName,
-            height: 32,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    m.modelName,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: m.modelName == ai.modelName
-                          ? scheme.primary
-                          : scheme.onSurface,
-                    ),
-                  ),
-                ),
-                if (m.modelName == ai.modelName)
-                  Icon(Icons.check, size: 14, color: scheme.primary),
-              ],
-            ),
-          ),
-      ],
-    );
-    if (selected != null) {
-      await ai.setModelName(selected);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final semantic = context.semantic;
     final scheme = Theme.of(context).colorScheme;
-    final hasModels = ai.models.isNotEmpty;
+    // The persisted model may be absent from a freshly fetched list; the
+    // dropdown requires its value to be one of the items (or null).
+    final value = ai.models.any((m) => m.modelName == ai.modelName)
+        ? ai.modelName
+        : null;
 
-    return InkWell(
-      onTap: hasModels ? () => _openMenu(context) : null,
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      isExpanded: true,
+      isDense: true,
       borderRadius: BorderRadius.circular(7),
-      child: Container(
-        height: 34,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: scheme.surface,
-          border: Border.all(color: semantic.line),
-          borderRadius: BorderRadius.circular(7),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                ai.modelName ?? l10n.aiNoModels,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  color:
-                      ai.modelName == null ? semantic.muted : scheme.onSurface,
-                ),
-              ),
-            ),
-            Icon(Icons.arrow_drop_down, size: 18, color: semantic.muted),
-          ],
-        ),
+      menuMaxHeight: 320,
+      icon: Icon(Icons.arrow_drop_down, size: 18, color: semantic.muted),
+      hint: Text(
+        l10n.aiNoModels,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12.5, color: semantic.muted),
       ),
+      style: TextStyle(fontSize: 12.5, color: scheme.onSurface),
+      items: [
+        for (final m in ai.models)
+          DropdownMenuItem(
+            value: m.modelName,
+            child: Text(m.modelName, overflow: TextOverflow.ellipsis),
+          ),
+      ],
+      onChanged: ai.models.isEmpty
+          ? null
+          : (name) {
+              if (name != null) ai.setModelName(name);
+            },
     );
   }
 }

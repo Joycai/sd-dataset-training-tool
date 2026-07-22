@@ -23,6 +23,15 @@ void main(List<String> args) async {
   await appState.loadSettings();
 
   if (_isDesktop) {
+    // 在 runApp 之前注册上次选择的字体，避免首帧闪一下系统字体。
+    // 字体加载失败（如目录被清掉）不应阻止启动。
+    try {
+      await appState.fontService.init();
+      await appState.fontService.loadIfDownloaded(appState.fontChoice);
+    } catch (_) {}
+  }
+
+  if (_isDesktop) {
     final windowController = await WindowController.fromCurrentEngine();
     // Sub-windows are created with a JSON payload as arguments; the main
     // window has none.
@@ -62,8 +71,8 @@ class MyApp extends StatelessWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       locale: appState.currentLocale,
-      theme: buildAppTheme(Brightness.light),
-      darkTheme: buildAppTheme(Brightness.dark),
+      theme: buildAppTheme(Brightness.light, fontFamily: appState.uiFontFamily),
+      darkTheme: buildAppTheme(Brightness.dark, fontFamily: appState.uiFontFamily),
       themeMode: appState.currentThemeMode,
       home: const MyHomePage(),
     );
