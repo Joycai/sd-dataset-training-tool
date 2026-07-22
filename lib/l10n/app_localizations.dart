@@ -674,6 +674,162 @@ abstract class AppLocalizations {
   /// **'AI tagging failed: {error}'**
   String aiFailed(String error);
 
+  /// No description provided for @batchTagButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch tagging'**
+  String get batchTagButton;
+
+  /// No description provided for @batchTagTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch AI tagging'**
+  String get batchTagTitle;
+
+  /// No description provided for @batchTagParamsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Threshold, ignored tags and normalization follow the AI parameters.'**
+  String get batchTagParamsHint;
+
+  /// No description provided for @batchTagOpenParams.
+  ///
+  /// In en, this message translates to:
+  /// **'AI parameters…'**
+  String get batchTagOpenParams;
+
+  /// No description provided for @batchTagModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Mode'**
+  String get batchTagModeLabel;
+
+  /// No description provided for @batchTagModeAppend.
+  ///
+  /// In en, this message translates to:
+  /// **'Append'**
+  String get batchTagModeAppend;
+
+  /// No description provided for @batchTagModeOverwrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Overwrite'**
+  String get batchTagModeOverwrite;
+
+  /// No description provided for @batchTagModeAppendDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'New AI tags are appended after each image\'s existing tags; duplicates are never added.'**
+  String get batchTagModeAppendDesc;
+
+  /// No description provided for @batchTagModeOverwriteDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'AI results replace each image\'s existing tags; configure below which existing tags survive.'**
+  String get batchTagModeOverwriteDesc;
+
+  /// No description provided for @batchTagPreservedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Preserved tags'**
+  String get batchTagPreservedLabel;
+
+  /// No description provided for @batchTagPreservedDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Comma-separated. These existing tags survive the overwrite.'**
+  String get batchTagPreservedDesc;
+
+  /// No description provided for @batchTagKeepFirstN.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep first N existing tags'**
+  String get batchTagKeepFirstN;
+
+  /// No description provided for @batchTagBlacklistLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Blacklist'**
+  String get batchTagBlacklistLabel;
+
+  /// No description provided for @batchTagBlacklistDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Comma-separated. These tags are never appended.'**
+  String get batchTagBlacklistDesc;
+
+  /// No description provided for @batchTagScopeFiltered.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the {count} filtered images'**
+  String batchTagScopeFiltered(Object count);
+
+  /// No description provided for @batchTagTargetCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} images will be processed, one at a time.'**
+  String batchTagTargetCount(Object count);
+
+  /// No description provided for @batchTagStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get batchTagStart;
+
+  /// No description provided for @batchTagRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch tagging {completed}/{total}'**
+  String batchTagRunning(Object completed, Object total);
+
+  /// No description provided for @batchTagProgressCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed {changed} · Failed {failed}'**
+  String batchTagProgressCounts(Object changed, Object failed);
+
+  /// No description provided for @batchTagHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Run in background'**
+  String get batchTagHide;
+
+  /// No description provided for @batchTagCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel run'**
+  String get batchTagCancel;
+
+  /// No description provided for @batchTagCancelling.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelling…'**
+  String get batchTagCancelling;
+
+  /// No description provided for @batchTagDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch tagging finished'**
+  String get batchTagDoneTitle;
+
+  /// No description provided for @batchTagDoneSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{completed} images processed: {changed} changed, {failed} failed.'**
+  String batchTagDoneSummary(Object completed, Object changed, Object failed);
+
+  /// No description provided for @batchTagUndoHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use undo in the top bar to revert this run.'**
+  String get batchTagUndoHint;
+
+  /// No description provided for @batchTagOperationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'batch AI tagging'**
+  String get batchTagOperationLabel;
+
   /// No description provided for @rightTabLibrary.
   ///
   /// In en, this message translates to:

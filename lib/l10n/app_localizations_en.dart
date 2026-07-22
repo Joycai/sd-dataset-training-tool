@@ -324,6 +324,99 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get batchTagButton => 'Batch tagging';
+
+  @override
+  String get batchTagTitle => 'Batch AI tagging';
+
+  @override
+  String get batchTagParamsHint =>
+      'Threshold, ignored tags and normalization follow the AI parameters.';
+
+  @override
+  String get batchTagOpenParams => 'AI parameters…';
+
+  @override
+  String get batchTagModeLabel => 'Mode';
+
+  @override
+  String get batchTagModeAppend => 'Append';
+
+  @override
+  String get batchTagModeOverwrite => 'Overwrite';
+
+  @override
+  String get batchTagModeAppendDesc =>
+      'New AI tags are appended after each image\'s existing tags; duplicates are never added.';
+
+  @override
+  String get batchTagModeOverwriteDesc =>
+      'AI results replace each image\'s existing tags; configure below which existing tags survive.';
+
+  @override
+  String get batchTagPreservedLabel => 'Preserved tags';
+
+  @override
+  String get batchTagPreservedDesc =>
+      'Comma-separated. These existing tags survive the overwrite.';
+
+  @override
+  String get batchTagKeepFirstN => 'Keep first N existing tags';
+
+  @override
+  String get batchTagBlacklistLabel => 'Blacklist';
+
+  @override
+  String get batchTagBlacklistDesc =>
+      'Comma-separated. These tags are never appended.';
+
+  @override
+  String batchTagScopeFiltered(Object count) {
+    return 'Only the $count filtered images';
+  }
+
+  @override
+  String batchTagTargetCount(Object count) {
+    return '$count images will be processed, one at a time.';
+  }
+
+  @override
+  String get batchTagStart => 'Start';
+
+  @override
+  String batchTagRunning(Object completed, Object total) {
+    return 'Batch tagging $completed/$total';
+  }
+
+  @override
+  String batchTagProgressCounts(Object changed, Object failed) {
+    return 'Changed $changed · Failed $failed';
+  }
+
+  @override
+  String get batchTagHide => 'Run in background';
+
+  @override
+  String get batchTagCancel => 'Cancel run';
+
+  @override
+  String get batchTagCancelling => 'Cancelling…';
+
+  @override
+  String get batchTagDoneTitle => 'Batch tagging finished';
+
+  @override
+  String batchTagDoneSummary(Object completed, Object changed, Object failed) {
+    return '$completed images processed: $changed changed, $failed failed.';
+  }
+
+  @override
+  String get batchTagUndoHint => 'Use undo in the top bar to revert this run.';
+
+  @override
+  String get batchTagOperationLabel => 'batch AI tagging';
+
+  @override
   String get rightTabLibrary => 'Library';
 
   @override

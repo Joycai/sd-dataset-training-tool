@@ -9,6 +9,7 @@ import '../app_state.dart';
 import '../services/preview_window_launcher.dart';
 import '../services/settings_service.dart';
 import '../state/ai_tagger_state.dart';
+import '../state/batch_tag_state.dart';
 import '../state/dataset_state.dart';
 import '../state/editor_session.dart';
 import '../state/tag_ops.dart';
@@ -50,6 +51,16 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     beforeMutate: () => _session.flush(),
     onCaptionsChanged: _reloadSessionIfTouched,
   );
+  late final BatchTagState _batchTag = BatchTagState(
+    dataset: _dataset,
+    ai: _aiTagger,
+    settings: SettingsService(),
+    beforeMutate: () => _session.flush(),
+    // The run rewrites files itself; the finished operation joins the same
+    // undo history as the manual batch edits.
+    onOperation: _tagOps.pushOperation,
+    onCaptionsChanged: _reloadSessionIfTouched,
+  );
   final PreviewWindowLauncher _previewWindow = PreviewWindowLauncher();
   final FocusNode _libraryFilterFocus = FocusNode();
   String? _lastLoadedPath;
@@ -74,6 +85,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     _session.onSaved = _dataset.updateCaptionText;
     _dataset.addListener(_onDatasetChanged);
     _aiTagger.loadSettings();
+    _batchTag.loadSettings();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -91,6 +103,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     _dataset.dispose();
     _session.dispose();
     _aiTagger.dispose();
+    _batchTag.dispose();
     _tagOps.dispose();
     _libraryFilterFocus.dispose();
     super.dispose();
@@ -129,7 +142,8 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     final directory = await FilePicker.getDirectoryPath();
     if (directory == null || !mounted) return;
     // The tag filter and the undo history both reference the previous
-    // dataset's contents.
+    // dataset's contents; a running batch would keep writing into it.
+    _batchTag.requestCancel();
     _dataset.clearTagFilter();
     _tagOps.clearHistory();
     await context.read<AppState>().setBrowsingDirectory(directory);
@@ -193,6 +207,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
         ChangeNotifierProvider.value(value: _dataset),
         ChangeNotifierProvider.value(value: _session),
         ChangeNotifierProvider.value(value: _aiTagger),
+        ChangeNotifierProvider.value(value: _batchTag),
         ChangeNotifierProvider.value(value: _tagOps),
       ],
       child: CallbackShortcuts(
