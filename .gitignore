@@ -137,3 +137,8 @@ doc/api/
 .flutter-plugins
 .flutter-plugins-dependencies
 
+
+# AiApiServer (vendored Python reference server): keep source only
+AiApiServer/vips-dev-8.16/
+__pycache__/
+*.pyc
