@@ -34,6 +34,7 @@ class EditorSession extends ChangeNotifier {
   Timer? _autoSaveTimer;
   bool _autoSaveEnabled = true;
   bool _suppressTextEvents = false;
+  String _lastText = '';
   int _loadGeneration = 0;
 
   /// Notified after every successful save with the caption's on-disk text,
@@ -199,7 +200,12 @@ class EditorSession extends ChangeNotifier {
 
   void _onTextChanged() {
     if (_suppressTextEvents) return;
-    _tags = _parseTags(captionController.text);
+    // The controller also notifies on cursor/selection changes; only actual
+    // text edits should mark the session dirty and fan out rebuilds.
+    final text = captionController.text;
+    if (text == _lastText) return;
+    _lastText = text;
+    _tags = _parseTags(text);
     _saveState = SaveState.dirty;
     _autoSaveTimer?.cancel();
     if (_autoSaveEnabled && _image != null) {
@@ -222,6 +228,7 @@ class EditorSession extends ChangeNotifier {
     _suppressTextEvents = true;
     captionController.text = text;
     _suppressTextEvents = false;
+    _lastText = text;
   }
 
   static List<String> _parseTags(String text) => parseTagText(text);

@@ -24,7 +24,9 @@ class StatusBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
-    final appState = context.watch<AppState>();
+    // Only the autosave flag matters here; a full watch would rebuild the
+    // bar on every AppState notification (e.g. tag-library edits).
+    final autoSave = context.select<AppState, bool>((s) => s.autoSave);
     final dataset = context.watch<DatasetState>();
     final session = context.watch<EditorSession>();
 
@@ -84,11 +86,11 @@ class StatusBar extends StatelessWidget {
           ),
           const SizedBox(width: 18),
           Text(
-            appState.autoSave ? l10n.autoSaveOnStatus : l10n.autoSaveOffStatus,
+            autoSave ? l10n.autoSaveOnStatus : l10n.autoSaveOffStatus,
             style: monoStyle(
               context,
               size: 11.5,
-              color: appState.autoSave ? semantic.ok : semantic.muted,
+              color: autoSave ? semantic.ok : semantic.muted,
             ),
           ),
           const SizedBox(width: 18),

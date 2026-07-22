@@ -14,16 +14,26 @@ enum MainView {
 class AppState extends ChangeNotifier {
   final SettingsService _settingsService;
 
-  /// 字体下载/注册状态。注册完成会触发 notify，主题随之切到新字体。
+  /// 字体下载/注册状态。下载进度只由进度对话框直接监听 FontService；
+  /// AppState 仅在解析出的字体家族真正变化时才转发通知，否则下载期间
+  /// 每个进度包都会重建 MaterialApp 整树。
   final FontService fontService = FontService();
+  String? _lastFontFamily;
 
   AppState(this._settingsService) {
-    fontService.addListener(notifyListeners);
+    fontService.addListener(_onFontServiceChanged);
+  }
+
+  void _onFontServiceChanged() {
+    final family = fontService.familyFor(_fontChoice);
+    if (family == _lastFontFamily) return;
+    _lastFontFamily = family;
+    notifyListeners();
   }
 
   @override
   void dispose() {
-    fontService.removeListener(notifyListeners);
+    fontService.removeListener(_onFontServiceChanged);
     fontService.dispose();
     super.dispose();
   }
@@ -336,7 +346,8 @@ class AppState extends ChangeNotifier {
     await _settingsService.saveBrowsingDirectory(path);
   }
 
-  late AppFontChoice _fontChoice;
+  // 非 late：字体服务的监听器可能在 loadSettings 完成前触发。
+  AppFontChoice _fontChoice = AppFontChoice.system;
   AppFontChoice get fontChoice => _fontChoice;
 
   /// 传给 ThemeData 的字体家族名；系统字体或所选字体尚未注册时为 null。
@@ -346,6 +357,7 @@ class AppState extends ChangeNotifier {
   Future<void> updateFontChoice(AppFontChoice choice) async {
     if (_fontChoice == choice) return;
     _fontChoice = choice;
+    _lastFontFamily = fontService.familyFor(choice);
     notifyListeners();
     await _settingsService.saveFontChoice(choice.id);
   }
