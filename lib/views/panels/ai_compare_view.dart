@@ -262,7 +262,6 @@ class _AiCompareViewState extends State<AiCompareView> {
     AppLocalizations l10n,
     AppSemanticColors semantic,
   ) {
-    final ai = context.read<AiTaggerState>();
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
       child: Row(
@@ -292,6 +291,9 @@ class _AiCompareViewState extends State<AiCompareView> {
             ),
             child: Text(l10n.aiAddAllNew(diff.newSuggestions.length)),
           ),
+          // Exiting compare mode is a global action and lives in the caption
+          // panel header, not here — a per-image "done" here read as if it
+          // only applied to the current image.
           TextButton.icon(
             onPressed: widget.onRunAi,
             icon: const Icon(Icons.refresh, size: 13),
@@ -301,14 +303,6 @@ class _AiCompareViewState extends State<AiCompareView> {
               foregroundColor: semantic.muted,
             ),
             label: Text(l10n.aiRerun),
-          ),
-          FilledButton.tonal(
-            onPressed: ai.exitCompareMode,
-            style: FilledButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              textStyle: const TextStyle(fontSize: 12),
-            ),
-            child: Text(l10n.aiDoneCompare),
           ),
         ],
       ),

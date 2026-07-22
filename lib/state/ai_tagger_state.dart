@@ -233,6 +233,14 @@ class AiTaggerState extends ChangeNotifier {
 
   bool hasResultFor(String path) => _cache.containsKey(path);
 
+  /// Stores a response obtained outside [interrogate] (the batch recognize
+  /// run) in the per-image cache, with the same normalization, so it feeds
+  /// the compare view exactly like a single-image run.
+  void storeResult(String path, AiInterrogateResponse resp) {
+    _cache[path] = _normalize(resp);
+    notifyListeners();
+  }
+
   void enterCompareMode() {
     if (_compareMode) return;
     _compareMode = true;

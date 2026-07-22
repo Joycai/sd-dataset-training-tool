@@ -175,6 +175,48 @@ class _CaptionPanelState extends State<CaptionPanel> {
                       ),
                     ),
                     const SizedBox(width: 10),
+                    // Compare mode is a global flag; its exit control sits up
+                    // here (not inside the compare view) so it doesn't read
+                    // as a per-image action.
+                    if (ai.compareMode) ...[
+                      compact
+                          ? IconButton(
+                              icon: const Icon(Icons.compare_arrows, size: 16),
+                              tooltip: l10n.aiExitCompareTooltip,
+                              color: Theme.of(context).colorScheme.primary,
+                              visualDensity: VisualDensity.compact,
+                              constraints: const BoxConstraints(
+                                minWidth: 30,
+                                minHeight: 30,
+                              ),
+                              padding: EdgeInsets.zero,
+                              onPressed: ai.exitCompareMode,
+                            )
+                          : Tooltip(
+                              message: l10n.aiExitCompareTooltip,
+                              child: FilledButton.tonalIcon(
+                                onPressed: ai.exitCompareMode,
+                                icon: const Icon(
+                                  Icons.compare_arrows,
+                                  size: 14,
+                                ),
+                                label: Text(
+                                  l10n.aiExitCompare,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                style: FilledButton.styleFrom(
+                                  visualDensity: VisualDensity.compact,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  minimumSize: const Size(0, 28),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                            ),
+                      const SizedBox(width: 4),
+                    ],
                     _AiRunButton(
                       ai: ai,
                       enabled: session.hasImage && !ai.running,

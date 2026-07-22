@@ -19,6 +19,11 @@ enum BatchTagMode {
   /// Predictions not already present are appended after the existing tags;
   /// blacklisted predictions are dropped.
   append,
+
+  /// Caption files are left untouched: predictions are only cached on
+  /// [AiTaggerState] and compare mode is entered when the run finishes, so
+  /// every image can be reviewed side-by-side.
+  recognizeOnly,
 }
 
 /// The per-run configuration of a batch tagging pass. Pure data so the merge
@@ -59,8 +64,9 @@ List<String>? mergeBatchTags({
   final List<String> next;
   switch (config.mode) {
     case BatchTagMode.overwrite:
-      final preserved =
-          config.preservedTags.map((t) => t.toLowerCase()).toSet();
+      final preserved = config.preservedTags
+          .map((t) => t.toLowerCase())
+          .toSet();
       final kept = <String>[];
       for (var i = 0; i < current.length; i++) {
         final tag = current[i];
@@ -69,18 +75,21 @@ List<String>? mergeBatchTags({
         }
       }
       final seen = kept.map((t) => t.toLowerCase()).toSet();
-      next = [
-        ...kept,
-        ...predicted.where((t) => seen.add(t.toLowerCase())),
-      ];
+      next = [...kept, ...predicted.where((t) => seen.add(t.toLowerCase()))];
     case BatchTagMode.append:
       final blacklist = config.blacklist.map((t) => t.toLowerCase()).toSet();
       final seen = current.map((t) => t.toLowerCase()).toSet();
       next = [
         ...current,
-        ...predicted.where((t) =>
-            !blacklist.contains(t.toLowerCase()) && seen.add(t.toLowerCase())),
+        ...predicted.where(
+          (t) =>
+              !blacklist.contains(t.toLowerCase()) && seen.add(t.toLowerCase()),
+        ),
       ];
+    case BatchTagMode.recognizeOnly:
+      // Recognize-only never touches captions; the run stores predictions on
+      // AiTaggerState instead of merging them here.
+      return null;
   }
   return listEquals(next, current) ? null : next;
 }
@@ -101,8 +110,8 @@ class BatchTagState extends ChangeNotifier {
     this.beforeMutate,
     this.onOperation,
     this.onCaptionsChanged,
-  })  : _settings = settings,
-        _service = service ?? AiTaggerService();
+  }) : _settings = settings,
+       _service = service ?? AiTaggerService();
 
   final DatasetState dataset;
   final AiTaggerState ai;
@@ -203,11 +212,11 @@ class BatchTagState extends ChangeNotifier {
 
   /// The config assembled from the persisted fields.
   BatchTagConfig get config => BatchTagConfig(
-        mode: _mode,
-        preservedTags: _preservedTags,
-        keepFirstN: _keepFirstN,
-        blacklist: _blacklist,
-      );
+    mode: _mode,
+    preservedTags: _preservedTags,
+    keepFirstN: _keepFirstN,
+    blacklist: _blacklist,
+  );
 
   /// Stops the run after the in-flight interrogation finishes. Files already
   /// rewritten stay rewritten (and undoable); the rest are left untouched.
@@ -240,9 +249,12 @@ class BatchTagState extends ChangeNotifier {
     _lastError = null;
     notifyListeners();
 
+    final recognizeOnly = runConfig.mode == BatchTagMode.recognizeOnly;
     final edits = <CaptionEdit>[];
     try {
-      await beforeMutate?.call();
+      // Recognize-only never writes to disk, so pending editor changes are
+      // not at risk and don't need flushing.
+      if (!recognizeOnly) await beforeMutate?.call();
       for (final file in files) {
         if (_cancelRequested) break;
         _currentPath = file.path;
@@ -255,11 +267,17 @@ class BatchTagState extends ChangeNotifier {
               AiModelRequest.wd(modelName: model, threshold: ai.threshold),
             ],
           );
-          final predicted = _normalizePredictions(resp);
-          final edit = await _applyToCaption(file.path, predicted, runConfig);
-          if (edit != null) {
-            edits.add(edit);
+          if (recognizeOnly) {
+            // Feed the single-image cache; [changed] counts cached results.
+            ai.storeResult(file.path, resp);
             _changed++;
+          } else {
+            final predicted = _normalizePredictions(resp);
+            final edit = await _applyToCaption(file.path, predicted, runConfig);
+            if (edit != null) {
+              edits.add(edit);
+              _changed++;
+            }
           }
         } catch (e) {
           _failed++;
@@ -268,9 +286,13 @@ class BatchTagState extends ChangeNotifier {
         _completed++;
         notifyListeners();
       }
+      // Even a partial (cancelled) recognize run is reviewable.
+      if (recognizeOnly && _changed > 0) ai.enterCompareMode();
     } finally {
       if (edits.isNotEmpty) {
-        dataset.updateCaptionTexts({for (final e in edits) e.imagePath: e.after});
+        dataset.updateCaptionTexts({
+          for (final e in edits) e.imagePath: e.after,
+        });
         onOperation?.call(TagOperation(label: operationLabel, edits: edits));
       }
       _running = false;
@@ -336,10 +358,11 @@ class BatchTagState extends ChangeNotifier {
       }
     }
     final ignore = ai.ignoreTags.map((t) => t.toLowerCase()).toSet();
-    final entries = best.entries
-        .where((e) => !ignore.contains(e.key.toLowerCase()))
-        .toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final entries =
+        best.entries
+            .where((e) => !ignore.contains(e.key.toLowerCase()))
+            .toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
     return [for (final e in entries) e.key];
   }
 
