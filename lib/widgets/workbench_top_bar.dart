@@ -10,8 +10,8 @@ import '../state/tag_ops.dart';
 import '../theme/app_theme.dart';
 import '../views/panels/batch_tag_dialog.dart';
 
-/// Top bar of the workbench: identity, the dataset path chip, and the
-/// theme / settings actions.
+/// Top bar of the workbench: the dataset location label + path chip, and
+/// the theme / settings actions.
 class WorkbenchTopBar extends StatelessWidget {
   const WorkbenchTopBar({super.key, required this.onOpenFolder});
 
@@ -56,22 +56,16 @@ class WorkbenchTopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Image.asset(
-            'assets/icon/icon.png',
-            width: 22,
-            height: 22,
-            filterQuality: FilterQuality.medium,
-          ),
-          const SizedBox(width: 10),
           Text(
-            l10n.appTitle,
-            style: const TextStyle(
+            l10n.datasetLocation,
+            style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.2,
+              color: semantic.muted,
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
           // The chip's flex slot absorbs ALL free width (aligned left inside),
           // so the trailing icons stay flush right. A Flexible chip next to a
           // Spacer would split the free space and leave the chip's unused
@@ -138,18 +132,16 @@ class WorkbenchTopBar extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.undo, size: 18),
-            tooltip: tagOps.undoLabel == null
-                ? l10n.undo
-                : l10n.undoTooltip(tagOps.undoLabel!),
+            tooltip:
+                '${tagOps.undoLabel == null ? l10n.undo : l10n.undoTooltip(tagOps.undoLabel!)} (Ctrl+Z)',
             color: semantic.muted,
             visualDensity: VisualDensity.compact,
             onPressed: tagOps.canUndo ? tagOps.undo : null,
           ),
           IconButton(
             icon: const Icon(Icons.redo, size: 18),
-            tooltip: tagOps.redoLabel == null
-                ? l10n.redo
-                : l10n.redoTooltip(tagOps.redoLabel!),
+            tooltip:
+                '${tagOps.redoLabel == null ? l10n.redo : l10n.redoTooltip(tagOps.redoLabel!)} (Ctrl+Y)',
             color: semantic.muted,
             visualDensity: VisualDensity.compact,
             onPressed: tagOps.canRedo ? tagOps.redo : null,
@@ -212,11 +204,11 @@ class _BatchTagButton extends StatelessWidget {
       onPressed: !enabled
           ? null
           : () => showBatchTagDialog(
-                context,
-                ai: context.read<AiTaggerState>(),
-                batch: batch,
-                dataset: dataset,
-              ),
+              context,
+              ai: context.read<AiTaggerState>(),
+              batch: batch,
+              dataset: dataset,
+            ),
     );
   }
 }

@@ -32,7 +32,7 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }
-  
+
   Future<void> saveCaptionExtension(String extension) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('captionExtension', extension);
@@ -216,6 +216,17 @@ class SettingsService {
   Future<bool> loadAiEscapeParentheses() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('aiEscapeParentheses') ?? false;
+  }
+
+  /// 对比视图的"仅新建议"筛选（默认 false）。
+  Future<void> saveAiShowNewOnly(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('aiShowNewOnly', value);
+  }
+
+  Future<bool> loadAiShowNewOnly() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('aiShowNewOnly') ?? false;
   }
 
   /// 全局忽略标签：这些标签永远不出现在 AI 识别结果里。

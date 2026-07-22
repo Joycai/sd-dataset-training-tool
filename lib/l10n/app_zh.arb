@@ -1,6 +1,7 @@
 {
   "@@locale": "zh",
   "appTitle": "数据集训练工具",
+  "datasetLocation": "数据集位置",
   "editor": "编辑器",
   "settings": "设置",
   "toggleTheme": "切换主题",

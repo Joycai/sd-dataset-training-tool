@@ -21,8 +21,7 @@ void main() {
     ];
 
     test('splits into new / missing / matched', () {
-      final diff =
-          AiTagDiff.compute(['narumi nagisa', 'smile'], predictions);
+      final diff = AiTagDiff.compute(['narumi nagisa', 'smile'], predictions);
       expect(diff.newSuggestions.map((p) => p.tag), ['1girl', 'long hair']);
       expect(diff.missing, {'narumi nagisa'});
       expect(diff.matched, {'smile'});
@@ -60,8 +59,11 @@ void main() {
     AiTaggerState buildState(Map<String, dynamic> interrogateResponse) {
       final client = MockClient((request) async {
         if (request.url.path == '/interrogateimage') {
-          return http.Response(jsonEncode(interrogateResponse), 200,
-              headers: {'content-type': 'application/json'});
+          return http.Response(
+            jsonEncode(interrogateResponse),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
         }
         return http.Response('not found', 404);
       });
@@ -72,19 +74,21 @@ void main() {
     }
 
     Map<String, dynamic> response(List<Map<String, dynamic>> tags) => {
-          'Success': true,
-          'ErrorMessage': '',
-          'Result': [
-            {'ModelName': 'm', 'Tags': tags},
-          ],
-        };
+      'Success': true,
+      'ErrorMessage': '',
+      'Result': [
+        {'ModelName': 'm', 'Tags': tags},
+      ],
+    };
 
     test('normalizes, de-duplicates and sorts predictions', () async {
-      final state = buildState(response([
-        {'Tag': 'long_hair', 'Probability': 0.7},
-        {'Tag': 'smile', 'Probability': 0.95},
-        {'Tag': 'long hair', 'Probability': 0.9},
-      ]));
+      final state = buildState(
+        response([
+          {'Tag': 'long_hair', 'Probability': 0.7},
+          {'Tag': 'smile', 'Probability': 0.95},
+          {'Tag': 'long hair', 'Probability': 0.9},
+        ]),
+      );
       await state.setModelName('m');
 
       final ok = await state.interrogate(image);
@@ -98,10 +102,12 @@ void main() {
     });
 
     test('resultFor applies the ignore list case-insensitively', () async {
-      final state = buildState(response([
-        {'Tag': 'smile', 'Probability': 0.9},
-        {'Tag': 'realistic', 'Probability': 0.8},
-      ]));
+      final state = buildState(
+        response([
+          {'Tag': 'smile', 'Probability': 0.9},
+          {'Tag': 'realistic', 'Probability': 0.8},
+        ]),
+      );
       await state.setModelName('m');
       await state.interrogate(image);
 
@@ -138,9 +144,28 @@ void main() {
     test('parses, trims and de-duplicates', () async {
       SharedPreferences.setMockInitialValues({});
       final state = AiTaggerState(SettingsService());
-      await state.setIgnoreTagsFromInput(' virtual youtuber ,, realistic, Realistic ');
+      await state.setIgnoreTagsFromInput(
+        ' virtual youtuber ,, realistic, Realistic ',
+      );
       expect(state.ignoreTags, ['virtual youtuber', 'realistic']);
       state.dispose();
+    });
+  });
+
+  group('AiTaggerState.setShowNewOnly', () {
+    test('persists and is restored by loadSettings', () async {
+      SharedPreferences.setMockInitialValues({});
+      final state = AiTaggerState(SettingsService());
+      expect(state.showNewOnly, isFalse);
+      await state.setShowNewOnly(true);
+      expect(state.showNewOnly, isTrue);
+      state.dispose();
+
+      // A fresh state (new app session) reads the persisted value back.
+      final reloaded = AiTaggerState(SettingsService());
+      await reloaded.loadSettings();
+      expect(reloaded.showNewOnly, isTrue);
+      reloaded.dispose();
     });
   });
 }

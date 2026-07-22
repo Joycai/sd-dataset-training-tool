@@ -12,6 +12,7 @@ import '../state/ai_tagger_state.dart';
 import '../state/batch_tag_state.dart';
 import '../state/dataset_state.dart';
 import '../state/editor_session.dart';
+import '../state/shortcut_relay.dart';
 import '../state/tag_ops.dart';
 import '../widgets/resize_handle.dart';
 import '../widgets/status_bar.dart';
@@ -63,6 +64,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   );
   final PreviewWindowLauncher _previewWindow = PreviewWindowLauncher();
   final FocusNode _libraryFilterFocus = FocusNode();
+  final ShortcutRelay _shortcutRelay = ShortcutRelay();
   String? _lastLoadedPath;
   late double _leftWidth;
   late double _rightWidth;
@@ -194,13 +196,70 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     context.read<AppState>().updateCenterSplit(_centerSplit);
   }
 
+  // Workbench shortcuts, dispatched from the root Focus node instead of a
+  // CallbackShortcuts widget: unmatched keys keep bubbling up to the
+  // app-level text-editing shortcuts instead of being swallowed here.
+  //
+  // Global bindings stay active while typing; the rest would conflict with
+  // text editing (caret movement, the text field's own undo) and only fire
+  // when focus is outside any text field.
+  late final Map<SingleActivator, VoidCallback> _globalShortcuts = {
+    const SingleActivator(LogicalKeyboardKey.keyS, control: true):
+        _session.save,
+    const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+        _libraryFilterFocus.requestFocus,
+    const SingleActivator(LogicalKeyboardKey.keyE, control: true): () =>
+        _shortcutRelay.runAiForCurrentImage?.call(),
+  };
+  late final Map<SingleActivator, VoidCallback> _nonTextShortcuts = {
+    const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
+        _dataset.selectByOffset(-1),
+    const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
+        _dataset.selectByOffset(1),
+    const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
+    const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true):
+        _redo,
+    const SingleActivator(LogicalKeyboardKey.keyY, control: true): _redo,
+  };
+
+  void _undo() {
+    if (_tagOps.canUndo) _tagOps.undo();
+  }
+
+  void _redo() {
+    if (_tagOps.canRedo) _tagOps.redo();
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    for (final entry in _globalShortcuts.entries) {
+      if (entry.key.accepts(event, HardwareKeyboard.instance)) {
+        entry.value();
+        return KeyEventResult.handled;
+      }
+    }
+    final inTextField =
+        FocusManager.instance.primaryFocus?.context
+            ?.findAncestorStateOfType<EditableTextState>() !=
+        null;
+    if (!inTextField) {
+      for (final entry in _nonTextShortcuts.entries) {
+        if (entry.key.accepts(event, HardwareKeyboard.instance)) {
+          entry.value();
+          return KeyEventResult.handled;
+        }
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
   @override
   Widget build(BuildContext context) {
     // Keep the session's autosave behavior in sync with the setting. select
     // (not watch): a full watch would rebuild the whole workbench on every
     // AppState notification, including each tag-library edit.
-    _session.autoSaveEnabled =
-        context.select<AppState, bool>((s) => s.autoSave);
+    _session.autoSaveEnabled = context.select<AppState, bool>(
+      (s) => s.autoSave,
+    );
 
     return MultiProvider(
       providers: [
@@ -210,165 +269,151 @@ class _WorkbenchViewState extends State<WorkbenchView> {
         ChangeNotifierProvider.value(value: _batchTag),
         ChangeNotifierProvider.value(value: _tagOps),
       ],
-      child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
-              _dataset.selectByOffset(-1),
-          const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
-              _dataset.selectByOffset(1),
-          const SingleActivator(LogicalKeyboardKey.keyS, control: true):
-              _session.save,
-          const SingleActivator(LogicalKeyboardKey.keyF, control: true):
-              _libraryFilterFocus.requestFocus,
-        },
-        child: Focus(
-          autofocus: true,
-          child: Column(
-            children: [
-              WorkbenchTopBar(onOpenFolder: _openFolder),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final total = constraints.maxWidth;
-                    final left = _clampPanelWidth(
-                      _leftWidth,
-                      _rightWidth,
-                      total,
-                    );
-                    final right = _clampPanelWidth(_rightWidth, left, total);
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          width: left,
-                          child: AssetsPanel(
-                            onOpenFolder: _openFolder,
-                            onRefresh: _refresh,
-                            onOpenExternalPreview: _openExternalPreview,
-                          ),
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: _handleKeyEvent,
+        child: Column(
+          children: [
+            WorkbenchTopBar(onOpenFolder: _openFolder),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final total = constraints.maxWidth;
+                  final left = _clampPanelWidth(_leftWidth, _rightWidth, total);
+                  final right = _clampPanelWidth(_rightWidth, left, total);
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        width: left,
+                        child: AssetsPanel(
+                          onOpenFolder: _openFolder,
+                          onRefresh: _refresh,
+                          onOpenExternalPreview: _openExternalPreview,
                         ),
-                        ResizeHandle(
-                          onDragStart: (x) {
-                            _dragAnchorX = x;
-                            _dragStartWidth = left;
-                          },
-                          onDragUpdate: (x) => setState(() {
-                            _leftWidth = _clampPanelWidth(
-                              _dragStartWidth + (x - _dragAnchorX),
-                              right,
-                              total,
+                      ),
+                      ResizeHandle(
+                        onDragStart: (x) {
+                          _dragAnchorX = x;
+                          _dragStartWidth = left;
+                        },
+                        onDragUpdate: (x) => setState(() {
+                          _leftWidth = _clampPanelWidth(
+                            _dragStartWidth + (x - _dragAnchorX),
+                            right,
+                            total,
+                          );
+                        }),
+                        onDragEnd: _persistPanelWidths,
+                        onReset: () {
+                          setState(() {
+                            _leftWidth = SettingsService.defaultLeftPanelWidth;
+                          });
+                          _persistPanelWidths();
+                        },
+                      ),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, center) {
+                            final totalHeight = center.maxHeight;
+                            final topHeight = _clampTopHeight(
+                              _centerSplit * totalHeight,
+                              totalHeight,
                             );
-                          }),
-                          onDragEnd: _persistPanelWidths,
-                          onReset: () {
-                            setState(() {
-                              _leftWidth =
-                                  SettingsService.defaultLeftPanelWidth;
-                            });
-                            _persistPanelWidths();
-                          },
-                        ),
-                        Expanded(
-                          child: LayoutBuilder(
-                            builder: (context, center) {
-                              final totalHeight = center.maxHeight;
-                              final topHeight = _clampTopHeight(
-                                _centerSplit * totalHeight,
-                                totalHeight,
-                              );
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  SizedBox(
-                                    height: topHeight,
-                                    child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        8,
-                                        14,
-                                        8,
-                                        4,
-                                      ),
-                                      child: PreviewPanel(
-                                        onOpenExternalPreview:
-                                            _openExternalPreview,
-                                      ),
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SizedBox(
+                                  height: topHeight,
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      8,
+                                      14,
+                                      8,
+                                      4,
+                                    ),
+                                    child: PreviewPanel(
+                                      onOpenExternalPreview:
+                                          _openExternalPreview,
                                     ),
                                   ),
-                                  ResizeHandle(
-                                    axis: Axis.vertical,
-                                    onDragStart: (y) {
-                                      _dragAnchorY = y;
-                                      _dragStartTopHeight = topHeight;
-                                    },
-                                    onDragUpdate: (y) => setState(() {
+                                ),
+                                ResizeHandle(
+                                  axis: Axis.vertical,
+                                  onDragStart: (y) {
+                                    _dragAnchorY = y;
+                                    _dragStartTopHeight = topHeight;
+                                  },
+                                  onDragUpdate: (y) => setState(() {
+                                    _centerSplit =
+                                        _clampTopHeight(
+                                          _dragStartTopHeight +
+                                              (y - _dragAnchorY),
+                                          totalHeight,
+                                        ) /
+                                        totalHeight;
+                                  }),
+                                  onDragEnd: _persistCenterSplit,
+                                  onReset: () {
+                                    setState(() {
                                       _centerSplit =
-                                          _clampTopHeight(
-                                            _dragStartTopHeight +
-                                                (y - _dragAnchorY),
-                                            totalHeight,
-                                          ) /
-                                          totalHeight;
-                                    }),
-                                    onDragEnd: _persistCenterSplit,
-                                    onReset: () {
-                                      setState(() {
-                                        _centerSplit =
-                                            SettingsService.defaultCenterSplit;
-                                      });
-                                      _persistCenterSplit();
-                                    },
-                                  ),
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        8,
-                                        3,
-                                        8,
-                                        14,
-                                      ),
-                                      child: const CaptionPanel(),
+                                          SettingsService.defaultCenterSplit;
+                                    });
+                                    _persistCenterSplit();
+                                  },
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      8,
+                                      3,
+                                      8,
+                                      14,
+                                    ),
+                                    child: CaptionPanel(
+                                      shortcutRelay: _shortcutRelay,
                                     ),
                                   ),
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-                        ResizeHandle(
-                          onDragStart: (x) {
-                            _dragAnchorX = x;
-                            _dragStartWidth = right;
-                          },
-                          onDragUpdate: (x) => setState(() {
-                            _rightWidth = _clampPanelWidth(
-                              _dragStartWidth - (x - _dragAnchorX),
-                              left,
-                              total,
+                                ),
+                              ],
                             );
-                          }),
-                          onDragEnd: _persistPanelWidths,
-                          onReset: () {
-                            setState(() {
-                              _rightWidth =
-                                  SettingsService.defaultRightPanelWidth;
-                            });
-                            _persistPanelWidths();
                           },
                         ),
-                        SizedBox(
-                          width: right,
-                          child: TagLibraryPanel(
-                            filterFocusNode: _libraryFilterFocus,
-                          ),
+                      ),
+                      ResizeHandle(
+                        onDragStart: (x) {
+                          _dragAnchorX = x;
+                          _dragStartWidth = right;
+                        },
+                        onDragUpdate: (x) => setState(() {
+                          _rightWidth = _clampPanelWidth(
+                            _dragStartWidth - (x - _dragAnchorX),
+                            left,
+                            total,
+                          );
+                        }),
+                        onDragEnd: _persistPanelWidths,
+                        onReset: () {
+                          setState(() {
+                            _rightWidth =
+                                SettingsService.defaultRightPanelWidth;
+                          });
+                          _persistPanelWidths();
+                        },
+                      ),
+                      SizedBox(
+                        width: right,
+                        child: TagLibraryPanel(
+                          filterFocusNode: _libraryFilterFocus,
                         ),
-                      ],
-                    );
-                  },
-                ),
+                      ),
+                    ],
+                  );
+                },
               ),
-              const StatusBar(),
-            ],
-          ),
+            ),
+            const StatusBar(),
+          ],
         ),
       ),
     );

@@ -26,8 +26,6 @@ class AiCompareView extends StatefulWidget {
 }
 
 class _AiCompareViewState extends State<AiCompareView> {
-  bool _showNewOnly = false;
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -88,7 +86,11 @@ class _AiCompareViewState extends State<AiCompareView> {
     }
 
     final diff = AiTagDiff.compute(session.tags, predictions);
-    final visiblePredictions = _showNewOnly ? diff.newSuggestions : predictions;
+    // The filter lives on AiTaggerState (persisted) so it survives image
+    // switches, re-runs, and app restarts.
+    final visiblePredictions = ai.showNewOnly
+        ? diff.newSuggestions
+        : predictions;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -216,8 +218,11 @@ class _AiCompareViewState extends State<AiCompareView> {
               const SizedBox(width: 8),
               _MiniFilter(
                 label: l10n.aiShowNewOnly,
-                selected: _showNewOnly,
-                onTap: () => setState(() => _showNewOnly = !_showNewOnly),
+                selected: context.read<AiTaggerState>().showNewOnly,
+                onTap: () {
+                  final ai = context.read<AiTaggerState>();
+                  ai.setShowNewOnly(!ai.showNewOnly);
+                },
               ),
             ],
           ),

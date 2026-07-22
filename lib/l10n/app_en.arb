@@ -1,6 +1,7 @@
 {
   "@@locale": "en",
   "appTitle": "DataSet Training Tool",
+  "datasetLocation": "Dataset Location",
   "editor": "Editor",
   "settings": "Settings",
   "toggleTheme": "Toggle Theme",

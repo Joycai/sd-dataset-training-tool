@@ -35,12 +35,15 @@ class AiTagDiff {
   final Set<String> matched;
 
   static AiTagDiff compute(
-      List<String> currentTags, List<AiPrediction> predictions) {
+    List<String> currentTags,
+    List<AiPrediction> predictions,
+  ) {
     final current = currentTags.toSet();
     final predicted = predictions.map((p) => p.tag).toSet();
     return AiTagDiff(
-      newSuggestions:
-          predictions.where((p) => !current.contains(p.tag)).toList(),
+      newSuggestions: predictions
+          .where((p) => !current.contains(p.tag))
+          .toList(),
       missing: current.difference(predicted),
       matched: current.intersection(predicted),
     );
@@ -55,7 +58,7 @@ class AiTagDiff {
 /// list is applied on read so editing it re-filters without a re-run.
 class AiTaggerState extends ChangeNotifier {
   AiTaggerState(this._settings, {AiTaggerService? service})
-      : _service = service ?? AiTaggerService();
+    : _service = service ?? AiTaggerService();
 
   final SettingsService _settings;
   final AiTaggerService _service;
@@ -65,6 +68,7 @@ class AiTaggerState extends ChangeNotifier {
   double? _threshold;
   bool _underscoreToSpaces = true;
   bool _escapeParentheses = false;
+  bool _showNewOnly = false;
   List<String> _ignoreTags = [];
 
   List<AiModelInfo> _models = const [];
@@ -82,6 +86,10 @@ class AiTaggerState extends ChangeNotifier {
   double? get threshold => _threshold;
   bool get underscoreToSpaces => _underscoreToSpaces;
   bool get escapeParentheses => _escapeParentheses;
+
+  /// Compare-view "new suggestions only" filter; remembered across image
+  /// switches and app restarts.
+  bool get showNewOnly => _showNewOnly;
   List<String> get ignoreTags => _ignoreTags;
   List<AiModelInfo> get models => _models;
   bool get loadingModels => _loadingModels;
@@ -95,6 +103,7 @@ class AiTaggerState extends ChangeNotifier {
     _threshold = await _settings.loadAiThreshold();
     _underscoreToSpaces = await _settings.loadAiUnderscoreToSpaces();
     _escapeParentheses = await _settings.loadAiEscapeParentheses();
+    _showNewOnly = await _settings.loadAiShowNewOnly();
     _ignoreTags = await _settings.loadAiIgnoreTags();
     notifyListeners();
   }
@@ -130,6 +139,13 @@ class AiTaggerState extends ChangeNotifier {
     _underscoreToSpaces = value;
     notifyListeners();
     await _settings.saveAiUnderscoreToSpaces(value);
+  }
+
+  Future<void> setShowNewOnly(bool value) async {
+    if (value == _showNewOnly) return;
+    _showNewOnly = value;
+    notifyListeners();
+    await _settings.saveAiShowNewOnly(value);
   }
 
   Future<void> setEscapeParentheses(bool value) async {
