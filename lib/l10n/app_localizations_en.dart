@@ -205,6 +205,37 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiRefreshModels => 'Refresh model list';
 
   @override
+  String get aiModelGroupTag => 'Tag models · booru style';
+
+  @override
+  String get aiModelGroupCaption => 'Natural language captions';
+
+  @override
+  String aiModelLegacyGroup(Object count) {
+    return 'Legacy models ($count)';
+  }
+
+  @override
+  String get aiModelFilterHint => 'Filter models…';
+
+  @override
+  String get aiModelFilterNoMatch => 'No matching models';
+
+  @override
+  String get aiBadgeRecommended => 'Recommended';
+
+  @override
+  String get aiBadgeUncensored => 'Uncensored';
+
+  @override
+  String get aiVramFootnote =>
+      'VRAM figures are estimates; amber means demanding.';
+
+  @override
+  String get aiThresholdCaptionNote =>
+      'The selected model outputs captions; the threshold has no effect.';
+
+  @override
   String get aiThresholdLabel => 'Threshold';
 
   @override

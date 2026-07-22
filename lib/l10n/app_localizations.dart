@@ -464,6 +464,60 @@ abstract class AppLocalizations {
   /// **'Refresh model list'**
   String get aiRefreshModels;
 
+  /// No description provided for @aiModelGroupTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag models · booru style'**
+  String get aiModelGroupTag;
+
+  /// No description provided for @aiModelGroupCaption.
+  ///
+  /// In en, this message translates to:
+  /// **'Natural language captions'**
+  String get aiModelGroupCaption;
+
+  /// No description provided for @aiModelLegacyGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Legacy models ({count})'**
+  String aiModelLegacyGroup(Object count);
+
+  /// No description provided for @aiModelFilterHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter models…'**
+  String get aiModelFilterHint;
+
+  /// No description provided for @aiModelFilterNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching models'**
+  String get aiModelFilterNoMatch;
+
+  /// No description provided for @aiBadgeRecommended.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended'**
+  String get aiBadgeRecommended;
+
+  /// No description provided for @aiBadgeUncensored.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncensored'**
+  String get aiBadgeUncensored;
+
+  /// No description provided for @aiVramFootnote.
+  ///
+  /// In en, this message translates to:
+  /// **'VRAM figures are estimates; amber means demanding.'**
+  String get aiVramFootnote;
+
+  /// No description provided for @aiThresholdCaptionNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected model outputs captions; the threshold has no effect.'**
+  String get aiThresholdCaptionNote;
+
   /// No description provided for @aiThresholdLabel.
   ///
   /// In en, this message translates to:

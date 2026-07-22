@@ -90,6 +90,20 @@
   "aiModelLabel": "Model",
   "aiNoModels": "No models yet — refresh to fetch",
   "aiRefreshModels": "Refresh model list",
+  "aiModelGroupTag": "Tag models · booru style",
+  "aiModelGroupCaption": "Natural language captions",
+  "aiModelLegacyGroup": "Legacy models ({count})",
+  "@aiModelLegacyGroup": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "aiModelFilterHint": "Filter models…",
+  "aiModelFilterNoMatch": "No matching models",
+  "aiBadgeRecommended": "Recommended",
+  "aiBadgeUncensored": "Uncensored",
+  "aiVramFootnote": "VRAM figures are estimates; amber means demanding.",
+  "aiThresholdCaptionNote": "The selected model outputs captions; the threshold has no effect.",
   "aiThresholdLabel": "Threshold",
   "aiUseModelDefault": "Model default",
   "aiThresholdDesc": "Lower values produce more tags.",

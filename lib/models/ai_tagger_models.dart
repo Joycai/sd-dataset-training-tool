@@ -27,16 +27,43 @@ class AiModelInfo {
     required this.modelName,
     this.supportedVideo = false,
     this.repositoryLink = '',
+    this.category = '',
+    this.recommended = false,
+    this.uncensored = false,
+    this.legacy = false,
+    this.vramGb = 0,
+    this.description = '',
+    this.advice = '',
   });
 
   final String modelName;
   final bool supportedVideo;
   final String repositoryLink;
 
+  /// Picker grouping: `tag` (booru-style tagger) or `caption` (natural
+  /// language). Empty on servers that predate the metadata fields — the
+  /// picker then falls back to an ungrouped list.
+  final String category;
+  final bool recommended;
+  final bool uncensored;
+  final bool legacy;
+
+  /// Rough VRAM estimate in GB; 0 means unknown.
+  final double vramGb;
+  final String description;
+  final String advice;
+
   factory AiModelInfo.fromJson(Map<String, dynamic> json) => AiModelInfo(
         modelName: (json['ModelName'] as String?) ?? '',
         supportedVideo: (json['SupportedVideo'] as bool?) ?? false,
         repositoryLink: (json['RepositoryLink'] as String?) ?? '',
+        category: (json['Category'] as String?) ?? '',
+        recommended: (json['Recommended'] as bool?) ?? false,
+        uncensored: (json['Uncensored'] as bool?) ?? false,
+        legacy: (json['Legacy'] as bool?) ?? false,
+        vramGb: (json['VramGB'] as num?)?.toDouble() ?? 0,
+        description: (json['Description'] as String?) ?? '',
+        advice: (json['Advice'] as String?) ?? '',
       );
 
   @override

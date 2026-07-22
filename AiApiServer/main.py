@@ -163,6 +163,14 @@ def get_model_base_info_list(model_map: dict, type_name: str = None):
             mbi.SupportedVideo = value.video_supported
             if value.repo_name != "":
                 mbi.RepositoryLink = "https://huggingface.co/" + value.repo_name
+            meta = models.MODEL_METADATA.get(key, {})
+            mbi.Category = models.MODEL_CATEGORIES.get(value.type, "caption")
+            mbi.Recommended = meta.get("recommended", False)
+            mbi.Uncensored = meta.get("uncensored", False)
+            mbi.Legacy = meta.get("legacy", False)
+            mbi.VramGB = float(meta.get("vram_gb", 0))
+            mbi.Description = meta.get("description", "")
+            mbi.Advice = meta.get("advice", "")
             result.append(mbi)
     return result
 
