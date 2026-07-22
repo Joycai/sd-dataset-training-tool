@@ -178,6 +178,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editTagTitle => '编辑标签';
 
   @override
+  String get tagSortModeTooltip => '排序模式：直接拖动标签排序';
+
+  @override
   String get aiInterrogateButton => 'AI 识别';
 
   @override

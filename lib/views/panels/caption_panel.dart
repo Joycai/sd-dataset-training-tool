@@ -24,6 +24,12 @@ class _CaptionPanelState extends State<CaptionPanel> {
   static const _tabTags = 1;
 
   int _tab = _tabTags;
+
+  /// Tags-tab interaction mode: false = edit (click to edit, long-press to
+  /// drag), true = sort (drag immediately, no editing). Lives on the panel
+  /// state so it survives image switches.
+  bool _sortMode = false;
+
   final TextEditingController _addTagController = TextEditingController();
   final FocusNode _addTagFocus = FocusNode();
 
@@ -195,7 +201,12 @@ class _CaptionPanelState extends State<CaptionPanel> {
                     sizing: StackFit.expand,
                     children: [
                       _buildTextView(session, l10n),
-                      ai.compareMode
+                      // Compare mode is a global flag, but it only makes sense
+                      // for images that actually have (or are getting) a
+                      // result — other images keep the normal tags view.
+                      ai.compareMode &&
+                              (ai.running ||
+                                  ai.hasResultFor(session.image!.path))
                           ? AiCompareView(onRunAi: _runAi)
                           : _buildTagsView(session, l10n, semantic),
                     ],
@@ -245,6 +256,9 @@ class _CaptionPanelState extends State<CaptionPanel> {
               : ReorderableGridView.builder(
                   padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
                   itemCount: session.tags.length,
+                  // Sort mode: drag starts immediately instead of after a
+                  // long press. Null keeps the package's long-press default.
+                  dragStartDelay: _sortMode ? Duration.zero : null,
                   gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 170,
                     mainAxisSpacing: 8,
@@ -259,6 +273,7 @@ class _CaptionPanelState extends State<CaptionPanel> {
                     return _TagChip(
                       key: ValueKey(tag),
                       label: tag,
+                      sortMode: _sortMode,
                       onTap: () => _editTag(session, index),
                       onDelete: () => session.removeTag(tag),
                     );
@@ -267,23 +282,49 @@ class _CaptionPanelState extends State<CaptionPanel> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-          child: TextField(
-            controller: _addTagController,
-            focusNode: _addTagFocus,
-            style: const TextStyle(fontSize: 12.5),
-            decoration: InputDecoration(
-              hintText: l10n.addTagHint,
-              prefixIcon: Icon(Icons.add, size: 15, color: semantic.muted),
-              prefixIconConstraints: const BoxConstraints(
-                minWidth: 30,
-                minHeight: 30,
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _addTagController,
+                  focusNode: _addTagFocus,
+                  style: const TextStyle(fontSize: 12.5),
+                  decoration: InputDecoration(
+                    hintText: l10n.addTagHint,
+                    prefixIcon:
+                        Icon(Icons.add, size: 15, color: semantic.muted),
+                    prefixIconConstraints: const BoxConstraints(
+                      minWidth: 30,
+                      minHeight: 30,
+                    ),
+                  ),
+                  onSubmitted: (value) {
+                    session.addTagsFromInput(value);
+                    _addTagController.clear();
+                    _addTagFocus.requestFocus();
+                  },
+                ),
               ),
-            ),
-            onSubmitted: (value) {
-              session.addTagsFromInput(value);
-              _addTagController.clear();
-              _addTagFocus.requestFocus();
-            },
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.drag_indicator, size: 16),
+                tooltip: l10n.tagSortModeTooltip,
+                isSelected: _sortMode,
+                color: semantic.muted,
+                selectedIcon: Icon(
+                  Icons.drag_indicator,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(
+                  minWidth: 30,
+                  minHeight: 30,
+                ),
+                padding: EdgeInsets.zero,
+                onPressed: () => setState(() => _sortMode = !_sortMode),
+              ),
+            ],
           ),
         ),
       ],
@@ -434,43 +475,57 @@ class _TagChip extends StatelessWidget {
     required this.label,
     required this.onTap,
     required this.onDelete,
+    this.sortMode = false,
   });
 
   final String label;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
+  /// Sort mode: the chip is drag-only — no tap-to-edit, and the delete
+  /// button is replaced by a drag handle (immediate drag would swallow the
+  /// taps anyway).
+  final bool sortMode;
+
   @override
   Widget build(BuildContext context) {
     final semantic = context.semantic;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(7),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9),
-        decoration: BoxDecoration(
-          color: semantic.raised,
-          border: Border.all(color: semantic.line),
-          borderRadius: BorderRadius.circular(7),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12),
-              ),
+    final body = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      decoration: BoxDecoration(
+        color: semantic.raised,
+        border: Border.all(color: semantic.line),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12),
             ),
-            const SizedBox(width: 4),
+          ),
+          const SizedBox(width: 4),
+          if (sortMode)
+            Icon(Icons.drag_indicator, size: 12, color: semantic.muted)
+          else
             InkWell(
               onTap: onDelete,
               borderRadius: BorderRadius.circular(99),
               child: Icon(Icons.close, size: 12, color: semantic.muted),
             ),
-          ],
-        ),
+        ],
       ),
+    );
+
+    if (sortMode) {
+      return MouseRegion(cursor: SystemMouseCursors.grab, child: body);
+    }
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(7),
+      child: body,
     );
   }
 }

@@ -416,6 +416,12 @@ abstract class AppLocalizations {
   /// **'Edit Tag'**
   String get editTagTitle;
 
+  /// No description provided for @tagSortModeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort mode: drag tags to reorder'**
+  String get tagSortModeTooltip;
+
   /// No description provided for @aiInterrogateButton.
   ///
   /// In en, this message translates to:
