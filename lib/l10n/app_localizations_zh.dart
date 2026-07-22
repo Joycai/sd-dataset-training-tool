@@ -317,6 +317,94 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get batchTagButton => '批量打标';
+
+  @override
+  String get batchTagTitle => '批量 AI 打标';
+
+  @override
+  String get batchTagParamsHint => '阈值、忽略标签与格式化沿用 AI 打标参数。';
+
+  @override
+  String get batchTagOpenParams => 'AI 参数…';
+
+  @override
+  String get batchTagModeLabel => '模式';
+
+  @override
+  String get batchTagModeAppend => '追加模式';
+
+  @override
+  String get batchTagModeOverwrite => '覆盖模式';
+
+  @override
+  String get batchTagModeAppendDesc => '把新识别出的标签追加到每张图已有标签之后，不会重复添加。';
+
+  @override
+  String get batchTagModeOverwriteDesc => '用 AI 识别结果覆盖每张图的已有标签，可在下方配置要保留的标签。';
+
+  @override
+  String get batchTagPreservedLabel => '保留标签';
+
+  @override
+  String get batchTagPreservedDesc => '逗号分隔。覆盖时这些已有标签会被保留。';
+
+  @override
+  String get batchTagKeepFirstN => '保留前 N 个已有标签';
+
+  @override
+  String get batchTagBlacklistLabel => '黑名单';
+
+  @override
+  String get batchTagBlacklistDesc => '逗号分隔。这些标签不会被追加。';
+
+  @override
+  String batchTagScopeFiltered(Object count) {
+    return '仅处理当前筛选的 $count 张';
+  }
+
+  @override
+  String batchTagTargetCount(Object count) {
+    return '将逐张处理 $count 张图片。';
+  }
+
+  @override
+  String get batchTagStart => '开始';
+
+  @override
+  String batchTagRunning(Object completed, Object total) {
+    return '批量打标中 $completed/$total';
+  }
+
+  @override
+  String batchTagProgressCounts(Object changed, Object failed) {
+    return '已修改 $changed · 失败 $failed';
+  }
+
+  @override
+  String get batchTagHide => '后台运行';
+
+  @override
+  String get batchTagCancel => '取消任务';
+
+  @override
+  String get batchTagCancelling => '正在取消…';
+
+  @override
+  String get batchTagDoneTitle => '批量打标完成';
+
+  @override
+  String batchTagDoneSummary(Object completed, Object changed, Object failed) {
+    return '共处理 $completed 张：修改 $changed 张，失败 $failed 张。';
+  }
+
+  @override
+  String get batchTagUndoHint => '可通过顶栏的撤销按钮回退本次修改。';
+
+  @override
+  String get batchTagOperationLabel => '批量 AI 打标';
+
+  @override
   String get rightTabLibrary => '标签库';
 
   @override

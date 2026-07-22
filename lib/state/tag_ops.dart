@@ -109,6 +109,15 @@ class TagOps extends ChangeNotifier {
     });
   }
 
+  /// Records an operation whose file rewrites already happened elsewhere
+  /// (e.g. a batch AI tagging run) so it participates in undo/redo.
+  void pushOperation(TagOperation op) {
+    if (op.edits.isEmpty) return;
+    _undoStack.add(op);
+    _redoStack.clear();
+    notifyListeners();
+  }
+
   Future<void> undo() => _replay(from: _undoStack, to: _redoStack, undo: true);
 
   Future<void> redo() => _replay(from: _redoStack, to: _undoStack, undo: false);

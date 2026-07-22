@@ -228,4 +228,51 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getStringList('aiIgnoreTags') ?? [];
   }
+
+  // --- 批量打标 (batch tagging) ---
+
+  /// 批量打标模式，存 BatchTagMode 的 name（overwrite/append）；未设置时为
+  /// null，由调用方决定默认值（避免 service 反向依赖 state 层的枚举）。
+  Future<void> saveBatchTagMode(String modeName) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('batchTagMode', modeName);
+  }
+
+  Future<String?> loadBatchTagMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('batchTagMode');
+  }
+
+  /// 覆盖模式下要保留的已有标签。
+  Future<void> saveBatchTagPreservedTags(List<String> tags) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('batchTagPreservedTags', tags);
+  }
+
+  Future<List<String>> loadBatchTagPreservedTags() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('batchTagPreservedTags') ?? [];
+  }
+
+  /// 覆盖模式下保留前 N 个已有标签（kohya keep-tokens 风格），默认 0。
+  Future<void> saveBatchTagKeepFirstN(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('batchTagKeepFirstN', value);
+  }
+
+  Future<int> loadBatchTagKeepFirstN() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('batchTagKeepFirstN') ?? 0;
+  }
+
+  /// 追加模式下的黑名单：这些标签不会被追加。
+  Future<void> saveBatchTagBlacklist(List<String> tags) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('batchTagBlacklist', tags);
+  }
+
+  Future<List<String>> loadBatchTagBlacklist() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('batchTagBlacklist') ?? [];
+  }
 }

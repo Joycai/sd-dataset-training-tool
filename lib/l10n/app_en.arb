@@ -151,6 +151,62 @@
     }
   },
 
+  "batchTagButton": "Batch tagging",
+  "batchTagTitle": "Batch AI tagging",
+  "batchTagParamsHint": "Threshold, ignored tags and normalization follow the AI parameters.",
+  "batchTagOpenParams": "AI parameters…",
+  "batchTagModeLabel": "Mode",
+  "batchTagModeAppend": "Append",
+  "batchTagModeOverwrite": "Overwrite",
+  "batchTagModeAppendDesc": "New AI tags are appended after each image's existing tags; duplicates are never added.",
+  "batchTagModeOverwriteDesc": "AI results replace each image's existing tags; configure below which existing tags survive.",
+  "batchTagPreservedLabel": "Preserved tags",
+  "batchTagPreservedDesc": "Comma-separated. These existing tags survive the overwrite.",
+  "batchTagKeepFirstN": "Keep first N existing tags",
+  "batchTagBlacklistLabel": "Blacklist",
+  "batchTagBlacklistDesc": "Comma-separated. These tags are never appended.",
+  "batchTagScopeFiltered": "Only the {count} filtered images",
+  "@batchTagScopeFiltered": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "batchTagTargetCount": "{count} images will be processed, one at a time.",
+  "@batchTagTargetCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "batchTagStart": "Start",
+  "batchTagRunning": "Batch tagging {completed}/{total}",
+  "@batchTagRunning": {
+    "placeholders": {
+      "completed": {},
+      "total": {}
+    }
+  },
+  "batchTagProgressCounts": "Changed {changed} · Failed {failed}",
+  "@batchTagProgressCounts": {
+    "placeholders": {
+      "changed": {},
+      "failed": {}
+    }
+  },
+  "batchTagHide": "Run in background",
+  "batchTagCancel": "Cancel run",
+  "batchTagCancelling": "Cancelling…",
+  "batchTagDoneTitle": "Batch tagging finished",
+  "batchTagDoneSummary": "{completed} images processed: {changed} changed, {failed} failed.",
+  "@batchTagDoneSummary": {
+    "placeholders": {
+      "completed": {},
+      "changed": {},
+      "failed": {}
+    }
+  },
+  "batchTagUndoHint": "Use undo in the top bar to revert this run.",
+  "batchTagOperationLabel": "batch AI tagging",
+
   "rightTabLibrary": "Library",
   "rightTabDataset": "Dataset",
   "datasetTagsTitle": "Dataset Tags",

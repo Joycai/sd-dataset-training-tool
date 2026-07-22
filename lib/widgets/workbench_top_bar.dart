@@ -3,9 +3,12 @@ import 'package:provider/provider.dart';
 
 import '../app_state.dart';
 import '../l10n/app_localizations.dart';
+import '../state/ai_tagger_state.dart';
+import '../state/batch_tag_state.dart';
 import '../state/dataset_state.dart';
 import '../state/tag_ops.dart';
 import '../theme/app_theme.dart';
+import '../views/panels/batch_tag_dialog.dart';
 
 /// Top bar of the workbench: identity, the dataset path chip, and the
 /// theme / settings actions.
@@ -128,6 +131,11 @@ class WorkbenchTopBar extends StatelessWidget {
               ),
             ),
           ),
+          _BatchTagButton(dataset: dataset),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Container(width: 1, height: 18, color: semantic.line),
+          ),
           IconButton(
             icon: const Icon(Icons.undo, size: 18),
             tooltip: tagOps.undoLabel == null
@@ -166,6 +174,49 @@ class WorkbenchTopBar extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Batch tagging entry point. While a run is active the icon becomes a small
+/// progress ring and the button reopens the live progress dialog.
+class _BatchTagButton extends StatelessWidget {
+  const _BatchTagButton({required this.dataset});
+
+  final DatasetState dataset;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final batch = context.watch<BatchTagState>();
+    final enabled = batch.running || dataset.allFiles.isNotEmpty;
+
+    return IconButton(
+      icon: batch.running
+          ? SizedBox(
+              width: 15,
+              height: 15,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                value: batch.progress,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            )
+          : const Icon(Icons.auto_awesome_motion, size: 18),
+      tooltip: batch.running
+          ? l10n.batchTagRunning(batch.completed, batch.total)
+          : l10n.batchTagButton,
+      color: semantic.muted,
+      visualDensity: VisualDensity.compact,
+      onPressed: !enabled
+          ? null
+          : () => showBatchTagDialog(
+                context,
+                ai: context.read<AiTaggerState>(),
+                batch: batch,
+                dataset: dataset,
+              ),
     );
   }
 }
