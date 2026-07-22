@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -121,6 +122,37 @@ void main() {
 
     await appState.removeCommonTags(['solo']);
     expect(appState.commonTags, ['1girl', 'highres']);
+  });
+
+  testWidgets('Workbench shortcuts yield to focused text fields',
+      (WidgetTester tester) async {
+    final appState = await _createAppState();
+    await tester.pumpWidget(_wrapApp(appState));
+    await tester.pumpAndSettle();
+
+    // With no dataset open, navigation / AI / undo shortcuts are no-ops
+    // rather than crashes.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyE);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyZ);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pump();
+
+    // Focus the assets-panel search field and type; the caret ends at 3.
+    final field = find.byType(TextField).first;
+    await tester.enterText(field, 'abc');
+    await tester.pump();
+    final editable = tester.widget<EditableText>(
+      find.descendant(of: field, matching: find.byType(EditableText)),
+    );
+    expect(editable.controller.selection.baseOffset, 3);
+
+    // ArrowLeft must reach the text field (caret moves) instead of being
+    // swallowed by the workbench image-navigation shortcut.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pump();
+    expect(editable.controller.selection.baseOffset, 2);
   });
 
   test('Dataset filters and selection navigate the visible list', () {

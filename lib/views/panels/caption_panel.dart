@@ -6,6 +6,7 @@ import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/ai_tagger_state.dart';
 import '../../state/editor_session.dart';
+import '../../state/shortcut_relay.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
 import 'ai_compare_view.dart';
@@ -14,7 +15,10 @@ import 'ai_params_dialog.dart';
 /// Center-bottom: the caption editor. Two views of the same caption — raw
 /// text and a reorderable tag grid — plus a live save-state indicator.
 class CaptionPanel extends StatefulWidget {
-  const CaptionPanel({super.key});
+  const CaptionPanel({super.key, this.shortcutRelay});
+
+  /// Lets workbench-level shortcuts trigger the AI run implemented here.
+  final ShortcutRelay? shortcutRelay;
 
   @override
   State<CaptionPanel> createState() => _CaptionPanelState();
@@ -35,7 +39,14 @@ class _CaptionPanelState extends State<CaptionPanel> {
   final FocusNode _addTagFocus = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    widget.shortcutRelay?.runAiForCurrentImage = _runAi;
+  }
+
+  @override
   void dispose() {
+    widget.shortcutRelay?.runAiForCurrentImage = null;
     _addTagController.dispose();
     _addTagFocus.dispose();
     super.dispose();
@@ -294,8 +305,11 @@ class _CaptionPanelState extends State<CaptionPanel> {
                   style: const TextStyle(fontSize: 12.5),
                   decoration: InputDecoration(
                     hintText: l10n.addTagHint,
-                    prefixIcon:
-                        Icon(Icons.add, size: 15, color: semantic.muted),
+                    prefixIcon: Icon(
+                      Icons.add,
+                      size: 15,
+                      color: semantic.muted,
+                    ),
                     prefixIconConstraints: const BoxConstraints(
                       minWidth: 30,
                       minHeight: 30,
@@ -320,10 +334,7 @@ class _CaptionPanelState extends State<CaptionPanel> {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 visualDensity: VisualDensity.compact,
-                constraints: const BoxConstraints(
-                  minWidth: 30,
-                  minHeight: 30,
-                ),
+                constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
                 padding: EdgeInsets.zero,
                 onPressed: () => setState(() => _sortMode = !_sortMode),
               ),
@@ -368,7 +379,7 @@ class _AiRunButton extends StatelessWidget {
     if (compact) {
       return IconButton(
         icon: icon,
-        tooltip: label,
+        tooltip: '$label (Ctrl+E)',
         onPressed: enabled ? onPressed : null,
         color: Theme.of(context).colorScheme.primary,
         visualDensity: VisualDensity.compact,
@@ -377,15 +388,18 @@ class _AiRunButton extends StatelessWidget {
       );
     }
 
-    return TextButton.icon(
-      onPressed: enabled ? onPressed : null,
-      icon: icon,
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      style: TextButton.styleFrom(
-        visualDensity: VisualDensity.compact,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        minimumSize: const Size(0, 28),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return Tooltip(
+      message: '$label (Ctrl+E)',
+      child: TextButton.icon(
+        onPressed: enabled ? onPressed : null,
+        icon: icon,
+        label: Text(label, style: const TextStyle(fontSize: 12)),
+        style: TextButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          minimumSize: const Size(0, 28),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
       ),
     );
   }
@@ -503,9 +517,7 @@ class _TagChip extends StatelessWidget {
         color: groupColor == null
             ? semantic.raised
             : Color.alphaBlend(groupColor!.withAlpha(33), semantic.raised),
-        border: Border.all(
-          color: groupColor?.withAlpha(153) ?? semantic.line,
-        ),
+        border: Border.all(color: groupColor?.withAlpha(153) ?? semantic.line),
         borderRadius: BorderRadius.circular(7),
       ),
       child: Row(

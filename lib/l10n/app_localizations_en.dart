@@ -12,6 +12,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appTitle => 'DataSet Training Tool';
 
   @override
+  String get datasetLocation => 'Dataset Location';
+
+  @override
   String get editor => 'Editor';
 
   @override

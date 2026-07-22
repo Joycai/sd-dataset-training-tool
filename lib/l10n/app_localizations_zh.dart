@@ -12,6 +12,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appTitle => '数据集训练工具';
 
   @override
+  String get datasetLocation => '数据集位置';
+
+  @override
   String get editor => '编辑器';
 
   @override

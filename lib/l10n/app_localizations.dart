@@ -104,6 +104,12 @@ abstract class AppLocalizations {
   /// **'DataSet Training Tool'**
   String get appTitle;
 
+  /// No description provided for @datasetLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Dataset Location'**
+  String get datasetLocation;
+
   /// No description provided for @editor.
   ///
   /// In en, this message translates to:
