@@ -114,4 +114,69 @@ class SettingsService {
     final languageCode = prefs.getString('languageCode');
     return Locale(languageCode ?? 'en');
   }
+
+  // --- AI 打标服务 (AiApiServer) ---
+  static const String defaultAiServerUrl = 'http://127.0.0.1:50051';
+
+  Future<void> saveAiServerUrl(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('aiServerUrl', url);
+  }
+
+  Future<String> loadAiServerUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('aiServerUrl') ?? defaultAiServerUrl;
+  }
+
+  /// 上次选择的打标模型（完整 HuggingFace 仓库名），未选择时为 null。
+  Future<void> saveAiModelName(String? modelName) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (modelName == null) {
+      await prefs.remove('aiModelName');
+    } else {
+      await prefs.setString('aiModelName', modelName);
+    }
+  }
+
+  Future<String?> loadAiModelName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('aiModelName');
+  }
+
+  /// 用户覆盖的阈值；返回 null 表示用模型默认值。
+  Future<void> saveAiThreshold(double? threshold) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (threshold == null) {
+      await prefs.remove('aiThreshold');
+    } else {
+      await prefs.setDouble('aiThreshold', threshold);
+    }
+  }
+
+  Future<double?> loadAiThreshold() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble('aiThreshold');
+  }
+
+  /// 是否把 tag 里的下划线转为空格（默认 true）。
+  Future<void> saveAiUnderscoreToSpaces(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('aiUnderscoreToSpaces', value);
+  }
+
+  Future<bool> loadAiUnderscoreToSpaces() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('aiUnderscoreToSpaces') ?? true;
+  }
+
+  /// 是否转义括号 ( ) -> \( \)（默认 false）。
+  Future<void> saveAiEscapeParentheses(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('aiEscapeParentheses', value);
+  }
+
+  Future<bool> loadAiEscapeParentheses() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('aiEscapeParentheses') ?? false;
+  }
 }
