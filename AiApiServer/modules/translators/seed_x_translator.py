@@ -13,7 +13,7 @@ LANGUAGES = {
     "English": "en",
     "Chinese": "zh",
     "Russian": "ru",
-    "Japanese": "ka",
+    "Japanese": "ja",
     "Korean": "ko",
     "Spanish": "es",
     "French": "fr",

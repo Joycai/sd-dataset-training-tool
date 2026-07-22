@@ -17,6 +17,10 @@ from modules.translators.seed_x_translator import LANGUAGES
 
 import collections
 
+# Load persisted settings before importing models: importing models triggers
+# paths.initialize(), which reads settings.current.interrogator_model_dir.
+settings.load()
+
 import models
 from modules import utilities
 from modules.server_dataclasses import *
@@ -31,6 +35,21 @@ api = Api(app)
 app.logger.setLevel(logging.ERROR)
 
 
+def unload_other_models(active_name):
+    """Free VRAM from every loaded model except ``active_name``.
+
+    The interrogator, editor and translator maps share one
+    ``ACTIVE_INTERROGATOR`` slot, so switching between the three model types
+    must unload across *all* maps, not just within the one currently in use.
+    Otherwise, e.g. running a tagger and then an editor would leave the tagger
+    resident in VRAM even when SerializeVramUsage is requested.
+    """
+    for model_map in (models.INTERROGATOR_MAP, models.EDITOR_MAP, models.TRANSLATOR_MAP):
+        for model_name, model_inst in model_map.items():
+            if model_name != active_name:
+                model_inst.stop()
+
+
 def interrogate_image(network_name, data_object, data_type, net_params, skip_online):
     global ACTIVE_INTERROGATOR
     global ONE_INTERROGATOR_IN_VRAM_AT_A_TIME
@@ -39,9 +58,7 @@ def interrogate_image(network_name, data_object, data_type, net_params, skip_onl
         if ONE_INTERROGATOR_IN_VRAM_AT_A_TIME and ACTIVE_INTERROGATOR and ACTIVE_INTERROGATOR != network_name:
             print("Unloading interrogator %s" % (ACTIVE_INTERROGATOR,))
 
-            for interrogator_name, interg in models.INTERROGATOR_MAP.items():
-                if interrogator_name != network_name:
-                    interg.stop()
+            unload_other_models(network_name)
 
         if ONE_INTERROGATOR_IN_VRAM_AT_A_TIME and ACTIVE_INTERROGATOR != network_name:
             print("Need to load network", network_name)
@@ -63,9 +80,7 @@ def edit_image(network_name, image_obj, net_params, skip_online):
         if ONE_INTERROGATOR_IN_VRAM_AT_A_TIME and ACTIVE_INTERROGATOR and ACTIVE_INTERROGATOR != network_name:
             print("Unloading editor %s" % (ACTIVE_INTERROGATOR,))
 
-            for interrogator_name, interg in models.EDITOR_MAP.items():
-                if interrogator_name != network_name:
-                    interg.stop()
+            unload_other_models(network_name)
 
         if ONE_INTERROGATOR_IN_VRAM_AT_A_TIME and ACTIVE_INTERROGATOR != network_name:
             print("Need to load network", network_name)
@@ -87,9 +102,7 @@ def translate_text(network_name, text, from_lang, to_lang, net_params, skip_onli
         if ONE_INTERROGATOR_IN_VRAM_AT_A_TIME and ACTIVE_INTERROGATOR and ACTIVE_INTERROGATOR != network_name:
             print("Unloading editor %s" % (ACTIVE_INTERROGATOR,))
 
-            for translator_name, interg in models.TRANSLATOR_MAP.items():
-                if translator_name != network_name:
-                    interg.stop()
+            unload_other_models(network_name)
 
         if ONE_INTERROGATOR_IN_VRAM_AT_A_TIME and ACTIVE_INTERROGATOR != network_name:
             print("Need to load network", network_name)
@@ -301,7 +314,7 @@ class SetCustomSystemPrompt(Resource):
         data = request.get_json()
         prompt = data["Prompt"]
         settings.current = settings.current._replace(custom_system_prompt=prompt)
-        return 200
+        return {}, 200
 
 
 class InterrogateImage(Resource):
@@ -321,7 +334,7 @@ class InterrogateImage(Resource):
             if network_conf.ModelName not in models.INTERROGATOR_MAP:
                 ret.Success = False
                 ret.ErrorMessage = "Image Interrogator named '%s' is not a valid interrogator name. Known interrogators: '%s'" % (
-                    network_conf.interrogator_network, list(models.INTERROGATOR_MAP.keys())
+                    network_conf.ModelName, list(models.INTERROGATOR_MAP.keys())
                 )
                 print(ret.ErrorMessage)
                 return ret
@@ -343,9 +356,8 @@ class InterrogateImage(Resource):
 
             for network_conf in int_request.Models:
                 param_dict = create_dict_from_additional_parameters(network_conf.AdditionalParameters)
-                threshold = 1.0
-                if 'threshold' in param_dict:
-                    threshold = param_dict['threshold']
+                model_inst = models.INTERROGATOR_MAP[network_conf.ModelName]
+                threshold = param_dict.get('threshold', getattr(model_inst, 'threshold', 1.0))
                 tag_ret = interrogate_image(network_conf.ModelName, int_request.DataObject, int_request.DataType,
                                             param_dict,
                                             skip_online=int_request.SkipInternetRequests)
@@ -417,7 +429,7 @@ class EditImage(Resource):
         print("File size: ", len(int_request.Image))
         if int_request.Model.ModelName not in models.EDITOR_MAP:
             ret.Success = False
-            ret.ErrorMessage = "Image Interrogator named '%s' is not a valid interrogator name. Known interrogators: '%s'" % (
+            ret.ErrorMessage = "Image Editor named '%s' is not a valid editor name. Known editors: '%s'" % (
                 int_request.Model.ModelName, list(models.EDITOR_MAP.keys())
             )
             print(ret.ErrorMessage)
@@ -512,13 +524,13 @@ class TranslateText(Resource):
 
     def translate_text(self, tr_request: TranslateRequest):
         ret = TranslateTextResponse()
-        print("Editor Request!")
+        print("Translate Request!")
         print("Original text: ", tr_request.Text)
         print("From lang: ", tr_request.FromLang)
         print("To lang: ", tr_request.ToLang)
         if tr_request.Model.ModelName not in models.TRANSLATOR_MAP:
             ret.Success = False
-            ret.ErrorMessage = "Image Interrogator named '%s' is not a valid interrogator name. Known interrogators: '%s'" % (
+            ret.ErrorMessage = "Translator named '%s' is not a valid translator name. Known translators: '%s'" % (
                 tr_request.Model.ModelName, list(models.TRANSLATOR_MAP.keys())
             )
             print(ret.ErrorMessage)
@@ -590,7 +602,7 @@ api.add_resource(GetModelParams, '/getmodelparams')
 api.add_resource(InterrogateImage, '/interrogateimage')
 api.add_resource(EditImage, '/editimage')
 api.add_resource(TranslateText, '/translate')
-api.add_resource(SetCustomSystemPrompt, '/setcustomsustemprompt')
+api.add_resource(SetCustomSystemPrompt, '/setcustomsystemprompt', '/setcustomsustemprompt')
 
 if __name__ == '__main__':
     models.init()

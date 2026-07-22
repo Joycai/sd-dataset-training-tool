@@ -58,7 +58,7 @@ def get_optimal_device():
         return get_cuda_device()
 
     if has_mps():
-        torch.device("mps")
+        return torch.device("mps")
 
     try:
         import torch_directml
