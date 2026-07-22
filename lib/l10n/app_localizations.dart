@@ -1082,6 +1082,66 @@ abstract class AppLocalizations {
   /// **'System'**
   String get themeSystem;
 
+  /// No description provided for @fontTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Font'**
+  String get fontTitle;
+
+  /// No description provided for @fontDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'UI font. HarmonyOS Sans and MiSans are downloaded on first use'**
+  String get fontDesc;
+
+  /// No description provided for @fontSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System font'**
+  String get fontSystem;
+
+  /// No description provided for @fontHarmony.
+  ///
+  /// In en, this message translates to:
+  /// **'HarmonyOS Sans'**
+  String get fontHarmony;
+
+  /// No description provided for @fontMiSans.
+  ///
+  /// In en, this message translates to:
+  /// **'MiSans'**
+  String get fontMiSans;
+
+  /// No description provided for @fontDownloadConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download font'**
+  String get fontDownloadConfirmTitle;
+
+  /// No description provided for @fontDownloadConfirmContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Using {font} for the first time requires downloading the official font package into the app data directory. This only happens once. Download now?'**
+  String fontDownloadConfirmContent(String font);
+
+  /// No description provided for @fontDownloadAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get fontDownloadAction;
+
+  /// No description provided for @fontDownloadingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {font}…'**
+  String fontDownloadingTitle(String font);
+
+  /// No description provided for @fontDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Font download failed: {error}'**
+  String fontDownloadFailed(String error);
+
   /// No description provided for @captionExtensionDesc.
   ///
   /// In en, this message translates to:

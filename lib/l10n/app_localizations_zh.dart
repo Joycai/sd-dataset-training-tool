@@ -555,6 +555,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get themeSystem => '跟随系统';
 
   @override
+  String get fontTitle => '界面字体';
+
+  @override
+  String get fontDesc => '界面显示字体，鸿蒙与小米字体首次使用需下载';
+
+  @override
+  String get fontSystem => '系统字体';
+
+  @override
+  String get fontHarmony => '鸿蒙字体';
+
+  @override
+  String get fontMiSans => '小米字体';
+
+  @override
+  String get fontDownloadConfirmTitle => '下载字体';
+
+  @override
+  String fontDownloadConfirmContent(String font) {
+    return '首次使用$font需要下载官方字体包到应用数据目录，仅需一次。现在下载？';
+  }
+
+  @override
+  String get fontDownloadAction => '下载';
+
+  @override
+  String fontDownloadingTitle(String font) {
+    return '正在下载$font…';
+  }
+
+  @override
+  String fontDownloadFailed(String error) {
+    return '字体下载失败：$error';
+  }
+
+  @override
   String get captionExtensionDesc => '与图片同名的标注文件后缀，常见 .txt / .caption';
 
   @override

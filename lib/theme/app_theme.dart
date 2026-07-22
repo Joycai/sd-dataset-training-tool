@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Design tokens for the redesign. Two paired palettes; the accent (teal)
@@ -140,7 +143,21 @@ TextStyle monoStyle(
   );
 }
 
-ThemeData buildAppTheme(Brightness brightness) {
+/// 各平台的中文回退链：默认字体缺字时落到系统中文字体（win 雅黑 /
+/// mac 苹方 / linux Noto），"系统字体" 选项的表现也由此决定。
+List<String> _cjkFallback() {
+  if (kIsWeb) return const ['Noto Sans SC', 'sans-serif'];
+  if (Platform.isMacOS) {
+    return const ['PingFang SC', 'Heiti SC', 'Noto Sans SC'];
+  }
+  if (Platform.isLinux) {
+    return const ['Noto Sans CJK SC', 'Noto Sans SC', 'WenQuanYi Micro Hei'];
+  }
+  return const ['Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC'];
+}
+
+/// [fontFamily] 为 null 时用系统默认字体；否则用 FontLoader 注册的家族名。
+ThemeData buildAppTheme(Brightness brightness, {String? fontFamily}) {
   final isDark = brightness == Brightness.dark;
   final semantic = isDark ? AppSemanticColors.dark : AppSemanticColors.light;
 
@@ -183,6 +200,8 @@ ThemeData buildAppTheme(Brightness brightness) {
     scaffoldBackgroundColor: scheme.surface,
     visualDensity: VisualDensity.compact,
     splashFactory: InkSparkle.splashFactory,
+    fontFamily: fontFamily,
+    fontFamilyFallback: _cjkFallback(),
   );
 
   return base.copyWith(

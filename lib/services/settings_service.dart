@@ -131,6 +131,17 @@ class SettingsService {
     return prefs.getBool('autoSave') ?? true;
   }
 
+  /// 界面字体，存 AppFontChoice 的稳定字符串 id（system/harmony/misans）。
+  Future<void> saveFontChoice(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('fontChoice', id);
+  }
+
+  Future<String?> loadFontChoice() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('fontChoice');
+  }
+
   Future<void> saveLocale(Locale locale) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('languageCode', locale.languageCode);

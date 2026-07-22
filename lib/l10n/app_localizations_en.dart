@@ -562,6 +562,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeSystem => 'System';
 
   @override
+  String get fontTitle => 'Font';
+
+  @override
+  String get fontDesc =>
+      'UI font. HarmonyOS Sans and MiSans are downloaded on first use';
+
+  @override
+  String get fontSystem => 'System font';
+
+  @override
+  String get fontHarmony => 'HarmonyOS Sans';
+
+  @override
+  String get fontMiSans => 'MiSans';
+
+  @override
+  String get fontDownloadConfirmTitle => 'Download font';
+
+  @override
+  String fontDownloadConfirmContent(String font) {
+    return 'Using $font for the first time requires downloading the official font package into the app data directory. This only happens once. Download now?';
+  }
+
+  @override
+  String get fontDownloadAction => 'Download';
+
+  @override
+  String fontDownloadingTitle(String font) {
+    return 'Downloading $font…';
+  }
+
+  @override
+  String fontDownloadFailed(String error) {
+    return 'Font download failed: $error';
+  }
+
+  @override
   String get captionExtensionDesc =>
       'Suffix of the caption file that shares the image\'s name, e.g. .txt or .caption';
 

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../app_state.dart';
 import '../l10n/app_localizations.dart';
+import '../services/font_service.dart';
 import '../theme/app_theme.dart';
 
 /// Settings, grouped into cards: appearance, dataset behavior, and the
@@ -44,6 +45,64 @@ class _SettingsViewState extends State<SettingsView> {
     }
     _captionController.text = value;
     appState.updateCaptionExtension(value);
+  }
+
+  String _fontLabel(AppLocalizations l10n, AppFontChoice choice) =>
+      switch (choice) {
+        AppFontChoice.system => l10n.fontSystem,
+        AppFontChoice.harmony => l10n.fontHarmony,
+        AppFontChoice.misans => l10n.fontMiSans,
+      };
+
+  Future<void> _selectFont(AppFontChoice choice) async {
+    final appState = context.read<AppState>();
+    final fonts = appState.fontService;
+    final l10n = AppLocalizations.of(context)!;
+
+    // 系统字体或本次会话已注册的字体：直接切换。
+    if (choice == AppFontChoice.system || fonts.isLoaded(choice)) {
+      await appState.updateFontChoice(choice);
+      return;
+    }
+    // 磁盘上已有（此前下载过但本次启动未激活）：注册即可，绝不重复提示下载。
+    if (fonts.isDownloadedSync(choice)) {
+      await fonts.loadIfDownloaded(choice);
+      await appState.updateFontChoice(choice);
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.fontDownloadConfirmTitle),
+        content: Text(
+          l10n.fontDownloadConfirmContent(_fontLabel(l10n, choice)),
+        ),
+        actions: [
+          TextButton(
+            child: Text(l10n.cancel),
+            onPressed: () => Navigator.of(context).pop(false),
+          ),
+          TextButton(
+            child: Text(l10n.fontDownloadAction),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _FontDownloadDialog(
+        choice: choice,
+        title: l10n.fontDownloadingTitle(_fontLabel(l10n, choice)),
+      ),
+    );
+    if (ok == true && mounted) {
+      await context.read<AppState>().updateFontChoice(choice);
+    }
   }
 
   Future<void> _showResetConfirmationDialog() async {
@@ -147,6 +206,28 @@ class _SettingsViewState extends State<SettingsView> {
                               if (locale != null) {
                                 appState.updateLocale(locale);
                               }
+                            },
+                          ),
+                        ),
+                        _SettingsRow(
+                          title: l10n.fontTitle,
+                          description: l10n.fontDesc,
+                          control: DropdownButton<AppFontChoice>(
+                            value: appState.fontChoice,
+                            underline: const SizedBox.shrink(),
+                            borderRadius: BorderRadius.circular(7),
+                            items: [
+                              for (final choice in AppFontChoice.values)
+                                DropdownMenuItem(
+                                  value: choice,
+                                  child: Text(
+                                    _fontLabel(l10n, choice),
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                ),
+                            ],
+                            onChanged: (choice) {
+                              if (choice != null) _selectFont(choice);
                             },
                           ),
                         ),
@@ -260,6 +341,73 @@ class _SettingsViewState extends State<SettingsView> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// 模态下载进度对话框：打开即开始下载，成功 pop(true)，失败提示后 pop(false)。
+class _FontDownloadDialog extends StatefulWidget {
+  const _FontDownloadDialog({required this.choice, required this.title});
+
+  final AppFontChoice choice;
+  final String title;
+
+  @override
+  State<_FontDownloadDialog> createState() => _FontDownloadDialogState();
+}
+
+class _FontDownloadDialogState extends State<_FontDownloadDialog> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _start());
+  }
+
+  Future<void> _start() async {
+    final fonts = context.read<AppState>().fontService;
+    try {
+      await fonts.downloadAndLoad(widget.choice);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.fontDownloadFailed('$e'))),
+      );
+      Navigator.of(context).pop(false);
+    }
+  }
+
+  String _mb(int bytes) => (bytes / (1024 * 1024)).toStringAsFixed(1);
+
+  @override
+  Widget build(BuildContext context) {
+    final fonts = context.read<AppState>().fontService;
+    final semantic = context.semantic;
+    return AlertDialog(
+      title: Text(widget.title),
+      content: ListenableBuilder(
+        listenable: fonts,
+        builder: (context, _) {
+          final received = fonts.receivedBytes;
+          final total = fonts.totalBytes;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 首个进度包到达前显示不定长进度条。
+              LinearProgressIndicator(value: fonts.progress),
+              const SizedBox(height: 10),
+              Text(
+                total > 0
+                    ? '${_mb(received)} MB / ${_mb(total)} MB'
+                    : '${_mb(received)} MB',
+                style: monoStyle(context, size: 12, color: semantic.muted),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

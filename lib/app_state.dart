@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'models/tag_group.dart';
+import 'services/font_service.dart';
 import 'services/settings_service.dart';
 
 enum MainView {
@@ -13,7 +14,19 @@ enum MainView {
 class AppState extends ChangeNotifier {
   final SettingsService _settingsService;
 
-  AppState(this._settingsService);
+  /// 字体下载/注册状态。注册完成会触发 notify，主题随之切到新字体。
+  final FontService fontService = FontService();
+
+  AppState(this._settingsService) {
+    fontService.addListener(notifyListeners);
+  }
+
+  @override
+  void dispose() {
+    fontService.removeListener(notifyListeners);
+    fontService.dispose();
+    super.dispose();
+  }
 
   // --- Common Tags State ---
   late List<String> _commonTags;
@@ -222,6 +235,7 @@ class AppState extends ChangeNotifier {
   // --- Other states remain unchanged ---
   Future<void> loadSettings() async {
     _locale = await _settingsService.loadLocale();
+    _fontChoice = AppFontChoiceX.fromId(await _settingsService.loadFontChoice());
     _themeMode = await _settingsService.loadThemeMode();
     _crossAxisCount = await _settingsService.loadCrossAxisCount();
     _includeSubdirectories = await _settingsService.loadIncludeSubdirectories();
@@ -320,6 +334,20 @@ class AppState extends ChangeNotifier {
     _browsingDirectory = path;
     notifyListeners();
     await _settingsService.saveBrowsingDirectory(path);
+  }
+
+  late AppFontChoice _fontChoice;
+  AppFontChoice get fontChoice => _fontChoice;
+
+  /// 传给 ThemeData 的字体家族名；系统字体或所选字体尚未注册时为 null。
+  String? get uiFontFamily => fontService.familyFor(_fontChoice);
+
+  /// 只负责记录选择并持久化——下载/注册由设置页先行完成。
+  Future<void> updateFontChoice(AppFontChoice choice) async {
+    if (_fontChoice == choice) return;
+    _fontChoice = choice;
+    notifyListeners();
+    await _settingsService.saveFontChoice(choice.id);
   }
 
   late Locale _locale;
