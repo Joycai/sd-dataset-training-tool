@@ -430,6 +430,46 @@ class AppLocalizationsEn extends AppLocalizations {
       'The library is empty. Use the plus button to add tags.';
 
   @override
+  String get moreActionsTooltip => 'More actions';
+
+  @override
+  String get importFromFile => 'Import from file…';
+
+  @override
+  String get exportLibraryMenu => 'Export tags (with groups)…';
+
+  @override
+  String get exportGroupsMenu => 'Export groups only…';
+
+  @override
+  String get clearLibrary => 'Clear library';
+
+  @override
+  String clearLibraryConfirmContent(int count) {
+    return 'Remove all $count tags? Groups are kept.';
+  }
+
+  @override
+  String importSummary(int tags, int groups) {
+    return 'Imported $tags tags, created $groups groups';
+  }
+
+  @override
+  String importFailedMsg(String error) {
+    return 'Import failed: $error';
+  }
+
+  @override
+  String exportedTo(String path) {
+    return 'Exported: $path';
+  }
+
+  @override
+  String exportFailedMsg(String error) {
+    return 'Export failed: $error';
+  }
+
+  @override
   String get newGroupTitle => 'New group';
 
   @override

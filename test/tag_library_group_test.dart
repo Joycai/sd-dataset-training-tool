@@ -144,6 +144,44 @@ void main() {
     expect(appState.ungroupedTags, ['alpha', 'beta', 'gamma']);
   });
 
+  testWidgets('clear library via the more menu keeps groups', (tester) async {
+    final g = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+    await appState.moveTagsToGroup(['alpha'], g.id);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_horiz));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear library'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+
+    expect(appState.commonTags, isEmpty);
+    expect(appState.tagGroups.single.name, 'outfit');
+    expect(appState.tagGroups.single.tags, isEmpty);
+    // The emptied group still renders as a section.
+    expect(find.text('outfit'), findsOneWidget);
+  });
+
+  testWidgets('group header delete button removes the group', (tester) async {
+    final g = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+    await appState.moveTagsToGroup(['alpha'], g.id);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    // Only real group headers carry a delete button; ungrouped has none.
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+
+    expect(appState.tagGroups, isEmpty);
+    expect(appState.ungroupedTags, ['alpha', 'beta', 'gamma']);
+  });
+
   testWidgets('group header context menu deletes the group', (tester) async {
     final g = await appState.createTagGroup('outfit', 0xFF6A9BDD);
     await appState.moveTagsToGroup(['alpha'], g.id);

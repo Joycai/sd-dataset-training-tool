@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -289,26 +292,168 @@ class _LibraryViewState extends State<_LibraryView> {
         color: input.color,
       );
     } else if (action == 'delete') {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(l10n.deleteGroupMenu),
-          content: Text(l10n.deleteGroupConfirmContent(group.name)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(l10n.cancel),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: Text(l10n.confirm),
-            ),
-          ],
+      await _confirmDeleteGroup(group);
+    }
+  }
+
+  /// Confirm-and-delete for a group; its tags return to ungrouped.
+  Future<void> _confirmDeleteGroup(TagGroup group) async {
+    final l10n = AppLocalizations.of(context)!;
+    final appState = context.read<AppState>();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.deleteGroupMenu),
+        content: Text(l10n.deleteGroupConfirmContent(group.name)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await appState.deleteTagGroup(group.id);
+    }
+  }
+
+  void _snack(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Overflow menu on the panel header: paste import/replace, file
+  /// import/export, and clearing the library.
+  Future<void> _showMoreMenu(BuildContext buttonContext) async {
+    final l10n = AppLocalizations.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+    final box = buttonContext.findRenderObject()! as RenderBox;
+    final action = await showPanelContextMenu<String>(
+      context: context,
+      position: box.localToGlobal(Offset(0, box.size.height)),
+      items: [
+        panelMenuItem(
+          context: context,
+          value: 'paste',
+          icon: Icons.swap_horiz,
+          label: l10n.importTagsTitle,
         ),
+        panelMenuItem(
+          context: context,
+          value: 'importFile',
+          icon: Icons.file_open_outlined,
+          label: l10n.importFromFile,
+        ),
+        panelMenuItem(
+          context: context,
+          value: 'exportAll',
+          icon: Icons.save_alt,
+          label: l10n.exportLibraryMenu,
+        ),
+        panelMenuItem(
+          context: context,
+          value: 'exportGroups',
+          icon: Icons.save_alt,
+          label: l10n.exportGroupsMenu,
+        ),
+        const PopupMenuDivider(height: 10),
+        panelMenuItem(
+          context: context,
+          value: 'clear',
+          icon: Icons.delete_sweep_outlined,
+          label: l10n.clearLibrary,
+          color: scheme.error,
+        ),
+      ],
+    );
+    if (action == null || !mounted) return;
+    switch (action) {
+      case 'paste':
+        await _showImportDialog();
+      case 'importFile':
+        await _importFromFile();
+      case 'exportAll':
+        await _exportLibrary(groupsOnly: false);
+      case 'exportGroups':
+        await _exportLibrary(groupsOnly: true);
+      case 'clear':
+        await _confirmClearLibrary();
+    }
+  }
+
+  Future<void> _importFromFile() async {
+    final l10n = AppLocalizations.of(context)!;
+    final appState = context.read<AppState>();
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
+    final path = result?.files.single.path;
+    if (path == null) return;
+    try {
+      final imported = await appState.importLibraryJson(
+        await File(path).readAsString(),
       );
-      if (confirmed == true) {
-        await appState.deleteTagGroup(group.id);
-      }
+      if (!mounted) return;
+      _snack(l10n.importSummary(imported.tagsAdded, imported.groupsCreated));
+    } on FormatException catch (e) {
+      if (mounted) _snack(l10n.importFailedMsg(e.message));
+    } on FileSystemException catch (e) {
+      if (mounted) _snack(l10n.importFailedMsg(e.message));
+    }
+  }
+
+  Future<void> _exportLibrary({required bool groupsOnly}) async {
+    final l10n = AppLocalizations.of(context)!;
+    final appState = context.read<AppState>();
+    final path = await FilePicker.saveFile(
+      fileName: groupsOnly ? 'tag_groups.json' : 'tag_library.json',
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
+    if (path == null) return;
+    try {
+      await File(
+        path,
+      ).writeAsString(appState.exportLibraryJson(groupsOnly: groupsOnly));
+      if (!mounted) return;
+      _snack(l10n.exportedTo(path));
+    } on FileSystemException catch (e) {
+      if (mounted) _snack(l10n.exportFailedMsg(e.message));
+    }
+  }
+
+  Future<void> _confirmClearLibrary() async {
+    final l10n = AppLocalizations.of(context)!;
+    final appState = context.read<AppState>();
+    final count = appState.commonTags.length;
+    if (count == 0) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.clearLibrary),
+        content: Text(l10n.clearLibraryConfirmContent(count)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await appState.clearCommonTags();
+      setState(_selected.clear);
     }
   }
 
@@ -392,11 +537,6 @@ class _LibraryViewState extends State<_LibraryView> {
               onPressed: _createGroup,
             ),
             PanelIconButton(
-              icon: Icons.swap_horiz,
-              tooltip: l10n.importTagsTitle,
-              onPressed: _showImportDialog,
-            ),
-            PanelIconButton(
               icon: Icons.checklist,
               tooltip: l10n.groupEditModeTooltip,
               color: _groupEditMode ? scheme.primary : null,
@@ -404,6 +544,15 @@ class _LibraryViewState extends State<_LibraryView> {
                 _groupEditMode = !_groupEditMode;
                 if (!_groupEditMode) _selected.clear();
               }),
+            ),
+            // Import/export/clear live in an overflow menu; the Builder
+            // provides the button's own context to anchor the popup.
+            Builder(
+              builder: (buttonContext) => PanelIconButton(
+                icon: Icons.more_horiz,
+                tooltip: l10n.moreActionsTooltip,
+                onPressed: () => _showMoreMenu(buttonContext),
+              ),
             ),
           ],
         ),
@@ -413,7 +562,12 @@ class _LibraryViewState extends State<_LibraryView> {
           onChanged: (value) => setState(() => _filter = value),
         ),
         Expanded(
-          child: commonTags.isEmpty && newTags.isEmpty
+          // Empty groups still render as sections (e.g. right after clearing
+          // the library), so the empty state needs all three to be empty.
+          child:
+              commonTags.isEmpty &&
+                  newTags.isEmpty &&
+                  appState.tagGroups.isEmpty
               ? Center(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
@@ -449,10 +603,14 @@ class _LibraryViewState extends State<_LibraryView> {
                                 group: group,
                                 count: tags.length,
                                 ungroupedLabel: l10n.ungroupedSection,
+                                deleteTooltip: l10n.deleteGroupMenu,
                                 onContextMenu: group == null
                                     ? null
                                     : (position) =>
                                         _showGroupMenu(position, group),
+                                onDelete: group == null
+                                    ? null
+                                    : () => _confirmDeleteGroup(group),
                               ),
                               const SizedBox(height: 7),
                               Wrap(
@@ -594,13 +752,20 @@ class _GroupHeader extends StatelessWidget {
     required this.group,
     required this.count,
     required this.ungroupedLabel,
+    required this.deleteTooltip,
     this.onContextMenu,
+    this.onDelete,
   });
 
   final TagGroup? group;
   final int count;
   final String ungroupedLabel;
+  final String deleteTooltip;
   final ValueChanged<Offset>? onContextMenu;
+
+  /// Deletes the group (tags return to ungrouped); null for ungrouped,
+  /// which cannot be deleted.
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -634,6 +799,24 @@ class _GroupHeader extends StatelessWidget {
           '$count',
           style: monoStyle(context, size: 11, color: semantic.muted),
         ),
+        if (onDelete != null) ...[
+          const SizedBox(width: 6),
+          Tooltip(
+            message: deleteTooltip,
+            child: InkWell(
+              onTap: onDelete,
+              borderRadius: BorderRadius.circular(99),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Icon(
+                  Icons.delete_outline,
+                  size: 13,
+                  color: semantic.muted,
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
 

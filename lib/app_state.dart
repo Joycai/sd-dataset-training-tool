@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import 'models/tag_group.dart';
@@ -119,6 +121,81 @@ class AppState extends ChangeNotifier {
   Future<void> deleteTagGroup(String id) async {
     _tagGroups = _tagGroups.where((g) => g.id != id).toList();
     await _saveGroups();
+  }
+
+  /// Removes every tag from the library. Groups survive (emptied) so a
+  /// re-import or fresh tagging session keeps the structure.
+  Future<void> clearCommonTags() => updateCommonTags(<String>[]);
+
+  /// Serializes the library for transfer. Group ids are local and omitted —
+  /// import matches groups by name. [groupsOnly] exports just the group
+  /// definitions (name + color) without any tags.
+  String exportLibraryJson({bool groupsOnly = false}) {
+    return const JsonEncoder.withIndent('  ').convert({
+      'version': 1,
+      'groups': [
+        for (final g in _tagGroups)
+          {'name': g.name, 'color': g.color, if (!groupsOnly) 'tags': g.tags},
+      ],
+      if (!groupsOnly) 'ungrouped': ungroupedTags,
+    });
+  }
+
+  /// Imports a library export produced by [exportLibraryJson] (either
+  /// flavor). Merge semantics:
+  ///
+  /// - groups are matched by name; missing ones are created with the file's
+  ///   color, existing ones keep their local color;
+  /// - tags listed under a group are added to the library when new and moved
+  ///   into that group (the file is authoritative for tags it mentions);
+  /// - "ungrouped" tags are added to the library when new but never pulled
+  ///   out of a local group they already belong to.
+  ///
+  /// Throws [FormatException] when the payload does not look like an export.
+  Future<({int tagsAdded, int groupsCreated})> importLibraryJson(
+    String text,
+  ) async {
+    final Map<String, dynamic> data;
+    final List<({String name, int color, List<String> tags})> entries;
+    final List<String> ungrouped;
+    try {
+      data = jsonDecode(text) as Map<String, dynamic>;
+      entries = [
+        for (final raw in (data['groups'] as List<dynamic>? ?? const []))
+          (
+            name: (raw as Map<String, dynamic>)['name'] as String,
+            color: raw['color'] as int,
+            tags: (raw['tags'] as List<dynamic>? ?? const []).cast<String>(),
+          ),
+      ];
+      ungrouped =
+          (data['ungrouped'] as List<dynamic>? ?? const []).cast<String>();
+    } on FormatException {
+      rethrow;
+    } catch (_) {
+      throw const FormatException('not a tag library export');
+    }
+
+    final incoming = <String>{};
+    final newTags = <String>[
+      for (final tag in [...entries.expand((e) => e.tags), ...ungrouped])
+        if (!_commonTags.contains(tag) && incoming.add(tag)) tag,
+    ];
+    if (newTags.isNotEmpty) await addCommonTags(newTags);
+
+    var groupsCreated = 0;
+    for (final entry in entries) {
+      if (entry.name.trim().isEmpty) continue;
+      var target = _tagGroups.where((g) => g.name == entry.name).firstOrNull;
+      if (target == null) {
+        target = await createTagGroup(entry.name, entry.color);
+        groupsCreated++;
+      }
+      if (entry.tags.isNotEmpty) {
+        await moveTagsToGroup(entry.tags, target.id);
+      }
+    }
+    return (tagsAdded: newTags.length, groupsCreated: groupsCreated);
   }
 
   /// Moves [tags] into the group with [groupId] (null = ungrouped). Removes

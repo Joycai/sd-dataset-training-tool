@@ -224,6 +224,43 @@
   "removeFromLibrary": "Remove from library",
   "libraryEmpty": "The library is empty. Use the plus button to add tags.",
 
+  "moreActionsTooltip": "More actions",
+  "importFromFile": "Import from file…",
+  "exportLibraryMenu": "Export tags (with groups)…",
+  "exportGroupsMenu": "Export groups only…",
+  "clearLibrary": "Clear library",
+  "clearLibraryConfirmContent": "Remove all {count} tags? Groups are kept.",
+  "@clearLibraryConfirmContent": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "importSummary": "Imported {tags} tags, created {groups} groups",
+  "@importSummary": {
+    "placeholders": {
+      "tags": { "type": "int" },
+      "groups": { "type": "int" }
+    }
+  },
+  "importFailedMsg": "Import failed: {error}",
+  "@importFailedMsg": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "exportedTo": "Exported: {path}",
+  "@exportedTo": {
+    "placeholders": {
+      "path": { "type": "String" }
+    }
+  },
+  "exportFailedMsg": "Export failed: {error}",
+  "@exportFailedMsg": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
   "newGroupTitle": "New group",
   "editGroupTitle": "Edit group",
   "groupNameHint": "Group name",

@@ -854,6 +854,66 @@ abstract class AppLocalizations {
   /// **'The library is empty. Use the plus button to add tags.'**
   String get libraryEmpty;
 
+  /// No description provided for @moreActionsTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get moreActionsTooltip;
+
+  /// No description provided for @importFromFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from file…'**
+  String get importFromFile;
+
+  /// No description provided for @exportLibraryMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Export tags (with groups)…'**
+  String get exportLibraryMenu;
+
+  /// No description provided for @exportGroupsMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Export groups only…'**
+  String get exportGroupsMenu;
+
+  /// No description provided for @clearLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear library'**
+  String get clearLibrary;
+
+  /// No description provided for @clearLibraryConfirmContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove all {count} tags? Groups are kept.'**
+  String clearLibraryConfirmContent(int count);
+
+  /// No description provided for @importSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {tags} tags, created {groups} groups'**
+  String importSummary(int tags, int groups);
+
+  /// No description provided for @importFailedMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Import failed: {error}'**
+  String importFailedMsg(String error);
+
+  /// No description provided for @exportedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Exported: {path}'**
+  String exportedTo(String path);
+
+  /// No description provided for @exportFailedMsg.
+  ///
+  /// In en, this message translates to:
+  /// **'Export failed: {error}'**
+  String exportFailedMsg(String error);
+
   /// No description provided for @newGroupTitle.
   ///
   /// In en, this message translates to:
