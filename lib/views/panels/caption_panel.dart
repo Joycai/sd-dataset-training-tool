@@ -3,8 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../state/ai_tagger_state.dart';
 import '../../state/editor_session.dart';
 import '../../theme/app_theme.dart';
+import 'ai_compare_view.dart';
+import 'ai_params_dialog.dart';
 
 /// Center-bottom: the caption editor. Two views of the same caption — raw
 /// text and a reorderable tag grid — plus a live save-state indicator.
@@ -28,6 +31,46 @@ class _CaptionPanelState extends State<CaptionPanel> {
     _addTagController.dispose();
     _addTagFocus.dispose();
     super.dispose();
+  }
+
+  /// Runs AI interrogation for the current image. Bootstraps the model list
+  /// on first use; opens the params dialog when no model can be resolved.
+  Future<void> _runAi() async {
+    final ai = context.read<AiTaggerState>();
+    final session = context.read<EditorSession>();
+    final image = session.image;
+    if (image == null || ai.running) return;
+
+    if (ai.modelName == null) {
+      await ai.refreshModels();
+      if (!mounted) return;
+      if (ai.modelName == null) {
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ai.lastError == null
+              ? l10n.aiNoModelSelected
+              : l10n.aiFailed(ai.lastError!)),
+        ));
+        await showAiParamsDialog(context, ai);
+        return;
+      }
+    }
+
+    // Compare mode lives in the tags tab; make it visible right away so the
+    // running indicator shows where the result will land.
+    setState(() => _tab = _tabTags);
+    final hadResult = ai.hasResultFor(image.path);
+    ai.enterCompareMode();
+    final ok = await ai.interrogate(image);
+    if (!ok) {
+      // Don't strand the user on an empty compare view.
+      if (!hadResult) ai.exitCompareMode();
+      if (mounted && ai.lastError != null) {
+        final l10n = AppLocalizations.of(context)!;
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.aiFailed(ai.lastError!))));
+      }
+    }
   }
 
   Future<void> _editTag(EditorSession session, int index) async {
@@ -64,6 +107,7 @@ class _CaptionPanelState extends State<CaptionPanel> {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
     final session = context.watch<EditorSession>();
+    final ai = context.watch<AiTaggerState>();
 
     return Container(
       clipBehavior: Clip.antiAlias,
@@ -77,24 +121,47 @@ class _CaptionPanelState extends State<CaptionPanel> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(8, 4, 12, 0),
-            child: Row(
-              children: [
-                _EditorTab(
-                  label: l10n.textTab,
-                  selected: _tab == _tabText,
-                  onTap: () => setState(() => _tab = _tabText),
-                ),
-                _EditorTab(
-                  label: l10n.tagsTab,
-                  selected: _tab == _tabTags,
-                  onTap: () => setState(() => _tab = _tabTags),
-                ),
-                const Spacer(),
-                Flexible(
-                  child: _SaveStateIndicator(session: session, l10n: l10n),
-                ),
-              ],
-            ),
+            child: LayoutBuilder(builder: (context, constraints) {
+              // On narrow center columns the AI button collapses to an icon
+              // so the toolbar never overflows.
+              final compact = constraints.maxWidth < 420;
+              return Row(
+                children: [
+                  _EditorTab(
+                    label: l10n.textTab,
+                    selected: _tab == _tabText,
+                    onTap: () => setState(() => _tab = _tabText),
+                  ),
+                  _EditorTab(
+                    label: l10n.tagsTab,
+                    selected: _tab == _tabTags,
+                    onTap: () => setState(() => _tab = _tabTags),
+                  ),
+                  const Spacer(),
+                  Flexible(
+                    child: _SaveStateIndicator(session: session, l10n: l10n),
+                  ),
+                  const SizedBox(width: 10),
+                  _AiRunButton(
+                    ai: ai,
+                    enabled: session.hasImage && !ai.running,
+                    compact: compact,
+                    onPressed: _runAi,
+                    l10n: l10n,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.tune, size: 16),
+                    tooltip: l10n.aiParamsTitle,
+                    color: semantic.muted,
+                    visualDensity: VisualDensity.compact,
+                    constraints:
+                        const BoxConstraints(minWidth: 30, minHeight: 30),
+                    padding: EdgeInsets.zero,
+                    onPressed: () => showAiParamsDialog(context, ai),
+                  ),
+                ],
+              );
+            }),
           ),
           const Divider(),
           Expanded(
@@ -110,7 +177,9 @@ class _CaptionPanelState extends State<CaptionPanel> {
                     sizing: StackFit.expand,
                     children: [
                       _buildTextView(session, l10n),
-                      _buildTagsView(session, l10n, semantic),
+                      ai.compareMode
+                          ? AiCompareView(onRunAi: _runAi)
+                          : _buildTagsView(session, l10n, semantic),
                     ],
                   ),
           ),
@@ -196,6 +265,62 @@ class _CaptionPanelState extends State<CaptionPanel> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AiRunButton extends StatelessWidget {
+  const _AiRunButton({
+    required this.ai,
+    required this.enabled,
+    required this.compact,
+    required this.onPressed,
+    required this.l10n,
+  });
+
+  final AiTaggerState ai;
+  final bool enabled;
+  final bool compact;
+  final VoidCallback onPressed;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    final label = ai.running ? l10n.aiInterrogating : l10n.aiInterrogateButton;
+    final icon = ai.running
+        ? SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.5,
+              color: semantic.muted,
+            ),
+          )
+        : const Icon(Icons.auto_awesome, size: 14);
+
+    if (compact) {
+      return IconButton(
+        icon: icon,
+        tooltip: label,
+        onPressed: enabled ? onPressed : null,
+        color: Theme.of(context).colorScheme.primary,
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+        padding: EdgeInsets.zero,
+      );
+    }
+
+    return TextButton.icon(
+      onPressed: enabled ? onPressed : null,
+      icon: icon,
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      style: TextButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        minimumSize: const Size(0, 28),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
     );
   }
 }

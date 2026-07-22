@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../services/preview_window_launcher.dart';
 import '../services/settings_service.dart';
+import '../state/ai_tagger_state.dart';
 import '../state/dataset_state.dart';
 import '../state/editor_session.dart';
 import '../widgets/resize_handle.dart';
@@ -37,6 +38,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
 
   final DatasetState _dataset = DatasetState();
   final EditorSession _session = EditorSession();
+  final AiTaggerState _aiTagger = AiTaggerState(SettingsService());
   final PreviewWindowLauncher _previewWindow = PreviewWindowLauncher();
   final FocusNode _libraryFilterFocus = FocusNode();
   String? _lastLoadedPath;
@@ -56,6 +58,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     _rightWidth = appState.rightPanelWidth;
     _session.onSaved = _dataset.markCaptioned;
     _dataset.addListener(_onDatasetChanged);
+    _aiTagger.loadSettings();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -72,6 +75,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     _dataset.removeListener(_onDatasetChanged);
     _dataset.dispose();
     _session.dispose();
+    _aiTagger.dispose();
     _libraryFilterFocus.dispose();
     super.dispose();
   }
@@ -143,6 +147,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
       providers: [
         ChangeNotifierProvider.value(value: _dataset),
         ChangeNotifierProvider.value(value: _session),
+        ChangeNotifierProvider.value(value: _aiTagger),
       ],
       child: CallbackShortcuts(
         bindings: {

@@ -82,6 +82,60 @@
   "noTagsYet": "No tags yet.",
   "editTagTitle": "Edit Tag",
 
+  "aiInterrogateButton": "AI tag",
+  "aiInterrogating": "Tagging…",
+  "aiParamsTitle": "AI tagging parameters",
+  "aiServerUrl": "Server URL",
+  "aiModelLabel": "Model",
+  "aiNoModels": "No models yet — refresh to fetch",
+  "aiRefreshModels": "Refresh model list",
+  "aiThresholdLabel": "Threshold",
+  "aiUseModelDefault": "Model default",
+  "aiThresholdDesc": "Lower values produce more tags.",
+  "aiIgnoreTagsLabel": "Ignored tags",
+  "aiIgnoreTagsDesc": "Comma-separated. These tags never appear in AI results.",
+  "aiUnderscoreToSpaces": "Underscores to spaces",
+  "aiEscapeParentheses": "Escape parentheses \\( \\)",
+  "aiConnecting": "Connecting",
+  "aiConnectionOk": "Connected",
+  "aiConnectionFail": "Unreachable",
+  "aiConnectionUnknown": "Unknown",
+  "aiCurrentTagsHeader": "Current tags",
+  "aiResultHeader": "AI results",
+  "aiMissingCount": "{count} not in AI results",
+  "@aiMissingCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "aiNewCount": "{count} new",
+  "@aiNewCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "aiShowNewOnly": "New only",
+  "aiLegendNew": "New (click to add)",
+  "aiLegendMissing": "Not in AI results",
+  "aiLegendMatched": "Matched",
+  "aiAddAllNew": "Add all new ({count})",
+  "@aiAddAllNew": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "aiRerun": "Re-run",
+  "aiDoneCompare": "Done",
+  "aiNoResultYet": "No result for this image yet.",
+  "aiFirstRunHint": "First use of a model downloads it — this can take a while.",
+  "aiNoModelSelected": "No model selected. Check the AI parameters.",
+  "aiFailed": "AI tagging failed: {error}",
+  "@aiFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
   "tagLibraryTitle": "Tag Library",
   "filterTagsHint": "Filter tags",
   "clickToApplyHint": "Click to apply, click again to remove",

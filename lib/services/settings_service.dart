@@ -179,4 +179,15 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('aiEscapeParentheses') ?? false;
   }
+
+  /// 全局忽略标签：这些标签永远不出现在 AI 识别结果里。
+  Future<void> saveAiIgnoreTags(List<String> tags) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('aiIgnoreTags', tags);
+  }
+
+  Future<List<String>> loadAiIgnoreTags() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('aiIgnoreTags') ?? [];
+  }
 }

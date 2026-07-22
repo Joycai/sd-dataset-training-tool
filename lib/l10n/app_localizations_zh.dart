@@ -178,6 +178,113 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editTagTitle => '编辑标签';
 
   @override
+  String get aiInterrogateButton => 'AI 识别';
+
+  @override
+  String get aiInterrogating => '识别中…';
+
+  @override
+  String get aiParamsTitle => 'AI 识别参数';
+
+  @override
+  String get aiServerUrl => '服务地址';
+
+  @override
+  String get aiModelLabel => '模型';
+
+  @override
+  String get aiNoModels => '暂无模型，点击刷新获取';
+
+  @override
+  String get aiRefreshModels => '刷新模型列表';
+
+  @override
+  String get aiThresholdLabel => '阈值';
+
+  @override
+  String get aiUseModelDefault => '模型默认';
+
+  @override
+  String get aiThresholdDesc => '阈值越低，识别出的标签越多。';
+
+  @override
+  String get aiIgnoreTagsLabel => '忽略标签';
+
+  @override
+  String get aiIgnoreTagsDesc => '逗号分隔，这些标签不会出现在识别结果中。';
+
+  @override
+  String get aiUnderscoreToSpaces => '下划线转空格';
+
+  @override
+  String get aiEscapeParentheses => '转义括号 \\( \\)';
+
+  @override
+  String get aiConnecting => '连接中';
+
+  @override
+  String get aiConnectionOk => '服务已连接';
+
+  @override
+  String get aiConnectionFail => '无法连接';
+
+  @override
+  String get aiConnectionUnknown => '未知';
+
+  @override
+  String get aiCurrentTagsHeader => '当前标签';
+
+  @override
+  String get aiResultHeader => 'AI 识别结果';
+
+  @override
+  String aiMissingCount(int count) {
+    return '$count 个 AI 未识别';
+  }
+
+  @override
+  String aiNewCount(int count) {
+    return '新建议 $count';
+  }
+
+  @override
+  String get aiShowNewOnly => '仅新建议';
+
+  @override
+  String get aiLegendNew => '新建议（点击添加）';
+
+  @override
+  String get aiLegendMissing => 'AI 未识别';
+
+  @override
+  String get aiLegendMatched => '已匹配';
+
+  @override
+  String aiAddAllNew(int count) {
+    return '添加全部新建议 ($count)';
+  }
+
+  @override
+  String get aiRerun => '重新识别';
+
+  @override
+  String get aiDoneCompare => '完成';
+
+  @override
+  String get aiNoResultYet => '本图还没有识别结果。';
+
+  @override
+  String get aiFirstRunHint => '首次使用某个模型需要下载，可能较慢。';
+
+  @override
+  String get aiNoModelSelected => '未选择模型，请检查 AI 识别参数。';
+
+  @override
+  String aiFailed(String error) {
+    return '识别失败：$error';
+  }
+
+  @override
   String get tagLibraryTitle => '常用标签库';
 
   @override
