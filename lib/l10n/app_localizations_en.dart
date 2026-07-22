@@ -181,6 +181,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editTagTitle => 'Edit Tag';
 
   @override
+  String get tagSortModeTooltip => 'Sort mode: drag tags to reorder';
+
+  @override
   String get aiInterrogateButton => 'AI tag';
 
   @override

@@ -56,6 +56,7 @@
   "addTagHint": "输入标签后按回车添加",
   "noTagsYet": "还没有标签。",
   "editTagTitle": "编辑标签",
+  "tagSortModeTooltip": "排序模式：直接拖动标签排序",
 
   "aiInterrogateButton": "AI 识别",
   "aiInterrogating": "识别中…",

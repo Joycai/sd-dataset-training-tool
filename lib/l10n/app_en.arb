@@ -81,6 +81,7 @@
   "addTagHint": "Type a tag and press Enter",
   "noTagsYet": "No tags yet.",
   "editTagTitle": "Edit Tag",
+  "tagSortModeTooltip": "Sort mode: drag tags to reorder",
 
   "aiInterrogateButton": "AI tag",
   "aiInterrogating": "Tagging…",
