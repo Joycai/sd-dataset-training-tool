@@ -94,6 +94,19 @@ class SettingsService {
     );
   }
 
+  /// 中栏预览区占中栏总高的比例（0-1），对应原来的 flex 4:3。
+  static const double defaultCenterSplit = 4 / 7;
+
+  Future<void> saveCenterSplit(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('centerSplit', value);
+  }
+
+  Future<double> loadCenterSplit() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble('centerSplit') ?? defaultCenterSplit;
+  }
+
   Future<void> saveAutoSave(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('autoSave', value);
@@ -178,5 +191,16 @@ class SettingsService {
   Future<bool> loadAiEscapeParentheses() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('aiEscapeParentheses') ?? false;
+  }
+
+  /// 全局忽略标签：这些标签永远不出现在 AI 识别结果里。
+  Future<void> saveAiIgnoreTags(List<String> tags) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('aiIgnoreTags', tags);
+  }
+
+  Future<List<String>> loadAiIgnoreTags() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('aiIgnoreTags') ?? [];
   }
 }

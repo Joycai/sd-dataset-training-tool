@@ -416,6 +416,204 @@ abstract class AppLocalizations {
   /// **'Edit Tag'**
   String get editTagTitle;
 
+  /// No description provided for @aiInterrogateButton.
+  ///
+  /// In en, this message translates to:
+  /// **'AI tag'**
+  String get aiInterrogateButton;
+
+  /// No description provided for @aiInterrogating.
+  ///
+  /// In en, this message translates to:
+  /// **'Tagging…'**
+  String get aiInterrogating;
+
+  /// No description provided for @aiParamsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI tagging parameters'**
+  String get aiParamsTitle;
+
+  /// No description provided for @aiServerUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL'**
+  String get aiServerUrl;
+
+  /// No description provided for @aiModelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get aiModelLabel;
+
+  /// No description provided for @aiNoModels.
+  ///
+  /// In en, this message translates to:
+  /// **'No models yet — refresh to fetch'**
+  String get aiNoModels;
+
+  /// No description provided for @aiRefreshModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh model list'**
+  String get aiRefreshModels;
+
+  /// No description provided for @aiThresholdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Threshold'**
+  String get aiThresholdLabel;
+
+  /// No description provided for @aiUseModelDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Model default'**
+  String get aiUseModelDefault;
+
+  /// No description provided for @aiThresholdDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Lower values produce more tags.'**
+  String get aiThresholdDesc;
+
+  /// No description provided for @aiIgnoreTagsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignored tags'**
+  String get aiIgnoreTagsLabel;
+
+  /// No description provided for @aiIgnoreTagsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Comma-separated. These tags never appear in AI results.'**
+  String get aiIgnoreTagsDesc;
+
+  /// No description provided for @aiUnderscoreToSpaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Underscores to spaces'**
+  String get aiUnderscoreToSpaces;
+
+  /// No description provided for @aiEscapeParentheses.
+  ///
+  /// In en, this message translates to:
+  /// **'Escape parentheses \\( \\)'**
+  String get aiEscapeParentheses;
+
+  /// No description provided for @aiConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting'**
+  String get aiConnecting;
+
+  /// No description provided for @aiConnectionOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get aiConnectionOk;
+
+  /// No description provided for @aiConnectionFail.
+  ///
+  /// In en, this message translates to:
+  /// **'Unreachable'**
+  String get aiConnectionFail;
+
+  /// No description provided for @aiConnectionUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get aiConnectionUnknown;
+
+  /// No description provided for @aiCurrentTagsHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Current tags'**
+  String get aiCurrentTagsHeader;
+
+  /// No description provided for @aiResultHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'AI results'**
+  String get aiResultHeader;
+
+  /// No description provided for @aiMissingCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} not in AI results'**
+  String aiMissingCount(int count);
+
+  /// No description provided for @aiNewCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} new'**
+  String aiNewCount(int count);
+
+  /// No description provided for @aiShowNewOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'New only'**
+  String get aiShowNewOnly;
+
+  /// No description provided for @aiLegendNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New (click to add)'**
+  String get aiLegendNew;
+
+  /// No description provided for @aiLegendMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in AI results'**
+  String get aiLegendMissing;
+
+  /// No description provided for @aiLegendMatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Matched'**
+  String get aiLegendMatched;
+
+  /// No description provided for @aiAddAllNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Add all new ({count})'**
+  String aiAddAllNew(int count);
+
+  /// No description provided for @aiRerun.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-run'**
+  String get aiRerun;
+
+  /// No description provided for @aiDoneCompare.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get aiDoneCompare;
+
+  /// No description provided for @aiNoResultYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No result for this image yet.'**
+  String get aiNoResultYet;
+
+  /// No description provided for @aiFirstRunHint.
+  ///
+  /// In en, this message translates to:
+  /// **'First use of a model downloads it — this can take a while.'**
+  String get aiFirstRunHint;
+
+  /// No description provided for @aiNoModelSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'No model selected. Check the AI parameters.'**
+  String get aiNoModelSelected;
+
+  /// No description provided for @aiFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'AI tagging failed: {error}'**
+  String aiFailed(String error);
+
   /// No description provided for @tagLibraryTitle.
   ///
   /// In en, this message translates to:

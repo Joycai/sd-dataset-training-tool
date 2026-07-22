@@ -51,6 +51,7 @@ class AppState extends ChangeNotifier {
     final (leftWidth, rightWidth) = await _settingsService.loadPanelWidths();
     _leftPanelWidth = leftWidth;
     _rightPanelWidth = rightWidth;
+    _centerSplit = await _settingsService.loadCenterSplit();
 
     notifyListeners();
   }
@@ -68,6 +69,19 @@ class AppState extends ChangeNotifier {
     _rightPanelWidth = right;
     notifyListeners();
     await _settingsService.savePanelWidths(left, right);
+  }
+
+  late double _centerSplit;
+
+  /// Fraction of the center column's height taken by the preview pane.
+  double get centerSplit => _centerSplit;
+
+  /// Called on drag end (not per pixel), matching [updatePanelWidths].
+  Future<void> updateCenterSplit(double value) async {
+    if (_centerSplit == value) return;
+    _centerSplit = value;
+    notifyListeners();
+    await _settingsService.saveCenterSplit(value);
   }
 
   late bool _autoSave;

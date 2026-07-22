@@ -49,21 +49,40 @@ class StatusBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Flexible(
-            child: Text(
-              parts.join('  ·  '),
-              overflow: TextOverflow.ellipsis,
-              style: monoStyle(context, size: 11.5, color: semantic.muted),
+          // One flex slot for the whole left group keeps the unused width
+          // inside it, so the right-side hints stay flush right.
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    parts.join('  ·  '),
+                    overflow: TextOverflow.ellipsis,
+                    style: monoStyle(
+                      context,
+                      size: 11.5,
+                      color: semantic.muted,
+                    ),
+                  ),
+                ),
+                if (dataset.totalCount > 0) ...[
+                  const SizedBox(width: 18),
+                  Text(
+                    l10n.taggedProgress(
+                      dataset.taggedCount,
+                      dataset.totalCount,
+                    ),
+                    style: monoStyle(
+                      context,
+                      size: 11.5,
+                      color: semantic.muted,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          if (dataset.totalCount > 0) ...[
-            const SizedBox(width: 18),
-            Text(
-              l10n.taggedProgress(dataset.taggedCount, dataset.totalCount),
-              style: monoStyle(context, size: 11.5, color: semantic.muted),
-            ),
-          ],
-          const Spacer(),
+          const SizedBox(width: 18),
           Text(
             appState.autoSave ? l10n.autoSaveOnStatus : l10n.autoSaveOffStatus,
             style: monoStyle(

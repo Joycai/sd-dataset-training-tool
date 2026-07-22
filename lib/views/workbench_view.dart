@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../services/preview_window_launcher.dart';
 import '../services/settings_service.dart';
+import '../state/ai_tagger_state.dart';
 import '../state/dataset_state.dart';
 import '../state/editor_session.dart';
 import '../widgets/resize_handle.dart';
@@ -34,19 +35,26 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   static const double _panelMaxWidth = 480;
   static const double _centerMinWidth = 320;
   static const double _handleWidth = 7;
+  // Vertical split of the center column: both panes keep a usable minimum.
+  static const double _previewMinHeight = 160;
+  static const double _captionMinHeight = 150;
 
   final DatasetState _dataset = DatasetState();
   final EditorSession _session = EditorSession();
+  final AiTaggerState _aiTagger = AiTaggerState(SettingsService());
   final PreviewWindowLauncher _previewWindow = PreviewWindowLauncher();
   final FocusNode _libraryFilterFocus = FocusNode();
   String? _lastLoadedPath;
   late double _leftWidth;
   late double _rightWidth;
+  late double _centerSplit;
   // Drag anchor: pointer x and panel width at drag start. Widths are computed
   // from the anchor on every update, so events arriving between frames can
   // never be lost to a stale build snapshot.
   double _dragAnchorX = 0;
   double _dragStartWidth = 0;
+  double _dragAnchorY = 0;
+  double _dragStartTopHeight = 0;
 
   @override
   void initState() {
@@ -54,8 +62,10 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     final appState = context.read<AppState>();
     _leftWidth = appState.leftPanelWidth;
     _rightWidth = appState.rightPanelWidth;
+    _centerSplit = appState.centerSplit;
     _session.onSaved = _dataset.markCaptioned;
     _dataset.addListener(_onDatasetChanged);
+    _aiTagger.loadSettings();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -72,6 +82,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     _dataset.removeListener(_onDatasetChanged);
     _dataset.dispose();
     _session.dispose();
+    _aiTagger.dispose();
     _libraryFilterFocus.dispose();
     super.dispose();
   }
@@ -134,6 +145,20 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     context.read<AppState>().updatePanelWidths(_leftWidth, _rightWidth);
   }
 
+  /// Clamps the preview pane's height so both center panes stay usable; on
+  /// very short windows the panes just share what's there.
+  double _clampTopHeight(double value, double total) {
+    final max = total - _captionMinHeight - _handleWidth;
+    if (max <= _previewMinHeight) {
+      return value.clamp(0, max < 0 ? 0 : max).toDouble();
+    }
+    return value.clamp(_previewMinHeight, max).toDouble();
+  }
+
+  void _persistCenterSplit() {
+    context.read<AppState>().updateCenterSplit(_centerSplit);
+  }
+
   @override
   Widget build(BuildContext context) {
     // Keep the session's autosave behavior in sync with the setting.
@@ -143,6 +168,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
       providers: [
         ChangeNotifierProvider.value(value: _dataset),
         ChangeNotifierProvider.value(value: _session),
+        ChangeNotifierProvider.value(value: _aiTagger),
       ],
       child: CallbackShortcuts(
         bindings: {
@@ -196,28 +222,56 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                         },
                       ),
                       Expanded(
-                        child: Column(
-                          children: [
-                            Expanded(
-                              flex: 4,
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(8, 14, 8, 0),
-                                child: PreviewPanel(
-                                  onOpenExternalPreview: _openExternalPreview,
+                        child: LayoutBuilder(builder: (context, center) {
+                          final totalHeight = center.maxHeight;
+                          final topHeight = _clampTopHeight(
+                              _centerSplit * totalHeight, totalHeight);
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(
+                                height: topHeight,
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(8, 14, 8, 4),
+                                  child: PreviewPanel(
+                                    onOpenExternalPreview:
+                                        _openExternalPreview,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Expanded(
-                              flex: 3,
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(8, 14, 8, 14),
-                                child: const CaptionPanel(),
+                              ResizeHandle(
+                                axis: Axis.vertical,
+                                onDragStart: (y) {
+                                  _dragAnchorY = y;
+                                  _dragStartTopHeight = topHeight;
+                                },
+                                onDragUpdate: (y) => setState(() {
+                                  _centerSplit = _clampTopHeight(
+                                          _dragStartTopHeight +
+                                              (y - _dragAnchorY),
+                                          totalHeight) /
+                                      totalHeight;
+                                }),
+                                onDragEnd: _persistCenterSplit,
+                                onReset: () {
+                                  setState(() {
+                                    _centerSplit =
+                                        SettingsService.defaultCenterSplit;
+                                  });
+                                  _persistCenterSplit();
+                                },
                               ),
-                            ),
-                          ],
-                        ),
+                              Expanded(
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(8, 3, 8, 14),
+                                  child: const CaptionPanel(),
+                                ),
+                              ),
+                            ],
+                          );
+                        }),
                       ),
                       ResizeHandle(
                         onDragStart: (x) {

@@ -181,6 +181,115 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editTagTitle => 'Edit Tag';
 
   @override
+  String get aiInterrogateButton => 'AI tag';
+
+  @override
+  String get aiInterrogating => 'Tagging…';
+
+  @override
+  String get aiParamsTitle => 'AI tagging parameters';
+
+  @override
+  String get aiServerUrl => 'Server URL';
+
+  @override
+  String get aiModelLabel => 'Model';
+
+  @override
+  String get aiNoModels => 'No models yet — refresh to fetch';
+
+  @override
+  String get aiRefreshModels => 'Refresh model list';
+
+  @override
+  String get aiThresholdLabel => 'Threshold';
+
+  @override
+  String get aiUseModelDefault => 'Model default';
+
+  @override
+  String get aiThresholdDesc => 'Lower values produce more tags.';
+
+  @override
+  String get aiIgnoreTagsLabel => 'Ignored tags';
+
+  @override
+  String get aiIgnoreTagsDesc =>
+      'Comma-separated. These tags never appear in AI results.';
+
+  @override
+  String get aiUnderscoreToSpaces => 'Underscores to spaces';
+
+  @override
+  String get aiEscapeParentheses => 'Escape parentheses \\( \\)';
+
+  @override
+  String get aiConnecting => 'Connecting';
+
+  @override
+  String get aiConnectionOk => 'Connected';
+
+  @override
+  String get aiConnectionFail => 'Unreachable';
+
+  @override
+  String get aiConnectionUnknown => 'Unknown';
+
+  @override
+  String get aiCurrentTagsHeader => 'Current tags';
+
+  @override
+  String get aiResultHeader => 'AI results';
+
+  @override
+  String aiMissingCount(int count) {
+    return '$count not in AI results';
+  }
+
+  @override
+  String aiNewCount(int count) {
+    return '$count new';
+  }
+
+  @override
+  String get aiShowNewOnly => 'New only';
+
+  @override
+  String get aiLegendNew => 'New (click to add)';
+
+  @override
+  String get aiLegendMissing => 'Not in AI results';
+
+  @override
+  String get aiLegendMatched => 'Matched';
+
+  @override
+  String aiAddAllNew(int count) {
+    return 'Add all new ($count)';
+  }
+
+  @override
+  String get aiRerun => 'Re-run';
+
+  @override
+  String get aiDoneCompare => 'Done';
+
+  @override
+  String get aiNoResultYet => 'No result for this image yet.';
+
+  @override
+  String get aiFirstRunHint =>
+      'First use of a model downloads it — this can take a while.';
+
+  @override
+  String get aiNoModelSelected => 'No model selected. Check the AI parameters.';
+
+  @override
+  String aiFailed(String error) {
+    return 'AI tagging failed: $error';
+  }
+
+  @override
   String get tagLibraryTitle => 'Tag Library';
 
   @override
