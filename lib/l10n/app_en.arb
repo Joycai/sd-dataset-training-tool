@@ -224,6 +224,37 @@
   "removeFromLibrary": "Remove from library",
   "libraryEmpty": "The library is empty. Use the plus button to add tags.",
 
+  "newGroupTitle": "New group",
+  "editGroupTitle": "Edit group",
+  "groupNameHint": "Group name",
+  "groupColorLabel": "Color",
+  "customColorLabel": "Custom",
+  "ungroupedSection": "Ungrouped",
+  "groupEditModeTooltip": "Group edit mode",
+  "groupEditHint": "Click to select, right-click to send to a group",
+  "groupEditSelectedHint": "{count} selected · right-click to send to a group",
+  "@groupEditSelectedHint": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "sendToGroup": "Send to {name}",
+  "@sendToGroup": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "sendToNewGroup": "New group and send…",
+  "removeFromGroup": "Remove from group",
+  "editGroupMenu": "Edit group…",
+  "deleteGroupMenu": "Delete group",
+  "deleteGroupConfirmContent": "Delete group \"{name}\"? Its tags return to Ungrouped.",
+  "@deleteGroupConfirmContent": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+
   "taggedProgress": "Tagged {tagged} / {total}",
   "@taggedProgress": {
     "placeholders": {

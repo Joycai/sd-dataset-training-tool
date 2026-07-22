@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/services/ai_tagger_service.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
@@ -33,11 +34,14 @@ void main() {
   late Directory tempDir;
   late EditorSession session;
   late AiTaggerState ai;
+  late AppState appState;
   late File imageA;
   late File imageB;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    appState = AppState(SettingsService());
+    await appState.loadSettings();
     tempDir = await Directory.systemTemp.createTemp('caption_panel_');
     imageA = File(p.join(tempDir.path, '001.png'));
     imageB = File(p.join(tempDir.path, '002.png'));
@@ -84,6 +88,7 @@ void main() {
   Widget harness() {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider.value(value: appState),
         ChangeNotifierProvider.value(value: session),
         ChangeNotifierProvider.value(value: ai),
       ],
@@ -159,5 +164,41 @@ void main() {
     expect(find.text('gamma'), findsOneWidget);
     expect(find.byIcon(Icons.close), findsNothing);
     expect(grid().dragStartDelay, Duration.zero);
+  });
+
+  testWidgets('tag chips are tinted with their library group color',
+      (tester) async {
+    const groupColor = 0xFF9B84E0;
+    await tester.runAsync(() async {
+      await appState.addCommonTags(['alpha']);
+      final g = await appState.createTagGroup('traits', groupColor);
+      await appState.moveTagsToGroup(['alpha'], g.id);
+      await session.load(imageA, '.txt'); // tags: alpha, beta
+    });
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    BoxDecoration decorationOf(String tag) {
+      final container = tester.widget<Container>(
+        find
+            .ancestor(of: find.text(tag), matching: find.byType(Container))
+            .first,
+      );
+      return container.decoration! as BoxDecoration;
+    }
+
+    // Grouped tag carries the group tint on its border; ungrouped stays
+    // on the default hairline.
+    final grouped = decorationOf('alpha');
+    final plain = decorationOf('beta');
+    expect(
+      (grouped.border! as Border).top.color,
+      const Color(groupColor).withAlpha(153),
+    );
+    expect(
+      (plain.border! as Border).top.color,
+      isNot((grouped.border! as Border).top.color),
+    );
   });
 }

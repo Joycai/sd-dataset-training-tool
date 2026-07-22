@@ -854,6 +854,96 @@ abstract class AppLocalizations {
   /// **'The library is empty. Use the plus button to add tags.'**
   String get libraryEmpty;
 
+  /// No description provided for @newGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New group'**
+  String get newGroupTitle;
+
+  /// No description provided for @editGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit group'**
+  String get editGroupTitle;
+
+  /// No description provided for @groupNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Group name'**
+  String get groupNameHint;
+
+  /// No description provided for @groupColorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Color'**
+  String get groupColorLabel;
+
+  /// No description provided for @customColorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get customColorLabel;
+
+  /// No description provided for @ungroupedSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Ungrouped'**
+  String get ungroupedSection;
+
+  /// No description provided for @groupEditModeTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Group edit mode'**
+  String get groupEditModeTooltip;
+
+  /// No description provided for @groupEditHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Click to select, right-click to send to a group'**
+  String get groupEditHint;
+
+  /// No description provided for @groupEditSelectedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected · right-click to send to a group'**
+  String groupEditSelectedHint(int count);
+
+  /// No description provided for @sendToGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to {name}'**
+  String sendToGroup(String name);
+
+  /// No description provided for @sendToNewGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'New group and send…'**
+  String get sendToNewGroup;
+
+  /// No description provided for @removeFromGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from group'**
+  String get removeFromGroup;
+
+  /// No description provided for @editGroupMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit group…'**
+  String get editGroupMenu;
+
+  /// No description provided for @deleteGroupMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group'**
+  String get deleteGroupMenu;
+
+  /// No description provided for @deleteGroupConfirmContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete group \"{name}\"? Its tags return to Ungrouped.'**
+  String deleteGroupConfirmContent(String name);
+
   /// No description provided for @taggedProgress.
   ///
   /// In en, this message translates to:
