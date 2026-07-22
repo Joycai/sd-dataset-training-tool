@@ -51,17 +51,11 @@ class WorkbenchTopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
+          Image.asset(
+            'assets/icon/icon.png',
             width: 22,
             height: 22,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [scheme.primary, const Color(0xFF7E6FD9)],
-              ),
-            ),
+            filterQuality: FilterQuality.medium,
           ),
           const SizedBox(width: 10),
           Text(
@@ -73,51 +67,65 @@ class WorkbenchTopBar extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 14),
-          Flexible(
-            child: InkWell(
-              onTap: onOpenFolder,
-              borderRadius: BorderRadius.circular(7),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  color: scheme.surface,
-                  border: Border.all(color: semantic.line),
-                  borderRadius: BorderRadius.circular(7),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.folder_outlined,
-                        size: 14, color: semantic.muted),
-                    const SizedBox(width: 7),
-                    Flexible(
-                      child: Text(
-                        directory ?? l10n.noDatasetOpen,
-                        overflow: TextOverflow.ellipsis,
-                        style: monoStyle(
-                          context,
-                          size: 11.5,
-                          color: directory == null
-                              ? semantic.muted
-                              : scheme.onSurface,
+          // The chip's flex slot absorbs ALL free width (aligned left inside),
+          // so the trailing icons stay flush right. A Flexible chip next to a
+          // Spacer would split the free space and leave the chip's unused
+          // half dangling at the row's end.
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: InkWell(
+                onTap: onOpenFolder,
+                borderRadius: BorderRadius.circular(7),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    border: Border.all(color: semantic.line),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.folder_outlined,
+                        size: 14,
+                        color: semantic.muted,
+                      ),
+                      const SizedBox(width: 7),
+                      Flexible(
+                        child: Text(
+                          directory ?? l10n.noDatasetOpen,
+                          overflow: TextOverflow.ellipsis,
+                          style: monoStyle(
+                            context,
+                            size: 11.5,
+                            color: directory == null
+                                ? semantic.muted
+                                : scheme.onSurface,
+                          ),
                         ),
                       ),
-                    ),
-                    if (directory != null) ...[
-                      const SizedBox(width: 8),
-                      Text(
-                        l10n.imageCountShort(dataset.totalCount),
-                        style: monoStyle(context,
-                            size: 11.5, color: semantic.muted),
-                      ),
+                      if (directory != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          l10n.imageCountShort(dataset.totalCount),
+                          style: monoStyle(
+                            context,
+                            size: 11.5,
+                            color: semantic.muted,
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-          const Spacer(),
           IconButton(
             icon: Icon(_themeIcon(appState.currentThemeMode), size: 18),
             tooltip: l10n.toggleTheme,
