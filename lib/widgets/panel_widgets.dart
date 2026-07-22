@@ -22,18 +22,28 @@ class PanelHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
       child: Row(
         children: [
-          Flexible(
-            child: Text(
-              title,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+          // Title and pill share one flex slot so the unused width stays
+          // inside it and the action icons sit flush right.
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    title,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (count != null) ...[
+                  const SizedBox(width: 8),
+                  CountPill(text: '$count'),
+                ],
+              ],
             ),
           ),
-          if (count != null) ...[
-            const SizedBox(width: 8),
-            CountPill(text: '$count'),
-          ],
-          const Spacer(),
           ...actions,
         ],
       ),
@@ -56,7 +66,10 @@ class CountPill extends StatelessWidget {
         border: Border.all(color: semantic.line),
         borderRadius: BorderRadius.circular(99),
       ),
-      child: Text(text, style: monoStyle(context, size: 11, color: semantic.muted)),
+      child: Text(
+        text,
+        style: monoStyle(context, size: 11, color: semantic.muted),
+      ),
     );
   }
 }
@@ -120,8 +133,10 @@ class PanelSearchField extends StatelessWidget {
         decoration: InputDecoration(
           hintText: hint,
           prefixIcon: Icon(Icons.search, size: 16, color: semantic.muted),
-          prefixIconConstraints:
-              const BoxConstraints(minWidth: 32, minHeight: 32),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 32,
+            minHeight: 32,
+          ),
         ),
       ),
     );

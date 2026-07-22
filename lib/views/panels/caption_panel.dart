@@ -46,11 +46,15 @@ class _CaptionPanelState extends State<CaptionPanel> {
       if (!mounted) return;
       if (ai.modelName == null) {
         final l10n = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(ai.lastError == null
-              ? l10n.aiNoModelSelected
-              : l10n.aiFailed(ai.lastError!)),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              ai.lastError == null
+                  ? l10n.aiNoModelSelected
+                  : l10n.aiFailed(ai.lastError!),
+            ),
+          ),
+        );
         await showAiParamsDialog(context, ai);
         return;
       }
@@ -67,8 +71,9 @@ class _CaptionPanelState extends State<CaptionPanel> {
       if (!hadResult) ai.exitCompareMode();
       if (mounted && ai.lastError != null) {
         final l10n = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.aiFailed(ai.lastError!))));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(l10n.aiFailed(ai.lastError!))));
       }
     }
   }
@@ -121,47 +126,59 @@ class _CaptionPanelState extends State<CaptionPanel> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(8, 4, 12, 0),
-            child: LayoutBuilder(builder: (context, constraints) {
-              // On narrow center columns the AI button collapses to an icon
-              // so the toolbar never overflows.
-              final compact = constraints.maxWidth < 420;
-              return Row(
-                children: [
-                  _EditorTab(
-                    label: l10n.textTab,
-                    selected: _tab == _tabText,
-                    onTap: () => setState(() => _tab = _tabText),
-                  ),
-                  _EditorTab(
-                    label: l10n.tagsTab,
-                    selected: _tab == _tabTags,
-                    onTap: () => setState(() => _tab = _tabTags),
-                  ),
-                  const Spacer(),
-                  Flexible(
-                    child: _SaveStateIndicator(session: session, l10n: l10n),
-                  ),
-                  const SizedBox(width: 10),
-                  _AiRunButton(
-                    ai: ai,
-                    enabled: session.hasImage && !ai.running,
-                    compact: compact,
-                    onPressed: _runAi,
-                    l10n: l10n,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.tune, size: 16),
-                    tooltip: l10n.aiParamsTitle,
-                    color: semantic.muted,
-                    visualDensity: VisualDensity.compact,
-                    constraints:
-                        const BoxConstraints(minWidth: 30, minHeight: 30),
-                    padding: EdgeInsets.zero,
-                    onPressed: () => showAiParamsDialog(context, ai),
-                  ),
-                ],
-              );
-            }),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // On narrow center columns the AI button collapses to an icon
+                // so the toolbar never overflows.
+                final compact = constraints.maxWidth < 420;
+                return Row(
+                  children: [
+                    _EditorTab(
+                      label: l10n.textTab,
+                      selected: _tab == _tabText,
+                      onTap: () => setState(() => _tab = _tabText),
+                    ),
+                    _EditorTab(
+                      label: l10n.tagsTab,
+                      selected: _tab == _tabTags,
+                      onTap: () => setState(() => _tab = _tabTags),
+                    ),
+                    // Single flex slot, right-aligned: keeps the AI buttons
+                    // flush right instead of splitting free width with a
+                    // Spacer.
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: _SaveStateIndicator(
+                          session: session,
+                          l10n: l10n,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _AiRunButton(
+                      ai: ai,
+                      enabled: session.hasImage && !ai.running,
+                      compact: compact,
+                      onPressed: _runAi,
+                      l10n: l10n,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.tune, size: 16),
+                      tooltip: l10n.aiParamsTitle,
+                      color: semantic.muted,
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 30,
+                        minHeight: 30,
+                      ),
+                      padding: EdgeInsets.zero,
+                      onPressed: () => showAiParamsDialog(context, ai),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
           const Divider(),
           Expanded(
@@ -210,7 +227,10 @@ class _CaptionPanelState extends State<CaptionPanel> {
   }
 
   Widget _buildTagsView(
-      EditorSession session, AppLocalizations l10n, AppSemanticColors semantic) {
+    EditorSession session,
+    AppLocalizations l10n,
+    AppSemanticColors semantic,
+  ) {
     return Column(
       children: [
         Expanded(
@@ -224,8 +244,7 @@ class _CaptionPanelState extends State<CaptionPanel> {
               : ReorderableGridView.builder(
                   padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
                   itemCount: session.tags.length,
-                  gridDelegate:
-                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 170,
                     mainAxisSpacing: 8,
                     crossAxisSpacing: 8,
@@ -254,8 +273,10 @@ class _CaptionPanelState extends State<CaptionPanel> {
             decoration: InputDecoration(
               hintText: l10n.addTagHint,
               prefixIcon: Icon(Icons.add, size: 15, color: semantic.muted),
-              prefixIconConstraints:
-                  const BoxConstraints(minWidth: 30, minHeight: 30),
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 30,
+                minHeight: 30,
+              ),
             ),
             onSubmitted: (value) {
               session.addTagsFromInput(value);
@@ -415,7 +436,8 @@ class _SaveStateIndicator extends StatelessWidget {
         }
         icon = Icons.check_circle_outline;
         final t = session.lastSavedAt!;
-        final hhmm = '${t.hour.toString().padLeft(2, '0')}:'
+        final hhmm =
+            '${t.hour.toString().padLeft(2, '0')}:'
             '${t.minute.toString().padLeft(2, '0')}';
         text = l10n.savedAt(hhmm);
         color = semantic.ok;

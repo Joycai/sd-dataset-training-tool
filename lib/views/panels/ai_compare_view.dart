@@ -77,8 +77,10 @@ class _AiCompareViewState extends State<AiCompareView> {
             TextButton.icon(
               onPressed: widget.onRunAi,
               icon: const Icon(Icons.auto_awesome, size: 14),
-              label: Text(l10n.aiInterrogateButton,
-                  style: const TextStyle(fontSize: 12.5)),
+              label: Text(
+                l10n.aiInterrogateButton,
+                style: const TextStyle(fontSize: 12.5),
+              ),
             ),
           ],
         ),
@@ -86,9 +88,7 @@ class _AiCompareViewState extends State<AiCompareView> {
     }
 
     final diff = AiTagDiff.compute(session.tags, predictions);
-    final visiblePredictions = _showNewOnly
-        ? diff.newSuggestions
-        : predictions;
+    final visiblePredictions = _showNewOnly ? diff.newSuggestions : predictions;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -103,7 +103,12 @@ class _AiCompareViewState extends State<AiCompareView> {
               const VerticalDivider(width: 1),
               Expanded(
                 child: _buildAiColumn(
-                    session, diff, visiblePredictions, l10n, semantic),
+                  session,
+                  diff,
+                  visiblePredictions,
+                  l10n,
+                  semantic,
+                ),
               ),
             ],
           ),
@@ -129,8 +134,10 @@ class _AiCompareViewState extends State<AiCompareView> {
             children: [
               Flexible(
                 child: _ColumnLabel(
-                    text: '${l10n.aiCurrentTagsHeader} · '
-                        '${session.tags.length}'),
+                  text:
+                      '${l10n.aiCurrentTagsHeader} · '
+                      '${session.tags.length}',
+                ),
               ),
               if (diff.missing.isNotEmpty) ...[
                 const SizedBox(width: 8),
@@ -159,10 +166,7 @@ class _AiCompareViewState extends State<AiCompareView> {
                             semantic: semantic,
                             onDelete: () => session.removeTag(tag),
                           )
-                        : _CompareChip.matched(
-                            label: tag,
-                            semantic: semantic,
-                          ),
+                        : _CompareChip.matched(label: tag, semantic: semantic),
                 ],
               ),
             ),
@@ -186,20 +190,30 @@ class _AiCompareViewState extends State<AiCompareView> {
         children: [
           Row(
             children: [
-              Flexible(
-                child: _ColumnLabel(
-                    text: '${l10n.aiResultHeader} · '
-                        '${diff.newSuggestions.length + diff.matched.length}'),
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  l10n.aiNewCount(diff.newSuggestions.length),
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: semantic.ok),
+              // One flex slot for both labels so the filter pill stays
+              // flush right.
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: _ColumnLabel(
+                        text:
+                            '${l10n.aiResultHeader} · '
+                            '${diff.newSuggestions.length + diff.matched.length}',
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        l10n.aiNewCount(diff.newSuggestions.length),
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: semantic.ok),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               _MiniFilter(
                 label: l10n.aiShowNewOnly,
                 selected: _showNewOnly,
@@ -365,8 +379,7 @@ class _MiniFilter extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
         decoration: BoxDecoration(
           color: selected ? scheme.primary : Colors.transparent,
-          border:
-              Border.all(color: selected ? scheme.primary : semantic.line),
+          border: Border.all(color: selected ? scheme.primary : semantic.line),
           borderRadius: BorderRadius.circular(99),
         ),
         child: Text(
@@ -389,24 +402,24 @@ class _CompareChip extends StatelessWidget {
     required this.semantic,
     required double this.probability,
     required VoidCallback this.onTap,
-  })  : _state = _ChipState.suggestion,
-        onDelete = null;
+  }) : _state = _ChipState.suggestion,
+       onDelete = null;
 
   const _CompareChip.missing({
     required this.label,
     required this.semantic,
     required VoidCallback this.onDelete,
-  })  : _state = _ChipState.missing,
-        probability = null,
-        onTap = null;
+  }) : _state = _ChipState.missing,
+       probability = null,
+       onTap = null;
 
   const _CompareChip.matched({
     required this.label,
     required this.semantic,
     this.probability,
-  })  : _state = _ChipState.matched,
-        onTap = null,
-        onDelete = null;
+  }) : _state = _ChipState.matched,
+       onTap = null,
+       onDelete = null;
 
   final String label;
   final double? probability;
@@ -424,19 +437,25 @@ class _CompareChip extends StatelessWidget {
     final Widget leading;
     switch (_state) {
       case _ChipState.suggestion:
-        background =
-            Color.alphaBlend(semantic.ok.withAlpha(36), scheme.surface);
+        background = Color.alphaBlend(
+          semantic.ok.withAlpha(36),
+          scheme.surface,
+        );
         border = semantic.ok.withAlpha(140);
         leading = Icon(Icons.add, size: 11, color: semantic.ok);
       case _ChipState.missing:
-        background =
-            Color.alphaBlend(semantic.warn.withAlpha(33), scheme.surface);
+        background = Color.alphaBlend(
+          semantic.warn.withAlpha(33),
+          scheme.surface,
+        );
         border = semantic.warn.withAlpha(140);
         leading = Container(
           width: 6,
           height: 6,
-          decoration:
-              BoxDecoration(shape: BoxShape.circle, color: semantic.warn),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: semantic.warn,
+          ),
         );
       case _ChipState.matched:
         background = scheme.surface;
