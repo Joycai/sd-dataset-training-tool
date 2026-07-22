@@ -22,7 +22,7 @@ Content-Type: application/json
 
 ###
 
-POST http://127.0.0.1:50051/setcustomsustemprompt
+POST http://127.0.0.1:50051/setcustomsystemprompt
 Content-Type: application/json
 
 {"Prompt": "custom prompt"}
