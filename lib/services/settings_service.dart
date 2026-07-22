@@ -94,6 +94,19 @@ class SettingsService {
     );
   }
 
+  /// 中栏预览区占中栏总高的比例（0-1），对应原来的 flex 4:3。
+  static const double defaultCenterSplit = 4 / 7;
+
+  Future<void> saveCenterSplit(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('centerSplit', value);
+  }
+
+  Future<double> loadCenterSplit() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble('centerSplit') ?? defaultCenterSplit;
+  }
+
   Future<void> saveAutoSave(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('autoSave', value);
