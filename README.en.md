@@ -2,10 +2,13 @@
 
 <div align="center">
   <a href="https://flutter.dev" target="_blank">
-    <img src="https://img.shields.io/badge/Framework-Flutter_3.22%2B-02569B?logo=flutter" alt="Flutter">
+    <img src="https://img.shields.io/badge/Framework-Flutter_3.35%2B-02569B?logo=flutter" alt="Flutter">
   </a>
   <a href="https://dart.dev" target="_blank">
     <img src="https://img.shields.io/badge/Language-Dart-0175C2?logo=dart" alt="Dart">
+  </a>
+  <a href="https://www.python.org" target="_blank">
+    <img src="https://img.shields.io/badge/AI_Backend-Python_3.12-3776AB?logo=python&logoColor=white" alt="Python">
   </a>
   <a href="./LICENSE" target="_blank">
     <img src="https://img.shields.io/badge/License-GPL_3.0-blue.svg" alt="License">
@@ -18,116 +21,96 @@
 
 ![preview](./.images/preview_en.png)
 
-This is a desktop application built with Flutter, designed to help users efficiently manage and edit image dataset captions, especially for the preprocessing stage of AI model training.
+A desktop application built with Flutter for efficiently managing and editing image dataset caption files, with an optional bundled Python AI backend ([AiApiServer](AiApiServer/)) for AI auto-tagging — designed for the data preprocessing stage of AI model training.
 
 ## ✨ Features
 
-### Editor Interface
-Features a side-by-side layout, providing a smooth "select-edit" workflow.
+### Three-Column Workbench
 
-#### Left Panel: Image Browser
-- **Open Directory**: Quickly select and load a folder containing images.
-- **Thumbnail Grid**: Clearly displays all images in the directory in a grid format.
-- **Filename Display**: The corresponding filename is shown below each thumbnail.
-- **Fit & Contain Scaling**: Thumbnails are displayed completely using `contain` mode, preventing any cropping.
-- **Dynamic Column Adjustment**: Adjust the number of columns in real-time with a slider, and the grid adapts automatically.
-- **Include Subdirectories**: Scan and load images from all subdirectories with a single switch.
-- **Refresh**: Rescan the current directory at any time to update the image list.
-- **Image Preview**: **Double-click** any image to open a separate, feature-rich preview window.
-- **Selection Highlight**: **Single-click** an image to select it, highlighting it with a blue border and loading its data into the workspace on the right.
+The main interface is a "browse → preview/edit → tag management" three-column layout. Column widths are draggable and remembered across sessions.
 
-#### Right Panel: Workspace
-- **Caption Editing**: Automatically loads the `.txt` file with the same name as the selected image (extension is configurable in settings) and displays its content in a multi-line text box.
-- **Tag View**:
-  - A switch to convert comma-separated caption text into a series of individual chips (tags).
-  - **Double-click** a tag to edit it independently.
-  - Delete individual tags.
-  - All modifications to tags are **bidirectionally synced** back to the main text box.
-- **Intelligent Common Tag Management**:
-  - **Import/Add**: Bulk import or incrementally add a list of "Common Tags" to serve as your master tag library.
-  - **Smart Comparison**:
-    - Common tags that are **included** in the image's caption are highlighted in **green**.
-    - Common tags that are **missing** from the image's caption are highlighted in **orange**.
-  - **Delete**: Select multiple common tags and remove them from the library with one click.
-- **New Tag Discovery**:
-  - Automatically identifies and displays "New Tags" that exist in the current image's caption but not in the common tag library.
-  - New tags are displayed in **gray**.
-  - **Single-click** a gray tag to quickly add it to your common tag library.
-- **Save**: Click the "Save" button to write all content from the text box into the corresponding caption file, creating it if it doesn't exist.
+#### Left: Assets Panel
+- **Open directory / refresh / include subdirectories** to load all images in a folder.
+- **Thumbnail grid** with `contain` scaling and a live column-count slider.
+- **Tag filtering**: filter the gallery by dataset tags — show only images containing (or missing) a tag.
+- **Single-click** to select and load into the workspace; **double-click** to open a separate native preview window.
+
+#### Center: Preview & Caption Editor
+- **Image preview above the editor**, with a draggable split.
+- **Caption editing**: automatically loads the `.txt` file matching the image (extension configurable); save writes it back.
+- **Tag view**: switch a comma-separated caption into chips — double-click to edit, delete, drag to reorder, with bidirectional sync to the text box.
+- **AI compare mode**: AI results are shown side by side with the current caption; accept/reject tags one by one or apply all at once. A global exit-compare control lives in the top bar.
+
+### AI-Assisted Tagging (AiApiServer)
+- **Local / remote backend**: connects to [AiApiServer](AiApiServer/) (a Flask HTTP service, default `http://127.0.0.1:50051`) providing WD14-family taggers, multimodal caption models, RMBG background removal, and translation.
+- **Model picker**: grouped by purpose, with server-provided metadata badges (size, language, capabilities).
+- **Tunable parameters** (e.g. threshold) before running.
+- **Batch tagging**: run over the whole directory serially with **overwrite** and **append** modes, progress display, and undo.
+- **Batch recognize-only**: run recognition only — results land in each image's compare mode for per-image review before applying.
+
+### Right: Tag Library & Dataset Tags
+
+#### Tag Library
+- **Common tag library**: import / incrementally add / export / clear — your standard tag set.
+- **Tag groups**: assign tags to custom-colored groups, with a group-edit mode and per-group delete; import/export carries group info.
+- **Smart comparison**: common tags **present** in the current image are highlighted green, **missing** ones orange; click to toggle.
+- **New tag discovery**: tags present in the image but not in the library show in gray — single-click to add them.
+
+#### Dataset Tags Panel
+- **Global aggregation**: all tags across the dataset with occurrence counts and a sort toggle.
+- **Click to filter** the gallery on the left.
+- **Global batch edits**: rename / delete a tag across the whole dataset, with **undo**.
+
+### Keyboard Shortcuts
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+S` | Save current caption |
+| `Ctrl+E` | Run AI recognition on the current image |
+| `Ctrl+F` | Focus the tag library filter |
+| `←` / `→` | Previous / next image |
+| `Ctrl+Z` / `Ctrl+Shift+Z` (or `Ctrl+Y`) | Undo / redo batch tag operations |
 
 ### Image Preview Window
-- **Separate Native Window**: The preview window is a true OS window that can be freely resized and moved.
-- **Interactive Viewing**:
-  - Use the **mouse scroll wheel** to zoom in and out.
-  - **Press and hold the left mouse button** to pan the image.
-- **Image Navigation**: Quickly switch to the previous or next image using the buttons on the left and right sides of the window.
-- **One-Click Reset**: The "Fit to Screen" button instantly resets the image's zoom and pan state.
-- **Image Download**: Save the currently previewed image to another location on your local machine.
+- **Separate native window**, freely resizable and movable.
+- Scroll-wheel zoom, left-button pan, prev/next buttons, one-click "Fit to Screen" reset, and save-as.
 
 ### Settings
-- **Multi-Language Support**: Built-in support for English and Chinese, easily extendable.
-- **Theme Switching**: Supports Light, Dark, and System-default theme modes.
-- **Persistence**: All settings (including language, theme, window size, directories, tag library, etc.) are automatically saved on exit and loaded on the next launch.
-- **Custom Extension**: Customize the file extension for caption files (defaults to `.txt`).
-- **One-Click Reset**: Reset all settings to their initial default values.
+- **Multi-language**: built-in English and Chinese.
+- **Themes**: light / dark / follow system.
+- **UI font**: system default / HarmonyOS Sans / MiSans, downloaded on demand.
+- **AI server URL** and **caption file extension** are configurable.
+- **Persistence**: language, theme, window layout, directories, tag library, etc. are saved automatically; one-click reset available.
 
-## 🚀 System Requirements
+## 🚀 Quick Start
 
-Before you begin, ensure your development environment meets the following requirements:
+```sh
+git clone <your-repository-url>
+cd DataSetTrainingTool
+flutter pub get
+flutter run -d windows   # or macos / linux
+```
 
-1.  **Flutter SDK**: Version `>=3.4.1`.
-2.  **Desktop Development Environment**:
-    -   **Windows**: Visual Studio 2022 (or later) with the "Desktop development with C++" workload installed.
-    -   **macOS**: The latest version of Xcode.
-    -   **Linux**: Necessary build tools such as `clang`, `cmake`, `ninja-build`, `pkg-config`, `libgtk-3-dev`, and `liblzma-dev`.
+For full per-platform environment requirements, release build steps, and the AiApiServer Python setup (including a CPU fallback when no GPU is available), see the guidelines:
 
-## 🏃‍♂️ Running the Project
+> 📖 **[Environment & Build Guide](docs/ENVIRONMENT_GUIDE.md)** (Chinese)
 
-1.  **Clone the Repository**
-    ```sh
-    git clone <your-repository-url>
-    cd DataSetTrainingTool
-    ```
+## 🤖 AiApiServer (AI Backend)
 
-2.  **Get Dependencies**
-    ```sh
-    flutter pub get
-    ```
+AI tagging is powered by the [AiApiServer](AiApiServer/) subdirectory: a Python 3.12 + Flask HTTP service supporting Windows / macOS / Linux — CUDA-accelerated with an NVIDIA GPU, automatically falling back to CPU without one.
 
-3.  **Run the Application**
-    Choose one of the following commands based on your target platform:
-    ```sh
-    # Run on Windows
-    flutter run -d windows
+```sh
+cd AiApiServer
+pip install -r requirements.txt
+python main.py    # listens on 0.0.0.0:50051
+```
 
-    # Run on macOS
-    flutter run -d macos
+See the [Environment & Build Guide](docs/ENVIRONMENT_GUIDE.md) for setup details and [AiApiServer/README.md](AiApiServer/README.md) for the endpoint protocol.
 
-    # Run on Linux
-    flutter run -d linux
-    ```
+## 📚 More Docs
 
-## 📦 Building for Release
-
-To create a distributable desktop application, use the `flutter build` command.
-
-1.  **Execute the Build Command**
-    ```sh
-    # Build for Windows
-    flutter build windows
-
-    # Build for macOS
-    flutter build macos
-
-    # Build for Linux
-    flutter build linux
-    ```
-
-2.  **Locate the Executable**
-    After the build is complete, you can find the final application in the `build` directory of your project:
-    -   **Windows**: `build\windows\runner\Release\`
-    -   **macOS**: `build\macos\Build\Products\Release\`
-    -   **Linux**: `build\linux\<architecture>\runner\Release\`
+- [Environment & Build Guide](docs/ENVIRONMENT_GUIDE.md) — per-platform builds, AiApiServer Python setup
+- [Getting Started](wiki/Getting-Started-EN.md) / [Usage Guide](wiki/Usage-Guide-EN.md) / [Settings](wiki/Settings-EN.md)
+- 中文 README: [README.md](README.md)
 
 ## 📄 License
 
@@ -136,4 +119,4 @@ This project is licensed under the **GNU General Public License v3.0**. See the 
 ## 👥 Authors
 
 - **[Joycai](https://github.com/Joycai)** - Initial idea and contributions
-- **Gemini (Google)** - Primary coding and implementation
+- **Gemini (Google)** / **Claude (Anthropic)** - Coding and implementation
