@@ -143,6 +143,104 @@ class PanelSearchField extends StatelessWidget {
   }
 }
 
+/// Underline tab used by the caption editor and the right panel: selection
+/// is a 2px primary underline, matching the workbench's flat look.
+class PanelTab extends StatelessWidget {
+  const PanelTab({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final semantic = context.semantic;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: selected ? scheme.primary : Colors.transparent,
+              width: 2,
+            ),
+          ),
+        ),
+        child: Text(
+          label,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? scheme.onSurface : semantic.muted,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// [showMenu] wrapper that applies the panel palette — the default popup
+/// surface ignores the app theme's raised color and hairlines.
+Future<T?> showPanelContextMenu<T>({
+  required BuildContext context,
+  required Offset position,
+  required List<PopupMenuEntry<T>> items,
+}) {
+  final semantic = context.semantic;
+  final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+  return showMenu<T>(
+    context: context,
+    position: RelativeRect.fromRect(
+      position & const Size(1, 1),
+      Offset.zero & overlay.size,
+    ),
+    color: semantic.raised,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(8),
+      side: BorderSide(color: semantic.line),
+    ),
+    constraints: const BoxConstraints(minWidth: 180),
+    items: items,
+  );
+}
+
+/// Compact icon + label entry for [showPanelContextMenu].
+PopupMenuItem<T> panelMenuItem<T>({
+  required BuildContext context,
+  required T value,
+  required IconData icon,
+  required String label,
+  Color? color,
+}) {
+  final semantic = context.semantic;
+  return PopupMenuItem<T>(
+    value: value,
+    height: 34,
+    child: Row(
+      children: [
+        Icon(icon, size: 16, color: color ?? semantic.muted),
+        const SizedBox(width: 9),
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 12.5, color: color),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 /// Small selectable pill used for the caption-status filters.
 class FilterChipPill extends StatelessWidget {
   const FilterChipPill({

@@ -290,6 +290,112 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get rightTabLibrary => 'Library';
+
+  @override
+  String get rightTabDataset => 'Dataset';
+
+  @override
+  String get datasetTagsTitle => 'Dataset Tags';
+
+  @override
+  String get datasetTagsEmpty => 'No tags in this dataset yet.';
+
+  @override
+  String get datasetTagsHint =>
+      'Green = on the current image. Right-click for actions';
+
+  @override
+  String get clearTagFilter => 'Clear tag filter';
+
+  @override
+  String get menuFilterInclude => 'Only images with this tag';
+
+  @override
+  String get menuFilterExclude => 'Only images without this tag';
+
+  @override
+  String get menuReplaceAppend => 'Replace / append…';
+
+  @override
+  String get menuDeleteGlobal => 'Delete from all images';
+
+  @override
+  String get deleteTagConfirmTitle => 'Delete tag everywhere';
+
+  @override
+  String deleteTagConfirmContent(int count, String tag) {
+    return 'Remove \"$tag\" from $count images? This can be undone from the toolbar.';
+  }
+
+  @override
+  String get replaceDialogTitle => 'Replace / append';
+
+  @override
+  String get replaceModeReplace => 'Replace with';
+
+  @override
+  String get replaceModeBefore => 'Insert before';
+
+  @override
+  String get replaceModeAfter => 'Insert after';
+
+  @override
+  String get replaceInputHint => 'Comma-separated tags';
+
+  @override
+  String get apply => 'Apply';
+
+  @override
+  String filesUpdated(int count) {
+    return '$count files updated';
+  }
+
+  @override
+  String get noFilesChanged => 'No files needed changes.';
+
+  @override
+  String filterActiveInclude(String tag) {
+    return 'Only with: $tag';
+  }
+
+  @override
+  String filterActiveExclude(String tag) {
+    return 'Only without: $tag';
+  }
+
+  @override
+  String get undo => 'Undo';
+
+  @override
+  String get redo => 'Redo';
+
+  @override
+  String undoTooltip(String action) {
+    return 'Undo: $action';
+  }
+
+  @override
+  String redoTooltip(String action) {
+    return 'Redo: $action';
+  }
+
+  @override
+  String opDeleteLabel(String tag) {
+    return 'delete \"$tag\"';
+  }
+
+  @override
+  String opReplaceLabel(String tag) {
+    return 'replace \"$tag\"';
+  }
+
+  @override
+  String opInsertLabel(String tag) {
+    return 'append next to \"$tag\"';
+  }
+
+  @override
   String get tagLibraryTitle => 'Tag Library';
 
   @override

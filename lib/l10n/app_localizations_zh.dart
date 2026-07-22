@@ -285,6 +285,111 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get rightTabLibrary => '标签库';
+
+  @override
+  String get rightTabDataset => '数据集';
+
+  @override
+  String get datasetTagsTitle => '数据集标签';
+
+  @override
+  String get datasetTagsEmpty => '数据集里还没有标签。';
+
+  @override
+  String get datasetTagsHint => '绿色 = 当前图片包含，右键打开操作菜单';
+
+  @override
+  String get clearTagFilter => '清除标签过滤';
+
+  @override
+  String get menuFilterInclude => '仅显示包含此标签的图片';
+
+  @override
+  String get menuFilterExclude => '仅显示不包含此标签的图片';
+
+  @override
+  String get menuReplaceAppend => '替换 / 追加…';
+
+  @override
+  String get menuDeleteGlobal => '从所有图片中删除';
+
+  @override
+  String get deleteTagConfirmTitle => '全局删除标签';
+
+  @override
+  String deleteTagConfirmContent(int count, String tag) {
+    return '从 $count 张图片中移除“$tag”？此操作可从顶栏撤销。';
+  }
+
+  @override
+  String get replaceDialogTitle => '替换 / 追加';
+
+  @override
+  String get replaceModeReplace => '替换为';
+
+  @override
+  String get replaceModeBefore => '在其前插入';
+
+  @override
+  String get replaceModeAfter => '在其后插入';
+
+  @override
+  String get replaceInputHint => '逗号分隔的标签';
+
+  @override
+  String get apply => '应用';
+
+  @override
+  String filesUpdated(int count) {
+    return '已更新 $count 个文件';
+  }
+
+  @override
+  String get noFilesChanged => '没有需要修改的文件。';
+
+  @override
+  String filterActiveInclude(String tag) {
+    return '仅含：$tag';
+  }
+
+  @override
+  String filterActiveExclude(String tag) {
+    return '不含：$tag';
+  }
+
+  @override
+  String get undo => '撤销';
+
+  @override
+  String get redo => '重做';
+
+  @override
+  String undoTooltip(String action) {
+    return '撤销：$action';
+  }
+
+  @override
+  String redoTooltip(String action) {
+    return '重做：$action';
+  }
+
+  @override
+  String opDeleteLabel(String tag) {
+    return '删除“$tag”';
+  }
+
+  @override
+  String opReplaceLabel(String tag) {
+    return '替换“$tag”';
+  }
+
+  @override
+  String opInsertLabel(String tag) {
+    return '在“$tag”旁追加';
+  }
+
+  @override
   String get tagLibraryTitle => '常用标签库';
 
   @override

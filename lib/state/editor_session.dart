@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
 
+import '../utils/tag_text.dart';
+
 enum SaveState { clean, dirty, saving, saved, error }
 
 /// Owns the caption being edited for the currently selected image: the text
@@ -34,9 +36,10 @@ class EditorSession extends ChangeNotifier {
   bool _suppressTextEvents = false;
   int _loadGeneration = 0;
 
-  /// Notified after every successful save with the caption's on-disk state,
-  /// so the dataset can update status dots without rescanning.
-  void Function(String imagePath, bool hasCaption)? onSaved;
+  /// Notified after every successful save with the caption's on-disk text,
+  /// so the dataset can update status dots and its tag index without
+  /// rescanning.
+  void Function(String imagePath, String captionText)? onSaved;
 
   File? get image => _image;
   String get captionPath => _captionPath;
@@ -175,7 +178,7 @@ class EditorSession extends ChangeNotifier {
       _saveState = SaveState.saved;
       _lastSavedAt = DateTime.now();
       _lastError = null;
-      onSaved?.call(_image!.path, text.trim().isNotEmpty);
+      onSaved?.call(_image!.path, text);
     } catch (e) {
       if (path != _captionPath) return;
       _saveState = SaveState.error;
@@ -221,14 +224,7 @@ class EditorSession extends ChangeNotifier {
     _suppressTextEvents = false;
   }
 
-  static List<String> _parseTags(String text) {
-    final seen = <String>{};
-    return text
-        .split(',')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty && seen.add(s))
-        .toList();
-  }
+  static List<String> _parseTags(String text) => parseTagText(text);
 
   @override
   void dispose() {

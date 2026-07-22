@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../l10n/app_localizations.dart';
 import '../state/dataset_state.dart';
+import '../state/tag_ops.dart';
 import '../theme/app_theme.dart';
 
 /// Top bar of the workbench: identity, the dataset path chip, and the
@@ -40,6 +41,7 @@ class WorkbenchTopBar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final appState = context.watch<AppState>();
     final dataset = context.watch<DatasetState>();
+    final tagOps = context.watch<TagOps>();
     final directory = appState.browsingDirectory;
 
     return Container(
@@ -125,6 +127,28 @@ class WorkbenchTopBar extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.undo, size: 18),
+            tooltip: tagOps.undoLabel == null
+                ? l10n.undo
+                : l10n.undoTooltip(tagOps.undoLabel!),
+            color: semantic.muted,
+            visualDensity: VisualDensity.compact,
+            onPressed: tagOps.canUndo ? tagOps.undo : null,
+          ),
+          IconButton(
+            icon: const Icon(Icons.redo, size: 18),
+            tooltip: tagOps.redoLabel == null
+                ? l10n.redo
+                : l10n.redoTooltip(tagOps.redoLabel!),
+            color: semantic.muted,
+            visualDensity: VisualDensity.compact,
+            onPressed: tagOps.canRedo ? tagOps.redo : null,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Container(width: 1, height: 18, color: semantic.line),
           ),
           IconButton(
             icon: Icon(_themeIcon(appState.currentThemeMode), size: 18),
