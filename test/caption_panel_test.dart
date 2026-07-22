@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -114,6 +115,31 @@ void main() {
     expect(ai.compareMode, isTrue);
     expect(find.byType(AiCompareView), findsOneWidget);
     expect(find.text('smile'), findsOneWidget);
+  });
+
+  testWidgets('current tags reorder by long-press drag in compare mode',
+      (tester) async {
+    await tester.runAsync(() async {
+      await session.load(imageA, '.txt'); // tags: alpha, beta
+      expect(await ai.interrogate(imageA), isTrue);
+    });
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+    expect(find.byType(AiCompareView), findsOneWidget);
+
+    // Long-press starts the drag (delete taps must keep working), then drop
+    // "alpha" onto "beta" to swap them.
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('alpha')),
+    );
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+    await gesture.moveTo(tester.getCenter(find.text('beta')));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(session.tags, ['beta', 'alpha']);
   });
 
   testWidgets(
