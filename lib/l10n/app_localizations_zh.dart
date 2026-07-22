@@ -423,6 +423,97 @@ class AppLocalizationsZh extends AppLocalizations {
   String get libraryEmpty => '标签库是空的，点击加号添加标签。';
 
   @override
+  String get moreActionsTooltip => '更多操作';
+
+  @override
+  String get importFromFile => '从文件导入…';
+
+  @override
+  String get exportLibraryMenu => '导出标签（含分组）…';
+
+  @override
+  String get exportGroupsMenu => '仅导出分组…';
+
+  @override
+  String get clearLibrary => '清空标签库';
+
+  @override
+  String clearLibraryConfirmContent(int count) {
+    return '移除全部 $count 个标签？分组将保留。';
+  }
+
+  @override
+  String importSummary(int tags, int groups) {
+    return '已导入 $tags 个标签，新建 $groups 个分组';
+  }
+
+  @override
+  String importFailedMsg(String error) {
+    return '导入失败：$error';
+  }
+
+  @override
+  String exportedTo(String path) {
+    return '已导出：$path';
+  }
+
+  @override
+  String exportFailedMsg(String error) {
+    return '导出失败：$error';
+  }
+
+  @override
+  String get newGroupTitle => '新建分组';
+
+  @override
+  String get editGroupTitle => '编辑分组';
+
+  @override
+  String get groupNameHint => '分组名称';
+
+  @override
+  String get groupColorLabel => '颜色';
+
+  @override
+  String get customColorLabel => '自定义';
+
+  @override
+  String get ungroupedSection => '未分组';
+
+  @override
+  String get groupEditModeTooltip => '分组编辑模式';
+
+  @override
+  String get groupEditHint => '单击选中，右键发送到分组';
+
+  @override
+  String groupEditSelectedHint(int count) {
+    return '已选 $count · 右键发送到分组';
+  }
+
+  @override
+  String sendToGroup(String name) {
+    return '发送到 $name';
+  }
+
+  @override
+  String get sendToNewGroup => '新建分组并发送…';
+
+  @override
+  String get removeFromGroup => '移出分组';
+
+  @override
+  String get editGroupMenu => '编辑分组…';
+
+  @override
+  String get deleteGroupMenu => '删除分组';
+
+  @override
+  String deleteGroupConfirmContent(String name) {
+    return '删除分组“$name”？组内标签将回到未分组。';
+  }
+
+  @override
   String taggedProgress(int tagged, int total) {
     return '已打标 $tagged / $total';
   }

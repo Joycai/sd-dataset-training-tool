@@ -224,6 +224,74 @@
   "removeFromLibrary": "Remove from library",
   "libraryEmpty": "The library is empty. Use the plus button to add tags.",
 
+  "moreActionsTooltip": "More actions",
+  "importFromFile": "Import from file…",
+  "exportLibraryMenu": "Export tags (with groups)…",
+  "exportGroupsMenu": "Export groups only…",
+  "clearLibrary": "Clear library",
+  "clearLibraryConfirmContent": "Remove all {count} tags? Groups are kept.",
+  "@clearLibraryConfirmContent": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "importSummary": "Imported {tags} tags, created {groups} groups",
+  "@importSummary": {
+    "placeholders": {
+      "tags": { "type": "int" },
+      "groups": { "type": "int" }
+    }
+  },
+  "importFailedMsg": "Import failed: {error}",
+  "@importFailedMsg": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "exportedTo": "Exported: {path}",
+  "@exportedTo": {
+    "placeholders": {
+      "path": { "type": "String" }
+    }
+  },
+  "exportFailedMsg": "Export failed: {error}",
+  "@exportFailedMsg": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
+  "newGroupTitle": "New group",
+  "editGroupTitle": "Edit group",
+  "groupNameHint": "Group name",
+  "groupColorLabel": "Color",
+  "customColorLabel": "Custom",
+  "ungroupedSection": "Ungrouped",
+  "groupEditModeTooltip": "Group edit mode",
+  "groupEditHint": "Click to select, right-click to send to a group",
+  "groupEditSelectedHint": "{count} selected · right-click to send to a group",
+  "@groupEditSelectedHint": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "sendToGroup": "Send to {name}",
+  "@sendToGroup": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "sendToNewGroup": "New group and send…",
+  "removeFromGroup": "Remove from group",
+  "editGroupMenu": "Edit group…",
+  "deleteGroupMenu": "Delete group",
+  "deleteGroupConfirmContent": "Delete group \"{name}\"? Its tags return to Ungrouped.",
+  "@deleteGroupConfirmContent": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+
   "taggedProgress": "Tagged {tagged} / {total}",
   "@taggedProgress": {
     "placeholders": {

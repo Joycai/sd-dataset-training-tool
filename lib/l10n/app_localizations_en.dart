@@ -430,6 +430,97 @@ class AppLocalizationsEn extends AppLocalizations {
       'The library is empty. Use the plus button to add tags.';
 
   @override
+  String get moreActionsTooltip => 'More actions';
+
+  @override
+  String get importFromFile => 'Import from file…';
+
+  @override
+  String get exportLibraryMenu => 'Export tags (with groups)…';
+
+  @override
+  String get exportGroupsMenu => 'Export groups only…';
+
+  @override
+  String get clearLibrary => 'Clear library';
+
+  @override
+  String clearLibraryConfirmContent(int count) {
+    return 'Remove all $count tags? Groups are kept.';
+  }
+
+  @override
+  String importSummary(int tags, int groups) {
+    return 'Imported $tags tags, created $groups groups';
+  }
+
+  @override
+  String importFailedMsg(String error) {
+    return 'Import failed: $error';
+  }
+
+  @override
+  String exportedTo(String path) {
+    return 'Exported: $path';
+  }
+
+  @override
+  String exportFailedMsg(String error) {
+    return 'Export failed: $error';
+  }
+
+  @override
+  String get newGroupTitle => 'New group';
+
+  @override
+  String get editGroupTitle => 'Edit group';
+
+  @override
+  String get groupNameHint => 'Group name';
+
+  @override
+  String get groupColorLabel => 'Color';
+
+  @override
+  String get customColorLabel => 'Custom';
+
+  @override
+  String get ungroupedSection => 'Ungrouped';
+
+  @override
+  String get groupEditModeTooltip => 'Group edit mode';
+
+  @override
+  String get groupEditHint => 'Click to select, right-click to send to a group';
+
+  @override
+  String groupEditSelectedHint(int count) {
+    return '$count selected · right-click to send to a group';
+  }
+
+  @override
+  String sendToGroup(String name) {
+    return 'Send to $name';
+  }
+
+  @override
+  String get sendToNewGroup => 'New group and send…';
+
+  @override
+  String get removeFromGroup => 'Remove from group';
+
+  @override
+  String get editGroupMenu => 'Edit group…';
+
+  @override
+  String get deleteGroupMenu => 'Delete group';
+
+  @override
+  String deleteGroupConfirmContent(String name) {
+    return 'Delete group \"$name\"? Its tags return to Ungrouped.';
+  }
+
+  @override
   String taggedProgress(int tagged, int total) {
     return 'Tagged $tagged / $total';
   }

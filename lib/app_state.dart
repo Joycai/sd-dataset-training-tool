@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+
+import 'models/tag_group.dart';
 import 'services/settings_service.dart';
 
 enum MainView {
@@ -19,6 +23,7 @@ class AppState extends ChangeNotifier {
     _commonTags = tags;
     notifyListeners();
     await _settingsService.saveCommonTags(tags);
+    await _pruneGroups();
   }
 
   Future<void> addCommonTags(List<String> tags) async {
@@ -36,6 +41,182 @@ class AppState extends ChangeNotifier {
     _commonTags.removeWhere((tag) => tags.contains(tag));
     notifyListeners();
     await _settingsService.saveCommonTags(_commonTags);
+    await _pruneGroups();
+  }
+
+  // --- Tag groups ---
+  //
+  // Groups reference library tags by value; membership is exclusive (a tag is
+  // in at most one group). Everything not referenced is implicitly
+  // "ungrouped". Any change to the library prunes dangling references.
+
+  late List<TagGroup> _tagGroups;
+  Map<String, TagGroup> _tagToGroup = {};
+
+  List<TagGroup> get tagGroups => _tagGroups;
+
+  /// The group [tag] belongs to, or null when ungrouped / not in the library.
+  TagGroup? groupOfTag(String tag) => _tagToGroup[tag];
+
+  /// Library tags not referenced by any group, in library order.
+  List<String> get ungroupedTags =>
+      _commonTags.where((t) => !_tagToGroup.containsKey(t)).toList();
+
+  void _rebuildTagToGroup() {
+    _tagToGroup = {
+      for (final group in _tagGroups)
+        for (final tag in group.tags) tag: group,
+    };
+  }
+
+  Future<void> _saveGroups() async {
+    _rebuildTagToGroup();
+    notifyListeners();
+    await _settingsService.saveTagGroups(_tagGroups);
+  }
+
+  /// Drops group members that no longer exist in the library. Keeps empty
+  /// groups — deleting a group is an explicit user action.
+  Future<void> _pruneGroups() async {
+    final library = _commonTags.toSet();
+    var changed = false;
+    _tagGroups = [
+      for (final group in _tagGroups)
+        () {
+          final kept = group.tags.where(library.contains).toList();
+          if (kept.length != group.tags.length) changed = true;
+          return kept.length == group.tags.length
+              ? group
+              : group.copyWith(tags: kept);
+        }(),
+    ];
+    if (changed) await _saveGroups();
+  }
+
+  // Timestamp alone can collide when groups are created back-to-back within
+  // one clock tick; the counter makes ids unique within the process.
+  static int _groupIdCounter = 0;
+
+  Future<TagGroup> createTagGroup(String name, int color) async {
+    final group = TagGroup(
+      id: '${DateTime.now().microsecondsSinceEpoch}-${_groupIdCounter++}',
+      name: name,
+      color: color,
+      tags: const [],
+    );
+    _tagGroups = [..._tagGroups, group];
+    await _saveGroups();
+    return group;
+  }
+
+  Future<void> updateTagGroup(String id, {String? name, int? color}) async {
+    _tagGroups = [
+      for (final g in _tagGroups)
+        g.id == id ? g.copyWith(name: name, color: color) : g,
+    ];
+    await _saveGroups();
+  }
+
+  /// Deletes the group; its tags fall back to ungrouped.
+  Future<void> deleteTagGroup(String id) async {
+    _tagGroups = _tagGroups.where((g) => g.id != id).toList();
+    await _saveGroups();
+  }
+
+  /// Removes every tag from the library. Groups survive (emptied) so a
+  /// re-import or fresh tagging session keeps the structure.
+  Future<void> clearCommonTags() => updateCommonTags(<String>[]);
+
+  /// Serializes the library for transfer. Group ids are local and omitted —
+  /// import matches groups by name. [groupsOnly] exports just the group
+  /// definitions (name + color) without any tags.
+  String exportLibraryJson({bool groupsOnly = false}) {
+    return const JsonEncoder.withIndent('  ').convert({
+      'version': 1,
+      'groups': [
+        for (final g in _tagGroups)
+          {'name': g.name, 'color': g.color, if (!groupsOnly) 'tags': g.tags},
+      ],
+      if (!groupsOnly) 'ungrouped': ungroupedTags,
+    });
+  }
+
+  /// Imports a library export produced by [exportLibraryJson] (either
+  /// flavor). Merge semantics:
+  ///
+  /// - groups are matched by name; missing ones are created with the file's
+  ///   color, existing ones keep their local color;
+  /// - tags listed under a group are added to the library when new and moved
+  ///   into that group (the file is authoritative for tags it mentions);
+  /// - "ungrouped" tags are added to the library when new but never pulled
+  ///   out of a local group they already belong to.
+  ///
+  /// Throws [FormatException] when the payload does not look like an export.
+  Future<({int tagsAdded, int groupsCreated})> importLibraryJson(
+    String text,
+  ) async {
+    final Map<String, dynamic> data;
+    final List<({String name, int color, List<String> tags})> entries;
+    final List<String> ungrouped;
+    try {
+      data = jsonDecode(text) as Map<String, dynamic>;
+      entries = [
+        for (final raw in (data['groups'] as List<dynamic>? ?? const []))
+          (
+            name: (raw as Map<String, dynamic>)['name'] as String,
+            color: raw['color'] as int,
+            tags: (raw['tags'] as List<dynamic>? ?? const []).cast<String>(),
+          ),
+      ];
+      ungrouped =
+          (data['ungrouped'] as List<dynamic>? ?? const []).cast<String>();
+    } on FormatException {
+      rethrow;
+    } catch (_) {
+      throw const FormatException('not a tag library export');
+    }
+
+    final incoming = <String>{};
+    final newTags = <String>[
+      for (final tag in [...entries.expand((e) => e.tags), ...ungrouped])
+        if (!_commonTags.contains(tag) && incoming.add(tag)) tag,
+    ];
+    if (newTags.isNotEmpty) await addCommonTags(newTags);
+
+    var groupsCreated = 0;
+    for (final entry in entries) {
+      if (entry.name.trim().isEmpty) continue;
+      var target = _tagGroups.where((g) => g.name == entry.name).firstOrNull;
+      if (target == null) {
+        target = await createTagGroup(entry.name, entry.color);
+        groupsCreated++;
+      }
+      if (entry.tags.isNotEmpty) {
+        await moveTagsToGroup(entry.tags, target.id);
+      }
+    }
+    return (tagsAdded: newTags.length, groupsCreated: groupsCreated);
+  }
+
+  /// Moves [tags] into the group with [groupId] (null = ungrouped). Removes
+  /// them from their previous group first — membership is exclusive. Tags not
+  /// in the library are ignored.
+  Future<void> moveTagsToGroup(List<String> tags, String? groupId) async {
+    final library = _commonTags.toSet();
+    // De-duplicated, in caller order, restricted to library tags.
+    final seen = <String>{};
+    final moving =
+        tags.where((t) => library.contains(t) && seen.add(t)).toList();
+    if (moving.isEmpty) return;
+    _tagGroups = [
+      for (final g in _tagGroups)
+        () {
+          final kept = g.tags.where((t) => !seen.contains(t)).toList();
+          if (g.id == groupId) kept.addAll(moving);
+          return g.copyWith(tags: kept);
+        }(),
+    ];
+    await _saveGroups();
   }
 
   // --- Other states remain unchanged ---
@@ -47,6 +228,8 @@ class AppState extends ChangeNotifier {
     _browsingDirectory = await _settingsService.loadBrowsingDirectory();
     _captionExtension = await _settingsService.loadCaptionExtension();
     _commonTags = await _settingsService.loadCommonTags();
+    _tagGroups = await _settingsService.loadTagGroups();
+    _rebuildTagToGroup();
     _autoSave = await _settingsService.loadAutoSave();
     final (leftWidth, rightWidth) = await _settingsService.loadPanelWidths();
     _leftPanelWidth = leftWidth;

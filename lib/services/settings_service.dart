@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/tag_group.dart';
+
 class SettingsService {
   // --- 新增：Common Tags ---
   Future<void> saveCommonTags(List<String> tags) async {
@@ -11,6 +13,18 @@ class SettingsService {
   Future<List<String>> loadCommonTags() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getStringList('commonTags') ?? []; // 默认空列表
+  }
+
+  // --- Tag groups (JSON blob, see models/tag_group.dart) ---
+  Future<void> saveTagGroups(List<TagGroup> groups) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('tagGroups', encodeTagGroups(groups));
+  }
+
+  Future<List<TagGroup>> loadTagGroups() async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString('tagGroups');
+    return json == null ? const [] : decodeTagGroups(json);
   }
 
   // --- 其他设置 (保持不变) ---

@@ -23,25 +23,32 @@ class PanelHeader extends StatelessWidget {
       child: Row(
         children: [
           // Title and pill share one flex slot so the unused width stays
-          // inside it and the action icons sit flush right.
+          // inside it and the action icons sit flush right. The title
+          // ellipsizes, but the pill cannot shrink — hide it when the
+          // actions squeeze this slot too far (narrow panels).
           Expanded(
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    title,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final showCount = count != null && constraints.maxWidth >= 90;
+                return Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                if (count != null) ...[
-                  const SizedBox(width: 8),
-                  CountPill(text: '$count'),
-                ],
-              ],
+                    if (showCount) ...[
+                      const SizedBox(width: 8),
+                      CountPill(text: '$count'),
+                    ],
+                  ],
+                );
+              },
             ),
           ),
           ...actions,
@@ -213,13 +220,15 @@ Future<T?> showPanelContextMenu<T>({
   );
 }
 
-/// Compact icon + label entry for [showPanelContextMenu].
+/// Compact icon + label entry for [showPanelContextMenu]. [iconColor] tints
+/// only the icon (e.g. a group's color dot), leaving the label default.
 PopupMenuItem<T> panelMenuItem<T>({
   required BuildContext context,
   required T value,
   required IconData icon,
   required String label,
   Color? color,
+  Color? iconColor,
 }) {
   final semantic = context.semantic;
   return PopupMenuItem<T>(
@@ -227,7 +236,7 @@ PopupMenuItem<T> panelMenuItem<T>({
     height: 34,
     child: Row(
       children: [
-        Icon(icon, size: 16, color: color ?? semantic.muted),
+        Icon(icon, size: 16, color: iconColor ?? color ?? semantic.muted),
         const SizedBox(width: 9),
         Flexible(
           child: Text(

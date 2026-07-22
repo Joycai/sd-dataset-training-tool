@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
+import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/ai_tagger_state.dart';
 import '../../state/editor_session.dart';
@@ -270,10 +271,12 @@ class _CaptionPanelState extends State<CaptionPanel> {
                     final tag = session.tags[index];
                     // Tags are de-duplicated on parse, so the tag itself is a
                     // stable key across reorders.
+                    final group = context.watch<AppState>().groupOfTag(tag);
                     return _TagChip(
                       key: ValueKey(tag),
                       label: tag,
                       sortMode: _sortMode,
+                      groupColor: group == null ? null : Color(group.color),
                       onTap: () => _editTag(session, index),
                       onDelete: () => session.removeTag(tag),
                     );
@@ -476,6 +479,7 @@ class _TagChip extends StatelessWidget {
     required this.onTap,
     required this.onDelete,
     this.sortMode = false,
+    this.groupColor,
   });
 
   final String label;
@@ -487,14 +491,21 @@ class _TagChip extends StatelessWidget {
   /// taps anyway).
   final bool sortMode;
 
+  /// Tint from the tag's library group; null keeps the default look.
+  final Color? groupColor;
+
   @override
   Widget build(BuildContext context) {
     final semantic = context.semantic;
     final body = Container(
       padding: const EdgeInsets.symmetric(horizontal: 9),
       decoration: BoxDecoration(
-        color: semantic.raised,
-        border: Border.all(color: semantic.line),
+        color: groupColor == null
+            ? semantic.raised
+            : Color.alphaBlend(groupColor!.withAlpha(33), semantic.raised),
+        border: Border.all(
+          color: groupColor?.withAlpha(153) ?? semantic.line,
+        ),
         borderRadius: BorderRadius.circular(7),
       ),
       child: Row(
