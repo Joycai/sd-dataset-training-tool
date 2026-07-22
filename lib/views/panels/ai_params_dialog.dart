@@ -99,30 +99,7 @@ class _AiParamsDialogState extends State<_AiParamsDialog> {
               Row(
                 children: [
                   Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: ai.models
-                              .any((m) => m.modelName == ai.modelName)
-                          ? ai.modelName
-                          : null,
-                      isExpanded: true,
-                      hint: Text(
-                        l10n.aiNoModels,
-                        style:
-                            TextStyle(fontSize: 12.5, color: semantic.muted),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      style: TextStyle(
-                          fontSize: 12.5, color: scheme.onSurface),
-                      items: [
-                        for (final m in ai.models)
-                          DropdownMenuItem(
-                            value: m.modelName,
-                            child: Text(m.modelName,
-                                overflow: TextOverflow.ellipsis),
-                          ),
-                      ],
-                      onChanged: (value) => ai.setModelName(value),
-                    ),
+                    child: _ModelPickerField(ai: ai, l10n: l10n),
                   ),
                   const SizedBox(width: 6),
                   IconButton(
@@ -160,13 +137,10 @@ class _AiParamsDialogState extends State<_AiParamsDialog> {
                             : scheme.onSurface),
                   ),
                   const SizedBox(width: 6),
-                  SizedBox(
-                    height: 24,
-                    child: Switch(
-                      value: !useDefaultThreshold,
-                      onChanged: (custom) => ai.setThreshold(
-                          custom ? _sliderValue : null),
-                    ),
+                  _CompactSwitch(
+                    value: !useDefaultThreshold,
+                    onChanged: (custom) =>
+                        ai.setThreshold(custom ? _sliderValue : null),
                   ),
                 ],
               ),
@@ -301,17 +275,142 @@ class _SwitchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         children: [
           Expanded(
             child: Text(label, style: const TextStyle(fontSize: 13)),
           ),
-          SizedBox(
-            height: 24,
-            child: Switch(value: value, onChanged: onChanged),
-          ),
+          _CompactSwitch(value: value, onChanged: onChanged),
         ],
+      ),
+    );
+  }
+}
+
+/// A Switch scaled down to fit dense dialog rows: the stock Material 3
+/// switch is 32 px tall plus tap padding and collides with its neighbors.
+class _CompactSwitch extends StatelessWidget {
+  const _CompactSwitch({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 38,
+      height: 22,
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: Switch(
+          value: value,
+          onChanged: onChanged,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+    );
+  }
+}
+
+/// Input-styled field that opens a themed, compact model menu. Replaces
+/// DropdownButtonFormField, whose overlay ignores the app theme and forces
+/// 48 px items.
+class _ModelPickerField extends StatelessWidget {
+  const _ModelPickerField({required this.ai, required this.l10n});
+
+  final AiTaggerState ai;
+  final AppLocalizations l10n;
+
+  Future<void> _openMenu(BuildContext context) async {
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+    final box = context.findRenderObject() as RenderBox;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final origin =
+        box.localToGlobal(Offset(0, box.size.height + 4), ancestor: overlay);
+
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        origin & box.size,
+        Offset.zero & overlay.size,
+      ),
+      color: semantic.raised,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: semantic.line),
+      ),
+      constraints: BoxConstraints(
+        minWidth: box.size.width,
+        maxWidth: box.size.width,
+        maxHeight: 320,
+      ),
+      items: [
+        for (final m in ai.models)
+          PopupMenuItem(
+            value: m.modelName,
+            height: 32,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    m.modelName,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: m.modelName == ai.modelName
+                          ? scheme.primary
+                          : scheme.onSurface,
+                    ),
+                  ),
+                ),
+                if (m.modelName == ai.modelName)
+                  Icon(Icons.check, size: 14, color: scheme.primary),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (selected != null) {
+      await ai.setModelName(selected);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+    final hasModels = ai.models.isNotEmpty;
+
+    return InkWell(
+      onTap: hasModels ? () => _openMenu(context) : null,
+      borderRadius: BorderRadius.circular(7),
+      child: Container(
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          border: Border.all(color: semantic.line),
+          borderRadius: BorderRadius.circular(7),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                ai.modelName ?? l10n.aiNoModels,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color:
+                      ai.modelName == null ? semantic.muted : scheme.onSurface,
+                ),
+              ),
+            ),
+            Icon(Icons.arrow_drop_down, size: 18, color: semantic.muted),
+          ],
+        ),
       ),
     );
   }
