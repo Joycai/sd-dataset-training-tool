@@ -650,11 +650,17 @@ abstract class AppLocalizations {
   /// **'Re-run'**
   String get aiRerun;
 
-  /// No description provided for @aiDoneCompare.
+  /// No description provided for @aiExitCompare.
   ///
   /// In en, this message translates to:
-  /// **'Done'**
-  String get aiDoneCompare;
+  /// **'Exit compare'**
+  String get aiExitCompare;
+
+  /// No description provided for @aiExitCompareTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit compare mode (applies to all images)'**
+  String get aiExitCompareTooltip;
 
   /// No description provided for @aiNoResultYet.
   ///
@@ -721,6 +727,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Overwrite'**
   String get batchTagModeOverwrite;
+
+  /// No description provided for @batchTagModeRecognize.
+  ///
+  /// In en, this message translates to:
+  /// **'Recognize'**
+  String get batchTagModeRecognize;
+
+  /// No description provided for @batchTagModeRecognizeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Interrogates and caches results without touching caption files; when finished, compare mode opens for per-image review.'**
+  String get batchTagModeRecognizeDesc;
 
   /// No description provided for @batchTagModeAppendDesc.
   ///
@@ -823,6 +841,22 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{completed} images processed: {changed} changed, {failed} failed.'**
   String batchTagDoneSummary(Object completed, Object changed, Object failed);
+
+  /// No description provided for @batchTagRecognizeDoneSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{completed} images processed: {changed} recognized, {failed} failed.'**
+  String batchTagRecognizeDoneSummary(
+    Object completed,
+    Object changed,
+    Object failed,
+  );
+
+  /// No description provided for @batchTagRecognizeDoneHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare mode is on: switch images to review the AI suggestions.'**
+  String get batchTagRecognizeDoneHint;
 
   /// No description provided for @batchTagUndoHint.
   ///

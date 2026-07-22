@@ -141,7 +141,8 @@
     }
   },
   "aiRerun": "Re-run",
-  "aiDoneCompare": "Done",
+  "aiExitCompare": "Exit compare",
+  "aiExitCompareTooltip": "Exit compare mode (applies to all images)",
   "aiNoResultYet": "No result for this image yet.",
   "aiFirstRunHint": "First use of a model downloads it — this can take a while.",
   "aiNoModelSelected": "No model selected. Check the AI parameters.",
@@ -159,6 +160,8 @@
   "batchTagModeLabel": "Mode",
   "batchTagModeAppend": "Append",
   "batchTagModeOverwrite": "Overwrite",
+  "batchTagModeRecognize": "Recognize",
+  "batchTagModeRecognizeDesc": "Interrogates and caches results without touching caption files; when finished, compare mode opens for per-image review.",
   "batchTagModeAppendDesc": "New AI tags are appended after each image's existing tags; duplicates are never added.",
   "batchTagModeOverwriteDesc": "AI results replace each image's existing tags; configure below which existing tags survive.",
   "batchTagPreservedLabel": "Preserved tags",
@@ -205,6 +208,15 @@
       "failed": {}
     }
   },
+  "batchTagRecognizeDoneSummary": "{completed} images processed: {changed} recognized, {failed} failed.",
+  "@batchTagRecognizeDoneSummary": {
+    "placeholders": {
+      "completed": {},
+      "changed": {},
+      "failed": {}
+    }
+  },
+  "batchTagRecognizeDoneHint": "Compare mode is on: switch images to review the AI suggestions.",
   "batchTagUndoHint": "Use undo in the top bar to revert this run.",
   "batchTagOperationLabel": "batch AI tagging",
 

@@ -309,7 +309,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiRerun => 'Re-run';
 
   @override
-  String get aiDoneCompare => 'Done';
+  String get aiExitCompare => 'Exit compare';
+
+  @override
+  String get aiExitCompareTooltip =>
+      'Exit compare mode (applies to all images)';
 
   @override
   String get aiNoResultYet => 'No result for this image yet.';
@@ -347,6 +351,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get batchTagModeOverwrite => 'Overwrite';
+
+  @override
+  String get batchTagModeRecognize => 'Recognize';
+
+  @override
+  String get batchTagModeRecognizeDesc =>
+      'Interrogates and caches results without touching caption files; when finished, compare mode opens for per-image review.';
 
   @override
   String get batchTagModeAppendDesc =>
@@ -412,6 +423,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String batchTagDoneSummary(Object completed, Object changed, Object failed) {
     return '$completed images processed: $changed changed, $failed failed.';
   }
+
+  @override
+  String batchTagRecognizeDoneSummary(
+    Object completed,
+    Object changed,
+    Object failed,
+  ) {
+    return '$completed images processed: $changed recognized, $failed failed.';
+  }
+
+  @override
+  String get batchTagRecognizeDoneHint =>
+      'Compare mode is on: switch images to review the AI suggestions.';
 
   @override
   String get batchTagUndoHint => 'Use undo in the top bar to revert this run.';

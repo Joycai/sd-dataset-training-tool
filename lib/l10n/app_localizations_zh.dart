@@ -303,7 +303,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiRerun => '重新识别';
 
   @override
-  String get aiDoneCompare => '完成';
+  String get aiExitCompare => '退出对比';
+
+  @override
+  String get aiExitCompareTooltip => '退出对比模式（对所有图片生效）';
 
   @override
   String get aiNoResultYet => '本图还没有识别结果。';
@@ -339,6 +342,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get batchTagModeOverwrite => '覆盖模式';
+
+  @override
+  String get batchTagModeRecognize => '仅识别';
+
+  @override
+  String get batchTagModeRecognizeDesc =>
+      '只识别并缓存结果，不修改 caption 文件；完成后进入对比模式，可逐张审阅采纳建议。';
 
   @override
   String get batchTagModeAppendDesc => '把新识别出的标签追加到每张图已有标签之后，不会重复添加。';
@@ -400,6 +410,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String batchTagDoneSummary(Object completed, Object changed, Object failed) {
     return '共处理 $completed 张：修改 $changed 张，失败 $failed 张。';
   }
+
+  @override
+  String batchTagRecognizeDoneSummary(
+    Object completed,
+    Object changed,
+    Object failed,
+  ) {
+    return '共处理 $completed 张：识别 $changed 张，失败 $failed 张。';
+  }
+
+  @override
+  String get batchTagRecognizeDoneHint => '已进入对比模式：切换图片即可逐张审阅 AI 建议。';
 
   @override
   String get batchTagUndoHint => '可通过顶栏的撤销按钮回退本次修改。';

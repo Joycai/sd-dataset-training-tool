@@ -58,12 +58,15 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
     super.initState();
     _batch = context.read<BatchTagState>();
     _started = _batch.running;
-    _preservedController =
-        TextEditingController(text: _batch.preservedTags.join(', '));
-    _keepFirstNController =
-        TextEditingController(text: _batch.keepFirstN.toString());
-    _blacklistController =
-        TextEditingController(text: _batch.blacklist.join(', '));
+    _preservedController = TextEditingController(
+      text: _batch.preservedTags.join(', '),
+    );
+    _keepFirstNController = TextEditingController(
+      text: _batch.keepFirstN.toString(),
+    );
+    _blacklistController = TextEditingController(
+      text: _batch.blacklist.join(', '),
+    );
     final ai = context.read<AiTaggerState>();
     // First open: fetch the model list so the picker has content.
     if (ai.models.isEmpty && !ai.loadingModels) {
@@ -98,8 +101,9 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
     final l10n = AppLocalizations.of(context)!;
     final dataset = context.read<DatasetState>();
     _persistFields();
-    final files =
-        List.of(_onlyFiltered ? dataset.visibleFiles : dataset.allFiles);
+    final files = List.of(
+      _onlyFiltered ? dataset.visibleFiles : dataset.allFiles,
+    );
     setState(() => _started = true);
     // Not awaited: the dialog follows the run through the state's notifies.
     _batch.run(files: files, operationLabel: l10n.batchTagOperationLabel);
@@ -125,6 +129,7 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
     final targetCount = _targetPaths(dataset).length;
     final canStart = ai.modelName != null && targetCount > 0;
     final overwrite = batch.mode == BatchTagMode.overwrite;
+    final recognizeOnly = batch.mode == BatchTagMode.recognizeOnly;
 
     return AlertDialog(
       title: Row(
@@ -132,8 +137,10 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
           Icon(Icons.auto_awesome_motion, size: 18, color: semantic.muted),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(l10n.batchTagTitle,
-                style: const TextStyle(fontSize: 15)),
+            child: Text(
+              l10n.batchTagTitle,
+              style: const TextStyle(fontSize: 15),
+            ),
           ),
         ],
       ),
@@ -147,7 +154,9 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
               _FieldLabel(text: l10n.aiModelLabel),
               Row(
                 children: [
-                  Expanded(child: ModelPickerField(ai: ai, l10n: l10n)),
+                  Expanded(
+                    child: ModelPickerField(ai: ai, l10n: l10n),
+                  ),
                   const SizedBox(width: 6),
                   IconButton(
                     icon: ai.loadingModels
@@ -155,7 +164,9 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
                             width: 14,
                             height: 14,
                             child: CircularProgressIndicator(
-                                strokeWidth: 1.5, color: semantic.muted),
+                              strokeWidth: 1.5,
+                              color: semantic.muted,
+                            ),
                           )
                         : const Icon(Icons.refresh, size: 18),
                     tooltip: l10n.aiRefreshModels,
@@ -175,9 +186,13 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
                   ),
                   TextButton(
                     onPressed: () => showAiParamsDialog(
-                        context, context.read<AiTaggerState>()),
-                    child: Text(l10n.batchTagOpenParams,
-                        style: const TextStyle(fontSize: 12)),
+                      context,
+                      context.read<AiTaggerState>(),
+                    ),
+                    child: Text(
+                      l10n.batchTagOpenParams,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ),
                 ],
               ),
@@ -190,14 +205,26 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
                     ButtonSegment(
                       value: BatchTagMode.append,
                       icon: const Icon(Icons.playlist_add, size: 15),
-                      label: Text(l10n.batchTagModeAppend,
-                          style: const TextStyle(fontSize: 12.5)),
+                      label: Text(
+                        l10n.batchTagModeAppend,
+                        style: const TextStyle(fontSize: 12.5),
+                      ),
                     ),
                     ButtonSegment(
                       value: BatchTagMode.overwrite,
                       icon: const Icon(Icons.published_with_changes, size: 15),
-                      label: Text(l10n.batchTagModeOverwrite,
-                          style: const TextStyle(fontSize: 12.5)),
+                      label: Text(
+                        l10n.batchTagModeOverwrite,
+                        style: const TextStyle(fontSize: 12.5),
+                      ),
+                    ),
+                    ButtonSegment(
+                      value: BatchTagMode.recognizeOnly,
+                      icon: const Icon(Icons.compare_arrows, size: 15),
+                      label: Text(
+                        l10n.batchTagModeRecognize,
+                        style: const TextStyle(fontSize: 12.5),
+                      ),
                     ),
                   ],
                   selected: {batch.mode},
@@ -210,13 +237,17 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
               ),
               const SizedBox(height: 6),
               Text(
-                overwrite
+                recognizeOnly
+                    ? l10n.batchTagModeRecognizeDesc
+                    : overwrite
                     ? l10n.batchTagModeOverwriteDesc
                     : l10n.batchTagModeAppendDesc,
                 style: TextStyle(fontSize: 11.5, color: semantic.muted),
               ),
               const SizedBox(height: 14),
-              if (overwrite) ...[
+              if (recognizeOnly)
+                const SizedBox.shrink()
+              else if (overwrite) ...[
                 _FieldLabel(text: l10n.batchTagPreservedLabel),
                 TextField(
                   controller: _preservedController,
@@ -232,8 +263,10 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(l10n.batchTagKeepFirstN,
-                          style: const TextStyle(fontSize: 13)),
+                      child: Text(
+                        l10n.batchTagKeepFirstN,
+                        style: const TextStyle(fontSize: 13),
+                      ),
                     ),
                     SizedBox(
                       width: 64,
@@ -279,8 +312,7 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
                     ),
                     Expanded(
                       child: Text(
-                        l10n.batchTagScopeFiltered(
-                            dataset.visibleFiles.length),
+                        l10n.batchTagScopeFiltered(dataset.visibleFiles.length),
                         style: const TextStyle(fontSize: 12.5),
                       ),
                     ),
@@ -313,7 +345,10 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
   // --- Progress --------------------------------------------------------
 
   Widget _progressView(
-      BuildContext context, AppLocalizations l10n, BatchTagState batch) {
+    BuildContext context,
+    AppLocalizations l10n,
+    BatchTagState batch,
+  ) {
     final semantic = context.semantic;
     final scheme = Theme.of(context).colorScheme;
     final current = batch.currentPath;
@@ -324,8 +359,10 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
           Icon(Icons.auto_awesome_motion, size: 18, color: semantic.muted),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(l10n.batchTagTitle,
-                style: const TextStyle(fontSize: 15)),
+            child: Text(
+              l10n.batchTagTitle,
+              style: const TextStyle(fontSize: 15),
+            ),
           ),
         ],
       ),
@@ -343,14 +380,20 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
                   child: Text(
                     current == null ? '' : p.basename(current),
                     overflow: TextOverflow.ellipsis,
-                    style: monoStyle(context, size: 11.5,
-                        color: semantic.muted),
+                    style: monoStyle(
+                      context,
+                      size: 11.5,
+                      color: semantic.muted,
+                    ),
                   ),
                 ),
                 Text(
                   '${batch.completed} / ${batch.total}',
-                  style: monoStyle(context, size: 11.5,
-                      color: scheme.onSurface),
+                  style: monoStyle(
+                    context,
+                    size: 11.5,
+                    color: scheme.onSurface,
+                  ),
                 ),
               ],
             ),
@@ -383,9 +426,11 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
         ),
         TextButton(
           onPressed: batch.cancelRequested ? null : batch.requestCancel,
-          child: Text(batch.cancelRequested
-              ? l10n.batchTagCancelling
-              : l10n.batchTagCancel),
+          child: Text(
+            batch.cancelRequested
+                ? l10n.batchTagCancelling
+                : l10n.batchTagCancel,
+          ),
         ),
       ],
     );
@@ -394,10 +439,14 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
   // --- Summary ---------------------------------------------------------
 
   Widget _summaryView(
-      BuildContext context, AppLocalizations l10n, BatchTagState batch) {
+    BuildContext context,
+    AppLocalizations l10n,
+    BatchTagState batch,
+  ) {
     final semantic = context.semantic;
     final scheme = Theme.of(context).colorScheme;
     final hasFailures = batch.failed > 0;
+    final recognizeOnly = batch.mode == BatchTagMode.recognizeOnly;
 
     return AlertDialog(
       title: Row(
@@ -409,8 +458,10 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(l10n.batchTagDoneTitle,
-                style: const TextStyle(fontSize: 15)),
+            child: Text(
+              l10n.batchTagDoneTitle,
+              style: const TextStyle(fontSize: 15),
+            ),
           ),
         ],
       ),
@@ -421,8 +472,17 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              l10n.batchTagDoneSummary(
-                  batch.completed, batch.changed, batch.failed),
+              recognizeOnly
+                  ? l10n.batchTagRecognizeDoneSummary(
+                      batch.completed,
+                      batch.changed,
+                      batch.failed,
+                    )
+                  : l10n.batchTagDoneSummary(
+                      batch.completed,
+                      batch.changed,
+                      batch.failed,
+                    ),
               style: const TextStyle(fontSize: 13),
             ),
             if (hasFailures && batch.lastError != null) ...[
@@ -437,7 +497,9 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
             if (batch.changed > 0) ...[
               const SizedBox(height: 6),
               Text(
-                l10n.batchTagUndoHint,
+                recognizeOnly
+                    ? l10n.batchTagRecognizeDoneHint
+                    : l10n.batchTagUndoHint,
                 style: TextStyle(fontSize: 11.5, color: semantic.muted),
               ),
             ],

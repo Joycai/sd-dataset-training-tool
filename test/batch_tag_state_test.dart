@@ -162,10 +162,10 @@ void main() {
     }
 
     Future<void> scan() => dataset.scan(
-          directoryPath: tempDir.path,
-          recursive: false,
-          captionExtension: '.txt',
-        );
+      directoryPath: tempDir.path,
+      recursive: false,
+      captionExtension: '.txt',
+    );
 
     /// Server answering per image file name; a null entry answers a failure.
     BatchTagState buildState(
@@ -185,8 +185,11 @@ void main() {
                   {'ModelName': 'm', 'Tags': tags},
                 ],
               };
-        return http.Response(jsonEncode(response), 200,
-            headers: {'content-type': 'application/json'});
+        return http.Response(
+          jsonEncode(response),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
       });
       return BatchTagState(
         dataset: dataset,
@@ -198,45 +201,56 @@ void main() {
       );
     }
 
-    test('append run rewrites captions, updates the index, reports one op',
-        () async {
-      final img1 = await addImage('a', caption: 'solo, red hair');
-      final img2 = await addImage('b');
-      await scan();
+    test(
+      'append run rewrites captions, updates the index, reports one op',
+      () async {
+        final img1 = await addImage('a', caption: 'solo, red hair');
+        final img2 = await addImage('b');
+        await scan();
 
-      final ops = <TagOperation>[];
-      final touched = <String>{};
-      final state = buildState({
-        'a.png': [
-          {'Tag': 'red_hair', 'Probability': 0.9},
-          {'Tag': 'smile', 'Probability': 0.8},
-        ],
-        'b.png': [
-          {'Tag': '1girl', 'Probability': 0.95},
-        ],
-      }, onOperation: ops.add, onCaptionsChanged: touched.addAll);
+        final ops = <TagOperation>[];
+        final touched = <String>{};
+        final state = buildState(
+          {
+            'a.png': [
+              {'Tag': 'red_hair', 'Probability': 0.9},
+              {'Tag': 'smile', 'Probability': 0.8},
+            ],
+            'b.png': [
+              {'Tag': '1girl', 'Probability': 0.95},
+            ],
+          },
+          onOperation: ops.add,
+          onCaptionsChanged: touched.addAll,
+        );
 
-      final ok = await state.run(files: [img1, img2], operationLabel: 'batch');
-      expect(ok, isTrue);
-      expect(state.completed, 2);
-      expect(state.changed, 2);
-      expect(state.failed, 0);
+        final ok = await state.run(
+          files: [img1, img2],
+          operationLabel: 'batch',
+        );
+        expect(ok, isTrue);
+        expect(state.completed, 2);
+        expect(state.changed, 2);
+        expect(state.failed, 0);
 
-      // red_hair normalizes to the already-present "red hair".
-      expect(await File('${tempDir.path}/a.txt').readAsString(),
-          'solo, red hair, smile');
-      // The missing caption file is created.
-      expect(await File('${tempDir.path}/b.txt').readAsString(), '1girl');
-      // In-memory index follows without a rescan.
-      expect(dataset.tagsOf(img1.path), ['solo', 'red hair', 'smile']);
-      expect(dataset.tagsOf(img2.path), ['1girl']);
+        // red_hair normalizes to the already-present "red hair".
+        expect(
+          await File('${tempDir.path}/a.txt').readAsString(),
+          'solo, red hair, smile',
+        );
+        // The missing caption file is created.
+        expect(await File('${tempDir.path}/b.txt').readAsString(), '1girl');
+        // In-memory index follows without a rescan.
+        expect(dataset.tagsOf(img1.path), ['solo', 'red hair', 'smile']);
+        expect(dataset.tagsOf(img2.path), ['1girl']);
 
-      expect(ops, hasLength(1));
-      expect(ops.single.label, 'batch');
-      expect(ops.single.edits, hasLength(2));
-      expect(touched, {img1.path, img2.path});
-      state.dispose();
-    });
+        expect(ops, hasLength(1));
+        expect(ops.single.label, 'batch');
+        expect(ops.single.edits, hasLength(2));
+        expect(touched, {img1.path, img2.path});
+        state.dispose();
+      },
+    );
 
     test('overwrite run honors preserved tags and the ignore list', () async {
       final img = await addImage('a', caption: 'narumi nagisa, old tag');
@@ -256,8 +270,10 @@ void main() {
       expect(state.changed, 1);
       // Preserved tag first, "old tag" dropped, ignored prediction dropped,
       // remaining predictions in probability order.
-      expect(await File('${tempDir.path}/a.txt').readAsString(),
-          'narumi nagisa, 1girl, smile');
+      expect(
+        await File('${tempDir.path}/a.txt').readAsString(),
+        'narumi nagisa, 1girl, smile',
+      );
       state.dispose();
     });
 
@@ -302,13 +318,46 @@ void main() {
       state.dispose();
     });
 
+    test('recognize-only run caches results and enters compare mode '
+        'without touching captions', () async {
+      final img1 = await addImage('a', caption: 'solo');
+      final img2 = await addImage('b');
+      await scan();
+
+      final ops = <TagOperation>[];
+      final state = buildState({
+        'a.png': [
+          {'Tag': '1girl', 'Probability': 0.95},
+          {'Tag': 'smile', 'Probability': 0.8},
+        ],
+        'b.png': null, // server failure
+      }, onOperation: ops.add);
+      await state.setMode(BatchTagMode.recognizeOnly);
+
+      await state.run(files: [img1, img2], operationLabel: 'batch');
+      expect(state.completed, 2);
+      expect(state.changed, 1); // recognized count
+      expect(state.failed, 1);
+
+      // Captions untouched, no undo operation.
+      expect(await File('${tempDir.path}/a.txt').readAsString(), 'solo');
+      expect(File('${tempDir.path}/b.txt').existsSync(), isFalse);
+      expect(ops, isEmpty);
+
+      // Results feed the single-image cache; compare mode is on.
+      expect(ai.compareMode, isTrue);
+      expect(ai.hasResultFor(img1.path), isTrue);
+      expect(ai.hasResultFor(img2.path), isFalse);
+      expect(ai.resultFor(img1.path)!.map((p) => p.tag), ['1girl', 'smile']);
+      state.dispose();
+    });
+
     test('run without a model or with an active run returns false', () async {
       final img = await addImage('a');
       await scan();
       final state = buildState({});
       await ai.setModelName(null);
-      expect(
-          await state.run(files: [img], operationLabel: 'batch'), isFalse);
+      expect(await state.run(files: [img], operationLabel: 'batch'), isFalse);
       state.dispose();
     });
   });
