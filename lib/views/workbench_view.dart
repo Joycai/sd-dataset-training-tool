@@ -182,8 +182,11 @@ class _WorkbenchViewState extends State<WorkbenchView> {
 
   @override
   Widget build(BuildContext context) {
-    // Keep the session's autosave behavior in sync with the setting.
-    _session.autoSaveEnabled = context.watch<AppState>().autoSave;
+    // Keep the session's autosave behavior in sync with the setting. select
+    // (not watch): a full watch would rebuild the whole workbench on every
+    // AppState notification, including each tag-library edit.
+    _session.autoSaveEnabled =
+        context.select<AppState, bool>((s) => s.autoSave);
 
     return MultiProvider(
       providers: [

@@ -28,7 +28,13 @@ class AssetsPanel extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
     final dataset = context.watch<DatasetState>();
-    final appState = context.watch<AppState>();
+    // select (not watch): the grid should not rebuild on unrelated AppState
+    // notifications such as tag-library edits.
+    final hasDirectory =
+        context.select<AppState, bool>((s) => s.browsingDirectory != null);
+    final columns = context
+        .select<AppState, int>((s) => s.crossAxisCount)
+        .clamp(2, 6);
 
     // The divider to the center column is drawn by the resize handle.
     return Container(
@@ -43,8 +49,7 @@ class AssetsPanel extends StatelessWidget {
               PanelIconButton(
                 icon: Icons.refresh,
                 tooltip: l10n.refresh,
-                onPressed:
-                    appState.browsingDirectory == null ? null : onRefresh,
+                onPressed: hasDirectory ? onRefresh : null,
               ),
               PanelIconButton(
                 icon: Icons.folder_open_outlined,
@@ -81,16 +86,16 @@ class AssetsPanel extends StatelessWidget {
               ],
             ),
           ),
-          Expanded(child: _buildBody(context, l10n, dataset)),
+          Expanded(child: _buildBody(context, l10n, dataset, columns)),
           const Divider(),
-          _ColumnsFooter(appState: appState, l10n: l10n),
+          _ColumnsFooter(columns: columns, l10n: l10n),
         ],
       ),
     );
   }
 
-  Widget _buildBody(
-      BuildContext context, AppLocalizations l10n, DatasetState dataset) {
+  Widget _buildBody(BuildContext context, AppLocalizations l10n,
+      DatasetState dataset, int columns) {
     final semantic = context.semantic;
 
     if (dataset.isLoading) {
@@ -122,8 +127,6 @@ class AssetsPanel extends StatelessWidget {
       );
     }
 
-    final appState = context.read<AppState>();
-    final columns = appState.crossAxisCount.clamp(2, 6);
     return GridView.builder(
       padding: const EdgeInsets.fromLTRB(12, 2, 12, 12),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -237,15 +240,14 @@ class _Thumbnail extends StatelessWidget {
 }
 
 class _ColumnsFooter extends StatelessWidget {
-  const _ColumnsFooter({required this.appState, required this.l10n});
+  const _ColumnsFooter({required this.columns, required this.l10n});
 
-  final AppState appState;
+  final int columns;
   final AppLocalizations l10n;
 
   @override
   Widget build(BuildContext context) {
     final semantic = context.semantic;
-    final columns = appState.crossAxisCount.clamp(2, 6);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
       child: Row(
@@ -257,8 +259,9 @@ class _ColumnsFooter extends StatelessWidget {
               min: 2,
               max: 6,
               divisions: 4,
-              onChanged: (value) =>
-                  appState.updateCrossAxisCount(value.round()),
+              onChanged: (value) => context
+                  .read<AppState>()
+                  .updateCrossAxisCount(value.round()),
             ),
           ),
           Text(

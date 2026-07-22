@@ -31,6 +31,10 @@ class DatasetState extends ChangeNotifier {
   final Map<String, bool> _hasCaption = {};
   final Map<String, List<String>> _tagsByPath = {};
   List<DatasetTag>? _tagCountsCache;
+  // Derived-list caches: several panels read these getters in every build,
+  // so they are computed once per state change instead of once per read.
+  List<File>? _visibleCache;
+  int? _taggedCountCache;
   String _captionExtension = '.txt';
   bool _isLoading = false;
   String? _error;
@@ -53,9 +57,16 @@ class DatasetState extends ChangeNotifier {
 
   List<File> get allFiles => _files;
   int get totalCount => _files.length;
-  int get taggedCount =>
+  int get taggedCount => _taggedCountCache ??=
       _files.where((f) => _hasCaption[f.path] == true).length;
   int get untaggedCount => totalCount - taggedCount;
+
+  /// Drops every derived cache; call before notifying after any change to
+  /// the files, captions, or filters.
+  void _invalidateDerived() {
+    _visibleCache = null;
+    _taggedCountCache = null;
+  }
 
   /// Every tag in the dataset with its image count, most frequent first
   /// (alphabetical within equal counts). Cached until captions change.
@@ -87,7 +98,9 @@ class DatasetState extends ChangeNotifier {
 
   /// Files after search + caption-status + tag filtering; the grid and the
   /// previous/next navigation both operate on this list.
-  List<File> get visibleFiles {
+  List<File> get visibleFiles => _visibleCache ??= _computeVisibleFiles();
+
+  List<File> _computeVisibleFiles() {
     final q = _query.trim().toLowerCase();
     return _files.where((f) {
       if (q.isNotEmpty && !p.basename(f.path).toLowerCase().contains(q)) {
@@ -129,12 +142,14 @@ class DatasetState extends ChangeNotifier {
   void setQuery(String value) {
     if (_query == value) return;
     _query = value;
+    _invalidateDerived();
     notifyListeners();
   }
 
   void setFilter(CaptionFilter value) {
     if (_filter == value) return;
     _filter = value;
+    _invalidateDerived();
     notifyListeners();
   }
 
@@ -142,6 +157,7 @@ class DatasetState extends ChangeNotifier {
     if (_tagFilter == tag && _tagFilterExclude == exclude) return;
     _tagFilter = tag;
     _tagFilterExclude = exclude;
+    _invalidateDerived();
     notifyListeners();
   }
 
@@ -149,6 +165,7 @@ class DatasetState extends ChangeNotifier {
     if (_tagFilter == null) return;
     _tagFilter = null;
     _tagFilterExclude = false;
+    _invalidateDerived();
     notifyListeners();
   }
 
@@ -178,6 +195,7 @@ class DatasetState extends ChangeNotifier {
   void updateCaptionText(String imagePath, String text) {
     if (!_applyCaptionText(imagePath, text)) return;
     _tagCountsCache = null;
+    _invalidateDerived();
     notifyListeners();
   }
 
@@ -190,6 +208,7 @@ class DatasetState extends ChangeNotifier {
     });
     if (!changed) return;
     _tagCountsCache = null;
+    _invalidateDerived();
     notifyListeners();
   }
 
@@ -261,6 +280,7 @@ class DatasetState extends ChangeNotifier {
       ..clear()
       ..addAll(tagsByPath);
     _tagCountsCache = null;
+    _invalidateDerived();
     _captionExtension = captionExtension;
     _isLoading = false;
     _error = error;
@@ -276,6 +296,7 @@ class DatasetState extends ChangeNotifier {
     _hasCaption.clear();
     _tagsByPath.clear();
     _tagCountsCache = null;
+    _invalidateDerived();
     _selectedPath = null;
     _tagFilter = null;
     _tagFilterExclude = false;
