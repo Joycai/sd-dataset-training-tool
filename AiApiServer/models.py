@@ -58,6 +58,7 @@ QWEN25_CAPTIONING_NAMES = [
     ("huihui-ai/Qwen2.5-VL-7B-Instruct-abliterated", True),
     ("unsloth/Qwen2.5-VL-7B-Instruct-unsloth-bnb-4bit", True),
     ("prithivMLmods/DeepCaption-VLA-7B", True),
+    ("prithivMLmods/DeepCaption-VLA-V2.0-7B", True),
     ("internlm/CapRL-3B", False),
 ]
 
@@ -110,10 +111,13 @@ BG_REMOVAL = [
     "briaai/RMBG-2.0",
     "ZhengPeng7/BiRefNet",
     "ZhengPeng7/BiRefNet_HR",
-    "zhengpeng7/BiRefNet_lite",
+    "ZhengPeng7/BiRefNet_lite",
     "ZhengPeng7/BiRefNet_lite-2K",
     "ZhengPeng7/BiRefNet-matting",
     "ZhengPeng7/BiRefNet_512x512",
+    "ZhengPeng7/BiRefNet_dynamic",
+    "ZhengPeng7/BiRefNet_dynamic-matting",
+    "ZhengPeng7/BiRefNet_HR-matting",
 ]
 
 SEED_X = [
@@ -130,6 +134,9 @@ BG_REMOVAL_RESOLUTION = [
     (2560, 1440),
     (1024, 1024),
     (512, 512),
+    (1024, 1024),
+    (1024, 1024),
+    (2048, 2048),
 ]
 
 WD_TAGGER_THRESHOLDS = [
@@ -359,9 +366,14 @@ MODEL_METADATA = {
         "advice": "想在低显存上用 7B 能力时的折中选择。",
     },
     "prithivMLmods/DeepCaption-VLA-7B": {
+        "legacy": True, "vram_gb": 16,
+        "description": "基于 Qwen2.5-VL 微调、专攻精细属性描述的打标模型的初版。",
+        "advice": "已被 V2.0 取代,建议改用 DeepCaption-VLA-V2.0-7B。",
+    },
+    "prithivMLmods/DeepCaption-VLA-V2.0-7B": {
         "vram_gb": 16,
-        "description": "基于 Qwen2.5-VL 微调、专攻精细属性描述的打标模型。",
-        "advice": "需要强调服饰、材质等细节属性时可以试试。",
+        "description": "DeepCaption-VLA 的 V2.0,专攻精细属性描述,新增多语言(含中文)描述能力,对非常规宽高比更稳。",
+        "advice": "需要强调服饰、材质等细节属性,或想要中文描述时选它。",
     },
     "internlm/CapRL-3B": {
         "vram_gb": 7,
@@ -419,6 +431,22 @@ MODEL_METADATA = {
         "legacy": True, "vram_gb": 24,
         "description": "BLIP2 最大的版本,接 Flan-T5-XXL 解码器,显存需求极大。",
         "advice": "不建议使用,同显存下有大量更强的现代模型。",
+    },
+    # --- Editors (not yet surfaced in the app picker, future-proofing) ---
+    "ZhengPeng7/BiRefNet_dynamic": {
+        "recommended": True, "vram_gb": 3,
+        "description": "BiRefNet 的动态分辨率版,支持 256 到 2304 任意输入尺寸,作者自评优于标准版与 HR 版。",
+        "advice": "通用抠图的当前首选。",
+    },
+    "ZhengPeng7/BiRefNet_dynamic-matting": {
+        "vram_gb": 3,
+        "description": "动态分辨率版的 matting 变体,输出软边缘 alpha,适合毛发与半透明。",
+        "advice": "需要柔和边缘而非硬分割时选它。",
+    },
+    "ZhengPeng7/BiRefNet_HR-matting": {
+        "vram_gb": 4,
+        "description": "2048 高分辨率训练的 matting 变体。",
+        "advice": "高分辨率图需要软边缘时选它。",
     },
 }
 
