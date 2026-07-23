@@ -505,14 +505,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noFilesChanged => '没有需要修改的文件。';
 
   @override
-  String filterActiveInclude(String tag) {
-    return '仅含：$tag';
+  String get filterPanelTitle => '画廊过滤';
+
+  @override
+  String filterMatches(int shown, int total) {
+    return '匹配 $shown / $total';
   }
 
   @override
-  String filterActiveExclude(String tag) {
-    return '不含：$tag';
-  }
+  String get filterOpAnd => '且';
+
+  @override
+  String get filterOpOr => '或';
+
+  @override
+  String get filterToggleOpTooltip => '切换整组 且/或';
+
+  @override
+  String get filterToggleRoleTooltip => '切换 包含/不含';
+
+  @override
+  String get filterRemoveConditionTooltip => '移除条件';
+
+  @override
+  String get filterAddTooltip => '添加条件 / 子分组';
+
+  @override
+  String get filterAddCondition => '添加条件…';
+
+  @override
+  String get filterAddSubgroup => '添加子分组';
+
+  @override
+  String get filterDissolveGroupTooltip => '解散分组（子节点上提）';
+
+  @override
+  String get filterPickerTitle => '添加过滤条件';
+
+  @override
+  String get filterRoleInclude => '包含';
+
+  @override
+  String get filterRoleExclude => '不含';
 
   @override
   String get undo => '撤销';
