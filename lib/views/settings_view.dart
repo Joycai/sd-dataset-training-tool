@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../app_info.dart';
 import '../app_state.dart';
 import '../l10n/app_localizations.dart';
 import '../services/font_service.dart';
@@ -102,6 +105,22 @@ class _SettingsViewState extends State<SettingsView> {
     );
     if (ok == true && mounted) {
       await context.read<AppState>().updateFontChoice(choice);
+    }
+  }
+
+  /// 用系统默认浏览器打开项目主页。桌面端直接调系统命令,避免引入依赖。
+  Future<void> _openRepository() async {
+    const url = AppInfo.repositoryUrl;
+    try {
+      if (Platform.isWindows) {
+        await Process.start('rundll32', ['url.dll,FileProtocolHandler', url]);
+      } else if (Platform.isMacOS) {
+        await Process.start('open', [url]);
+      } else {
+        await Process.start('xdg-open', [url]);
+      }
+    } catch (_) {
+      // 打不开浏览器不致命,行内已显示完整链接可手动复制。
     }
   }
 
@@ -300,6 +319,44 @@ class _SettingsViewState extends State<SettingsView> {
                           control: Switch(
                             value: appState.autoSave,
                             onChanged: appState.updateAutoSave,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _SettingsCard(
+                      title: l10n.aboutSection,
+                      children: [
+                        _SettingsRow(
+                          title: l10n.versionTitle,
+                          description: l10n.versionDesc,
+                          control: Text(
+                            AppInfo.version,
+                            style: monoStyle(context, size: 12.5),
+                          ),
+                        ),
+                        _SettingsRow(
+                          title: l10n.licenseTitle,
+                          description: AppInfo.copyright,
+                          control: Text(
+                            AppInfo.license,
+                            style: monoStyle(context, size: 12.5),
+                          ),
+                        ),
+                        _SettingsRow(
+                          title: l10n.sourceCodeTitle,
+                          description: AppInfo.repositoryUrl,
+                          control: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              textStyle: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            onPressed: _openRepository,
+                            icon: const Icon(Icons.open_in_new, size: 15),
+                            label: const Text('GitHub'),
                           ),
                         ),
                       ],

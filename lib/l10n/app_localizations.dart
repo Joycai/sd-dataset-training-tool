@@ -1607,6 +1607,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reset'**
   String get resetAction;
+
+  /// No description provided for @aboutSection.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get aboutSection;
+
+  /// No description provided for @versionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Version'**
+  String get versionTitle;
+
+  /// No description provided for @versionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Current application version'**
+  String get versionDesc;
+
+  /// No description provided for @licenseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'License'**
+  String get licenseTitle;
+
+  /// No description provided for @sourceCodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Source Code'**
+  String get sourceCodeTitle;
 }
 
 class _AppLocalizationsDelegate
