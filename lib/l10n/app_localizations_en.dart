@@ -496,6 +496,37 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get addTagsGlobalTooltip => 'Add tags to all images…';
+
+  @override
+  String get addTagsGlobalTitle => 'Add tags to all images';
+
+  @override
+  String get addTagsPositionLabel => 'Insert position';
+
+  @override
+  String get addTagsPosHead => 'Start';
+
+  @override
+  String get addTagsPosTail => 'End';
+
+  @override
+  String get addTagsPosIndex => 'At position';
+
+  @override
+  String get addTagsIndexHint => '1 = first';
+
+  @override
+  String addTagsGlobalTargetCount(int count) {
+    return 'Tags will be added to $count images; tags an image already has are skipped.';
+  }
+
+  @override
+  String opAddGlobalLabel(String tags) {
+    return 'add \"$tags\"';
+  }
+
+  @override
   String get replaceDialogTitle => 'Replace / append';
 
   @override

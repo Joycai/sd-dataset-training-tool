@@ -960,6 +960,60 @@ abstract class AppLocalizations {
   /// **'Remove \"{tag}\" from {count} images? This can be undone from the toolbar.'**
   String deleteTagConfirmContent(int count, String tag);
 
+  /// No description provided for @addTagsGlobalTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add tags to all images…'**
+  String get addTagsGlobalTooltip;
+
+  /// No description provided for @addTagsGlobalTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add tags to all images'**
+  String get addTagsGlobalTitle;
+
+  /// No description provided for @addTagsPositionLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert position'**
+  String get addTagsPositionLabel;
+
+  /// No description provided for @addTagsPosHead.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get addTagsPosHead;
+
+  /// No description provided for @addTagsPosTail.
+  ///
+  /// In en, this message translates to:
+  /// **'End'**
+  String get addTagsPosTail;
+
+  /// No description provided for @addTagsPosIndex.
+  ///
+  /// In en, this message translates to:
+  /// **'At position'**
+  String get addTagsPosIndex;
+
+  /// No description provided for @addTagsIndexHint.
+  ///
+  /// In en, this message translates to:
+  /// **'1 = first'**
+  String get addTagsIndexHint;
+
+  /// No description provided for @addTagsGlobalTargetCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags will be added to {count} images; tags an image already has are skipped.'**
+  String addTagsGlobalTargetCount(int count);
+
+  /// No description provided for @opAddGlobalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'add \"{tags}\"'**
+  String opAddGlobalLabel(String tags);
+
   /// No description provided for @replaceDialogTitle.
   ///
   /// In en, this message translates to:

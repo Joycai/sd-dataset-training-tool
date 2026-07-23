@@ -150,6 +150,61 @@ void main() {
       expect(await readCap('002'), 'p, a, b, c, q, d');
     });
 
+    test('addEverywhere appends by default and creates missing captions',
+        () async {
+      final count = await ops.addEverywhere('x', label: 'add x');
+      expect(count, 3);
+      expect(await readCap('001'), 'a, b, c, x');
+      expect(await readCap('002'), 'b, c, d, x');
+      // 003 had no caption file: it gets created.
+      expect(await readCap('003'), 'x');
+      expect(dataset.hasCaption(img('003')), isTrue);
+
+      // Undo restores 003 to an empty caption, not a tagged one.
+      await ops.undo();
+      expect(await readCap('003'), '');
+      expect(dataset.hasCaption(img('003')), isFalse);
+      expect(await readCap('002'), 'b,  c ,d'); // odd spacing preserved
+    });
+
+    test('addEverywhere inserts at the index, clamped, skipping duplicates',
+        () async {
+      // 001 [a, b, c]: a already present, only x lands at the head.
+      final count = await ops.addEverywhere('x, a', index: 0, label: 'add');
+      expect(count, 3);
+      expect(await readCap('001'), 'x, a, b, c');
+      expect(await readCap('002'), 'x, a, b, c, d');
+      expect(await readCap('003'), 'x, a');
+
+      // An index beyond the end clamps to append.
+      await ops.addEverywhere('z', index: 99, label: 'add z');
+      expect(await readCap('001'), 'x, a, b, c, z');
+    });
+
+    test('addEverywhere with a file list only touches those files', () async {
+      final target = dataset.allFiles
+          .where((f) => p.basename(f.path) == '002.png')
+          .toList();
+      final count = await ops.addEverywhere(
+        'x',
+        files: target,
+        label: 'add x',
+      );
+      expect(count, 1);
+      expect(await readCap('001'), 'a, b, c');
+      expect(await readCap('002'), 'b, c, d, x');
+      expect(File(cap('003')).existsSync(), isFalse);
+    });
+
+    test('addEverywhere with empty or all-duplicate input is a no-op',
+        () async {
+      expect(await ops.addEverywhere('  ', label: 'noop'), 0);
+      // Every file already has its tags — b for 001/002 — but 003 gains it.
+      expect(await ops.addEverywhere('b', label: 'add b'), 1);
+      expect(await readCap('001'), 'a, b, c');
+      expect(await readCap('003'), 'b');
+    });
+
     test('a new operation clears the redo stack', () async {
       await ops.deleteEverywhere('d', label: 'delete d');
       await ops.undo();
