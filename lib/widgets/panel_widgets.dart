@@ -366,6 +366,129 @@ class _AnchorableTagState extends State<AnchorableTag> {
   }
 }
 
+/// Column whose keyed children slide to their new position when the order
+/// changes (FLIP: measure old offset, rebuild, animate the delta back to
+/// zero). Bump [reorderToken] alongside the order change to arm the
+/// animation — offset shifts from unrelated rebuilds (filtering, content
+/// growth) stay instant.
+class AnimatedReorderColumn extends StatefulWidget {
+  const AnimatedReorderColumn({
+    super.key,
+    required this.children,
+    required this.reorderToken,
+    this.duration = const Duration(milliseconds: 240),
+    this.curve = Curves.easeOutCubic,
+    this.crossAxisAlignment = CrossAxisAlignment.start,
+  });
+
+  /// Every child needs a unique, stable key.
+  final List<Widget> children;
+
+  final int reorderToken;
+  final Duration duration;
+  final Curve curve;
+  final CrossAxisAlignment crossAxisAlignment;
+
+  @override
+  State<AnimatedReorderColumn> createState() => _AnimatedReorderColumnState();
+}
+
+class _AnimatedReorderColumnState extends State<AnimatedReorderColumn> {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: widget.crossAxisAlignment,
+      children: [
+        for (final child in widget.children)
+          _ReorderItem(
+            key: child.key,
+            token: widget.reorderToken,
+            duration: widget.duration,
+            curve: widget.curve,
+            child: child,
+          ),
+      ],
+    );
+  }
+}
+
+class _ReorderItem extends StatefulWidget {
+  const _ReorderItem({
+    super.key,
+    required this.token,
+    required this.duration,
+    required this.curve,
+    required this.child,
+  });
+
+  final int token;
+  final Duration duration;
+  final Curve curve;
+  final Widget child;
+
+  @override
+  State<_ReorderItem> createState() => _ReorderItemState();
+}
+
+class _ReorderItemState extends State<_ReorderItem>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+    value: 1, // start settled: no animation on first layout
+  );
+
+  double? _lastDy;
+  int? _lastToken;
+  double _fromDelta = 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _measure(Duration _) {
+    if (!mounted) return;
+    final box = context.findRenderObject();
+    final colState = context.findAncestorStateOfType<_AnimatedReorderColumnState>();
+    final colBox = colState?.context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize || colBox is! RenderBox) return;
+    // Offset relative to the column, so scrolling never reads as movement.
+    final dy = box.localToGlobal(Offset.zero, ancestor: colBox).dy;
+    final armed = _lastToken != null && _lastToken != widget.token;
+    if (armed && _lastDy != null && (dy - _lastDy!).abs() > 0.5) {
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _controller.value = 1;
+      } else {
+        _fromDelta = _lastDy! - dy;
+        _controller.forward(from: 0);
+      }
+    }
+    _lastToken = widget.token;
+    _lastDy = dy;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Offsets can shift on any parent rebuild; re-measure after every frame
+    // this item takes part in.
+    WidgetsBinding.instance.addPostFrameCallback(_measure);
+    return AnimatedBuilder(
+      animation: _controller,
+      child: widget.child,
+      builder: (context, child) {
+        final remaining = 1 - widget.curve.transform(_controller.value);
+        if (remaining == 0) return child!;
+        return Transform.translate(
+          offset: Offset(0, _fromDelta * remaining),
+          child: child,
+        );
+      },
+    );
+  }
+}
+
 /// Small selectable pill used for the caption-status filters.
 class FilterChipPill extends StatelessWidget {
   const FilterChipPill({

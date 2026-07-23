@@ -126,6 +126,10 @@ class _LibraryViewState extends State<_LibraryView> {
   bool _groupEditMode = false;
   final Set<String> _selected = {};
 
+  /// Bumped on every arrow reorder so [AnimatedReorderColumn] slides the
+  /// sections; other layout shifts stay instant.
+  int _reorderTick = 0;
+
   Future<void> _showAddDialog() async {
     final l10n = AppLocalizations.of(context)!;
     final appState = context.read<AppState>();
@@ -528,6 +532,12 @@ class _LibraryViewState extends State<_LibraryView> {
     }
   }
 
+  /// Arrow reorder: arms the slide animation for exactly this order change.
+  void _reorderGroup(TagGroup group, int delta) {
+    setState(() => _reorderTick++);
+    context.read<AppState>().reorderTagGroup(group.id, delta);
+  }
+
   Future<void> _createGroup() async {
     final appState = context.read<AppState>();
     final input = await showTagGroupDialog(context);
@@ -668,71 +678,104 @@ class _LibraryViewState extends State<_LibraryView> {
                                   : l10n.clickToApplyHint,
                               color: _groupEditMode ? scheme.primary : null,
                             ),
-                            for (final (group, tags) in sections) ...[
-                              const SizedBox(height: 10),
-                              _GroupHeader(
-                                group: group,
-                                count: tags.length,
-                                ungroupedLabel: l10n.ungroupedSection,
-                                deleteTooltip: l10n.deleteGroupMenu,
-                                colorTooltip: l10n.changeGroupColorTooltip,
-                                moveUpTooltip: l10n.moveGroupUpTooltip,
-                                moveDownTooltip: l10n.moveGroupDownTooltip,
-                                onContextMenu: group == null
-                                    ? null
-                                    : (position) =>
-                                        _showGroupMenu(position, group),
-                                onDelete: group == null
-                                    ? null
-                                    : () => _confirmDeleteGroup(group),
-                                // Quick controls only in group-edit mode;
-                                // arrows reorder within the full group list
-                                // (a filter may hide sections but the order
-                                // is global) and disable at the ends.
-                                onColorTap: !_groupEditMode || group == null
-                                    ? null
-                                    : (position) =>
-                                        _showColorSwatches(position, group),
-                                onMoveUp:
-                                    !_groupEditMode ||
-                                        group == null ||
-                                        group.id == appState.tagGroups.first.id
-                                    ? null
-                                    : () => appState.reorderTagGroup(
-                                        group.id,
-                                        -1,
-                                      ),
-                                onMoveDown:
-                                    !_groupEditMode ||
-                                        group == null ||
-                                        group.id == appState.tagGroups.last.id
-                                    ? null
-                                    : () =>
-                                          appState.reorderTagGroup(group.id, 1),
-                              ),
-                              const SizedBox(height: 7),
-                              Wrap(
-                                spacing: 7,
-                                runSpacing: 7,
-                                children: [
-                                  for (final tag in tags)
-                                    _LibraryTagChip(
-                                      label: tag,
-                                      applied: session.hasTag(tag),
-                                      enabled:
-                                          _groupEditMode || session.hasImage,
-                                      dotColor: group == null
-                                          ? null
-                                          : Color(group.color),
-                                      selectionMode: _groupEditMode,
-                                      selected: _selected.contains(tag),
-                                      onTap: () => _onChipTap(session, tag),
-                                      onContextMenu: (position) =>
-                                          _onChipContextMenu(position, tag),
+                            // Sections are single keyed children so a
+                            // reorder slides them to their new position.
+                            AnimatedReorderColumn(
+                              reorderToken: _reorderTick,
+                              children: [
+                                for (final (group, tags) in sections)
+                                  Padding(
+                                    key: ValueKey(group?.id ?? '__ungrouped'),
+                                    padding: const EdgeInsets.only(top: 10),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        _GroupHeader(
+                                          group: group,
+                                          count: tags.length,
+                                          ungroupedLabel: l10n.ungroupedSection,
+                                          deleteTooltip: l10n.deleteGroupMenu,
+                                          colorTooltip:
+                                              l10n.changeGroupColorTooltip,
+                                          moveUpTooltip: l10n.moveGroupUpTooltip,
+                                          moveDownTooltip:
+                                              l10n.moveGroupDownTooltip,
+                                          onContextMenu: group == null
+                                              ? null
+                                              : (position) => _showGroupMenu(
+                                                  position,
+                                                  group,
+                                                ),
+                                          onDelete: group == null
+                                              ? null
+                                              : () =>
+                                                    _confirmDeleteGroup(group),
+                                          // Quick controls only in group-edit
+                                          // mode; arrows reorder within the
+                                          // full group list (a filter may
+                                          // hide sections but the order is
+                                          // global) and disable at the ends.
+                                          onColorTap:
+                                              !_groupEditMode || group == null
+                                              ? null
+                                              : (position) =>
+                                                    _showColorSwatches(
+                                                      position,
+                                                      group,
+                                                    ),
+                                          onMoveUp:
+                                              !_groupEditMode ||
+                                                  group == null ||
+                                                  group.id ==
+                                                      appState
+                                                          .tagGroups
+                                                          .first
+                                                          .id
+                                              ? null
+                                              : () => _reorderGroup(group, -1),
+                                          onMoveDown:
+                                              !_groupEditMode ||
+                                                  group == null ||
+                                                  group.id ==
+                                                      appState.tagGroups.last.id
+                                              ? null
+                                              : () => _reorderGroup(group, 1),
+                                        ),
+                                        const SizedBox(height: 7),
+                                        Wrap(
+                                          spacing: 7,
+                                          runSpacing: 7,
+                                          children: [
+                                            for (final tag in tags)
+                                              _LibraryTagChip(
+                                                label: tag,
+                                                applied: session.hasTag(tag),
+                                                enabled:
+                                                    _groupEditMode ||
+                                                    session.hasImage,
+                                                dotColor: group == null
+                                                    ? null
+                                                    : Color(group.color),
+                                                selectionMode: _groupEditMode,
+                                                selected: _selected.contains(
+                                                  tag,
+                                                ),
+                                                onTap: () =>
+                                                    _onChipTap(session, tag),
+                                                onContextMenu: (position) =>
+                                                    _onChipContextMenu(
+                                                      position,
+                                                      tag,
+                                                    ),
+                                              ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                ],
-                              ),
-                            ],
+                                  ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
