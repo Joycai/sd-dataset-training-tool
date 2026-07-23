@@ -146,6 +146,20 @@ class AppState extends ChangeNotifier {
     await _saveGroups();
   }
 
+  /// Moves the group with [id] by [delta] steps in the section order
+  /// (clamped at the ends). The ungrouped section is virtual and always
+  /// renders last, so it never takes part.
+  Future<void> reorderTagGroup(String id, int delta) async {
+    final index = _tagGroups.indexWhere((g) => g.id == id);
+    if (index < 0) return;
+    final target = (index + delta).clamp(0, _tagGroups.length - 1);
+    if (target == index) return;
+    final next = [..._tagGroups];
+    next.insert(target, next.removeAt(index));
+    _tagGroups = next;
+    await _saveGroups();
+  }
+
   /// Removes every tag from the library. Groups survive (emptied) so a
   /// re-import or fresh tagging session keeps the structure.
   Future<void> clearCommonTags() => updateCommonTags(<String>[]);

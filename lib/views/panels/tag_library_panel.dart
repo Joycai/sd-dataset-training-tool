@@ -296,6 +296,77 @@ class _LibraryViewState extends State<_LibraryView> {
     }
   }
 
+  /// Quick color change from the group-edit-mode dot: preset swatches in a
+  /// popup, with the full edit dialog behind a "custom" entry.
+  Future<void> _showColorSwatches(Offset position, TagGroup group) async {
+    final l10n = AppLocalizations.of(context)!;
+    final appState = context.read<AppState>();
+    final scheme = Theme.of(context).colorScheme;
+    const custom = -1;
+    final picked = await showPanelContextMenu<int>(
+      context: context,
+      position: position,
+      items: [
+        PopupMenuItem<int>(
+          enabled: false,
+          height: 36,
+          child: SizedBox(
+            width: 168,
+            child: Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                for (final preset in kTagGroupPresetColors)
+                  InkWell(
+                    // Pops the menu route with the swatch as its result.
+                    onTap: () => Navigator.of(context).pop(preset),
+                    borderRadius: BorderRadius.circular(99),
+                    child: Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Color(preset),
+                        border: Border.all(
+                          color: group.color == preset
+                              ? scheme.primary
+                              : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                      child: group.color == preset
+                          ? const Icon(Icons.check, size: 13)
+                          : null,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const PopupMenuDivider(height: 10),
+        panelMenuItem(
+          context: context,
+          value: custom,
+          icon: Icons.palette_outlined,
+          label: l10n.customColorLabel,
+        ),
+      ],
+    );
+    if (picked == null || !mounted) return;
+
+    if (picked == custom) {
+      final input = await showTagGroupDialog(context, existing: group);
+      if (input == null) return;
+      await appState.updateTagGroup(
+        group.id,
+        name: input.name,
+        color: input.color,
+      );
+    } else {
+      await appState.updateTagGroup(group.id, color: picked);
+    }
+  }
+
   /// Confirm-and-delete for a group; its tags return to ungrouped.
   Future<void> _confirmDeleteGroup(TagGroup group) async {
     final l10n = AppLocalizations.of(context)!;
@@ -604,6 +675,9 @@ class _LibraryViewState extends State<_LibraryView> {
                                 count: tags.length,
                                 ungroupedLabel: l10n.ungroupedSection,
                                 deleteTooltip: l10n.deleteGroupMenu,
+                                colorTooltip: l10n.changeGroupColorTooltip,
+                                moveUpTooltip: l10n.moveGroupUpTooltip,
+                                moveDownTooltip: l10n.moveGroupDownTooltip,
                                 onContextMenu: group == null
                                     ? null
                                     : (position) =>
@@ -611,6 +685,30 @@ class _LibraryViewState extends State<_LibraryView> {
                                 onDelete: group == null
                                     ? null
                                     : () => _confirmDeleteGroup(group),
+                                // Quick controls only in group-edit mode;
+                                // arrows reorder within the full group list
+                                // (a filter may hide sections but the order
+                                // is global) and disable at the ends.
+                                onColorTap: !_groupEditMode || group == null
+                                    ? null
+                                    : (position) =>
+                                        _showColorSwatches(position, group),
+                                onMoveUp:
+                                    !_groupEditMode ||
+                                        group == null ||
+                                        group.id == appState.tagGroups.first.id
+                                    ? null
+                                    : () => appState.reorderTagGroup(
+                                        group.id,
+                                        -1,
+                                      ),
+                                onMoveDown:
+                                    !_groupEditMode ||
+                                        group == null ||
+                                        group.id == appState.tagGroups.last.id
+                                    ? null
+                                    : () =>
+                                          appState.reorderTagGroup(group.id, 1),
                               ),
                               const SizedBox(height: 7),
                               Wrap(
@@ -747,6 +845,8 @@ class _PanelCard extends StatelessWidget {
 
 /// Section header inside the library card: color dot, group name, count.
 /// Real groups take a right-click menu (edit/delete); ungrouped does not.
+/// In group-edit mode real groups additionally expose quick controls: the
+/// color dot opens a swatch picker and arrows move the section up/down.
 class _GroupHeader extends StatelessWidget {
   const _GroupHeader({
     required this.group,
@@ -755,32 +855,94 @@ class _GroupHeader extends StatelessWidget {
     required this.deleteTooltip,
     this.onContextMenu,
     this.onDelete,
+    this.colorTooltip = '',
+    this.moveUpTooltip = '',
+    this.moveDownTooltip = '',
+    this.onColorTap,
+    this.onMoveUp,
+    this.onMoveDown,
   });
 
   final TagGroup? group;
   final int count;
   final String ungroupedLabel;
   final String deleteTooltip;
+  final String colorTooltip;
+  final String moveUpTooltip;
+  final String moveDownTooltip;
   final ValueChanged<Offset>? onContextMenu;
 
   /// Deletes the group (tags return to ungrouped); null for ungrouped,
   /// which cannot be deleted.
   final VoidCallback? onDelete;
 
+  /// Group-edit mode only. [onColorTap] gets the tap position to anchor the
+  /// swatch popup; the move callbacks are null at the ends of the list
+  /// (arrow renders disabled).
+  final ValueChanged<Offset>? onColorTap;
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
+
+  bool get _editMode => onColorTap != null;
+
+  Widget _headerAction({
+    required BuildContext context,
+    required IconData icon,
+    required String tooltip,
+    VoidCallback? onTap,
+  }) {
+    final semantic = context.semantic;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(99),
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Icon(
+            icon,
+            size: 13,
+            color: onTap == null
+                ? semantic.muted.withAlpha(90)
+                : semantic.muted,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final semantic = context.semantic;
+
+    final dot = Container(
+      width: _editMode ? 11 : 9,
+      height: _editMode ? 11 : 9,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: group == null ? semantic.muted : Color(group!.color),
+        // A hairline ring hints that the dot became a control.
+        border: _editMode ? Border.all(color: semantic.line) : null,
+      ),
+    );
+
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 9,
-          height: 9,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: group == null ? semantic.muted : Color(group!.color),
+        if (onColorTap == null)
+          dot
+        else
+          Tooltip(
+            message: colorTooltip,
+            child: GestureDetector(
+              onTapDown: (details) => onColorTap!(details.globalPosition),
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                // Padded hit zone; the visual dot stays small.
+                child: Padding(padding: const EdgeInsets.all(2), child: dot),
+              ),
+            ),
           ),
-        ),
         const SizedBox(width: 6),
         Flexible(
           child: Text(
@@ -799,22 +961,28 @@ class _GroupHeader extends StatelessWidget {
           '$count',
           style: monoStyle(context, size: 11, color: semantic.muted),
         ),
+        if (_editMode) ...[
+          const SizedBox(width: 6),
+          _headerAction(
+            context: context,
+            icon: Icons.arrow_upward,
+            tooltip: moveUpTooltip,
+            onTap: onMoveUp,
+          ),
+          _headerAction(
+            context: context,
+            icon: Icons.arrow_downward,
+            tooltip: moveDownTooltip,
+            onTap: onMoveDown,
+          ),
+        ],
         if (onDelete != null) ...[
           const SizedBox(width: 6),
-          Tooltip(
-            message: deleteTooltip,
-            child: InkWell(
-              onTap: onDelete,
-              borderRadius: BorderRadius.circular(99),
-              child: Padding(
-                padding: const EdgeInsets.all(2),
-                child: Icon(
-                  Icons.delete_outline,
-                  size: 13,
-                  color: semantic.muted,
-                ),
-              ),
-            ),
+          _headerAction(
+            context: context,
+            icon: Icons.delete_outline,
+            tooltip: deleteTooltip,
+            onTap: onDelete,
           ),
         ],
       ],

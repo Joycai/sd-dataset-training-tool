@@ -361,6 +361,9 @@
   "customColorLabel": "Custom",
   "ungroupedSection": "Ungrouped",
   "groupEditModeTooltip": "Group edit mode",
+  "changeGroupColorTooltip": "Change group color",
+  "moveGroupUpTooltip": "Move group up",
+  "moveGroupDownTooltip": "Move group down",
   "groupEditHint": "Click to select, right-click to send to a group",
   "groupEditSelectedHint": "{count} selected · right-click to send to a group",
   "@groupEditSelectedHint": {

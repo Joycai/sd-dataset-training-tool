@@ -1224,6 +1224,24 @@ abstract class AppLocalizations {
   /// **'Group edit mode'**
   String get groupEditModeTooltip;
 
+  /// No description provided for @changeGroupColorTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Change group color'**
+  String get changeGroupColorTooltip;
+
+  /// No description provided for @moveGroupUpTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Move group up'**
+  String get moveGroupUpTooltip;
+
+  /// No description provided for @moveGroupDownTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Move group down'**
+  String get moveGroupDownTooltip;
+
   /// No description provided for @groupEditHint.
   ///
   /// In en, this message translates to:
