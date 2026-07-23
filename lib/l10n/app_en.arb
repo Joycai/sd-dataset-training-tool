@@ -39,6 +39,8 @@
   },
   "openFolder": "Open Folder",
   "refresh": "Refresh",
+  "thumbFitTooltip": "Fit thumbnails: show the whole image",
+  "thumbFillTooltip": "Fill thumbnails: crop to fill the cell",
   "noImagesFound": "No images yet. Open a folder to start.",
   "noMatches": "No images match the current filter.",
   "scanError": "Failed to scan directory: {error}",

@@ -262,6 +262,7 @@ class AppState extends ChangeNotifier {
     _fontChoice = AppFontChoiceX.fromId(await _settingsService.loadFontChoice());
     _themeMode = await _settingsService.loadThemeMode();
     _crossAxisCount = await _settingsService.loadCrossAxisCount();
+    _thumbnailFill = await _settingsService.loadThumbnailFill();
     _includeSubdirectories = await _settingsService.loadIncludeSubdirectories();
     _browsingDirectory = await _settingsService.loadBrowsingDirectory();
     _captionExtension = await _settingsService.loadCaptionExtension();
@@ -344,6 +345,18 @@ class AppState extends ChangeNotifier {
     _crossAxisCount = count;
     notifyListeners();
     await _settingsService.saveCrossAxisCount(count);
+  }
+
+  /// How gallery thumbnails render: true crops to fill the cell (cover),
+  /// false letterboxes the whole image (contain).
+  late bool _thumbnailFill;
+  bool get thumbnailFill => _thumbnailFill;
+
+  Future<void> updateThumbnailFill(bool value) async {
+    if (_thumbnailFill == value) return;
+    _thumbnailFill = value;
+    notifyListeners();
+    await _settingsService.saveThumbnailFill(value);
   }
 
   Future<void> updateIncludeSubdirectories(bool value) async {

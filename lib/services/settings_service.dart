@@ -53,6 +53,16 @@ class SettingsService {
     return prefs.getInt('crossAxisCount') ?? 4;
   }
 
+  Future<void> saveThumbnailFill(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('thumbnailFill', value);
+  }
+
+  Future<bool> loadThumbnailFill() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('thumbnailFill') ?? true;
+  }
+
   Future<void> saveIncludeSubdirectories(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('includeSubdirectories', value);

@@ -110,6 +110,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get refresh => '刷新';
 
   @override
+  String get thumbFitTooltip => '缩略图完整显示整张图';
+
+  @override
+  String get thumbFillTooltip => '缩略图裁切填满格子';
+
+  @override
   String get noImagesFound => '还没有图片，打开一个文件夹开始。';
 
   @override

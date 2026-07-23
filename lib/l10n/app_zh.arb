@@ -34,6 +34,8 @@
   "columnsCount": "{count} 列",
   "openFolder": "打开文件夹",
   "refresh": "刷新",
+  "thumbFitTooltip": "缩略图完整显示整张图",
+  "thumbFillTooltip": "缩略图裁切填满格子",
   "noImagesFound": "还没有图片，打开一个文件夹开始。",
   "noMatches": "没有符合当前筛选条件的图片。",
   "scanError": "扫描目录失败：{error}",
