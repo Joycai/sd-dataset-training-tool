@@ -248,6 +248,25 @@
       "tag": { "type": "String" }
     }
   },
+  "addTagsGlobalTooltip": "Add tags to all images…",
+  "addTagsGlobalTitle": "Add tags to all images",
+  "addTagsPositionLabel": "Insert position",
+  "addTagsPosHead": "Start",
+  "addTagsPosTail": "End",
+  "addTagsPosIndex": "At position",
+  "addTagsIndexHint": "1 = first",
+  "addTagsGlobalTargetCount": "Tags will be added to {count} images; tags an image already has are skipped.",
+  "@addTagsGlobalTargetCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "opAddGlobalLabel": "add \"{tags}\"",
+  "@opAddGlobalLabel": {
+    "placeholders": {
+      "tags": { "type": "String" }
+    }
+  },
   "replaceDialogTitle": "Replace / append",
   "replaceModeReplace": "Replace with",
   "replaceModeBefore": "Insert before",

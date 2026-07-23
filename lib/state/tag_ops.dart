@@ -109,6 +109,30 @@ class TagOps extends ChangeNotifier {
     });
   }
 
+  /// Adds the (comma-splittable) input to every caption at [index] (0 =
+  /// first, null = after the last tag; clamped), skipping tags a file
+  /// already has. Uncaptioned images get their caption file created; undoing
+  /// writes the empty string back rather than deleting the file. Restrict
+  /// the sweep with [files] (e.g. the filtered gallery); defaults to the
+  /// whole dataset.
+  Future<int> addEverywhere(
+    String input, {
+    int? index,
+    List<File>? files,
+    required String label,
+  }) {
+    final parts = parseTagText(input);
+    if (parts.isEmpty) return Future.value(0);
+    return _rewriteAll(label, (tags) {
+      final next = [...tags];
+      final seen = next.toSet();
+      final fresh = parts.where(seen.add).toList();
+      if (fresh.isEmpty) return null;
+      next.insertAll((index ?? next.length).clamp(0, next.length), fresh);
+      return next;
+    }, files: files, createMissing: true);
+  }
+
   /// Records an operation whose file rewrites already happened elsewhere
   /// (e.g. a batch AI tagging run) so it participates in undo/redo.
   void pushOperation(TagOperation op) {
@@ -122,26 +146,34 @@ class TagOps extends ChangeNotifier {
 
   Future<void> redo() => _replay(from: _redoStack, to: _undoStack, undo: false);
 
-  /// Runs [transform] over every captioned image; a null return leaves the
-  /// file untouched. IO failures skip the file so one bad path never aborts
-  /// the batch — only files actually rewritten enter the history.
+  /// Runs [transform] over every captioned image ([files] defaults to the
+  /// whole dataset); a null return leaves the file untouched. With
+  /// [createMissing], uncaptioned images run through as the empty tag list
+  /// and get their caption file created. IO failures skip the file so one
+  /// bad path never aborts the batch — only files actually rewritten enter
+  /// the history.
   Future<int> _rewriteAll(
     String label,
-    List<String>? Function(List<String> tags) transform,
-  ) async {
+    List<String>? Function(List<String> tags) transform, {
+    List<File>? files,
+    bool createMissing = false,
+  }) async {
     if (_busy) return 0;
     _busy = true;
     notifyListeners();
     final edits = <CaptionEdit>[];
     try {
       await beforeMutate?.call();
-      for (final file in dataset.allFiles) {
+      for (final file in files ?? dataset.allFiles) {
         final captionPath = dataset.captionPathFor(file.path);
         final captionFile = File(captionPath);
-        String before;
+        var before = '';
         try {
-          if (!await captionFile.exists()) continue;
-          before = await captionFile.readAsString();
+          if (await captionFile.exists()) {
+            before = await captionFile.readAsString();
+          } else if (!createMissing) {
+            continue;
+          }
         } catch (_) {
           continue;
         }

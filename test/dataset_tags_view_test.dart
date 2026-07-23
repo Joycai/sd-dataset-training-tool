@@ -211,6 +211,66 @@ void main() {
     expect(dataset.visibleFiles, hasLength(2));
   });
 
+  testWidgets('add-tags dialog: position pills, index validation, scope', (
+    tester,
+  ) async {
+    await openDatasetTab(tester);
+
+    await tester.tap(find.byIcon(Icons.playlist_add));
+    await tester.pumpAndSettle();
+    expect(find.text('Add tags to all images'), findsOneWidget);
+    // No gallery filter active: the scope checkbox is absent.
+    expect(find.byType(Checkbox), findsNothing);
+    expect(find.textContaining('added to 2 images'), findsOneWidget);
+
+    // Empty input disables Apply.
+    TextButton applyButton() =>
+        tester.widget<TextButton>(find.widgetWithText(TextButton, 'Apply'));
+    expect(applyButton().onPressed, isNull);
+
+    await tester.enterText(find.byType(TextField).last, 'new tag');
+    await tester.pumpAndSettle();
+    expect(applyButton().onPressed, isNotNull);
+
+    // "At position" needs a valid 1-based index before Apply enables.
+    await tester.tap(find.text('At position'));
+    await tester.pumpAndSettle();
+    expect(applyButton().onPressed, isNull);
+    await tester.enterText(find.byType(TextField).last, '2');
+    await tester.pumpAndSettle();
+    expect(applyButton().onPressed, isNotNull);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(ops.canUndo, isFalse);
+  });
+
+  testWidgets('add-tags dialog offers the filtered scope when filtering', (
+    tester,
+  ) async {
+    await openDatasetTab(tester);
+
+    // Filter down to the one image with alpha, then open the dialog.
+    await rightClick(tester, find.text('alpha'));
+    await tester.tap(find.text('Only images with this tag'));
+    await tester.pumpAndSettle();
+    expect(dataset.visibleFiles, hasLength(1));
+
+    await tester.tap(find.byIcon(Icons.playlist_add));
+    await tester.pumpAndSettle();
+    expect(find.text('Only the 1 filtered images'), findsOneWidget);
+    expect(find.textContaining('added to 2 images'), findsOneWidget);
+
+    // Checking the scope box narrows the target count readout.
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('added to 1 images'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(ops.canUndo, isFalse);
+  });
+
   // The disk effects of delete/replace/undo are covered by tag_ops_test.dart;
   // the widget tests stay UI-only because TagOps does real file IO, which can
   // never complete inside the widget test's fake-async zone.

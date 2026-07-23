@@ -479,6 +479,37 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get addTagsGlobalTooltip => '为所有图片添加标签…';
+
+  @override
+  String get addTagsGlobalTitle => '为所有图片添加标签';
+
+  @override
+  String get addTagsPositionLabel => '插入位置';
+
+  @override
+  String get addTagsPosHead => '最前';
+
+  @override
+  String get addTagsPosTail => '最后';
+
+  @override
+  String get addTagsPosIndex => '指定位置';
+
+  @override
+  String get addTagsIndexHint => '1 为最前';
+
+  @override
+  String addTagsGlobalTargetCount(int count) {
+    return '将为 $count 张图片添加标签；图片已有的标签会自动跳过。';
+  }
+
+  @override
+  String opAddGlobalLabel(String tags) {
+    return '添加“$tags”';
+  }
+
+  @override
   String get replaceDialogTitle => '替换 / 追加';
 
   @override

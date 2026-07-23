@@ -18,6 +18,8 @@ enum _TagMenuAction {
 
 enum _EditMode { replace, insertBefore, insertAfter }
 
+enum _AddPosition { head, tail, at }
+
 /// Right panel, "Dataset" tab: every tag in the dataset with its image count.
 /// Green marks tags present on the current image; click toggles the tag on
 /// it; right-click offers gallery filtering and dataset-wide edits.
@@ -154,6 +156,29 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
     _showResult(count);
   }
 
+  Future<void> _showAddTagsDialog() async {
+    final l10n = AppLocalizations.of(context)!;
+    final dataset = context.read<DatasetState>();
+    final ops = context.read<TagOps>();
+    final result = await showDialog<(String, int?, bool)>(
+      context: context,
+      builder: (context) => _AddTagsDialog(
+        totalCount: dataset.totalCount,
+        filteredCount: dataset.visibleFiles.length,
+      ),
+    );
+    if (result == null || !mounted) return;
+
+    final (input, index, onlyFiltered) = result;
+    final count = await ops.addEverywhere(
+      input,
+      index: index,
+      files: onlyFiltered ? List.of(dataset.visibleFiles) : null,
+      label: l10n.opAddGlobalLabel(input.trim()),
+    );
+    _showResult(count);
+  }
+
   void _showResult(int count) {
     if (!mounted) return;
     final l10n = AppLocalizations.of(context)!;
@@ -188,6 +213,13 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
           title: l10n.datasetTagsTitle,
           count: allTags.length,
           actions: [
+            PanelIconButton(
+              icon: Icons.playlist_add,
+              tooltip: l10n.addTagsGlobalTooltip,
+              onPressed: dataset.totalCount > 0 && !ops.busy
+                  ? _showAddTagsDialog
+                  : null,
+            ),
             PanelIconButton(
               icon: Icons.filter_alt_off_outlined,
               tooltip: l10n.clearTagFilter,
@@ -954,6 +986,173 @@ class _ReplaceDialogState extends State<_ReplaceDialog> {
         ),
         TextButton(
           onPressed: canApply ? _submit : null,
+          child: Text(l10n.apply),
+        ),
+      ],
+    );
+  }
+}
+
+/// Tag input + insert position + scope for the "add tags to all images"
+/// operation. Pops `(input, index, onlyFiltered)` on apply — index null
+/// means append at the end — or null on cancel.
+class _AddTagsDialog extends StatefulWidget {
+  const _AddTagsDialog({required this.totalCount, required this.filteredCount});
+
+  final int totalCount;
+  final int filteredCount;
+
+  @override
+  State<_AddTagsDialog> createState() => _AddTagsDialogState();
+}
+
+class _AddTagsDialogState extends State<_AddTagsDialog> {
+  final TextEditingController _tagsController = TextEditingController();
+  final TextEditingController _indexController = TextEditingController();
+  _AddPosition _position = _AddPosition.tail;
+  bool _onlyFiltered = false;
+
+  @override
+  void dispose() {
+    _tagsController.dispose();
+    _indexController.dispose();
+    super.dispose();
+  }
+
+  /// User-facing position is 1-based; null = append at the end.
+  int? get _index => switch (_position) {
+    _AddPosition.head => 0,
+    _AddPosition.tail => null,
+    _AddPosition.at => switch (int.tryParse(_indexController.text.trim())) {
+      final n? when n >= 1 => n - 1,
+      _ => null,
+    },
+  };
+
+  bool get _canApply {
+    if (_tagsController.text.trim().isEmpty) return false;
+    if (_position == _AddPosition.at && _index == null) return false;
+    return true;
+  }
+
+  void _submit() {
+    if (!_canApply) return;
+    Navigator.of(context).pop((_tagsController.text, _index, _onlyFiltered));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final filtered = widget.filteredCount != widget.totalCount;
+    final targetCount = _onlyFiltered ? widget.filteredCount : widget.totalCount;
+
+    return AlertDialog(
+      title: Text(l10n.addTagsGlobalTitle),
+      content: SizedBox(
+        width: 380,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _tagsController,
+              autofocus: true,
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(hintText: l10n.replaceInputHint),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              l10n.addTagsPositionLabel,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.3,
+                color: semantic.muted,
+              ),
+            ),
+            const SizedBox(height: 7),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                FilterChipPill(
+                  label: l10n.addTagsPosHead,
+                  selected: _position == _AddPosition.head,
+                  onTap: () => setState(() => _position = _AddPosition.head),
+                ),
+                FilterChipPill(
+                  label: l10n.addTagsPosTail,
+                  selected: _position == _AddPosition.tail,
+                  onTap: () => setState(() => _position = _AddPosition.tail),
+                ),
+                FilterChipPill(
+                  label: l10n.addTagsPosIndex,
+                  selected: _position == _AddPosition.at,
+                  onTap: () => setState(() => _position = _AddPosition.at),
+                ),
+                if (_position == _AddPosition.at)
+                  SizedBox(
+                    width: 90,
+                    child: TextField(
+                      controller: _indexController,
+                      autofocus: true,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: l10n.addTagsIndexHint,
+                        hintStyle: const TextStyle(fontSize: 11.5),
+                        isDense: true,
+                      ),
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: (_) => _submit(),
+                    ),
+                  ),
+              ],
+            ),
+            if (filtered) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 30,
+                    height: 26,
+                    child: Checkbox(
+                      value: _onlyFiltered,
+                      visualDensity: VisualDensity.compact,
+                      onChanged: (v) =>
+                          setState(() => _onlyFiltered = v ?? false),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      l10n.batchTagScopeFiltered(widget.filteredCount),
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                l10n.addTagsGlobalTargetCount(targetCount),
+                style: TextStyle(fontSize: 11.5, color: semantic.muted),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        TextButton(
+          onPressed: _canApply ? _submit : null,
           child: Text(l10n.apply),
         ),
       ],
