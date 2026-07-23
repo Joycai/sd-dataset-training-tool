@@ -184,6 +184,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagSortModeTooltip => '排序模式：直接拖动标签排序';
 
   @override
+  String get tagAnchorHolderTooltip => '设为插入锚点：新标签将插入到该标签之后（[ / ] 移动，再次点击取消）';
+
+  @override
+  String anchorStatusLabel(String tag) {
+    return '插入锚：$tag';
+  }
+
+  @override
+  String get anchorClearTooltip => '新标签插入到该标签之后；点击清除锚点（恢复末尾追加）';
+
+  @override
   String get aiInterrogateButton => 'AI 识别';
 
   @override

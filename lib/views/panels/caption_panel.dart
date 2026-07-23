@@ -325,13 +325,25 @@ class _CaptionPanelState extends State<CaptionPanel> {
                     // Tags are de-duplicated on parse, so the tag itself is a
                     // stable key across reorders.
                     final group = context.watch<AppState>().groupOfTag(tag);
-                    return _TagChip(
+                    final anchored = session.anchorTag == tag;
+                    // The trailing holder anchors insertion after this tag;
+                    // new tags from any source land there. In sort mode the
+                    // immediate drag recognizer swallows its taps, so it is
+                    // display-only there.
+                    return AnchorableTag(
                       key: ValueKey(tag),
-                      label: tag,
-                      sortMode: _sortMode,
-                      groupColor: group == null ? null : Color(group.color),
-                      onTap: () => _editTag(session, index),
-                      onDelete: () => session.removeTag(tag),
+                      active: anchored,
+                      expandChild: true,
+                      tooltip: l10n.tagAnchorHolderTooltip,
+                      onToggle: () =>
+                          session.setAnchorTag(anchored ? null : tag),
+                      child: _TagChip(
+                        label: tag,
+                        sortMode: _sortMode,
+                        groupColor: group == null ? null : Color(group.color),
+                        onTap: () => _editTag(session, index),
+                        onDelete: () => session.removeTag(tag),
+                      ),
                     );
                   },
                 ),
@@ -530,7 +542,6 @@ class _SaveStateIndicator extends StatelessWidget {
 
 class _TagChip extends StatelessWidget {
   const _TagChip({
-    super.key,
     required this.label,
     required this.onTap,
     required this.onDelete,

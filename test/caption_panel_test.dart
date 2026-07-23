@@ -19,6 +19,7 @@ import 'package:dataset_training_tool/state/editor_session.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/views/panels/ai_compare_view.dart';
 import 'package:dataset_training_tool/views/panels/caption_panel.dart';
+import 'package:dataset_training_tool/widgets/panel_widgets.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
 // 1x1 transparent PNG.
@@ -140,6 +141,67 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(session.tags, ['beta', 'alpha']);
+  });
+
+  // The holder is the trailing ~13px strip inside an AnchorableTag; tap
+  // near the right edge to hit it rather than the chip.
+  Future<void> tapHolder(WidgetTester tester, Finder anchorable) async {
+    final rect = tester.getRect(anchorable);
+    await tester.tapAt(Offset(rect.right - 8, rect.center.dy));
+    await tester.pump();
+  }
+
+  Finder anchorableOf(String tag) => find.ancestor(
+        of: find.text(tag),
+        matching: find.byType(AnchorableTag),
+      );
+
+  testWidgets('anchor holder places AI suggestions after the anchored tag',
+      (tester) async {
+    await tester.runAsync(() async {
+      await session.load(imageA, '.txt'); // tags: alpha, beta
+      expect(await ai.interrogate(imageA), isTrue); // suggests: smile
+    });
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+    expect(find.byType(AiCompareView), findsOneWidget);
+
+    // One holder per current tag; anchor on "alpha".
+    expect(find.byType(AnchorableTag), findsNWidgets(2));
+    await tapHolder(tester, anchorableOf('alpha'));
+    expect(session.anchorTag, 'alpha');
+
+    // Clicking the AI suggestion inserts after the anchor, which then rides
+    // along onto the inserted tag.
+    await tester.tap(find.text('smile'));
+    await tester.pump();
+    expect(session.tags, ['alpha', 'smile', 'beta']);
+    expect(session.anchorTag, 'smile');
+
+    // Clicking the active holder again clears back to append-at-end.
+    await tapHolder(tester, anchorableOf('smile'));
+    expect(session.anchorTag, isNull);
+  });
+
+  testWidgets('anchor holder places typed tags after it in the tags view',
+      (tester) async {
+    await tester.runAsync(() async {
+      await session.load(imageA, '.txt'); // tags: alpha, beta
+    });
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    // Anchor on "alpha", then add via the input row.
+    await tapHolder(tester, anchorableOf('alpha'));
+    expect(session.anchorTag, 'alpha');
+
+    await tester.enterText(find.byType(TextField).last, 'gamma');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    expect(session.tags, ['alpha', 'gamma', 'beta']);
+    expect(session.anchorTag, 'gamma');
   });
 
   testWidgets(

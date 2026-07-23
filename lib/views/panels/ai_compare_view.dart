@@ -6,6 +6,7 @@ import '../../l10n/app_localizations.dart';
 import '../../state/ai_tagger_state.dart';
 import '../../state/editor_session.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/panel_widgets.dart';
 
 /// The AI compare mode shown inside the caption editor's tags tab: current
 /// tags on the left, AI predictions on the right, with the diff highlighted.
@@ -175,16 +176,25 @@ class _AiCompareViewState extends State<AiCompareView> {
                       ReorderableItemView(
                         key: ValueKey(tag),
                         index: index,
-                        child: diff.missing.contains(tag)
-                            ? _CompareChip.missing(
-                                label: tag,
-                                semantic: semantic,
-                                onDelete: () => session.removeTag(tag),
-                              )
-                            : _CompareChip.matched(
-                                label: tag,
-                                semantic: semantic,
-                              ),
+                        // The trailing holder anchors insertion after this
+                        // tag: clicked AI suggestions land there.
+                        child: AnchorableTag(
+                          active: session.anchorTag == tag,
+                          tooltip: l10n.tagAnchorHolderTooltip,
+                          onToggle: () => session.setAnchorTag(
+                            session.anchorTag == tag ? null : tag,
+                          ),
+                          child: diff.missing.contains(tag)
+                              ? _CompareChip.missing(
+                                  label: tag,
+                                  semantic: semantic,
+                                  onDelete: () => session.removeTag(tag),
+                                )
+                              : _CompareChip.matched(
+                                  label: tag,
+                                  semantic: semantic,
+                                ),
+                        ),
                       ),
                   ],
                 ),

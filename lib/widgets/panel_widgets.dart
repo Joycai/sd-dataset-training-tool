@@ -250,6 +250,122 @@ PopupMenuItem<T> panelMenuItem<T>({
   );
 }
 
+/// Wraps a tag chip with the insertion-anchor affordance:
+///
+/// - a slim "holder" strip after the chip — invisible at rest, revealed as a
+///   grip while the tag is hovered, and always clickable either way;
+/// - when this tag is the anchor, a primary-tinted halo behind the whole tag
+///   plus a caret bar in the holder slot marking where new tags insert;
+/// - clicking the holder toggles the anchor on/off.
+class AnchorableTag extends StatefulWidget {
+  const AnchorableTag({
+    super.key,
+    required this.active,
+    required this.tooltip,
+    required this.onToggle,
+    required this.child,
+    this.expandChild = false,
+  });
+
+  final bool active;
+  final String tooltip;
+  final VoidCallback onToggle;
+  final Widget child;
+
+  /// True in fixed-width hosts (grid cells) where the chip should fill the
+  /// remaining width; false in intrinsic-width hosts (wraps).
+  final bool expandChild;
+
+  @override
+  State<AnchorableTag> createState() => _AnchorableTagState();
+}
+
+class _AnchorableTagState extends State<AnchorableTag> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final semantic = context.semantic;
+
+    final holder = Tooltip(
+      message: widget.tooltip,
+      waitDuration: const Duration(milliseconds: 600),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onToggle,
+          child: SizedBox(
+            width: 13,
+            // Wrap hosts give the row no height to stretch into; a fixed
+            // hit zone keeps the invisible holder comfortably clickable.
+            height: widget.expandChild ? null : 24,
+            child: Center(
+              child: widget.active
+                  // The caret: where the next tag will land.
+                  ? Container(
+                      width: 2.5,
+                      height: 15,
+                      decoration: BoxDecoration(
+                        color: scheme.primary,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    )
+                  // Hover preview of the same caret, dimmed; hidden at rest
+                  // but the hit zone above stays clickable regardless.
+                  : AnimatedOpacity(
+                      duration: const Duration(milliseconds: 120),
+                      opacity: _hovered ? 1 : 0,
+                      child: Container(
+                        width: 2,
+                        height: 13,
+                        decoration: BoxDecoration(
+                          color: semantic.muted,
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        decoration: BoxDecoration(
+          // The halo marks the anchored tag without recoloring the chip
+          // itself; padding is constant so toggling never shifts layout.
+          color: widget.active
+              ? scheme.primary.withAlpha(38)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        padding: const EdgeInsets.all(2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          // Grid cells are height-bounded: stretch so the chip fills them.
+          // Wraps are not: center on the chip's intrinsic height.
+          crossAxisAlignment: widget.expandChild
+              ? CrossAxisAlignment.stretch
+              : CrossAxisAlignment.center,
+          children: [
+            if (widget.expandChild)
+              Expanded(child: widget.child)
+            else
+              widget.child,
+            holder,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Small selectable pill used for the caption-status filters.
 class FilterChipPill extends StatelessWidget {
   const FilterChipPill({

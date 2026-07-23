@@ -81,6 +81,10 @@ class StatusBar extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (session.anchorTag != null) ...[
+                  const SizedBox(width: 18),
+                  Flexible(child: _AnchorPill(session: session, l10n: l10n)),
+                ],
               ],
             ),
           ),
@@ -99,6 +103,52 @@ class StatusBar extends StatelessWidget {
             style: monoStyle(context, size: 11.5, color: semantic.muted),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Shows which tag new additions are anchored after, with a click-to-clear
+/// affordance mirroring the holder toggle in the editor.
+class _AnchorPill extends StatelessWidget {
+  const _AnchorPill({required this.session, required this.l10n});
+
+  final EditorSession session;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: l10n.anchorClearTooltip,
+      waitDuration: const Duration(milliseconds: 600),
+      child: InkWell(
+        onTap: session.clearAnchor,
+        borderRadius: BorderRadius.circular(99),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: scheme.primary.withAlpha(31),
+            border: Border.all(color: scheme.primary.withAlpha(115)),
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.keyboard_tab, size: 11, color: scheme.primary),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(
+                  l10n.anchorStatusLabel(session.anchorTag!),
+                  overflow: TextOverflow.ellipsis,
+                  style: monoStyle(context, size: 11, color: scheme.primary),
+                ),
+              ),
+              const SizedBox(width: 5),
+              Icon(Icons.close, size: 11, color: scheme.primary),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -187,6 +187,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tagSortModeTooltip => 'Sort mode: drag tags to reorder';
 
   @override
+  String get tagAnchorHolderTooltip =>
+      'Set insert anchor: new tags are added after this tag ([ / ] to move, click again to clear)';
+
+  @override
+  String anchorStatusLabel(String tag) {
+    return 'Insert anchor: $tag';
+  }
+
+  @override
+  String get anchorClearTooltip =>
+      'New tags are inserted after this tag; click to clear (back to append at end)';
+
+  @override
   String get aiInterrogateButton => 'AI tag';
 
   @override

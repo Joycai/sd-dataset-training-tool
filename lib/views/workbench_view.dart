@@ -216,6 +216,12 @@ class _WorkbenchViewState extends State<WorkbenchView> {
         _dataset.selectByOffset(-1),
     const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
         _dataset.selectByOffset(1),
+    // Insertion anchor: step it across the tag list (and the append-at-end
+    // state) without reaching for the mouse.
+    const SingleActivator(LogicalKeyboardKey.bracketLeft): () =>
+        _session.moveAnchor(-1),
+    const SingleActivator(LogicalKeyboardKey.bracketRight): () =>
+        _session.moveAnchor(1),
     const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
     const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true):
         _redo,
