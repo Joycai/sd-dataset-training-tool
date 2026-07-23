@@ -1008,17 +1008,89 @@ abstract class AppLocalizations {
   /// **'No files needed changes.'**
   String get noFilesChanged;
 
-  /// No description provided for @filterActiveInclude.
+  /// No description provided for @filterPanelTitle.
   ///
   /// In en, this message translates to:
-  /// **'Only with: {tag}'**
-  String filterActiveInclude(String tag);
+  /// **'Gallery filter'**
+  String get filterPanelTitle;
 
-  /// No description provided for @filterActiveExclude.
+  /// No description provided for @filterMatches.
   ///
   /// In en, this message translates to:
-  /// **'Only without: {tag}'**
-  String filterActiveExclude(String tag);
+  /// **'{shown} / {total} match'**
+  String filterMatches(int shown, int total);
+
+  /// No description provided for @filterOpAnd.
+  ///
+  /// In en, this message translates to:
+  /// **'AND'**
+  String get filterOpAnd;
+
+  /// No description provided for @filterOpOr.
+  ///
+  /// In en, this message translates to:
+  /// **'OR'**
+  String get filterOpOr;
+
+  /// No description provided for @filterToggleOpTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle this group\'s AND/OR'**
+  String get filterToggleOpTooltip;
+
+  /// No description provided for @filterToggleRoleTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle include/exclude'**
+  String get filterToggleRoleTooltip;
+
+  /// No description provided for @filterRemoveConditionTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove condition'**
+  String get filterRemoveConditionTooltip;
+
+  /// No description provided for @filterAddTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add condition / sub-group'**
+  String get filterAddTooltip;
+
+  /// No description provided for @filterAddCondition.
+  ///
+  /// In en, this message translates to:
+  /// **'Add condition…'**
+  String get filterAddCondition;
+
+  /// No description provided for @filterAddSubgroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Add sub-group'**
+  String get filterAddSubgroup;
+
+  /// No description provided for @filterDissolveGroupTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Dissolve group (children move up)'**
+  String get filterDissolveGroupTooltip;
+
+  /// No description provided for @filterPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add filter condition'**
+  String get filterPickerTitle;
+
+  /// No description provided for @filterRoleInclude.
+  ///
+  /// In en, this message translates to:
+  /// **'Include'**
+  String get filterRoleInclude;
+
+  /// No description provided for @filterRoleExclude.
+  ///
+  /// In en, this message translates to:
+  /// **'Exclude'**
+  String get filterRoleExclude;
 
   /// No description provided for @undo.
   ///

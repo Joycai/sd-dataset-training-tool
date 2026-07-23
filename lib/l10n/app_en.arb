@@ -261,18 +261,26 @@
     }
   },
   "noFilesChanged": "No files needed changes.",
-  "filterActiveInclude": "Only with: {tag}",
-  "@filterActiveInclude": {
+  "filterPanelTitle": "Gallery filter",
+  "filterMatches": "{shown} / {total} match",
+  "@filterMatches": {
     "placeholders": {
-      "tag": { "type": "String" }
+      "shown": { "type": "int" },
+      "total": { "type": "int" }
     }
   },
-  "filterActiveExclude": "Only without: {tag}",
-  "@filterActiveExclude": {
-    "placeholders": {
-      "tag": { "type": "String" }
-    }
-  },
+  "filterOpAnd": "AND",
+  "filterOpOr": "OR",
+  "filterToggleOpTooltip": "Toggle this group's AND/OR",
+  "filterToggleRoleTooltip": "Toggle include/exclude",
+  "filterRemoveConditionTooltip": "Remove condition",
+  "filterAddTooltip": "Add condition / sub-group",
+  "filterAddCondition": "Add condition…",
+  "filterAddSubgroup": "Add sub-group",
+  "filterDissolveGroupTooltip": "Dissolve group (children move up)",
+  "filterPickerTitle": "Add filter condition",
+  "filterRoleInclude": "Include",
+  "filterRoleExclude": "Exclude",
   "undo": "Undo",
   "redo": "Redo",
   "undoTooltip": "Undo: {action}",

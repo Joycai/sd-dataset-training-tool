@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../models/tag_filter.dart';
 import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
 import '../../state/tag_ops.dart';
@@ -115,11 +116,9 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
       entry.tag,
       label: l10n.opDeleteLabel(entry.tag),
     );
-    // An include-filter on a tag that no longer exists would blank the
-    // gallery; drop it.
-    if (dataset.tagFilter == entry.tag && !dataset.tagFilterExclude) {
-      dataset.clearTagFilter();
-    }
+    // Conditions on a tag that no longer exists are stale (an include would
+    // blank the gallery); drop them from the expression.
+    dataset.removeTagFromFilter(entry.tag);
     _showResult(count);
   }
 
@@ -180,6 +179,7 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
     final visibleTags = query.isEmpty
         ? allTags
         : allTags.where((t) => t.tag.toLowerCase().contains(query)).toList();
+    final refs = filterReferencedTags(dataset.tagFilterExpression);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -191,9 +191,9 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
             PanelIconButton(
               icon: Icons.filter_alt_off_outlined,
               tooltip: l10n.clearTagFilter,
-              onPressed: dataset.tagFilter == null
-                  ? null
-                  : dataset.clearTagFilter,
+              onPressed: dataset.tagFilterActive
+                  ? dataset.clearTagFilter
+                  : null,
             ),
           ],
         ),
@@ -201,14 +201,10 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
           hint: l10n.filterTagsHint,
           onChanged: (value) => setState(() => _filter = value),
         ),
-        if (dataset.tagFilter != null)
+        if (dataset.tagFilterActive)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-            child: _ActiveFilterBanner(
-              tag: dataset.tagFilter!,
-              exclude: dataset.tagFilterExclude,
-              onClear: dataset.clearTagFilter,
-            ),
+            child: _FilterExpressionPanel(dataset: dataset),
           ),
         Expanded(
           child: allTags.isEmpty
@@ -245,8 +241,14 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
                             _DatasetTagChip(
                               entry: entry,
                               applied: session.hasTag(entry.tag),
-                              filtered: dataset.tagFilter == entry.tag,
-                              filterExclude: dataset.tagFilterExclude,
+                              filtered:
+                                  refs.included.contains(entry.tag) ||
+                                  refs.excluded.contains(entry.tag),
+                              // Excluded-only tags show the eye-off glyph; a
+                              // tag used both ways keeps the include glyph.
+                              filterExclude:
+                                  !refs.included.contains(entry.tag) &&
+                                  refs.excluded.contains(entry.tag),
                               enabled: session.hasImage && !ops.busy,
                               onTap: () => session.toggleTag(entry.tag),
                               onContextMenu: (position) =>
@@ -263,56 +265,504 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
   }
 }
 
-/// Shows which tag filter is active on the gallery; the close glyph clears it.
-class _ActiveFilterBanner extends StatelessWidget {
-  const _ActiveFilterBanner({
-    required this.tag,
-    required this.exclude,
-    required this.onClear,
+/// The gallery's boolean filter, rendered as nested chip groups. Every edit
+/// rebuilds the immutable tree via the tag_filter helpers and pushes it back
+/// through [DatasetState.setTagFilterExpression].
+class _FilterExpressionPanel extends StatelessWidget {
+  const _FilterExpressionPanel({required this.dataset});
+
+  final DatasetState dataset;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(10, 7, 10, 9),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border.all(color: semantic.line),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.filterPanelTitle,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.3,
+                    color: semantic.muted,
+                  ),
+                ),
+              ),
+              Text(
+                l10n.filterMatches(
+                  dataset.visibleFiles.length,
+                  dataset.totalCount,
+                ),
+                style: monoStyle(context, size: 11, color: semantic.muted),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          // Deep expressions grow downward; cap the height so the tag list
+          // below stays usable.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 180),
+            child: SingleChildScrollView(
+              child: _FilterGroupView(
+                dataset: dataset,
+                group: dataset.tagFilterExpression,
+                depth: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One group of the expression: its children joined by op pills, wrapped in
+/// literal parentheses tinted by nesting depth (teal, purple, pink) so
+/// membership of a sub-group reads at a glance. The root has neither border
+/// nor parens — it is the whole expression.
+class _FilterGroupView extends StatelessWidget {
+  const _FilterGroupView({
+    required this.dataset,
+    required this.group,
+    required this.depth,
   });
 
-  final String tag;
-  final bool exclude;
-  final VoidCallback onClear;
+  final DatasetState dataset;
+  final TagFilterGroup group;
+  final int depth;
+
+  /// Hue cycle for sub-group depth: accent, then purple/pink from the group
+  /// preset palette (distinct from the semantic colors).
+  Color _depthColor(BuildContext context) {
+    return switch ((depth - 1) % 3) {
+      0 => Theme.of(context).colorScheme.primary,
+      1 => const Color(0xFF9B84E0),
+      _ => const Color(0xFFD983A6),
+    };
+  }
+
+  void _edit(TagFilterGroup next) => dataset.setTagFilterExpression(next);
+
+  Future<void> _showAddMenu(BuildContext context, Offset position) async {
+    final l10n = AppLocalizations.of(context)!;
+    final action = await showPanelContextMenu<String>(
+      context: context,
+      position: position,
+      items: [
+        panelMenuItem(
+          context: context,
+          value: 'condition',
+          icon: Icons.filter_alt_outlined,
+          label: l10n.filterAddCondition,
+        ),
+        panelMenuItem(
+          context: context,
+          value: 'group',
+          icon: Icons.account_tree_outlined,
+          label: l10n.filterAddSubgroup,
+        ),
+      ],
+    );
+    if (action == null || !context.mounted) return;
+
+    if (action == 'group') {
+      // A fresh sub-group starts on the opposite operator — that is why one
+      // reaches for parentheses in the first place.
+      _edit(
+        filterAddTo(
+          dataset.tagFilterExpression,
+          group.id,
+          TagFilterGroup.create(
+            group.op == TagFilterOp.and ? TagFilterOp.or : TagFilterOp.and,
+          ),
+        ),
+      );
+      return;
+    }
+
+    final picked = await showDialog<(String, bool)>(
+      context: context,
+      builder: (context) =>
+          _ConditionPickerDialog(tags: dataset.datasetTags),
+    );
+    if (picked == null) return;
+    _edit(
+      filterAddTo(
+        dataset.tagFilterExpression,
+        group.id,
+        TagFilterCondition.create(picked.$1, exclude: picked.$2),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final isRoot = depth == 0;
+    final color = isRoot ? semantic.line : _depthColor(context);
+
+    final children = <Widget>[
+      if (!isRoot) _Paren(text: '(', color: color),
+      for (final (i, child) in group.children.indexed) ...[
+        if (i > 0)
+          _OpPill(
+            op: group.op,
+            label: group.op == TagFilterOp.and
+                ? l10n.filterOpAnd
+                : l10n.filterOpOr,
+            tooltip: l10n.filterToggleOpTooltip,
+            onTap: () => _edit(
+              filterToggleOp(dataset.tagFilterExpression, group.id),
+            ),
+          ),
+        switch (child) {
+          TagFilterCondition c => _ConditionChip(
+              condition: c,
+              toggleTooltip: l10n.filterToggleRoleTooltip,
+              removeTooltip: l10n.filterRemoveConditionTooltip,
+              onToggleRole: () => _edit(
+                filterToggleRole(dataset.tagFilterExpression, c.id),
+              ),
+              onRemove: () => _edit(
+                filterRemove(dataset.tagFilterExpression, c.id),
+              ),
+            ),
+          TagFilterGroup g => _FilterGroupView(
+              dataset: dataset,
+              group: g,
+              depth: depth + 1,
+            ),
+        },
+      ],
+      if (!isRoot) _Paren(text: ')', color: color),
+      Builder(
+        builder: (buttonContext) => Tooltip(
+          message: l10n.filterAddTooltip,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(99),
+            onTap: () {
+              final box = buttonContext.findRenderObject()! as RenderBox;
+              _showAddMenu(
+                buttonContext,
+                box.localToGlobal(Offset(0, box.size.height)),
+              );
+            },
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: semantic.line),
+              ),
+              child: Icon(Icons.add, size: 13, color: semantic.muted),
+            ),
+          ),
+        ),
+      ),
+      if (!isRoot)
+        Tooltip(
+          message: l10n.filterDissolveGroupTooltip,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(99),
+            onTap: () => _edit(
+              filterDissolve(dataset.tagFilterExpression, group.id),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(2),
+              child: Icon(Icons.close, size: 12, color: semantic.muted),
+            ),
+          ),
+        ),
+    ];
+
+    final wrap = Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: children,
+    );
+
+    if (isRoot) return wrap;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
+      decoration: BoxDecoration(
+        color: color.withAlpha(23),
+        border: Border.all(color: color.withAlpha(140), width: 1.5),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: wrap,
+    );
+  }
+}
+
+class _Paren extends StatelessWidget {
+  const _Paren({required this.text, required this.color});
+
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 17,
+        fontWeight: FontWeight.w300,
+        height: 1,
+        color: color,
+      ),
+    );
+  }
+}
+
+/// The 且/或 joint between two siblings; clicking flips the whole group.
+class _OpPill extends StatelessWidget {
+  const _OpPill({
+    required this.op,
+    required this.label,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final TagFilterOp op;
+  final String label;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    final color = op == TagFilterOp.or ? semantic.warn : semantic.muted;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(99),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: op == TagFilterOp.or
+                  ? semantic.warn.withAlpha(140)
+                  : semantic.line,
+            ),
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1,
+              color: color,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ConditionChip extends StatelessWidget {
+  const _ConditionChip({
+    required this.condition,
+    required this.toggleTooltip,
+    required this.removeTooltip,
+    required this.onToggleRole,
+    required this.onRemove,
+  });
+
+  final TagFilterCondition condition;
+  final String toggleTooltip;
+  final String removeTooltip;
+  final VoidCallback onToggleRole;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+    final roleColor = condition.exclude ? semantic.warn : scheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        color: semantic.raised,
+        border: Border.all(
+          color: condition.exclude
+              ? semantic.warn.withAlpha(115)
+              : semantic.line,
+        ),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Tooltip(
+            message: toggleTooltip,
+            child: InkWell(
+              onTap: onToggleRole,
+              borderRadius: BorderRadius.circular(99),
+              child: Icon(
+                condition.exclude
+                    ? Icons.visibility_off_outlined
+                    : Icons.filter_alt_outlined,
+                size: 12,
+                color: roleColor,
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(condition.tag, style: const TextStyle(fontSize: 12)),
+          const SizedBox(width: 5),
+          Tooltip(
+            message: removeTooltip,
+            child: InkWell(
+              onTap: onRemove,
+              borderRadius: BorderRadius.circular(99),
+              child: Icon(Icons.close, size: 12, color: semantic.muted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Searchable tag picker for "add condition": role toggle on top, dataset
+/// tags with counts below; tapping a tag pops `(tag, exclude)`.
+class _ConditionPickerDialog extends StatefulWidget {
+  const _ConditionPickerDialog({required this.tags});
+
+  final List<DatasetTag> tags;
+
+  @override
+  State<_ConditionPickerDialog> createState() => _ConditionPickerDialogState();
+}
+
+class _ConditionPickerDialogState extends State<_ConditionPickerDialog> {
+  String _query = '';
+  bool _exclude = false;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
     final scheme = Theme.of(context).colorScheme;
-    final label = exclude
-        ? l10n.filterActiveExclude(tag)
-        : l10n.filterActiveInclude(tag);
+    final q = _query.trim().toLowerCase();
+    final visible = q.isEmpty
+        ? widget.tags
+        : widget.tags
+              .where((t) => t.tag.toLowerCase().contains(q))
+              .toList();
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Color.alphaBlend(scheme.primary.withAlpha(26), semantic.raised),
-        border: Border.all(color: scheme.primary.withAlpha(120)),
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            exclude ? Icons.visibility_off_outlined : Icons.filter_alt_outlined,
-            size: 14,
-            color: scheme.primary,
-          ),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: scheme.onSurface),
+    return AlertDialog(
+      title: Text(l10n.filterPickerTitle),
+      content: SizedBox(
+        width: 340,
+        height: 400,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              autofocus: true,
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: l10n.filterTagsHint,
+                prefixIcon: Icon(Icons.search, size: 16, color: semantic.muted),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+              onChanged: (value) => setState(() => _query = value),
             ),
-          ),
-          InkWell(
-            onTap: onClear,
-            borderRadius: BorderRadius.circular(99),
-            child: Icon(Icons.close, size: 14, color: semantic.muted),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              children: [
+                FilterChipPill(
+                  label: l10n.filterRoleInclude,
+                  selected: !_exclude,
+                  onTap: () => setState(() => _exclude = false),
+                ),
+                FilterChipPill(
+                  label: l10n.filterRoleExclude,
+                  selected: _exclude,
+                  onTap: () => setState(() => _exclude = true),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: visible.length,
+                itemBuilder: (context, index) {
+                  final entry = visible[index];
+                  return InkWell(
+                    onTap: () =>
+                        Navigator.of(context).pop((entry.tag, _exclude)),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _exclude
+                                ? Icons.visibility_off_outlined
+                                : Icons.filter_alt_outlined,
+                            size: 13,
+                            color: _exclude ? semantic.warn : scheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              entry.tag,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12.5),
+                            ),
+                          ),
+                          Text(
+                            '${entry.count}',
+                            style: monoStyle(
+                              context,
+                              size: 11,
+                              color: semantic.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+      ],
     );
   }
 }

@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
+import 'package:dataset_training_tool/models/tag_filter.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/editor_session.dart';
@@ -103,7 +104,7 @@ void main() {
     expect(find.text('1'), findsWidgets);
   });
 
-  testWidgets('context menu sets and clears the gallery tag filter', (
+  testWidgets('context menu builds the gallery filter expression', (
     tester,
   ) async {
     await openDatasetTab(tester);
@@ -113,22 +114,100 @@ void main() {
     await tester.tap(find.text('Only images with this tag'));
     await tester.pumpAndSettle();
 
-    expect(dataset.tagFilter, 'beta');
-    expect(dataset.tagFilterExclude, isFalse);
-    expect(find.text('Only with: beta'), findsOneWidget);
+    var conditions = dataset.tagFilterExpression.children
+        .whereType<TagFilterCondition>()
+        .toList();
+    expect(conditions.single.tag, 'beta');
+    expect(conditions.single.exclude, isFalse);
+    // The expression panel appears with the condition chip ('beta' also
+    // shows in the tag list below, hence two).
+    expect(find.text('Gallery filter'), findsOneWidget);
+    expect(find.text('beta'), findsNWidgets(2));
 
-    // Exclude flips the filter; only 001 has alpha.
+    // A second tag chains with AND: has beta && !has alpha -> only 002.
     await rightClick(tester, find.text('alpha'));
     await tester.tap(find.text('Only images without this tag'));
     await tester.pumpAndSettle();
-    expect(dataset.tagFilter, 'alpha');
-    expect(dataset.tagFilterExclude, isTrue);
+    conditions = dataset.tagFilterExpression.children
+        .whereType<TagFilterCondition>()
+        .toList();
+    expect(conditions, hasLength(2));
+    expect(conditions.last.tag, 'alpha');
+    expect(conditions.last.exclude, isTrue);
+    expect(find.text('AND'), findsOneWidget);
     expect(dataset.visibleFiles.map((f) => p.basename(f.path)), ['002.png']);
 
-    // The header button clears the filter.
+    // Re-filtering the same tag flips its role instead of duplicating.
+    // ('alpha' now also renders as a panel chip; the list chip is last.)
+    await rightClick(tester, find.text('alpha').last);
+    await tester.tap(find.text('Only images with this tag'));
+    await tester.pumpAndSettle();
+    conditions = dataset.tagFilterExpression.children
+        .whereType<TagFilterCondition>()
+        .toList();
+    expect(conditions, hasLength(2));
+    expect(conditions.last.exclude, isFalse);
+    expect(dataset.visibleFiles.map((f) => p.basename(f.path)), ['001.png']);
+
+    // The header button clears the whole expression.
     await tester.tap(find.byIcon(Icons.filter_alt_off_outlined));
     await tester.pumpAndSettle();
-    expect(dataset.tagFilter, isNull);
+    expect(dataset.tagFilterActive, isFalse);
+    expect(find.text('Gallery filter'), findsNothing);
+    expect(dataset.visibleFiles, hasLength(2));
+  });
+
+  testWidgets('expression panel edits: toggle op, toggle role, remove', (
+    tester,
+  ) async {
+    await openDatasetTab(tester);
+
+    // beta include + alpha include -> AND matches only 001.
+    await rightClick(tester, find.text('beta'));
+    await tester.tap(find.text('Only images with this tag'));
+    await tester.pumpAndSettle();
+    await rightClick(tester, find.text('alpha'));
+    await tester.tap(find.text('Only images with this tag'));
+    await tester.pumpAndSettle();
+    expect(dataset.visibleFiles.map((f) => p.basename(f.path)), ['001.png']);
+
+    // Toggle the group op: OR matches both.
+    await tester.tap(find.text('AND'));
+    await tester.pumpAndSettle();
+    expect(find.text('OR'), findsOneWidget);
+    expect(dataset.visibleFiles, hasLength(2));
+
+    // Toggle alpha's role to exclude: !alpha || beta still matches both;
+    // back to AND drops 001.
+    final alphaChip = find.ancestor(
+      of: find.text('alpha').first,
+      matching: find.byType(Row),
+    );
+    await tester.tap(
+      find
+          .descendant(
+            of: alphaChip,
+            matching: find.byIcon(Icons.filter_alt_outlined),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OR'));
+    await tester.pumpAndSettle();
+    expect(dataset.visibleFiles.map((f) => p.basename(f.path)), ['002.png']);
+
+    // Remove the alpha condition: only the beta include remains.
+    await tester.tap(
+      find.descendant(of: alphaChip, matching: find.byIcon(Icons.close)).first,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      dataset.tagFilterExpression.children
+          .whereType<TagFilterCondition>()
+          .single
+          .tag,
+      'beta',
+    );
     expect(dataset.visibleFiles, hasLength(2));
   });
 

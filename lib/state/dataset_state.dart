@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../models/tag_filter.dart';
 import '../utils/tag_text.dart';
 
 enum CaptionFilter { all, untagged, tagged }
@@ -30,6 +31,8 @@ class DatasetState extends ChangeNotifier {
   List<File> _files = [];
   final Map<String, bool> _hasCaption = {};
   final Map<String, List<String>> _tagsByPath = {};
+  // Set mirror of _tagsByPath for O(1) lookups in the filter evaluation.
+  final Map<String, Set<String>> _tagSetsByPath = {};
   List<DatasetTag>? _tagCountsCache;
   // Derived-list caches: several panels read these getters in every build,
   // so they are computed once per state change instead of once per read.
@@ -40,8 +43,7 @@ class DatasetState extends ChangeNotifier {
   String? _error;
   String _query = '';
   CaptionFilter _filter = CaptionFilter.all;
-  String? _tagFilter;
-  bool _tagFilterExclude = false;
+  TagFilterGroup _tagFilterExpr = TagFilterGroup.create(TagFilterOp.and);
   String? _selectedPath;
   int _scanGeneration = 0;
 
@@ -50,10 +52,10 @@ class DatasetState extends ChangeNotifier {
   String get query => _query;
   CaptionFilter get filter => _filter;
 
-  /// Active dataset-tag filter, if any; [tagFilterExclude] flips it to
-  /// "images without this tag".
-  String? get tagFilter => _tagFilter;
-  bool get tagFilterExclude => _tagFilterExclude;
+  /// The gallery's boolean tag filter. The root group always exists; an
+  /// empty root means the filter is off.
+  TagFilterGroup get tagFilterExpression => _tagFilterExpr;
+  bool get tagFilterActive => !_tagFilterExpr.isEmpty;
 
   List<File> get allFiles => _files;
   int get totalCount => _files.length;
@@ -106,12 +108,11 @@ class DatasetState extends ChangeNotifier {
       if (q.isNotEmpty && !p.basename(f.path).toLowerCase().contains(q)) {
         return false;
       }
-      final tagFilter = _tagFilter;
-      if (tagFilter != null) {
-        final has = _tagsByPath[f.path]?.contains(tagFilter) ?? false;
-        // Include mode drops images without the tag; exclude mode drops
-        // images with it.
-        if (has == _tagFilterExclude) return false;
+      if (!_tagFilterExpr.isEmpty) {
+        // Uncaptioned images have the empty tag set — they match pure
+        // exclude filters, same as the old single-tag behavior.
+        final tags = _tagSetsByPath[f.path] ?? const <String>{};
+        if (!_tagFilterExpr.matches(tags)) return false;
       }
       switch (_filter) {
         case CaptionFilter.all:
@@ -153,20 +154,46 @@ class DatasetState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Quick path (tag-list context menu): upserts a root-level condition for
+  /// [tag]. A root condition on the same tag flips its role instead of
+  /// duplicating — with a single tag this is exactly the old replace
+  /// behavior; further tags chain with the root operator.
   void setTagFilter(String tag, {required bool exclude}) {
-    if (_tagFilter == tag && _tagFilterExclude == exclude) return;
-    _tagFilter = tag;
-    _tagFilterExclude = exclude;
+    final existing = _tagFilterExpr.children
+        .whereType<TagFilterCondition>()
+        .where((c) => c.tag == tag)
+        .firstOrNull;
+    if (existing != null) {
+      if (existing.exclude == exclude) return;
+      setTagFilterExpression(filterToggleRole(_tagFilterExpr, existing.id));
+      return;
+    }
+    setTagFilterExpression(
+      filterAddTo(
+        _tagFilterExpr,
+        _tagFilterExpr.id,
+        TagFilterCondition.create(tag, exclude: exclude),
+      ),
+    );
+  }
+
+  /// Structural edits from the filter panel push whole new trees.
+  void setTagFilterExpression(TagFilterGroup expr) {
+    _tagFilterExpr = expr;
     _invalidateDerived();
     notifyListeners();
   }
 
+  /// Drops stale conditions after a tag is deleted from the dataset.
+  void removeTagFromFilter(String tag) {
+    final refs = filterReferencedTags(_tagFilterExpr);
+    if (!refs.included.contains(tag) && !refs.excluded.contains(tag)) return;
+    setTagFilterExpression(filterRemoveTag(_tagFilterExpr, tag));
+  }
+
   void clearTagFilter() {
-    if (_tagFilter == null) return;
-    _tagFilter = null;
-    _tagFilterExclude = false;
-    _invalidateDerived();
-    notifyListeners();
+    if (_tagFilterExpr.isEmpty) return;
+    setTagFilterExpression(TagFilterGroup.create(TagFilterOp.and));
   }
 
   void select(String? path) {
@@ -221,6 +248,7 @@ class DatasetState extends ChangeNotifier {
     }
     _hasCaption[imagePath] = captioned;
     _tagsByPath[imagePath] = tags;
+    _tagSetsByPath[imagePath] = tags.toSet();
     return true;
   }
 
@@ -279,6 +307,9 @@ class DatasetState extends ChangeNotifier {
     _tagsByPath
       ..clear()
       ..addAll(tagsByPath);
+    _tagSetsByPath
+      ..clear()
+      ..addAll(tagsByPath.map((k, v) => MapEntry(k, v.toSet())));
     _tagCountsCache = null;
     _invalidateDerived();
     _captionExtension = captionExtension;
@@ -295,11 +326,11 @@ class DatasetState extends ChangeNotifier {
     _files = [];
     _hasCaption.clear();
     _tagsByPath.clear();
+    _tagSetsByPath.clear();
     _tagCountsCache = null;
     _invalidateDerived();
     _selectedPath = null;
-    _tagFilter = null;
-    _tagFilterExclude = false;
+    _tagFilterExpr = TagFilterGroup.create(TagFilterOp.and);
     _isLoading = false;
     _error = null;
     notifyListeners();

@@ -522,14 +522,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noFilesChanged => 'No files needed changes.';
 
   @override
-  String filterActiveInclude(String tag) {
-    return 'Only with: $tag';
+  String get filterPanelTitle => 'Gallery filter';
+
+  @override
+  String filterMatches(int shown, int total) {
+    return '$shown / $total match';
   }
 
   @override
-  String filterActiveExclude(String tag) {
-    return 'Only without: $tag';
-  }
+  String get filterOpAnd => 'AND';
+
+  @override
+  String get filterOpOr => 'OR';
+
+  @override
+  String get filterToggleOpTooltip => 'Toggle this group\'s AND/OR';
+
+  @override
+  String get filterToggleRoleTooltip => 'Toggle include/exclude';
+
+  @override
+  String get filterRemoveConditionTooltip => 'Remove condition';
+
+  @override
+  String get filterAddTooltip => 'Add condition / sub-group';
+
+  @override
+  String get filterAddCondition => 'Add condition…';
+
+  @override
+  String get filterAddSubgroup => 'Add sub-group';
+
+  @override
+  String get filterDissolveGroupTooltip => 'Dissolve group (children move up)';
+
+  @override
+  String get filterPickerTitle => 'Add filter condition';
+
+  @override
+  String get filterRoleInclude => 'Include';
+
+  @override
+  String get filterRoleExclude => 'Exclude';
 
   @override
   String get undo => 'Undo';

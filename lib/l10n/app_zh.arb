@@ -169,8 +169,30 @@
   "apply": "应用",
   "filesUpdated": "已更新 {count} 个文件",
   "noFilesChanged": "没有需要修改的文件。",
-  "filterActiveInclude": "仅含：{tag}",
-  "filterActiveExclude": "不含：{tag}",
+  "filterPanelTitle": "画廊过滤",
+  "filterMatches": "匹配 {shown} / {total}",
+  "@filterMatches": {
+    "placeholders": {
+      "shown": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "filterOpAnd": "且",
+  "filterOpOr": "或",
+  "filterToggleOpTooltip": "切换整组 且/或",
+  "filterToggleRoleTooltip": "切换 包含/不含",
+  "filterRemoveConditionTooltip": "移除条件",
+  "filterAddTooltip": "添加条件 / 子分组",
+  "filterAddCondition": "添加条件…",
+  "filterAddSubgroup": "添加子分组",
+  "filterDissolveGroupTooltip": "解散分组（子节点上提）",
+  "filterPickerTitle": "添加过滤条件",
+  "filterRoleInclude": "包含",
+  "filterRoleExclude": "不含",
   "undo": "撤销",
   "redo": "重做",
   "undoTooltip": "撤销：{action}",
