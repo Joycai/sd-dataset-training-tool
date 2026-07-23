@@ -66,6 +66,7 @@ void main() {
 
     expect(appState.captionExtension, '.txt');
     expect(appState.crossAxisCount, 4);
+    expect(appState.thumbnailFill, isTrue);
     expect(appState.includeSubdirectories, false);
     expect(appState.browsingDirectory, isNull);
     expect(appState.commonTags, isEmpty);

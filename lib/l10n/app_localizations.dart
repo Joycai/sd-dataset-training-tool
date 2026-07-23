@@ -296,6 +296,18 @@ abstract class AppLocalizations {
   /// **'Refresh'**
   String get refresh;
 
+  /// No description provided for @thumbFitTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit thumbnails: show the whole image'**
+  String get thumbFitTooltip;
+
+  /// No description provided for @thumbFillTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill thumbnails: crop to fill the cell'**
+  String get thumbFillTooltip;
+
   /// No description provided for @noImagesFound.
   ///
   /// In en, this message translates to:

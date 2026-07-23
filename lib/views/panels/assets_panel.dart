@@ -35,6 +35,7 @@ class AssetsPanel extends StatelessWidget {
     final columns = context
         .select<AppState, int>((s) => s.crossAxisCount)
         .clamp(2, 6);
+    final fill = context.select<AppState, bool>((s) => s.thumbnailFill);
 
     // The divider to the center column is drawn by the resize handle.
     return Container(
@@ -46,6 +47,13 @@ class AssetsPanel extends StatelessWidget {
             title: l10n.assetsPanelTitle,
             count: dataset.totalCount,
             actions: [
+              // The icon previews the mode clicking switches to.
+              PanelIconButton(
+                icon: fill ? Icons.fit_screen_outlined : Icons.zoom_out_map,
+                tooltip: fill ? l10n.thumbFitTooltip : l10n.thumbFillTooltip,
+                onPressed: () =>
+                    context.read<AppState>().updateThumbnailFill(!fill),
+              ),
               PanelIconButton(
                 icon: Icons.refresh,
                 tooltip: l10n.refresh,
@@ -86,7 +94,7 @@ class AssetsPanel extends StatelessWidget {
               ],
             ),
           ),
-          Expanded(child: _buildBody(context, l10n, dataset, columns)),
+          Expanded(child: _buildBody(context, l10n, dataset, columns, fill)),
           const Divider(),
           _ColumnsFooter(columns: columns, l10n: l10n),
         ],
@@ -95,7 +103,7 @@ class AssetsPanel extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context, AppLocalizations l10n,
-      DatasetState dataset, int columns) {
+      DatasetState dataset, int columns, bool fill) {
     final semantic = context.semantic;
 
     if (dataset.isLoading) {
@@ -143,6 +151,7 @@ class AssetsPanel extends StatelessWidget {
           file: file,
           selected: selected,
           captioned: captioned,
+          fill: fill,
           okColor: semantic.ok,
           warnColor: semantic.warn,
           onTap: () => dataset.select(file.path),
@@ -161,6 +170,7 @@ class _Thumbnail extends StatelessWidget {
     required this.file,
     required this.selected,
     required this.captioned,
+    required this.fill,
     required this.okColor,
     required this.warnColor,
     required this.onTap,
@@ -170,6 +180,7 @@ class _Thumbnail extends StatelessWidget {
   final File file;
   final bool selected;
   final bool captioned;
+  final bool fill;
   final Color okColor;
   final Color warnColor;
   final VoidCallback onTap;
@@ -205,9 +216,13 @@ class _Thumbnail extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
+                // Fit mode letterboxes; a backdrop makes the empty bands
+                // read as deliberate instead of broken.
+                if (!fill)
+                  ColoredBox(color: scheme.surfaceContainerHigh),
                 Image.file(
                   file,
-                  fit: BoxFit.cover,
+                  fit: fill ? BoxFit.cover : BoxFit.contain,
                   // Thumbnails decode at a small size; full resolution would
                   // eat hundreds of MB across a large grid.
                   cacheWidth: 256,

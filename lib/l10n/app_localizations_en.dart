@@ -113,6 +113,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get refresh => 'Refresh';
 
   @override
+  String get thumbFitTooltip => 'Fit thumbnails: show the whole image';
+
+  @override
+  String get thumbFillTooltip => 'Fill thumbnails: crop to fill the cell';
+
+  @override
   String get noImagesFound => 'No images yet. Open a folder to start.';
 
   @override
