@@ -871,7 +871,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accentTitle => 'Theme Color';
 
   @override
-  String get accentDesc => 'Accent color for selection and focus highlights';
+  String get accentDesc =>
+      'Base color; surfaces, borders and highlights across the UI are tinted from it';
 
   @override
   String get accentTeal => 'Teal';

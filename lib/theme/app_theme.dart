@@ -3,17 +3,14 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Design tokens for the redesign. Two paired palettes; the accent (teal)
-/// means "selection / focus" only — data states use the semantic colors in
-/// [AppSemanticColors] and never reuse the accent.
+/// Fixed design tokens. The accent means "selection / focus" only — data
+/// states (ok/warn/danger) never reuse it and stay constant across theme
+/// colors so captioned/uncaptioned/error always read the same.
+///
+/// The neutral ramp (window/panel/raised/line/ink/muted) is no longer a
+/// token set: it is derived from the chosen accent's hue in [AppPalette].
 abstract final class AppTokens {
   // Dark
-  static const darkBg0 = Color(0xFF17191F); // window
-  static const darkBg1 = Color(0xFF1E2128); // panels
-  static const darkBg2 = Color(0xFF262A33); // raised
-  static const darkLine = Color(0xFF343946);
-  static const darkInk = Color(0xFFE9ECF2);
-  static const darkMuted = Color(0xFF8F97A8);
   static const darkAccent = Color(0xFF5CB8C4);
   static const darkOnAccent = Color(0xFF0E2A2E);
   static const darkOk = Color(0xFF6FBF73);
@@ -21,17 +18,85 @@ abstract final class AppTokens {
   static const darkDanger = Color(0xFFD96B6B);
 
   // Light
-  static const lightBg0 = Color(0xFFEEF0F3);
-  static const lightBg1 = Color(0xFFF9FAFB);
-  static const lightBg2 = Color(0xFFFFFFFF);
-  static const lightLine = Color(0xFFDBDFE6);
-  static const lightInk = Color(0xFF23262D);
-  static const lightMuted = Color(0xFF6A7280);
   static const lightAccent = Color(0xFF2F8B98);
   static const lightOnAccent = Color(0xFFFFFFFF);
   static const lightOk = Color(0xFF3D8B46);
   static const lightWarn = Color(0xFFA86F14);
   static const lightDanger = Color(0xFFB34545);
+}
+
+/// Full neutral ramp + accent containers computed from one base color.
+///
+/// Strategy: keep the original blue-gray design's saturation/lightness
+/// structure for every tone and swap in the accent's hue, so the whole
+/// UI — window background, panels, cards, hairlines, secondary text —
+/// takes on the theme color while contrast ratios stay as designed.
+class AppPalette {
+  const AppPalette._({
+    required this.bg0,
+    required this.bg1,
+    required this.bg2,
+    required this.line,
+    required this.ink,
+    required this.muted,
+    required this.container,
+    required this.onContainer,
+  });
+
+  /// Window background.
+  final Color bg0;
+
+  /// Side panels, bars, cards.
+  final Color bg1;
+
+  /// Raised surfaces (chips, inputs on panels).
+  final Color bg2;
+
+  /// Hairline borders.
+  final Color line;
+
+  /// Primary text.
+  final Color ink;
+
+  /// Secondary text.
+  final Color muted;
+
+  /// Accent-tinted fill for selected M3 containers (SegmentedButton,
+  /// chips…) — clearly colored, but calmer than the accent itself.
+  final Color container;
+
+  /// Text/icon color on [container].
+  final Color onContainer;
+
+  factory AppPalette.derive(Color accentSeed, Brightness brightness) {
+    final hue = HSLColor.fromColor(accentSeed).hue;
+    Color tone(double sat, double light) =>
+        HSLColor.fromAHSL(1, hue, sat, light).toColor();
+
+    // S/L pairs transcribed from the original fixed tokens (hue ~222°),
+    // so `tone` reproduces them exactly when given that hue.
+    return brightness == Brightness.dark
+        ? AppPalette._(
+            bg0: tone(.15, .106), // was 0xFF17191F
+            bg1: tone(.14, .137), // was 0xFF1E2128
+            bg2: tone(.15, .175), // was 0xFF262A33
+            line: tone(.14, .239), // was 0xFF343946
+            ink: tone(.26, .931), // was 0xFFE9ECF2
+            muted: tone(.13, .610), // was 0xFF8F97A8
+            container: tone(.32, .295),
+            onContainer: tone(.30, .920),
+          )
+        : AppPalette._(
+            bg0: tone(.17, .943), // was 0xFFEEF0F3
+            bg1: tone(.20, .980), // was 0xFFF9FAFB
+            bg2: const Color(0xFFFFFFFF),
+            line: tone(.18, .880), // was 0xFFDBDFE6
+            ink: tone(.125, .157), // was 0xFF23262D
+            muted: tone(.09, .459), // was 0xFF6A7280
+            container: tone(.40, .870),
+            onContainer: tone(.45, .180),
+          );
+  }
 }
 
 /// User-selectable accent (the theme "color"). Each choice carries the
@@ -148,24 +213,6 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   /// Secondary text.
   final Color muted;
 
-  static const dark = AppSemanticColors(
-    ok: AppTokens.darkOk,
-    warn: AppTokens.darkWarn,
-    panel: AppTokens.darkBg1,
-    raised: AppTokens.darkBg2,
-    line: AppTokens.darkLine,
-    muted: AppTokens.darkMuted,
-  );
-
-  static const light = AppSemanticColors(
-    ok: AppTokens.lightOk,
-    warn: AppTokens.lightWarn,
-    panel: AppTokens.lightBg1,
-    raised: AppTokens.lightBg2,
-    line: AppTokens.lightLine,
-    muted: AppTokens.lightMuted,
-  );
-
   @override
   AppSemanticColors copyWith({
     Color? ok,
@@ -242,48 +289,56 @@ List<String> _cjkFallback() {
 }
 
 /// [fontFamily] 为 null 时用系统默认字体；否则用 FontLoader 注册的家族名。
-/// [accent] 决定 primary/secondary 强调色（选中/焦点），默认青色。
+/// [accent] 是主题基色：不仅决定强调色（选中/焦点），整套中性色阶也由
+/// [AppPalette] 从它的色相派生,界面各处随之改变色调。
 ThemeData buildAppTheme(
   Brightness brightness, {
   String? fontFamily,
   AppAccentChoice accent = AppAccentChoice.teal,
 }) {
   final isDark = brightness == Brightness.dark;
-  final semantic = isDark ? AppSemanticColors.dark : AppSemanticColors.light;
   final accentColor = accent.accentFor(brightness);
   final onAccent = accent.onAccentFor(brightness);
+  final palette = AppPalette.derive(accentColor, brightness);
 
-  final scheme = isDark
-      ? ColorScheme.dark(
-          primary: accentColor,
-          onPrimary: onAccent,
-          secondary: accentColor,
-          onSecondary: onAccent,
-          surface: AppTokens.darkBg0,
-          onSurface: AppTokens.darkInk,
-          onSurfaceVariant: AppTokens.darkMuted,
-          surfaceContainerLow: AppTokens.darkBg1,
-          surfaceContainerHigh: AppTokens.darkBg2,
-          outline: AppTokens.darkLine,
-          outlineVariant: AppTokens.darkLine,
-          error: AppTokens.darkDanger,
-          onError: const Color(0xFF2A0E0E),
-        )
-      : ColorScheme.light(
-          primary: accentColor,
-          onPrimary: onAccent,
-          secondary: accentColor,
-          onSecondary: onAccent,
-          surface: AppTokens.lightBg0,
-          onSurface: AppTokens.lightInk,
-          onSurfaceVariant: AppTokens.lightMuted,
-          surfaceContainerLow: AppTokens.lightBg1,
-          surfaceContainerHigh: AppTokens.lightBg2,
-          outline: AppTokens.lightLine,
-          outlineVariant: AppTokens.lightLine,
-          error: AppTokens.lightDanger,
-          onError: Color(0xFFFFFFFF),
-        );
+  final semantic = AppSemanticColors(
+    ok: isDark ? AppTokens.darkOk : AppTokens.lightOk,
+    warn: isDark ? AppTokens.darkWarn : AppTokens.lightWarn,
+    panel: palette.bg1,
+    raised: palette.bg2,
+    line: palette.line,
+    muted: palette.muted,
+  );
+
+  // Container slots matter as much as primary: M3 widgets paint selected
+  // states with them (SegmentedButton/FilterChip → secondaryContainer,
+  // FAB → primaryContainer…). Leaving them at framework defaults is why a
+  // theme-color change used to be barely visible.
+  final scheme =
+      (isDark ? const ColorScheme.dark() : const ColorScheme.light()).copyWith(
+    primary: accentColor,
+    onPrimary: onAccent,
+    secondary: accentColor,
+    onSecondary: onAccent,
+    tertiary: accentColor,
+    onTertiary: onAccent,
+    primaryContainer: palette.container,
+    onPrimaryContainer: palette.onContainer,
+    secondaryContainer: palette.container,
+    onSecondaryContainer: palette.onContainer,
+    tertiaryContainer: palette.container,
+    onTertiaryContainer: palette.onContainer,
+    surface: palette.bg0,
+    onSurface: palette.ink,
+    onSurfaceVariant: palette.muted,
+    surfaceContainerLow: palette.bg1,
+    surfaceContainerHigh: palette.bg2,
+    surfaceTint: accentColor,
+    outline: palette.line,
+    outlineVariant: palette.line,
+    error: isDark ? AppTokens.darkDanger : AppTokens.lightDanger,
+    onError: isDark ? const Color(0xFF2A0E0E) : const Color(0xFFFFFFFF),
+  );
 
   final base = ThemeData(
     useMaterial3: true,

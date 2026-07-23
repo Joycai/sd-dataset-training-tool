@@ -471,7 +471,7 @@
   "resetAction": "Reset",
 
   "accentTitle": "Theme Color",
-  "accentDesc": "Accent color for selection and focus highlights",
+  "accentDesc": "Base color; surfaces, borders and highlights across the UI are tinted from it",
   "accentTeal": "Teal",
   "accentBlue": "Blue",
   "accentIndigo": "Indigo",

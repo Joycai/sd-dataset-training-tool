@@ -1617,7 +1617,7 @@ abstract class AppLocalizations {
   /// No description provided for @accentDesc.
   ///
   /// In en, this message translates to:
-  /// **'Accent color for selection and focus highlights'**
+  /// **'Base color; surfaces, borders and highlights across the UI are tinted from it'**
   String get accentDesc;
 
   /// No description provided for @accentTeal.

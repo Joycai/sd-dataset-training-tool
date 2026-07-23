@@ -286,7 +286,7 @@
   "resetAction": "重置",
 
   "accentTitle": "主题颜色",
-  "accentDesc": "选中与焦点高亮所用的强调色",
+  "accentDesc": "主题基色，界面各处的底色、描线与高亮均由它派生",
   "accentTeal": "青色",
   "accentBlue": "蓝色",
   "accentIndigo": "靛蓝",

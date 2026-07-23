@@ -848,7 +848,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get accentTitle => '主题颜色';
 
   @override
-  String get accentDesc => '选中与焦点高亮所用的强调色';
+  String get accentDesc => '主题基色，界面各处的底色、描线与高亮均由它派生';
 
   @override
   String get accentTeal => '青色';
