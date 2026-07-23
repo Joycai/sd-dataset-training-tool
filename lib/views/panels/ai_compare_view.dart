@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../state/ai_tagger_state.dart';
@@ -155,21 +156,38 @@ class _AiCompareViewState extends State<AiCompareView> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final tag in session.tags)
-                    diff.missing.contains(tag)
-                        ? _CompareChip.missing(
-                            label: tag,
-                            semantic: semantic,
-                            onDelete: () => session.removeTag(tag),
-                          )
-                        : _CompareChip.matched(label: tag, semantic: semantic),
-                ],
+            // Same package as the tags tab, but with the generic wrapper so a
+            // Wrap of intrinsic-width chips stays reorderable: the drop index
+            // is hit-tested against the real chip render boxes, not a grid.
+            // Long-press starts the drag (package default), which keeps the
+            // delete tap on missing chips working.
+            child: ReorderableWrapperWidget(
+              onReorder: session.reorderTag,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final (index, tag) in session.tags.indexed)
+                      // Tags are de-duplicated on parse, so the tag itself is
+                      // a stable key across reorders.
+                      ReorderableItemView(
+                        key: ValueKey(tag),
+                        index: index,
+                        child: diff.missing.contains(tag)
+                            ? _CompareChip.missing(
+                                label: tag,
+                                semantic: semantic,
+                                onDelete: () => session.removeTag(tag),
+                              )
+                            : _CompareChip.matched(
+                                label: tag,
+                                semantic: semantic,
+                              ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
