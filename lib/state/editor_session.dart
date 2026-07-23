@@ -25,6 +25,7 @@ class EditorSession extends ChangeNotifier {
   File? _image;
   String _captionPath = '';
   List<String> _tags = [];
+  String? _anchorTag;
   SaveState _saveState = SaveState.clean;
   DateTime? _lastSavedAt;
   String? _lastError;
@@ -91,6 +92,8 @@ class EditorSession extends ChangeNotifier {
     _saveState = error == null ? SaveState.clean : SaveState.error;
     _setText(content);
     _tags = _parseTags(content);
+    // _anchorTag is deliberately kept: it re-activates on images that
+    // contain the tag and lies dormant on those that don't.
     notifyListeners();
   }
 
@@ -103,6 +106,7 @@ class EditorSession extends ChangeNotifier {
     _imageHeight = null;
     _imageBytes = null;
     _tags = [];
+    _anchorTag = null;
     _saveState = SaveState.clean;
     _lastError = null;
     _setText('');
@@ -122,14 +126,52 @@ class EditorSession extends ChangeNotifier {
 
   bool hasTag(String tag) => _tags.contains(tag);
 
+  /// The insertion anchor: newly added tags are inserted right after this
+  /// tag, and the anchor then moves onto the tag just inserted — exactly like
+  /// a text caret. Null (or the anchor tag being absent from the current
+  /// image) means the default append-at-end.
+  ///
+  /// The anchor is remembered by *name* across image switches: images that
+  /// contain the tag re-activate it, images that don't silently fall back to
+  /// appending (the memory is kept for the next image that has it).
+  ///
+  /// Every add path — AI suggestions, tag library, the add input — funnels
+  /// through [_insertTags], so one anchor covers them all.
+  String? get anchorTag =>
+      (_anchorTag != null && _tags.contains(_anchorTag)) ? _anchorTag : null;
+
+  void setAnchorTag(String? tag) {
+    if (tag == _anchorTag) return;
+    _anchorTag = tag;
+    notifyListeners();
+  }
+
+  void clearAnchor() => setAnchorTag(null);
+
+  /// Moves the anchor to the previous/next tag ([delta] of -1/1), cycling
+  /// through every after-a-tag slot plus the append-at-end state (null).
+  void moveAnchor(int delta) {
+    if (_tags.isEmpty) return;
+    final current = anchorTag;
+    if (current == null) {
+      setAnchorTag(delta > 0 ? _tags.first : _tags.last);
+      return;
+    }
+    final next = _tags.indexOf(current) + delta;
+    setAnchorTag(
+      (next < 0 || next >= _tags.length) ? null : _tags[next],
+    );
+  }
+
   void applyTag(String tag) {
     if (_tags.contains(tag)) return;
-    _tags = [..._tags, tag];
-    _writeTagsToText();
+    _insertTags([tag]);
   }
 
   void removeTag(String tag) {
     if (!_tags.contains(tag)) return;
+    // The anchor memory intentionally survives: this image just falls back
+    // to appending, and the next image containing the tag re-activates it.
     _tags = _tags.where((t) => t != tag).toList();
     _writeTagsToText();
   }
@@ -137,9 +179,21 @@ class EditorSession extends ChangeNotifier {
   void toggleTag(String tag) => hasTag(tag) ? removeTag(tag) : applyTag(tag);
 
   void addTagsFromInput(String input) {
-    final parts = _parseTags(input).where((t) => !_tags.contains(t)).toList();
+    _insertTags(
+      _parseTags(input).where((t) => !_tags.contains(t)).toList(),
+    );
+  }
+
+  void _insertTags(List<String> parts) {
     if (parts.isEmpty) return;
-    _tags = [..._tags, ...parts];
+    final anchor = anchorTag;
+    final at = anchor == null ? _tags.length : _tags.indexOf(anchor) + 1;
+    _tags = [..._tags]..insertAll(at, parts);
+    if (anchor != null) {
+      // The anchor rides along onto the newest insert, so consecutive adds
+      // land in click order and the highlight always marks the true slot.
+      _anchorTag = parts.last;
+    }
     _writeTagsToText();
   }
 
@@ -149,18 +203,25 @@ class EditorSession extends ChangeNotifier {
     final tag = next.removeAt(oldIndex);
     next.insert(newIndex, tag);
     _tags = next;
+    // The anchor is a tag name; it follows the tag wherever it moves.
     _writeTagsToText();
   }
 
   /// Replaces the tag at [index] with the (comma-splittable) replacement.
   void replaceTagAt(int index, String replacement) {
+    final replaced = _tags[index];
     final parts = _parseTags(replacement);
     final next = [..._tags];
     next.removeAt(index);
     // Re-de-duplicate against the remaining tags.
     final seen = next.toSet();
-    next.insertAll(index, parts.where(seen.add));
+    final inserted = parts.where(seen.add).toList();
+    next.insertAll(index, inserted);
     _tags = next;
+    // Renaming the anchored tag keeps the anchor on its successor.
+    if (replaced == _anchorTag && inserted.isNotEmpty) {
+      _anchorTag = inserted.last;
+    }
     _writeTagsToText();
   }
 
@@ -206,6 +267,8 @@ class EditorSession extends ChangeNotifier {
     if (text == _lastText) return;
     _lastText = text;
     _tags = _parseTags(text);
+    // A raw text edit needs no anchor bookkeeping: the anchor is a name and
+    // simply deactivates while absent from the parsed list.
     _saveState = SaveState.dirty;
     _autoSaveTimer?.cancel();
     if (_autoSaveEnabled && _image != null) {

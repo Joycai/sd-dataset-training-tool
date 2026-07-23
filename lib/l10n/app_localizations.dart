@@ -428,6 +428,24 @@ abstract class AppLocalizations {
   /// **'Sort mode: drag tags to reorder'**
   String get tagSortModeTooltip;
 
+  /// No description provided for @tagAnchorHolderTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Set insert anchor: new tags are added after this tag ([ / ] to move, click again to clear)'**
+  String get tagAnchorHolderTooltip;
+
+  /// No description provided for @anchorStatusLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert anchor: {tag}'**
+  String anchorStatusLabel(String tag);
+
+  /// No description provided for @anchorClearTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'New tags are inserted after this tag; click to clear (back to append at end)'**
+  String get anchorClearTooltip;
+
   /// No description provided for @aiInterrogateButton.
   ///
   /// In en, this message translates to:

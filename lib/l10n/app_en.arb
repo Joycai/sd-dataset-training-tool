@@ -83,6 +83,16 @@
   "noTagsYet": "No tags yet.",
   "editTagTitle": "Edit Tag",
   "tagSortModeTooltip": "Sort mode: drag tags to reorder",
+  "tagAnchorHolderTooltip": "Set insert anchor: new tags are added after this tag ([ / ] to move, click again to clear)",
+  "anchorStatusLabel": "Insert anchor: {tag}",
+  "@anchorStatusLabel": {
+    "placeholders": {
+      "tag": {
+        "type": "String"
+      }
+    }
+  },
+  "anchorClearTooltip": "New tags are inserted after this tag; click to clear (back to append at end)",
 
   "aiInterrogateButton": "AI tag",
   "aiInterrogating": "Tagging…",
