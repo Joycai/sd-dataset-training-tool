@@ -470,6 +470,15 @@
   "resetDesc": "Restore defaults and clear the tag library. Images and caption files are not touched.",
   "resetAction": "Reset",
 
+  "accentTitle": "Theme Color",
+  "accentDesc": "Base color; surfaces, borders and highlights across the UI are tinted from it",
+  "accentTeal": "Teal",
+  "accentBlue": "Blue",
+  "accentIndigo": "Indigo",
+  "accentViolet": "Violet",
+  "accentRose": "Rose",
+  "accentGreen": "Green",
+
   "aboutSection": "About",
   "versionTitle": "Version",
   "versionDesc": "Current application version",

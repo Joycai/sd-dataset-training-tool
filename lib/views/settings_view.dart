@@ -50,6 +50,16 @@ class _SettingsViewState extends State<SettingsView> {
     appState.updateCaptionExtension(value);
   }
 
+  String _accentLabel(AppLocalizations l10n, AppAccentChoice choice) =>
+      switch (choice) {
+        AppAccentChoice.teal => l10n.accentTeal,
+        AppAccentChoice.blue => l10n.accentBlue,
+        AppAccentChoice.indigo => l10n.accentIndigo,
+        AppAccentChoice.violet => l10n.accentViolet,
+        AppAccentChoice.rose => l10n.accentRose,
+        AppAccentChoice.green => l10n.accentGreen,
+      };
+
   String _fontLabel(AppLocalizations l10n, AppFontChoice choice) =>
       switch (choice) {
         AppFontChoice.system => l10n.fontSystem,
@@ -279,6 +289,26 @@ class _SettingsViewState extends State<SettingsView> {
                                 appState.updateThemeMode(selection.first),
                           ),
                         ),
+                        _SettingsRow(
+                          title: l10n.accentTitle,
+                          description: l10n.accentDesc,
+                          control: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (final choice in AppAccentChoice.values)
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 8),
+                                  child: _AccentSwatch(
+                                    color: choice.swatch,
+                                    selected: appState.accentChoice == choice,
+                                    tooltip: _accentLabel(l10n, choice),
+                                    onTap: () =>
+                                        appState.updateAccentChoice(choice),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 18),
@@ -464,6 +494,55 @@ class _FontDownloadDialogState extends State<_FontDownloadDialog> {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// A single tappable accent color dot. The selected one carries a ring in
+/// the surrounding line color plus a check mark for a non-color cue.
+class _AccentSwatch extends StatelessWidget {
+  const _AccentSwatch({
+    required this.color,
+    required this.selected,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final Color color;
+  final bool selected;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    // A check that stays legible on any swatch hue.
+    final checkColor =
+        ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+            ? Colors.white
+            : Colors.black;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: 26,
+          height: 26,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: selected ? onSurface : semantic.line,
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: selected
+              ? Icon(Icons.check, size: 15, color: checkColor)
+              : null,
+        ),
       ),
     );
   }

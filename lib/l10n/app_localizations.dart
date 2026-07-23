@@ -1608,6 +1608,54 @@ abstract class AppLocalizations {
   /// **'Reset'**
   String get resetAction;
 
+  /// No description provided for @accentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme Color'**
+  String get accentTitle;
+
+  /// No description provided for @accentDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Base color; surfaces, borders and highlights across the UI are tinted from it'**
+  String get accentDesc;
+
+  /// No description provided for @accentTeal.
+  ///
+  /// In en, this message translates to:
+  /// **'Teal'**
+  String get accentTeal;
+
+  /// No description provided for @accentBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get accentBlue;
+
+  /// No description provided for @accentIndigo.
+  ///
+  /// In en, this message translates to:
+  /// **'Indigo'**
+  String get accentIndigo;
+
+  /// No description provided for @accentViolet.
+  ///
+  /// In en, this message translates to:
+  /// **'Violet'**
+  String get accentViolet;
+
+  /// No description provided for @accentRose.
+  ///
+  /// In en, this message translates to:
+  /// **'Rose'**
+  String get accentRose;
+
+  /// No description provided for @accentGreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Green'**
+  String get accentGreen;
+
   /// No description provided for @aboutSection.
   ///
   /// In en, this message translates to:

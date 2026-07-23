@@ -87,6 +87,17 @@ class SettingsService {
     return prefs.getString('browsingDirectory');
   }
 
+  /// 主题强调色，存 AppAccentChoice 的稳定字符串 id（teal/blue/…）。
+  Future<void> saveAccentChoice(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('accentChoice', id);
+  }
+
+  Future<String?> loadAccentChoice() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('accentChoice');
+  }
+
   Future<void> saveThemeMode(ThemeMode themeMode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('themeMode', themeMode.name);

@@ -71,8 +71,16 @@ class MyApp extends StatelessWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       locale: appState.currentLocale,
-      theme: buildAppTheme(Brightness.light, fontFamily: appState.uiFontFamily),
-      darkTheme: buildAppTheme(Brightness.dark, fontFamily: appState.uiFontFamily),
+      theme: buildAppTheme(
+        Brightness.light,
+        fontFamily: appState.uiFontFamily,
+        accent: appState.accentChoice,
+      ),
+      darkTheme: buildAppTheme(
+        Brightness.dark,
+        fontFamily: appState.uiFontFamily,
+        accent: appState.accentChoice,
+      ),
       themeMode: appState.currentThemeMode,
       home: const MyHomePage(),
     );
