@@ -868,6 +868,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resetAction => 'Reset';
 
   @override
+  String get accentTitle => 'Theme Color';
+
+  @override
+  String get accentDesc => 'Accent color for selection and focus highlights';
+
+  @override
+  String get accentTeal => 'Teal';
+
+  @override
+  String get accentBlue => 'Blue';
+
+  @override
+  String get accentIndigo => 'Indigo';
+
+  @override
+  String get accentViolet => 'Violet';
+
+  @override
+  String get accentRose => 'Rose';
+
+  @override
+  String get accentGreen => 'Green';
+
+  @override
   String get aboutSection => 'About';
 
   @override

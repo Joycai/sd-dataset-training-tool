@@ -34,6 +34,91 @@ abstract final class AppTokens {
   static const lightDanger = Color(0xFFB34545);
 }
 
+/// User-selectable accent (the theme "color"). Each choice carries the
+/// bright variant used as `primary` in dark mode, the deeper variant for
+/// light mode, and the matching `onAccent` ink for each — mirroring the
+/// original teal token set. [swatch] is the mid-tone shown in the settings
+/// picker so it reads on both light and dark cards.
+///
+/// Persist with [id] (a stable string); never store the enum index.
+enum AppAccentChoice {
+  teal(
+    id: 'teal',
+    swatch: Color(0xFF3AA5B0),
+    darkAccent: AppTokens.darkAccent,
+    darkOnAccent: AppTokens.darkOnAccent,
+    lightAccent: AppTokens.lightAccent,
+    lightOnAccent: AppTokens.lightOnAccent,
+  ),
+  blue(
+    id: 'blue',
+    swatch: Color(0xFF3E82C4),
+    darkAccent: Color(0xFF5B9BD5),
+    darkOnAccent: Color(0xFF0E1F30),
+    lightAccent: Color(0xFF3070B0),
+    lightOnAccent: Color(0xFFFFFFFF),
+  ),
+  indigo(
+    id: 'indigo',
+    swatch: Color(0xFF6E79D6),
+    darkAccent: Color(0xFF8C9EEA),
+    darkOnAccent: Color(0xFF141634),
+    lightAccent: Color(0xFF4F5BC4),
+    lightOnAccent: Color(0xFFFFFFFF),
+  ),
+  violet(
+    id: 'violet',
+    swatch: Color(0xFF9A5FCB),
+    darkAccent: Color(0xFFB589E0),
+    darkOnAccent: Color(0xFF261238),
+    lightAccent: Color(0xFF8A4FC0),
+    lightOnAccent: Color(0xFFFFFFFF),
+  ),
+  rose(
+    id: 'rose',
+    swatch: Color(0xFFCE5D80),
+    darkAccent: Color(0xFFE07A9A),
+    darkOnAccent: Color(0xFF34121E),
+    lightAccent: Color(0xFFC04E72),
+    lightOnAccent: Color(0xFFFFFFFF),
+  ),
+  green(
+    id: 'green',
+    swatch: Color(0xFF4CA378),
+    darkAccent: Color(0xFF5FB98A),
+    darkOnAccent: Color(0xFF0E2A1E),
+    lightAccent: Color(0xFF3C8F63),
+    lightOnAccent: Color(0xFFFFFFFF),
+  );
+
+  const AppAccentChoice({
+    required this.id,
+    required this.swatch,
+    required this.darkAccent,
+    required this.darkOnAccent,
+    required this.lightAccent,
+    required this.lightOnAccent,
+  });
+
+  final String id;
+  final Color swatch;
+  final Color darkAccent;
+  final Color darkOnAccent;
+  final Color lightAccent;
+  final Color lightOnAccent;
+
+  Color accentFor(Brightness b) =>
+      b == Brightness.dark ? darkAccent : lightAccent;
+
+  Color onAccentFor(Brightness b) =>
+      b == Brightness.dark ? darkOnAccent : lightOnAccent;
+
+  static AppAccentChoice fromId(String? id) => values.firstWhere(
+        (c) => c.id == id,
+        orElse: () => AppAccentChoice.teal,
+      );
+}
+
 /// Data-state colors that must stay distinct from the accent.
 class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   const AppSemanticColors({
@@ -157,16 +242,23 @@ List<String> _cjkFallback() {
 }
 
 /// [fontFamily] 为 null 时用系统默认字体；否则用 FontLoader 注册的家族名。
-ThemeData buildAppTheme(Brightness brightness, {String? fontFamily}) {
+/// [accent] 决定 primary/secondary 强调色（选中/焦点），默认青色。
+ThemeData buildAppTheme(
+  Brightness brightness, {
+  String? fontFamily,
+  AppAccentChoice accent = AppAccentChoice.teal,
+}) {
   final isDark = brightness == Brightness.dark;
   final semantic = isDark ? AppSemanticColors.dark : AppSemanticColors.light;
+  final accentColor = accent.accentFor(brightness);
+  final onAccent = accent.onAccentFor(brightness);
 
   final scheme = isDark
-      ? const ColorScheme.dark(
-          primary: AppTokens.darkAccent,
-          onPrimary: AppTokens.darkOnAccent,
-          secondary: AppTokens.darkAccent,
-          onSecondary: AppTokens.darkOnAccent,
+      ? ColorScheme.dark(
+          primary: accentColor,
+          onPrimary: onAccent,
+          secondary: accentColor,
+          onSecondary: onAccent,
           surface: AppTokens.darkBg0,
           onSurface: AppTokens.darkInk,
           onSurfaceVariant: AppTokens.darkMuted,
@@ -175,13 +267,13 @@ ThemeData buildAppTheme(Brightness brightness, {String? fontFamily}) {
           outline: AppTokens.darkLine,
           outlineVariant: AppTokens.darkLine,
           error: AppTokens.darkDanger,
-          onError: Color(0xFF2A0E0E),
+          onError: const Color(0xFF2A0E0E),
         )
-      : const ColorScheme.light(
-          primary: AppTokens.lightAccent,
-          onPrimary: AppTokens.lightOnAccent,
-          secondary: AppTokens.lightAccent,
-          onSecondary: AppTokens.lightOnAccent,
+      : ColorScheme.light(
+          primary: accentColor,
+          onPrimary: onAccent,
+          secondary: accentColor,
+          onSecondary: onAccent,
           surface: AppTokens.lightBg0,
           onSurface: AppTokens.lightInk,
           onSurfaceVariant: AppTokens.lightMuted,

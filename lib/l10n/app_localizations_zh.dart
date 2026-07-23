@@ -845,6 +845,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resetAction => '重置';
 
   @override
+  String get accentTitle => '主题颜色';
+
+  @override
+  String get accentDesc => '选中与焦点高亮所用的强调色';
+
+  @override
+  String get accentTeal => '青色';
+
+  @override
+  String get accentBlue => '蓝色';
+
+  @override
+  String get accentIndigo => '靛蓝';
+
+  @override
+  String get accentViolet => '紫色';
+
+  @override
+  String get accentRose => '玫红';
+
+  @override
+  String get accentGreen => '绿色';
+
+  @override
   String get aboutSection => '关于';
 
   @override

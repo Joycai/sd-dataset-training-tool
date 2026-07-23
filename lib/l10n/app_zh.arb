@@ -285,6 +285,15 @@
   "resetDesc": "恢复默认值并清空常用标签库，不影响任何图片与 caption 文件",
   "resetAction": "重置",
 
+  "accentTitle": "主题颜色",
+  "accentDesc": "选中与焦点高亮所用的强调色",
+  "accentTeal": "青色",
+  "accentBlue": "蓝色",
+  "accentIndigo": "靛蓝",
+  "accentViolet": "紫色",
+  "accentRose": "玫红",
+  "accentGreen": "绿色",
+
   "aboutSection": "关于",
   "versionTitle": "版本",
   "versionDesc": "当前应用版本",

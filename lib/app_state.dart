@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'models/tag_group.dart';
 import 'services/font_service.dart';
 import 'services/settings_service.dart';
+import 'theme/app_theme.dart';
 
 enum MainView {
   editor,
@@ -261,6 +262,8 @@ class AppState extends ChangeNotifier {
     _locale = await _settingsService.loadLocale();
     _fontChoice = AppFontChoiceX.fromId(await _settingsService.loadFontChoice());
     _themeMode = await _settingsService.loadThemeMode();
+    _accentChoice =
+        AppAccentChoice.fromId(await _settingsService.loadAccentChoice());
     _crossAxisCount = await _settingsService.loadCrossAxisCount();
     _thumbnailFill = await _settingsService.loadThumbnailFill();
     _includeSubdirectories = await _settingsService.loadIncludeSubdirectories();
@@ -407,6 +410,17 @@ class AppState extends ChangeNotifier {
     _themeMode = mode;
     notifyListeners();
     await _settingsService.saveThemeMode(mode);
+  }
+
+  // 非 late：与字体一样，理论上可能在 loadSettings 完成前被读到。
+  AppAccentChoice _accentChoice = AppAccentChoice.teal;
+  AppAccentChoice get accentChoice => _accentChoice;
+
+  Future<void> updateAccentChoice(AppAccentChoice choice) async {
+    if (_accentChoice == choice) return;
+    _accentChoice = choice;
+    notifyListeners();
+    await _settingsService.saveAccentChoice(choice.id);
   }
 
   MainView _mainView = MainView.editor;
