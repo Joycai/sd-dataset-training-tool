@@ -866,4 +866,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resetAction => 'Reset';
+
+  @override
+  String get aboutSection => 'About';
+
+  @override
+  String get versionTitle => 'Version';
+
+  @override
+  String get versionDesc => 'Current application version';
+
+  @override
+  String get licenseTitle => 'License';
+
+  @override
+  String get sourceCodeTitle => 'Source Code';
 }

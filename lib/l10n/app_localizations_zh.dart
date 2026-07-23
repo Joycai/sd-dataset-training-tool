@@ -843,4 +843,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get resetAction => '重置';
+
+  @override
+  String get aboutSection => '关于';
+
+  @override
+  String get versionTitle => '版本';
+
+  @override
+  String get versionDesc => '当前应用版本';
+
+  @override
+  String get licenseTitle => '开源许可';
+
+  @override
+  String get sourceCodeTitle => '源代码';
 }

@@ -468,5 +468,11 @@
   "autoSaveTitle": "Auto-save",
   "autoSaveDesc": "Write the caption file 0.8 s after you stop editing",
   "resetDesc": "Restore defaults and clear the tag library. Images and caption files are not touched.",
-  "resetAction": "Reset"
+  "resetAction": "Reset",
+
+  "aboutSection": "About",
+  "versionTitle": "Version",
+  "versionDesc": "Current application version",
+  "licenseTitle": "License",
+  "sourceCodeTitle": "Source Code"
 }
