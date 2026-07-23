@@ -655,6 +655,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get groupEditModeTooltip => 'Group edit mode';
 
   @override
+  String get changeGroupColorTooltip => 'Change group color';
+
+  @override
+  String get moveGroupUpTooltip => 'Move group up';
+
+  @override
+  String get moveGroupDownTooltip => 'Move group down';
+
+  @override
   String get groupEditHint => 'Click to select, right-click to send to a group';
 
   @override

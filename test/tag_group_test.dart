@@ -84,6 +84,28 @@ void main() {
       expect(state.ungroupedTags, ['a', 'b', 'c', 'd']);
     });
 
+    test('reorderTagGroup moves by delta and clamps at the ends', () async {
+      final g1 = await state.createTagGroup('one', 1);
+      final g2 = await state.createTagGroup('two', 2);
+      final g3 = await state.createTagGroup('three', 3);
+
+      await state.reorderTagGroup(g3.id, -1);
+      expect(state.tagGroups.map((g) => g.id), [g1.id, g3.id, g2.id]);
+
+      await state.reorderTagGroup(g1.id, 1);
+      expect(state.tagGroups.map((g) => g.id), [g3.id, g1.id, g2.id]);
+
+      // Clamped: already first/last stays put.
+      await state.reorderTagGroup(g3.id, -1);
+      expect(state.tagGroups.first.id, g3.id);
+      await state.reorderTagGroup(g2.id, 1);
+      expect(state.tagGroups.last.id, g2.id);
+
+      // Unknown id is a no-op.
+      await state.reorderTagGroup('nope', 1);
+      expect(state.tagGroups, hasLength(3));
+    });
+
     test('rename and recolor', () async {
       final g = await state.createTagGroup('one', 1);
       await state.updateTagGroup(g.id, name: 'renamed', color: 42);

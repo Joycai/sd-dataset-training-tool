@@ -637,6 +637,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get groupEditModeTooltip => '分组编辑模式';
 
   @override
+  String get changeGroupColorTooltip => '修改分组颜色';
+
+  @override
+  String get moveGroupUpTooltip => '上移分组';
+
+  @override
+  String get moveGroupDownTooltip => '下移分组';
+
+  @override
   String get groupEditHint => '单击选中，右键发送到分组';
 
   @override

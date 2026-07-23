@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
+import 'package:dataset_training_tool/models/tag_group.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/editor_session.dart';
@@ -198,5 +199,62 @@ void main() {
 
     expect(appState.tagGroups, isEmpty);
     expect(appState.ungroupedTags, ['alpha', 'beta', 'gamma']);
+  });
+
+  testWidgets('edit mode: arrows reorder groups and disable at the ends',
+      (tester) async {
+    final g1 = await appState.createTagGroup('one', 1);
+    final g2 = await appState.createTagGroup('two', 2);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    // Outside edit mode the headers carry no arrows.
+    expect(find.byIcon(Icons.arrow_upward), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.checklist));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.arrow_upward), findsNWidgets(2));
+
+    // Move "two" up above "one".
+    await tester.tap(find.byIcon(Icons.arrow_upward).last);
+    await tester.pumpAndSettle();
+    expect(appState.tagGroups.map((g) => g.id), [g2.id, g1.id]);
+
+    // Now "two" is first: its up arrow is the disabled one — tapping it
+    // changes nothing.
+    await tester.tap(find.byIcon(Icons.arrow_upward).first);
+    await tester.pumpAndSettle();
+    expect(appState.tagGroups.map((g) => g.id), [g2.id, g1.id]);
+  });
+
+  testWidgets('edit mode: color dot opens swatches and recolors the group',
+      (tester) async {
+    final g = await appState.createTagGroup('outfit', kTagGroupPresetColors[0]);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.checklist));
+    await tester.pumpAndSettle();
+
+    // The header dot sits just left of the group name.
+    final nameRect = tester.getRect(find.text('outfit'));
+    await tester.tapAt(Offset(nameRect.left - 12, nameRect.center.dy));
+    await tester.pumpAndSettle();
+
+    // Pick the second preset swatch from the popup.
+    final swatch = find.byWidgetPredicate((w) {
+      if (w is! Container || w.decoration is! BoxDecoration) return false;
+      final d = w.decoration! as BoxDecoration;
+      return d.shape == BoxShape.circle &&
+          d.color == Color(kTagGroupPresetColors[1]);
+    });
+    await tester.tap(swatch.last);
+    await tester.pumpAndSettle();
+
+    expect(appState.tagGroups.single.color, kTagGroupPresetColors[1]);
+    expect(appState.tagGroups.single.name, 'outfit');
+    expect(g.id, appState.tagGroups.single.id);
   });
 }
