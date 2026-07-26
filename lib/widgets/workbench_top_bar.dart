@@ -13,9 +13,16 @@ import '../views/panels/batch_tag_dialog.dart';
 /// Top bar of the workbench: the dataset location label + path chip, and
 /// the theme / settings actions.
 class WorkbenchTopBar extends StatelessWidget {
-  const WorkbenchTopBar({super.key, required this.onOpenFolder});
+  const WorkbenchTopBar({
+    super.key,
+    required this.onOpenFolder,
+    required this.agentOpen,
+    required this.onToggleAgent,
+  });
 
   final VoidCallback onOpenFolder;
+  final bool agentOpen;
+  final VoidCallback onToggleAgent;
 
   IconData _themeIcon(ThemeMode mode) {
     switch (mode) {
@@ -149,6 +156,13 @@ class WorkbenchTopBar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Container(width: 1, height: 18, color: semantic.line),
+          ),
+          IconButton(
+            icon: const Icon(Icons.smart_toy_outlined, size: 18),
+            tooltip: l10n.agentPanelTitle,
+            color: agentOpen ? scheme.primary : semantic.muted,
+            visualDensity: VisualDensity.compact,
+            onPressed: onToggleAgent,
           ),
           IconButton(
             icon: Icon(_themeIcon(appState.currentThemeMode), size: 18),

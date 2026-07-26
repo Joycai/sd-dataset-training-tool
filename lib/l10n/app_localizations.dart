@@ -1685,6 +1685,330 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Source Code'**
   String get sourceCodeTitle;
+
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
+
+  /// No description provided for @agentPanelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Assistant'**
+  String get agentPanelTitle;
+
+  /// No description provided for @agentNewSession.
+  ///
+  /// In en, this message translates to:
+  /// **'New conversation'**
+  String get agentNewSession;
+
+  /// No description provided for @agentStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get agentStop;
+
+  /// No description provided for @agentSend.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get agentSend;
+
+  /// No description provided for @agentInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask about or edit your dataset…'**
+  String get agentInputHint;
+
+  /// No description provided for @agentNoProfileHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No LLM backend configured yet. Add one in Settings to start using the assistant.'**
+  String get agentNoProfileHint;
+
+  /// No description provided for @agentOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get agentOpenSettings;
+
+  /// No description provided for @agentRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking…'**
+  String get agentRunning;
+
+  /// No description provided for @agentTokensUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tokens used this conversation'**
+  String agentTokensUsed(int count);
+
+  /// No description provided for @agentExpandInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand input'**
+  String get agentExpandInput;
+
+  /// No description provided for @agentComposerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Compose message'**
+  String get agentComposerTitle;
+
+  /// No description provided for @agentQuestionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant is asking'**
+  String get agentQuestionTitle;
+
+  /// No description provided for @agentQuestionCustomHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a custom answer…'**
+  String get agentQuestionCustomHint;
+
+  /// No description provided for @agentQuestionDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss without answering'**
+  String get agentQuestionDismiss;
+
+  /// No description provided for @agentStoppedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped.'**
+  String get agentStoppedNotice;
+
+  /// No description provided for @agentSessionResetNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Dataset changed — conversation reset.'**
+  String get agentSessionResetNotice;
+
+  /// No description provided for @agentErrorNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {message}'**
+  String agentErrorNotice(String message);
+
+  /// No description provided for @agentConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant wants to modify captions'**
+  String get agentConfirmTitle;
+
+  /// No description provided for @agentConfirmAllow.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow'**
+  String get agentConfirmAllow;
+
+  /// No description provided for @agentConfirmAllowAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow all this conversation'**
+  String get agentConfirmAllowAll;
+
+  /// No description provided for @agentConfirmReject.
+  ///
+  /// In en, this message translates to:
+  /// **'Reject'**
+  String get agentConfirmReject;
+
+  /// No description provided for @agentConfirmWritesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm writes'**
+  String get agentConfirmWritesTitle;
+
+  /// No description provided for @agentConfirmWritesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask before the assistant modifies caption files; every change stays undoable either way'**
+  String get agentConfirmWritesDesc;
+
+  /// No description provided for @llmSection.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Assistant (LLM)'**
+  String get llmSection;
+
+  /// No description provided for @llmActiveProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Active backend'**
+  String get llmActiveProfile;
+
+  /// No description provided for @llmActiveProfileDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Which configured LLM backend the assistant talks to'**
+  String get llmActiveProfileDesc;
+
+  /// No description provided for @llmNoProfiles.
+  ///
+  /// In en, this message translates to:
+  /// **'None configured'**
+  String get llmNoProfiles;
+
+  /// No description provided for @llmManageProfiles.
+  ///
+  /// In en, this message translates to:
+  /// **'Backends'**
+  String get llmManageProfiles;
+
+  /// No description provided for @llmManageProfilesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Add, edit, test and remove LLM backend configurations'**
+  String get llmManageProfilesDesc;
+
+  /// No description provided for @llmManageAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage'**
+  String get llmManageAction;
+
+  /// No description provided for @llmProfilesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LLM Backends'**
+  String get llmProfilesTitle;
+
+  /// No description provided for @llmNewProfileName.
+  ///
+  /// In en, this message translates to:
+  /// **'New backend'**
+  String get llmNewProfileName;
+
+  /// No description provided for @llmSelectProfileHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a backend on the left, or add a new one.'**
+  String get llmSelectProfileHint;
+
+  /// No description provided for @llmProfileName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get llmProfileName;
+
+  /// No description provided for @llmPreset.
+  ///
+  /// In en, this message translates to:
+  /// **'Preset'**
+  String get llmPreset;
+
+  /// No description provided for @llmKindOpenAi.
+  ///
+  /// In en, this message translates to:
+  /// **'OpenAI-compatible'**
+  String get llmKindOpenAi;
+
+  /// No description provided for @llmKindAnthropic.
+  ///
+  /// In en, this message translates to:
+  /// **'Anthropic'**
+  String get llmKindAnthropic;
+
+  /// No description provided for @llmBaseUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Base URL'**
+  String get llmBaseUrl;
+
+  /// No description provided for @llmApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key'**
+  String get llmApiKey;
+
+  /// No description provided for @llmApiKeyPlaintextNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Stored as plain text in local settings.'**
+  String get llmApiKeyPlaintextNote;
+
+  /// No description provided for @llmModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get llmModel;
+
+  /// No description provided for @llmContextWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Context window'**
+  String get llmContextWindow;
+
+  /// No description provided for @llmMaxOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Max output'**
+  String get llmMaxOutput;
+
+  /// No description provided for @llmTemperature.
+  ///
+  /// In en, this message translates to:
+  /// **'Temperature'**
+  String get llmTemperature;
+
+  /// No description provided for @llmSupportsVision.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision (multimodal)'**
+  String get llmSupportsVision;
+
+  /// No description provided for @llmSupportsVisionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable if the model accepts images; unlocks image tools in later phases'**
+  String get llmSupportsVisionDesc;
+
+  /// No description provided for @llmFetchModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch model list'**
+  String get llmFetchModels;
+
+  /// No description provided for @llmNoModelsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The server returned no models'**
+  String get llmNoModelsFound;
+
+  /// No description provided for @llmTestConnection.
+  ///
+  /// In en, this message translates to:
+  /// **'Test connection'**
+  String get llmTestConnection;
+
+  /// No description provided for @llmTestOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection OK ({ms} ms)'**
+  String llmTestOk(int ms);
+
+  /// No description provided for @llmTestFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed: {error}'**
+  String llmTestFailed(String error);
+
+  /// No description provided for @llmDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete backend'**
+  String get llmDeleteConfirmTitle;
+
+  /// No description provided for @llmDeleteConfirmContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"? This cannot be undone.'**
+  String llmDeleteConfirmContent(String name);
 }
 
 class _AppLocalizationsDelegate

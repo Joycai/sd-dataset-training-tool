@@ -882,4 +882,176 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get sourceCodeTitle => '源代码';
+
+  @override
+  String get close => '关闭';
+
+  @override
+  String get agentPanelTitle => 'AI 助手';
+
+  @override
+  String get agentNewSession => '新会话';
+
+  @override
+  String get agentStop => '停止';
+
+  @override
+  String get agentSend => '发送';
+
+  @override
+  String get agentInputHint => '向助手提问，或下达整理数据集的指令…';
+
+  @override
+  String get agentNoProfileHint => '尚未配置 LLM 后端。请先到设置中添加一个后端，再使用助手。';
+
+  @override
+  String get agentOpenSettings => '打开设置';
+
+  @override
+  String get agentRunning => '思考中…';
+
+  @override
+  String agentTokensUsed(int count) {
+    return '本会话已用 $count tokens';
+  }
+
+  @override
+  String get agentExpandInput => '放大输入框';
+
+  @override
+  String get agentComposerTitle => '编辑消息';
+
+  @override
+  String get agentQuestionTitle => '助手向你提问';
+
+  @override
+  String get agentQuestionCustomHint => '输入自定义回答…';
+
+  @override
+  String get agentQuestionDismiss => '不回答';
+
+  @override
+  String get agentStoppedNotice => '已停止。';
+
+  @override
+  String get agentSessionResetNotice => '数据集已切换，会话已重置。';
+
+  @override
+  String agentErrorNotice(String message) {
+    return '出错：$message';
+  }
+
+  @override
+  String get agentConfirmTitle => '助手请求修改 caption';
+
+  @override
+  String get agentConfirmAllow => '允许';
+
+  @override
+  String get agentConfirmAllowAll => '本会话全部允许';
+
+  @override
+  String get agentConfirmReject => '拒绝';
+
+  @override
+  String get agentConfirmWritesTitle => '写操作需确认';
+
+  @override
+  String get agentConfirmWritesDesc => '助手修改 caption 文件前先征求确认；无论开关与否，所有改动都可撤销';
+
+  @override
+  String get llmSection => 'AI 助手（LLM）';
+
+  @override
+  String get llmActiveProfile => '使用的后端';
+
+  @override
+  String get llmActiveProfileDesc => '助手当前对话所使用的 LLM 后端';
+
+  @override
+  String get llmNoProfiles => '未配置';
+
+  @override
+  String get llmManageProfiles => '后端配置';
+
+  @override
+  String get llmManageProfilesDesc => '添加、编辑、测试和删除 LLM 后端配置';
+
+  @override
+  String get llmManageAction => '管理';
+
+  @override
+  String get llmProfilesTitle => 'LLM 后端';
+
+  @override
+  String get llmNewProfileName => '新后端';
+
+  @override
+  String get llmSelectProfileHint => '在左侧选择一个后端，或新增一个。';
+
+  @override
+  String get llmProfileName => '名称';
+
+  @override
+  String get llmPreset => '预设';
+
+  @override
+  String get llmKindOpenAi => 'OpenAI 兼容';
+
+  @override
+  String get llmKindAnthropic => 'Anthropic';
+
+  @override
+  String get llmBaseUrl => 'Base URL';
+
+  @override
+  String get llmApiKey => 'API Key';
+
+  @override
+  String get llmApiKeyPlaintextNote => '以明文保存在本地设置中。';
+
+  @override
+  String get llmModel => '模型';
+
+  @override
+  String get llmContextWindow => '上下文窗口';
+
+  @override
+  String get llmMaxOutput => '最大输出';
+
+  @override
+  String get llmTemperature => '温度';
+
+  @override
+  String get llmSupportsVision => '视觉（多模态）';
+
+  @override
+  String get llmSupportsVisionDesc => '模型支持读图时开启；后续版本将解锁看图工具';
+
+  @override
+  String get llmFetchModels => '获取模型列表';
+
+  @override
+  String get llmNoModelsFound => '服务器未返回任何模型';
+
+  @override
+  String get llmTestConnection => '测试连接';
+
+  @override
+  String llmTestOk(int ms) {
+    return '连接成功（$ms ms）';
+  }
+
+  @override
+  String llmTestFailed(String error) {
+    return '失败：$error';
+  }
+
+  @override
+  String get llmDeleteConfirmTitle => '删除后端';
+
+  @override
+  String llmDeleteConfirmContent(String name) {
+    return '确定删除“$name”吗？此操作无法撤销。';
+  }
 }

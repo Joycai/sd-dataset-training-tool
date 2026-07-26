@@ -94,6 +94,9 @@ class DatasetState extends ChangeNotifier {
   /// Parsed tags of an image's caption ([] when uncaptioned).
   List<String> tagsOf(String imagePath) => _tagsByPath[imagePath] ?? const [];
 
+  /// Caption extension of the last scan (defaults to `.txt`).
+  String get captionExtension => _captionExtension;
+
   /// Caption file path for an image, using the extension of the last scan.
   String captionPathFor(String imagePath) =>
       '${p.withoutExtension(imagePath)}$_captionExtension';

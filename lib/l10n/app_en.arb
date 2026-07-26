@@ -483,5 +483,87 @@
   "versionTitle": "Version",
   "versionDesc": "Current application version",
   "licenseTitle": "License",
-  "sourceCodeTitle": "Source Code"
+  "sourceCodeTitle": "Source Code",
+
+  "close": "Close",
+  "agentPanelTitle": "AI Assistant",
+  "agentNewSession": "New conversation",
+  "agentStop": "Stop",
+  "agentSend": "Send",
+  "agentInputHint": "Ask about or edit your dataset…",
+  "agentNoProfileHint": "No LLM backend configured yet. Add one in Settings to start using the assistant.",
+  "agentOpenSettings": "Open Settings",
+  "agentRunning": "Thinking…",
+  "agentTokensUsed": "{count} tokens used this conversation",
+  "@agentTokensUsed": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "agentExpandInput": "Expand input",
+  "agentComposerTitle": "Compose message",
+  "agentQuestionTitle": "The assistant is asking",
+  "agentQuestionCustomHint": "Type a custom answer…",
+  "agentQuestionDismiss": "Dismiss without answering",
+  "agentStoppedNotice": "Stopped.",
+  "agentSessionResetNotice": "Dataset changed — conversation reset.",
+  "agentErrorNotice": "Error: {message}",
+  "@agentErrorNotice": {
+    "placeholders": {
+      "message": { "type": "String" }
+    }
+  },
+
+  "agentConfirmTitle": "The assistant wants to modify captions",
+  "agentConfirmAllow": "Allow",
+  "agentConfirmAllowAll": "Allow all this conversation",
+  "agentConfirmReject": "Reject",
+  "agentConfirmWritesTitle": "Confirm writes",
+  "agentConfirmWritesDesc": "Ask before the assistant modifies caption files; every change stays undoable either way",
+
+  "llmSection": "AI Assistant (LLM)",
+  "llmActiveProfile": "Active backend",
+  "llmActiveProfileDesc": "Which configured LLM backend the assistant talks to",
+  "llmNoProfiles": "None configured",
+  "llmManageProfiles": "Backends",
+  "llmManageProfilesDesc": "Add, edit, test and remove LLM backend configurations",
+  "llmManageAction": "Manage",
+  "llmProfilesTitle": "LLM Backends",
+  "llmNewProfileName": "New backend",
+  "llmSelectProfileHint": "Select a backend on the left, or add a new one.",
+  "llmProfileName": "Name",
+  "llmPreset": "Preset",
+  "llmKindOpenAi": "OpenAI-compatible",
+  "llmKindAnthropic": "Anthropic",
+  "llmBaseUrl": "Base URL",
+  "llmApiKey": "API Key",
+  "llmApiKeyPlaintextNote": "Stored as plain text in local settings.",
+  "llmModel": "Model",
+  "llmContextWindow": "Context window",
+  "llmMaxOutput": "Max output",
+  "llmTemperature": "Temperature",
+  "llmSupportsVision": "Vision (multimodal)",
+  "llmSupportsVisionDesc": "Enable if the model accepts images; unlocks image tools in later phases",
+  "llmFetchModels": "Fetch model list",
+  "llmNoModelsFound": "The server returned no models",
+  "llmTestConnection": "Test connection",
+  "llmTestOk": "Connection OK ({ms} ms)",
+  "@llmTestOk": {
+    "placeholders": {
+      "ms": { "type": "int" }
+    }
+  },
+  "llmTestFailed": "Failed: {error}",
+  "@llmTestFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "llmDeleteConfirmTitle": "Delete backend",
+  "llmDeleteConfirmContent": "Delete \"{name}\"? This cannot be undone.",
+  "@llmDeleteConfirmContent": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  }
 }

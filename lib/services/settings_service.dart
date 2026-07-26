@@ -261,6 +261,78 @@ class SettingsService {
     return prefs.getStringList('aiIgnoreTags') ?? [];
   }
 
+  // --- LLM 助手 (agent) ---
+
+  /// 已配置的 LLM 后端列表（JSON blob, 见 models/llm_models.dart）。
+  Future<void> saveLlmProfilesJson(String json) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('llmProviderProfiles', json);
+  }
+
+  Future<String?> loadLlmProfilesJson() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('llmProviderProfiles');
+  }
+
+  /// 当前启用的后端 profile id；null 表示未选择。
+  Future<void> saveLlmActiveProfileId(String? id) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (id == null) {
+      await prefs.remove('llmActiveProfileId');
+    } else {
+      await prefs.setString('llmActiveProfileId', id);
+    }
+  }
+
+  Future<String?> loadLlmActiveProfileId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('llmActiveProfileId');
+  }
+
+  /// agent 写操作是否需要用户确认（默认 true；Phase 2 使用）。
+  Future<void> saveAgentConfirmWrites(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('agentConfirmWrites', value);
+  }
+
+  Future<bool> loadAgentConfirmWrites() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('agentConfirmWrites') ?? true;
+  }
+
+  /// 单个 agent 会话的累计 token 硬上限。
+  Future<void> saveAgentSessionTokenCap(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('agentSessionTokenCap', value);
+  }
+
+  Future<int> loadAgentSessionTokenCap() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('agentSessionTokenCap') ?? 1000000;
+  }
+
+  static const double defaultAgentPanelWidth = 320;
+
+  Future<void> saveAgentPanelWidth(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('agentPanelWidth', value);
+  }
+
+  Future<double> loadAgentPanelWidth() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble('agentPanelWidth') ?? defaultAgentPanelWidth;
+  }
+
+  Future<void> saveAgentPanelOpen(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('agentPanelOpen', value);
+  }
+
+  Future<bool> loadAgentPanelOpen() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('agentPanelOpen') ?? false;
+  }
+
   // --- 批量打标 (batch tagging) ---
 
   /// 批量打标模式，存 BatchTagMode 的 name（overwrite/append）；未设置时为

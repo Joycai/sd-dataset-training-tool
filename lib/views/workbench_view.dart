@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../services/preview_window_launcher.dart';
 import '../services/settings_service.dart';
+import '../state/agent_chat_state.dart';
 import '../state/ai_tagger_state.dart';
 import '../state/batch_tag_state.dart';
 import '../state/dataset_state.dart';
@@ -17,6 +18,7 @@ import '../state/tag_ops.dart';
 import '../widgets/resize_handle.dart';
 import '../widgets/status_bar.dart';
 import '../widgets/workbench_top_bar.dart';
+import 'panels/agent_chat_panel.dart';
 import 'panels/assets_panel.dart';
 import 'panels/caption_panel.dart';
 import 'panels/preview_panel.dart';
@@ -38,6 +40,9 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   static const double _panelMaxWidth = 480;
   static const double _centerMinWidth = 320;
   static const double _handleWidth = 7;
+  // AI assistant column bounds.
+  static const double _agentMinWidth = 260;
+  static const double _agentMaxWidth = 520;
   // Vertical split of the center column: both panes keep a usable minimum.
   static const double _previewMinHeight = 160;
   static const double _captionMinHeight = 150;
@@ -65,6 +70,9 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   final PreviewWindowLauncher _previewWindow = PreviewWindowLauncher();
   final FocusNode _libraryFilterFocus = FocusNode();
   final ShortcutRelay _shortcutRelay = ShortcutRelay();
+  late final AgentChatState _agentChat;
+  bool _agentOpen = false;
+  double _agentWidth = SettingsService.defaultAgentPanelWidth;
   String? _lastLoadedPath;
   late double _leftWidth;
   late double _rightWidth;
@@ -88,6 +96,18 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     _dataset.addListener(_onDatasetChanged);
     _aiTagger.loadSettings();
     _batchTag.loadSettings();
+    _agentChat = AgentChatState(
+      app: appState,
+      dataset: _dataset,
+      tagOps: _tagOps,
+      aiTagger: _aiTagger,
+    );
+    SettingsService().loadAgentPanelWidth().then((value) {
+      if (mounted) setState(() => _agentWidth = value);
+    });
+    SettingsService().loadAgentPanelOpen().then((value) {
+      if (mounted) setState(() => _agentOpen = value);
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -107,6 +127,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     _aiTagger.dispose();
     _batchTag.dispose();
     _tagOps.dispose();
+    _agentChat.dispose();
     _libraryFilterFocus.dispose();
     super.dispose();
   }
@@ -144,10 +165,12 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     final directory = await FilePicker.getDirectoryPath();
     if (directory == null || !mounted) return;
     // The tag filter and the undo history both reference the previous
-    // dataset's contents; a running batch would keep writing into it.
+    // dataset's contents; a running batch would keep writing into it. The
+    // agent conversation is likewise about the old dataset.
     _batchTag.requestCancel();
     _dataset.clearTagFilter();
     _tagOps.clearHistory();
+    _agentChat.resetSession(datasetSwitched: true);
     await context.read<AppState>().setBrowsingDirectory(directory);
     await _scan(directory);
   }
@@ -194,6 +217,25 @@ class _WorkbenchViewState extends State<WorkbenchView> {
 
   void _persistCenterSplit() {
     context.read<AppState>().updateCenterSplit(_centerSplit);
+  }
+
+  void _toggleAgentPanel() {
+    setState(() => _agentOpen = !_agentOpen);
+    SettingsService().saveAgentPanelOpen(_agentOpen);
+  }
+
+  /// Clamps the assistant column like the side panels, but accounting for
+  /// three fixed columns plus their handles. On very narrow windows the
+  /// assistant column gives way first so the center never collapses.
+  double _clampAgentWidth(
+      double value, double left, double right, double total) {
+    final available =
+        total - left - right - _centerMinWidth - 3 * _handleWidth;
+    if (available < _agentMinWidth) {
+      return available < 0 ? 0 : available;
+    }
+    final max = available.clamp(_agentMinWidth, _agentMaxWidth).toDouble();
+    return value.clamp(_agentMinWidth, max).toDouble();
   }
 
   // Workbench shortcuts, dispatched from the root Focus node instead of a
@@ -274,19 +316,35 @@ class _WorkbenchViewState extends State<WorkbenchView> {
         ChangeNotifierProvider.value(value: _aiTagger),
         ChangeNotifierProvider.value(value: _batchTag),
         ChangeNotifierProvider.value(value: _tagOps),
+        ChangeNotifierProvider.value(value: _agentChat),
       ],
       child: Focus(
         autofocus: true,
         onKeyEvent: _handleKeyEvent,
         child: Column(
           children: [
-            WorkbenchTopBar(onOpenFolder: _openFolder),
+            WorkbenchTopBar(
+              onOpenFolder: _openFolder,
+              agentOpen: _agentOpen,
+              onToggleAgent: _toggleAgentPanel,
+            ),
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final total = constraints.maxWidth;
-                  final left = _clampPanelWidth(_leftWidth, _rightWidth, total);
-                  final right = _clampPanelWidth(_rightWidth, left, total);
+                  // The assistant column (plus its handle) reserves width up
+                  // front, so the side-panel clamps shrink the sides instead
+                  // of letting the four fixed columns crush the center.
+                  final agentReserve = _agentOpen
+                      ? _agentWidth
+                              .clamp(_agentMinWidth, _agentMaxWidth)
+                              .toDouble() +
+                          _handleWidth
+                      : 0.0;
+                  final left = _clampPanelWidth(
+                      _leftWidth, _rightWidth + agentReserve, total);
+                  final right =
+                      _clampPanelWidth(_rightWidth, left + agentReserve, total);
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -306,7 +364,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                         onDragUpdate: (x) => setState(() {
                           _leftWidth = _clampPanelWidth(
                             _dragStartWidth + (x - _dragAnchorX),
-                            right,
+                            right + agentReserve,
                             total,
                           );
                         }),
@@ -394,7 +452,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                         onDragUpdate: (x) => setState(() {
                           _rightWidth = _clampPanelWidth(
                             _dragStartWidth - (x - _dragAnchorX),
-                            left,
+                            left + agentReserve,
                             total,
                           );
                         }),
@@ -413,6 +471,36 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                           filterFocusNode: _libraryFilterFocus,
                         ),
                       ),
+                      if (_agentOpen) ...[
+                        ResizeHandle(
+                          onDragStart: (x) {
+                            _dragAnchorX = x;
+                            _dragStartWidth = _agentWidth;
+                          },
+                          onDragUpdate: (x) => setState(() {
+                            _agentWidth = _clampAgentWidth(
+                              _dragStartWidth - (x - _dragAnchorX),
+                              left,
+                              right,
+                              total,
+                            );
+                          }),
+                          onDragEnd: () => SettingsService()
+                              .saveAgentPanelWidth(_agentWidth),
+                          onReset: () {
+                            setState(() {
+                              _agentWidth =
+                                  SettingsService.defaultAgentPanelWidth;
+                            });
+                            SettingsService().saveAgentPanelWidth(_agentWidth);
+                          },
+                        ),
+                        SizedBox(
+                          width: _clampAgentWidth(
+                              _agentWidth, left, right, total),
+                          child: AgentChatPanel(onClose: _toggleAgentPanel),
+                        ),
+                      ],
                     ],
                   );
                 },

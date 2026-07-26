@@ -133,6 +133,54 @@ class TagOps extends ChangeNotifier {
     }, files: files, createMissing: true);
   }
 
+  /// Rewrites one image's caption file to exactly [text], recording undo.
+  /// A missing caption file is created. Returns true when the file was
+  /// written; false when the content is already identical, another
+  /// operation is running, or IO failed.
+  Future<bool> rewriteOne(
+    String imagePath,
+    String text, {
+    required String label,
+  }) async {
+    if (_busy) return false;
+    _busy = true;
+    notifyListeners();
+    CaptionEdit? edit;
+    try {
+      await beforeMutate?.call();
+      final captionPath = dataset.captionPathFor(imagePath);
+      final captionFile = File(captionPath);
+      var before = '';
+      try {
+        if (await captionFile.exists()) {
+          before = await captionFile.readAsString();
+        }
+      } catch (_) {
+        return false;
+      }
+      if (before == text) return false;
+      try {
+        await captionFile.writeAsString(text);
+      } catch (_) {
+        return false;
+      }
+      edit = CaptionEdit(
+        imagePath: imagePath,
+        captionPath: captionPath,
+        before: before,
+        after: text,
+      );
+      dataset.updateCaptionText(imagePath, text);
+      _undoStack.add(TagOperation(label: label, edits: [edit]));
+      _redoStack.clear();
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+    onCaptionsChanged?.call({imagePath});
+    return true;
+  }
+
   /// Records an operation whose file rewrites already happened elsewhere
   /// (e.g. a batch AI tagging run) so it participates in undo/redo.
   void pushOperation(TagOperation op) {

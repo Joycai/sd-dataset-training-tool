@@ -63,6 +63,10 @@ class AiTaggerState extends ChangeNotifier {
   final SettingsService _settings;
   final AiTaggerService _service;
 
+  /// The underlying HTTP client, shared with the agent's tagger tools so
+  /// they follow the same server URL and lifecycle.
+  AiTaggerService get service => _service;
+
   String _serverUrl = SettingsService.defaultAiServerUrl;
   String? _modelName;
   double? _threshold;
