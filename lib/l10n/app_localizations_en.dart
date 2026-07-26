@@ -906,4 +906,183 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sourceCodeTitle => 'Source Code';
+
+  @override
+  String get close => 'Close';
+
+  @override
+  String get agentPanelTitle => 'AI Assistant';
+
+  @override
+  String get agentNewSession => 'New conversation';
+
+  @override
+  String get agentStop => 'Stop';
+
+  @override
+  String get agentSend => 'Send';
+
+  @override
+  String get agentInputHint => 'Ask about or edit your dataset…';
+
+  @override
+  String get agentNoProfileHint =>
+      'No LLM backend configured yet. Add one in Settings to start using the assistant.';
+
+  @override
+  String get agentOpenSettings => 'Open Settings';
+
+  @override
+  String get agentRunning => 'Thinking…';
+
+  @override
+  String agentTokensUsed(int count) {
+    return '$count tokens used this conversation';
+  }
+
+  @override
+  String get agentExpandInput => 'Expand input';
+
+  @override
+  String get agentComposerTitle => 'Compose message';
+
+  @override
+  String get agentQuestionTitle => 'The assistant is asking';
+
+  @override
+  String get agentQuestionCustomHint => 'Type a custom answer…';
+
+  @override
+  String get agentQuestionDismiss => 'Dismiss without answering';
+
+  @override
+  String get agentStoppedNotice => 'Stopped.';
+
+  @override
+  String get agentSessionResetNotice => 'Dataset changed — conversation reset.';
+
+  @override
+  String agentErrorNotice(String message) {
+    return 'Error: $message';
+  }
+
+  @override
+  String get agentConfirmTitle => 'The assistant wants to modify captions';
+
+  @override
+  String get agentConfirmAllow => 'Allow';
+
+  @override
+  String get agentConfirmAllowAll => 'Allow all this conversation';
+
+  @override
+  String get agentConfirmReject => 'Reject';
+
+  @override
+  String get agentConfirmWritesTitle => 'Confirm writes';
+
+  @override
+  String get agentConfirmWritesDesc =>
+      'Ask before the assistant modifies caption files; every change stays undoable either way';
+
+  @override
+  String get llmSection => 'AI Assistant (LLM)';
+
+  @override
+  String get llmActiveProfile => 'Active backend';
+
+  @override
+  String get llmActiveProfileDesc =>
+      'Which configured LLM backend the assistant talks to';
+
+  @override
+  String get llmNoProfiles => 'None configured';
+
+  @override
+  String get llmManageProfiles => 'Backends';
+
+  @override
+  String get llmManageProfilesDesc =>
+      'Add, edit, test and remove LLM backend configurations';
+
+  @override
+  String get llmManageAction => 'Manage';
+
+  @override
+  String get llmProfilesTitle => 'LLM Backends';
+
+  @override
+  String get llmNewProfileName => 'New backend';
+
+  @override
+  String get llmSelectProfileHint =>
+      'Select a backend on the left, or add a new one.';
+
+  @override
+  String get llmProfileName => 'Name';
+
+  @override
+  String get llmPreset => 'Preset';
+
+  @override
+  String get llmKindOpenAi => 'OpenAI-compatible';
+
+  @override
+  String get llmKindAnthropic => 'Anthropic';
+
+  @override
+  String get llmBaseUrl => 'Base URL';
+
+  @override
+  String get llmApiKey => 'API Key';
+
+  @override
+  String get llmApiKeyPlaintextNote =>
+      'Stored as plain text in local settings.';
+
+  @override
+  String get llmModel => 'Model';
+
+  @override
+  String get llmContextWindow => 'Context window';
+
+  @override
+  String get llmMaxOutput => 'Max output';
+
+  @override
+  String get llmTemperature => 'Temperature';
+
+  @override
+  String get llmSupportsVision => 'Vision (multimodal)';
+
+  @override
+  String get llmSupportsVisionDesc =>
+      'Enable if the model accepts images; unlocks image tools in later phases';
+
+  @override
+  String get llmFetchModels => 'Fetch model list';
+
+  @override
+  String get llmNoModelsFound => 'The server returned no models';
+
+  @override
+  String get llmTestConnection => 'Test connection';
+
+  @override
+  String llmTestOk(int ms) {
+    return 'Connection OK ($ms ms)';
+  }
+
+  @override
+  String llmTestFailed(String error) {
+    return 'Failed: $error';
+  }
+
+  @override
+  String get llmDeleteConfirmTitle => 'Delete backend';
+
+  @override
+  String llmDeleteConfirmContent(String name) {
+    return 'Delete \"$name\"? This cannot be undone.';
+  }
 }

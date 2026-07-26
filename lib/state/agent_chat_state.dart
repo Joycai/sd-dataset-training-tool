@@ -1,0 +1,333 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+
+import '../app_state.dart';
+import '../models/llm_models.dart';
+import '../services/agent/agent_session.dart';
+import '../services/agent/agent_tools.dart';
+import '../services/agent/dataset_tools.dart';
+import '../services/agent/media_tools.dart';
+import '../services/llm/anthropic_client.dart';
+import '../services/llm/llm_client.dart';
+import '../services/llm/openai_compat_client.dart';
+import 'ai_tagger_state.dart';
+import 'dataset_state.dart';
+import 'tag_ops.dart';
+
+enum AgentEntryKind { user, assistant, tool, notice }
+
+/// What a notice row represents; the panel maps these to localized text.
+enum AgentNoticeType { cancelled, error, reset }
+
+/// One row in the chat transcript. Mutable: assistant text streams in and
+/// tool entries flip from running to finished.
+class AgentChatEntry {
+  AgentChatEntry.user(String message) : kind = AgentEntryKind.user {
+    text = message;
+  }
+
+  AgentChatEntry.assistant() : kind = AgentEntryKind.assistant;
+
+  AgentChatEntry.tool(ChatToolCall call) : kind = AgentEntryKind.tool {
+    toolName = call.name;
+    toolArgs = call.argumentsJson;
+    running = true;
+  }
+
+  AgentChatEntry.notice(AgentNoticeType type, [String message = ''])
+      : kind = AgentEntryKind.notice {
+    noticeType = type;
+    text = message;
+    isError = type == AgentNoticeType.error;
+  }
+
+  final AgentEntryKind kind;
+  AgentNoticeType? noticeType;
+  String text = '';
+  String toolName = '';
+  String toolArgs = '';
+  String toolResult = '';
+  bool running = false;
+  bool isError = false;
+}
+
+/// A write tool call waiting for the user's go-ahead; the panel renders it
+/// as a confirmation bar and resolves the completer.
+class PendingWriteConfirm {
+  PendingWriteConfirm(this.toolName, this.argsJson);
+
+  final String toolName;
+  final String argsJson;
+  final Completer<bool> completer = Completer();
+}
+
+/// A question the model asked via the ask_user tool; the panel renders the
+/// options as buttons plus a free-form reply field. A null answer means the
+/// question was dismissed/cancelled.
+class PendingUserQuestion {
+  PendingUserQuestion(this.question, this.options);
+
+  final String question;
+  final List<String> options;
+  final Completer<String?> completer = Completer();
+}
+
+/// UI state of the assistant panel: the transcript, the running session, and
+/// the LLM clients. Owned by the workbench alongside the other panel states.
+class AgentChatState extends ChangeNotifier {
+  AgentChatState({
+    required this.app,
+    required this.dataset,
+    required this.tagOps,
+    required this.aiTagger,
+  });
+
+  final AppState app;
+  final DatasetState dataset;
+  final TagOps tagOps;
+  final AiTaggerState aiTagger;
+
+  final Map<LlmApiKind, LlmClient> _clients = {
+    LlmApiKind.openaiCompat: OpenAiCompatClient(),
+    LlmApiKind.anthropic: AnthropicClient(),
+  };
+
+  final List<AgentChatEntry> entries = [];
+  AgentSession? _session;
+  bool _busy = false;
+  bool _allowAllWrites = false;
+
+  /// Non-null while a write tool waits for the user's decision.
+  PendingWriteConfirm? pendingConfirm;
+
+  /// Non-null while the ask_user tool waits for the user's answer.
+  PendingUserQuestion? pendingQuestion;
+
+  bool get busy => _busy;
+  int get totalTokens => _session?.totalUsage.total ?? 0;
+
+  /// Name of the profile the current/next session uses, for the header.
+  String? get profileName => app.activeLlmProfile?.name;
+
+  bool get hasProfile => app.activeLlmProfile != null;
+
+  /// Bumped on every transcript change; the panel uses it to auto-scroll.
+  int revision = 0;
+
+  void _touch() {
+    revision++;
+    notifyListeners();
+  }
+
+  Future<void> send(String input) async {
+    final text = input.trim();
+    if (text.isEmpty || _busy) return;
+    final profile = app.activeLlmProfile;
+    if (profile == null) return;
+
+    // Model switch invalidates the conversation (history was built for the
+    // previous backend); start fresh.
+    if (_session != null && _session!.profile.id != profile.id) {
+      _session = null;
+    }
+    _session ??= _createSession(profile);
+
+    _busy = true;
+    entries.add(AgentChatEntry.user(text));
+    AgentChatEntry? assistant;
+    _touch();
+    try {
+      await for (final event in _session!.run(text)) {
+        switch (event) {
+          case AgentTextDelta(:final text):
+            if (assistant == null) {
+              assistant = AgentChatEntry.assistant();
+              entries.add(assistant);
+            }
+            assistant.text += text;
+          case AgentToolStarted(:final call):
+            assistant = null; // next text delta starts a new bubble
+            entries.add(AgentChatEntry.tool(call));
+          case AgentToolFinished(:final call, :final result):
+            final entry = entries.lastWhere(
+              (e) =>
+                  e.kind == AgentEntryKind.tool &&
+                  e.running &&
+                  e.toolName == call.name,
+              orElse: () => entries.last,
+            );
+            entry.running = false;
+            entry.toolResult = result.text;
+            entry.isError = result.isError;
+          case AgentFinished(:final reason, :final message):
+            _onFinished(reason, message);
+        }
+        _touch();
+      }
+    } finally {
+      _busy = false;
+      // Drop a tool entry left spinning by an abnormal end.
+      for (final e in entries) {
+        e.running = false;
+      }
+      _touch();
+    }
+  }
+
+  void _onFinished(AgentStopReason reason, String? message) {
+    switch (reason) {
+      case AgentStopReason.completed:
+        break;
+      case AgentStopReason.cancelled:
+        entries.add(AgentChatEntry.notice(AgentNoticeType.cancelled));
+      case AgentStopReason.maxTurns:
+      case AgentStopReason.tokenCap:
+      case AgentStopReason.error:
+        entries.add(AgentChatEntry.notice(
+            AgentNoticeType.error, message ?? reason.name));
+    }
+  }
+
+  /// Gate for write tools: transparent when confirmation is off or the user
+  /// chose "allow all" for this conversation; otherwise blocks until the
+  /// panel's confirmation bar resolves.
+  Future<bool> _confirmWrite(AgentTool tool, ChatToolCall call) async {
+    if (!app.agentConfirmWrites || _allowAllWrites) return true;
+    final pending = PendingWriteConfirm(call.name, call.argumentsJson);
+    pendingConfirm = pending;
+    _touch();
+    final allowed = await pending.completer.future;
+    pendingConfirm = null;
+    _touch();
+    return allowed;
+  }
+
+  /// Called by the confirmation bar. [allowAll] upgrades this conversation
+  /// to unattended writes.
+  void resolveConfirm({required bool allow, bool allowAll = false}) {
+    final pending = pendingConfirm;
+    if (pending == null) return;
+    if (allow && allowAll) _allowAllWrites = true;
+    if (!pending.completer.isCompleted) pending.completer.complete(allow);
+  }
+
+  /// Called by the question card; null dismisses the question (the model is
+  /// told the user declined to answer).
+  void resolveQuestion(String? answer) {
+    final pending = pendingQuestion;
+    if (pending == null) return;
+    if (!pending.completer.isCompleted) pending.completer.complete(answer);
+  }
+
+  /// The UI-bound ask_user tool: blocks the agent loop until the user picks
+  /// an option (or types a custom reply) in the panel's question card.
+  AgentTool _buildAskUserTool() => AgentTool(
+        spec: const AgentToolSpec(
+          name: 'ask_user',
+          description:
+              'Ask the user a question and wait for their answer. Use this '
+              'whenever you need a decision or clarification before '
+              'proceeding (e.g. choosing between cleanup strategies) '
+              'instead of ending your reply with an open question. Provide '
+              '2-5 short, concrete options when the answer space is known; '
+              'the user can always type a custom reply.',
+          parametersSchema: {
+            'type': 'object',
+            'properties': {
+              'question': {'type': 'string'},
+              'options': {
+                'type': 'array',
+                'items': {'type': 'string'},
+                'description': 'short choice labels, max 5',
+              },
+            },
+            'required': ['question'],
+          },
+        ),
+        handler: (args) async {
+          final question = requireString(args, 'question');
+          final options = optStringList(args, 'options', maxLength: 5);
+          final pending = PendingUserQuestion(question, options);
+          pendingQuestion = pending;
+          _touch();
+          final answer = await pending.completer.future;
+          pendingQuestion = null;
+          _touch();
+          if (answer == null) {
+            return toolError('the user dismissed the question without '
+                'answering; proceed with your best judgment or finish');
+          }
+          return toolOk({'answer': answer});
+        },
+      );
+
+  AgentSession _createSession(LlmProviderProfile profile) {
+    final deps = DatasetToolsDeps(
+      dataset: dataset,
+      rootDir: () => app.browsingDirectory,
+      libraryTags: () => app.commonTags,
+      tagGroups: () => app.tagGroups,
+    );
+    final registry = ToolRegistry([
+      ...buildReadOnlyTools(deps),
+      ...buildWriteTools(deps, tagOps),
+      ...buildTaggerTools(deps, aiTagger),
+      if (profile.supportsVision) ...buildVisionTools(deps),
+      _buildAskUserTool(),
+    ]);
+    final root = app.browsingDirectory;
+    final summary = root == null
+        ? 'no dataset directory is open yet'
+        : '$root — ${dataset.totalCount} images '
+            '(${dataset.taggedCount} captioned), '
+            '${dataset.datasetTags.length} unique tags';
+    return AgentSession(
+      client: _clients[profile.kind]!,
+      registry: registry,
+      profile: profile,
+      systemPrompt: buildAgentSystemPrompt(
+        localeName: app.currentLocale.languageCode == 'zh'
+            ? 'Chinese (简体中文)'
+            : 'English',
+        datasetSummary: summary,
+        captionExtension: app.captionExtension,
+        visionEnabled: profile.supportsVision,
+      ),
+      confirmWrite: _confirmWrite,
+    );
+  }
+
+  void stopRun() {
+    // Unblock pending interactions first, or the session cannot wind down.
+    resolveConfirm(allow: false);
+    resolveQuestion(null);
+    _session?.stop();
+  }
+
+  /// Clears the conversation. With [datasetSwitched] a reset notice is shown
+  /// as the first row (the dataset changed under a live conversation).
+  void resetSession({bool datasetSwitched = false}) {
+    resolveConfirm(allow: false);
+    resolveQuestion(null);
+    _session?.stop();
+    _session = null;
+    _allowAllWrites = false;
+    entries.clear();
+    if (datasetSwitched) {
+      entries.add(AgentChatEntry.notice(AgentNoticeType.reset));
+    }
+    _touch();
+  }
+
+  @override
+  void dispose() {
+    resolveConfirm(allow: false);
+    resolveQuestion(null);
+    _session?.stop();
+    for (final c in _clients.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+}

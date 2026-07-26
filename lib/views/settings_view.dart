@@ -6,8 +6,10 @@ import 'package:provider/provider.dart';
 import '../app_info.dart';
 import '../app_state.dart';
 import '../l10n/app_localizations.dart';
+import '../models/llm_models.dart';
 import '../services/font_service.dart';
 import '../theme/app_theme.dart';
+import 'panels/llm_profile_dialog.dart';
 
 /// Settings, grouped into cards: appearance, dataset behavior, and the
 /// danger zone. Each row pairs the control with a one-line description.
@@ -349,6 +351,70 @@ class _SettingsViewState extends State<SettingsView> {
                           control: Switch(
                             value: appState.autoSave,
                             onChanged: appState.updateAutoSave,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _SettingsCard(
+                      title: l10n.llmSection,
+                      children: [
+                        _SettingsRow(
+                          title: l10n.llmActiveProfile,
+                          description: l10n.llmActiveProfileDesc,
+                          control: appState.llmProfiles.isEmpty
+                              ? Text(
+                                  l10n.llmNoProfiles,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    color: context.semantic.muted,
+                                  ),
+                                )
+                              : DropdownButton<String>(
+                                  value: appState.activeLlmProfile?.id,
+                                  underline: const SizedBox.shrink(),
+                                  borderRadius: BorderRadius.circular(7),
+                                  items: [
+                                    for (final LlmProviderProfile p
+                                        in appState.llmProfiles)
+                                      DropdownMenuItem(
+                                        value: p.id,
+                                        child: Text(
+                                          p.name,
+                                          style:
+                                              const TextStyle(fontSize: 13),
+                                        ),
+                                      ),
+                                  ],
+                                  onChanged: (id) {
+                                    if (id != null) {
+                                      appState.setActiveLlmProfile(id);
+                                    }
+                                  },
+                                ),
+                        ),
+                        _SettingsRow(
+                          title: l10n.agentConfirmWritesTitle,
+                          description: l10n.agentConfirmWritesDesc,
+                          control: Switch(
+                            value: appState.agentConfirmWrites,
+                            onChanged: appState.updateAgentConfirmWrites,
+                          ),
+                        ),
+                        _SettingsRow(
+                          title: l10n.llmManageProfiles,
+                          description: l10n.llmManageProfilesDesc,
+                          control: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              textStyle: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            onPressed: () => showLlmProfilesDialog(context),
+                            icon: const Icon(Icons.tune, size: 15),
+                            label: Text(l10n.llmManageAction),
                           ),
                         ),
                       ],

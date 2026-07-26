@@ -17,6 +17,8 @@ dependencies:
   path: ^1.9.1
   path_provider: ^2.1.5
   http: ^1.2.2
+  image: ^4.3.0
+  markdown_widget: ^2.3.2
   archive: ^4.0.9
   # TODO: pub.dev 发布 >0.3.0(含 macOS SPM 支持)后改回 hosted 版本依赖。
   # 上游 PR #482 (2026-06-22) 已合并 Swift Package Manager 支持但尚未发版,

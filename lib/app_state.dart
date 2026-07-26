@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'models/llm_models.dart';
 import 'models/tag_group.dart';
 import 'services/font_service.dart';
 import 'services/settings_service.dart';
@@ -257,6 +258,52 @@ class AppState extends ChangeNotifier {
     await _saveGroups();
   }
 
+  // --- LLM provider profiles (agent assistant) ---
+
+  List<LlmProviderProfile> _llmProfiles = [];
+  String? _llmActiveProfileId;
+
+  List<LlmProviderProfile> get llmProfiles => _llmProfiles;
+  String? get llmActiveProfileId => _llmActiveProfileId;
+
+  /// The profile the assistant talks to, or null when none is configured.
+  LlmProviderProfile? get activeLlmProfile {
+    for (final p in _llmProfiles) {
+      if (p.id == _llmActiveProfileId) return p;
+    }
+    return _llmProfiles.isEmpty ? null : _llmProfiles.first;
+  }
+
+  Future<void> updateLlmProfiles(List<LlmProviderProfile> profiles) async {
+    _llmProfiles = profiles;
+    // Keep the active id pointing at an existing profile.
+    if (_llmActiveProfileId != null &&
+        !profiles.any((p) => p.id == _llmActiveProfileId)) {
+      _llmActiveProfileId = profiles.isEmpty ? null : profiles.first.id;
+      await _settingsService.saveLlmActiveProfileId(_llmActiveProfileId);
+    }
+    notifyListeners();
+    await _settingsService.saveLlmProfilesJson(encodeLlmProfiles(profiles));
+  }
+
+  Future<void> setActiveLlmProfile(String? id) async {
+    if (_llmActiveProfileId == id) return;
+    _llmActiveProfileId = id;
+    notifyListeners();
+    await _settingsService.saveLlmActiveProfileId(id);
+  }
+
+  /// Whether agent write tools require user confirmation before running.
+  bool _agentConfirmWrites = true;
+  bool get agentConfirmWrites => _agentConfirmWrites;
+
+  Future<void> updateAgentConfirmWrites(bool value) async {
+    if (_agentConfirmWrites == value) return;
+    _agentConfirmWrites = value;
+    notifyListeners();
+    await _settingsService.saveAgentConfirmWrites(value);
+  }
+
   // --- Other states remain unchanged ---
   Future<void> loadSettings() async {
     _locale = await _settingsService.loadLocale();
@@ -273,6 +320,10 @@ class AppState extends ChangeNotifier {
     _tagGroups = await _settingsService.loadTagGroups();
     _rebuildTagToGroup();
     _autoSave = await _settingsService.loadAutoSave();
+    _llmProfiles =
+        decodeLlmProfiles(await _settingsService.loadLlmProfilesJson() ?? '');
+    _llmActiveProfileId = await _settingsService.loadLlmActiveProfileId();
+    _agentConfirmWrites = await _settingsService.loadAgentConfirmWrites();
     final (leftWidth, rightWidth) = await _settingsService.loadPanelWidths();
     _leftPanelWidth = leftWidth;
     _rightPanelWidth = rightWidth;
