@@ -49,6 +49,10 @@ class ContextBudget {
   }
 
   /// ASCII ≈ 4 chars/token; CJK and other non-ASCII ≈ 1.7 chars/token.
+  ///
+  /// Pure integer arithmetic (ceil(n/4) and ceil(n·10/17)): floating-point
+  /// division would make exact multiples land on either side of the
+  /// boundary depending on rounding (17 / 1.7 is 10.000000000000002).
   static int estimateText(String text) {
     var ascii = 0;
     var other = 0;
@@ -59,7 +63,7 @@ class ContextBudget {
         other++;
       }
     }
-    return (ascii / 4).ceil() + (other / 1.7).ceil();
+    return (ascii + 3) ~/ 4 + (other * 10 + 16) ~/ 17;
   }
 
   /// Shrinks [history] in place until it fits [inputBudget].

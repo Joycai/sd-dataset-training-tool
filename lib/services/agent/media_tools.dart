@@ -148,22 +148,31 @@ const int kVisionJpegQuality = 80;
 
 /// Decode → downscale → JPEG, off the UI thread. Returns null when the
 /// bytes are not a decodable image.
+///
+/// The whole pipeline runs inside try/catch: package:image's format
+/// sniffers don't guarantee a clean null on garbage input (e.g. the PSD
+/// probe throws RangeError on very short buffers).
 Future<Uint8List?> compressForVision(Uint8List bytes) =>
     Isolate.run(() {
-      final decoded = img.decodeImage(bytes);
-      if (decoded == null) return null;
-      var out = decoded;
-      final longest = math.max(out.width, out.height);
-      if (longest > kVisionMaxDimension) {
-        final scale = kVisionMaxDimension / longest;
-        out = img.copyResize(
-          out,
-          width: math.max(1, (out.width * scale).round()),
-          height: math.max(1, (out.height * scale).round()),
-          interpolation: img.Interpolation.linear,
-        );
+      try {
+        final decoded = img.decodeImage(bytes);
+        if (decoded == null) return null;
+        var out = decoded;
+        final longest = math.max(out.width, out.height);
+        if (longest > kVisionMaxDimension) {
+          final scale = kVisionMaxDimension / longest;
+          out = img.copyResize(
+            out,
+            width: math.max(1, (out.width * scale).round()),
+            height: math.max(1, (out.height * scale).round()),
+            interpolation: img.Interpolation.linear,
+          );
+        }
+        return Uint8List.fromList(
+            img.encodeJpg(out, quality: kVisionJpegQuality));
+      } catch (_) {
+        return null;
       }
-      return Uint8List.fromList(img.encodeJpg(out, quality: kVisionJpegQuality));
     });
 
 /// Only registered for profiles with vision enabled.
