@@ -237,7 +237,10 @@ class _AiCompareViewState extends State<AiCompareView> {
                       child: Text(
                         l10n.aiNewCount(diff.newSuggestions.length),
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 11, color: semantic.ok),
+                        style: TextStyle(
+                          fontSize: AppText.small,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                       ),
                     ),
                   ],
@@ -292,47 +295,93 @@ class _AiCompareViewState extends State<AiCompareView> {
   ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 4,
-              children: [
-                _LegendDot(color: semantic.ok, label: l10n.aiLegendNew),
-                _LegendDot(color: semantic.warn, label: l10n.aiLegendMissing),
-                _LegendDot(color: semantic.line, label: l10n.aiLegendMatched),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: diff.newSuggestions.isEmpty
-                ? null
-                : () {
-                    for (final p in diff.newSuggestions) {
-                      session.applyTag(p.tag);
-                    }
-                  },
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              textStyle: const TextStyle(fontSize: 12),
-            ),
-            child: Text(l10n.aiAddAllNew(diff.newSuggestions.length)),
-          ),
-          // Exiting compare mode is a global action and lives in the caption
-          // panel header, not here — a per-image "done" here read as if it
-          // only applied to the current image.
-          TextButton.icon(
-            onPressed: widget.onRunAi,
-            icon: const Icon(Icons.refresh, size: 13),
-            style: TextButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              textStyle: const TextStyle(fontSize: 12),
-              foregroundColor: semantic.muted,
-            ),
-            label: Text(l10n.aiRerun),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // A legend label is wider than the slot a narrow editor leaves it,
+          // and Wrap does not ellipsize — below this width the swatches keep
+          // their meaning through tooltips instead.
+          final labelled = constraints.maxWidth >= 440;
+          return Row(
+            children: [
+              Expanded(
+                child: Wrap(
+                  spacing: labelled ? 12 : 8,
+                  runSpacing: 4,
+                  children: [
+                    _LegendDot(
+                      color: Theme.of(context).colorScheme.primary,
+                      label: l10n.aiLegendNew,
+                      showLabel: labelled,
+                    ),
+                    _LegendDot(
+                      color: semantic.warn,
+                      label: l10n.aiLegendMissing,
+                      showLabel: labelled,
+                    ),
+                    _LegendDot(
+                      color: semantic.ok,
+                      label: l10n.aiLegendMatched,
+                      showLabel: labelled,
+                    ),
+                  ],
+                ),
+              ),
+              // Flexible, not intrinsic: this label is the longest thing in
+              // the row, so it is what has to give when the editor narrows.
+              Flexible(
+                child: TextButton(
+                  onPressed: diff.newSuggestions.isEmpty
+                      ? null
+                      : () {
+                          for (final p in diff.newSuggestions) {
+                            session.applyTag(p.tag);
+                          }
+                        },
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    textStyle: const TextStyle(fontSize: AppText.secondary),
+                  ),
+                  child: Text(
+                    l10n.aiAddAllNew(diff.newSuggestions.length),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              // Exiting compare mode is a global action and lives in the
+              // title bar's capsule, not here — a per-image "done" here read
+              // as if it only applied to the current image.
+              if (labelled)
+                TextButton.icon(
+                  onPressed: widget.onRunAi,
+                  icon: const Icon(Icons.refresh, size: 13),
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    textStyle: const TextStyle(fontSize: AppText.secondary),
+                    foregroundColor: semantic.muted,
+                  ),
+                  label: Text(
+                    l10n.aiRerun,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )
+              else
+                IconButton(
+                  onPressed: widget.onRunAi,
+                  icon: const Icon(Icons.refresh, size: 15),
+                  tooltip: l10n.aiRerun,
+                  color: semantic.muted,
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 30,
+                    minHeight: 30,
+                  ),
+                  padding: EdgeInsets.zero,
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -359,25 +408,37 @@ class _ColumnLabel extends StatelessWidget {
 }
 
 class _LegendDot extends StatelessWidget {
-  const _LegendDot({required this.color, required this.label});
+  const _LegendDot({
+    required this.color,
+    required this.label,
+    this.showLabel = true,
+  });
 
   final Color color;
   final String label;
 
+  /// False in tight footers: the swatch alone, explained by its tooltip.
+  final bool showLabel;
+
   @override
   Widget build(BuildContext context) {
+    final dot = Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+    );
+    if (!showLabel) return Tooltip(message: label, child: dot);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-        ),
+        dot,
         const SizedBox(width: 5),
         Text(
           label,
-          style: TextStyle(fontSize: 11.5, color: context.semantic.muted),
+          style: TextStyle(
+            fontSize: AppText.small,
+            color: context.semantic.muted,
+          ),
         ),
       ],
     );
@@ -459,59 +520,57 @@ class _CompareChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
+    // Colour carries the meaning here: accent = something to decide on,
+    // ok = the two sides agree, warn = the model did not see it. (Accent
+    // used to be absent and "agree" was neutral, which read as if the
+    // matched tags were the ones needing attention.)
     final Color background;
     final Color border;
-    final Widget leading;
+    final Color foreground;
+    final Widget? leading;
     switch (_state) {
       case _ChipState.suggestion:
         background = Color.alphaBlend(
-          semantic.ok.withAlpha(36),
-          scheme.surface,
+          scheme.primary.withAlpha(41),
+          semantic.panel,
         );
-        border = semantic.ok.withAlpha(140);
-        leading = Icon(Icons.add, size: 11, color: semantic.ok);
+        border = scheme.primary.withAlpha(115);
+        foreground = scheme.onSurface;
+        leading = Icon(Icons.add, size: 11, color: scheme.primary);
       case _ChipState.missing:
         background = Color.alphaBlend(
-          semantic.warn.withAlpha(33),
-          scheme.surface,
+          semantic.warn.withAlpha(31),
+          semantic.panel,
         );
-        border = semantic.warn.withAlpha(140);
-        leading = Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: semantic.warn,
-          ),
-        );
+        border = semantic.warn.withAlpha(115);
+        foreground = semantic.warn;
+        leading = null;
       case _ChipState.matched:
-        background = scheme.surface;
-        border = semantic.line;
-        leading = Icon(Icons.check, size: 11, color: semantic.muted);
+        background = Color.alphaBlend(
+          semantic.ok.withAlpha(31),
+          semantic.panel,
+        );
+        border = semantic.ok.withAlpha(105);
+        foreground = scheme.onSurface;
+        leading = Icon(Icons.check, size: 11, color: semantic.ok);
     }
 
     final chip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
       decoration: BoxDecoration(
         color: background,
         border: Border.all(color: border),
-        borderRadius: BorderRadius.circular(99),
+        borderRadius: BorderRadius.circular(AppRadii.control),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          leading,
-          const SizedBox(width: 5),
+          if (leading != null) ...[leading, const SizedBox(width: 5)],
           Flexible(
             child: Text(
               label,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                color: _state == _ChipState.matched
-                    ? semantic.muted
-                    : scheme.onSurface,
-              ),
+              style: TextStyle(fontSize: AppText.secondary, color: foreground),
             ),
           ),
           if (probability != null) ...[
@@ -525,8 +584,8 @@ class _CompareChip extends StatelessWidget {
             const SizedBox(width: 5),
             InkWell(
               onTap: onDelete,
-              borderRadius: BorderRadius.circular(99),
-              child: Icon(Icons.close, size: 12, color: semantic.muted),
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+              child: Icon(Icons.close, size: 12, color: semantic.warn),
             ),
           ],
         ],
@@ -536,7 +595,7 @@ class _CompareChip extends StatelessWidget {
     if (onTap == null) return chip;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(99),
+      borderRadius: BorderRadius.circular(AppRadii.control),
       child: MouseRegion(cursor: SystemMouseCursors.click, child: chip),
     );
   }

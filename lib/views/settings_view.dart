@@ -9,10 +9,77 @@ import '../l10n/app_localizations.dart';
 import '../models/llm_models.dart';
 import '../services/font_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/panel_widgets.dart';
 import 'panels/llm_profile_dialog.dart';
 
-/// Settings, grouped into cards: appearance, dataset behavior, and the
-/// danger zone. Each row pairs the control with a one-line description.
+/// Opens settings as a fixed-size modal, macOS System Settings style: a
+/// source list on the left, one group of cards at a time on the right.
+///
+/// A dialog rather than a second OS window (which the spec's "860x640
+/// window" would otherwise imply): a real window would have to rebuild the
+/// whole provider tree and the settings service in a second engine, for a
+/// surface the user opens, changes one thing in, and closes.
+Future<void> showSettingsDialog(BuildContext context) {
+  return showDialog<void>(
+    context: context,
+    builder: (_) => const _SettingsDialog(),
+  );
+}
+
+class _SettingsDialog extends StatelessWidget {
+  const _SettingsDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 860, maxHeight: 640),
+        child: GlassSurface(
+          borderRadius: BorderRadius.circular(14),
+          blurSigma: 14,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(18, 12, 10, 12),
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: semantic.line)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.settings,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    PanelIconButton(
+                      icon: Icons.close,
+                      tooltip: l10n.cancel,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              const Expanded(child: SettingsView()),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Settings, grouped into cards: appearance, dataset behavior, the
+/// assistant, and about. Each row pairs the control with a one-line
+/// description.
 class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
 
@@ -21,6 +88,8 @@ class SettingsView extends StatefulWidget {
 }
 
 class _SettingsViewState extends State<SettingsView> {
+  _SettingsSection _section = _SettingsSection.appearance;
+
   final TextEditingController _captionController = TextEditingController();
   final FocusNode _captionFocusNode = FocusNode();
 
@@ -173,327 +242,423 @@ class _SettingsViewState extends State<SettingsView> {
     final semantic = context.semantic;
     final appState = context.watch<AppState>();
 
-    return Column(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Header bar with back navigation, mirroring the workbench top bar.
-        Container(
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: semantic.panel,
-            border: Border(bottom: BorderSide(color: semantic.line)),
-          ),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back, size: 18),
-                tooltip: l10n.editor,
-                color: semantic.muted,
-                onPressed: () =>
-                    context.read<AppState>().updateView(MainView.editor),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                l10n.settings,
-                style: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
+        _SettingsSidebar(
+          section: _section,
+          onSelect: (value) => setState(() => _section = value),
         ),
+        Container(width: 1, color: semantic.line),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 18),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 640),
-                child: Column(
-                  children: [
-                    _SettingsCard(
-                      title: l10n.appearanceSection,
-                      children: [
-                        _SettingsRow(
-                          title: l10n.language,
-                          description: l10n.languageDesc,
-                          control: DropdownButton<Locale>(
-                            value: appState.currentLocale,
-                            underline: const SizedBox.shrink(),
-                            borderRadius: BorderRadius.circular(7),
-                            items: const [
-                              DropdownMenuItem(
-                                value: Locale('en'),
-                                child: Text('English',
-                                    style: TextStyle(fontSize: 13)),
-                              ),
-                              DropdownMenuItem(
-                                value: Locale('zh'),
-                                child: Text('中文（简体）',
-                                    style: TextStyle(fontSize: 13)),
-                              ),
-                            ],
-                            onChanged: (locale) {
-                              if (locale != null) {
-                                appState.updateLocale(locale);
-                              }
-                            },
-                          ),
-                        ),
-                        _SettingsRow(
-                          title: l10n.fontTitle,
-                          description: l10n.fontDesc,
-                          control: DropdownButton<AppFontChoice>(
-                            value: appState.fontChoice,
-                            underline: const SizedBox.shrink(),
-                            borderRadius: BorderRadius.circular(7),
-                            items: [
-                              for (final choice in AppFontChoice.values)
-                                DropdownMenuItem(
-                                  value: choice,
-                                  child: Text(
-                                    _fontLabel(l10n, choice),
-                                    style: const TextStyle(fontSize: 13),
-                                  ),
-                                ),
-                            ],
-                            onChanged: (choice) {
-                              if (choice != null) _selectFont(choice);
-                            },
-                          ),
-                        ),
-                        _SettingsRow(
-                          title: l10n.themeTitle,
-                          description: l10n.themeDesc,
-                          control: SegmentedButton<ThemeMode>(
-                            showSelectedIcon: false,
-                            style: ButtonStyle(
-                              visualDensity: VisualDensity.compact,
-                              textStyle: WidgetStateProperty.all(
-                                  const TextStyle(fontSize: 12.5)),
-                            ),
-                            segments: [
-                              ButtonSegment(
-                                value: ThemeMode.light,
-                                label: Text(l10n.themeLight),
-                              ),
-                              ButtonSegment(
-                                value: ThemeMode.dark,
-                                label: Text(l10n.themeDark),
-                              ),
-                              ButtonSegment(
-                                value: ThemeMode.system,
-                                label: Text(l10n.themeSystem),
-                              ),
-                            ],
-                            selected: {appState.currentThemeMode},
-                            onSelectionChanged: (selection) =>
-                                appState.updateThemeMode(selection.first),
-                          ),
-                        ),
-                        _SettingsRow(
-                          title: l10n.accentTitle,
-                          description: l10n.accentDesc,
-                          control: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              for (final choice in AppAccentChoice.values)
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 8),
-                                  child: _AccentSwatch(
-                                    color: choice.swatch,
-                                    selected: appState.accentChoice == choice,
-                                    tooltip: _accentLabel(l10n, choice),
-                                    onTap: () =>
-                                        appState.updateAccentChoice(choice),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    _SettingsCard(
-                      title: l10n.datasetSection,
-                      children: [
-                        _SettingsRow(
-                          title: l10n.captionExtension,
-                          description: l10n.captionExtensionDesc,
-                          control: SizedBox(
-                            width: 110,
-                            child: Focus(
-                              focusNode: _captionFocusNode,
-                              onFocusChange: (hasFocus) {
-                                if (!hasFocus) _commitCaptionExtension();
-                              },
-                              child: TextFormField(
-                                controller: _captionController,
-                                textAlign: TextAlign.center,
-                                style: monoStyle(context, size: 12.5),
-                                onFieldSubmitted: (_) =>
-                                    _commitCaptionExtension(),
+            padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_section == _SettingsSection.appearance)
+                  _SettingsCard(
+                    children: [
+                      _SettingsRow(
+                        title: l10n.language,
+                        description: l10n.languageDesc,
+                        control: DropdownButton<Locale>(
+                          value: appState.currentLocale,
+                          underline: const SizedBox.shrink(),
+                          borderRadius: BorderRadius.circular(7),
+                          items: const [
+                            DropdownMenuItem(
+                              value: Locale('en'),
+                              child: Text(
+                                'English',
+                                style: TextStyle(fontSize: 13),
                               ),
                             ),
+                            DropdownMenuItem(
+                              value: Locale('zh'),
+                              child: Text(
+                                '中文（简体）',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ],
+                          onChanged: (locale) {
+                            if (locale != null) {
+                              appState.updateLocale(locale);
+                            }
+                          },
+                        ),
+                      ),
+                      _SettingsRow(
+                        title: l10n.fontTitle,
+                        description: l10n.fontDesc,
+                        control: DropdownButton<AppFontChoice>(
+                          value: appState.fontChoice,
+                          underline: const SizedBox.shrink(),
+                          borderRadius: BorderRadius.circular(7),
+                          items: [
+                            for (final choice in AppFontChoice.values)
+                              DropdownMenuItem(
+                                value: choice,
+                                child: Text(
+                                  _fontLabel(l10n, choice),
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                          ],
+                          onChanged: (choice) {
+                            if (choice != null) _selectFont(choice);
+                          },
+                        ),
+                      ),
+                      _SettingsRow(
+                        title: l10n.themeTitle,
+                        description: l10n.themeDesc,
+                        control: SegmentedButton<ThemeMode>(
+                          showSelectedIcon: false,
+                          style: ButtonStyle(
+                            visualDensity: VisualDensity.compact,
+                            textStyle: WidgetStateProperty.all(
+                              const TextStyle(fontSize: 12.5),
+                            ),
+                          ),
+                          segments: [
+                            ButtonSegment(
+                              value: ThemeMode.light,
+                              label: Text(l10n.themeLight),
+                            ),
+                            ButtonSegment(
+                              value: ThemeMode.dark,
+                              label: Text(l10n.themeDark),
+                            ),
+                            ButtonSegment(
+                              value: ThemeMode.system,
+                              label: Text(l10n.themeSystem),
+                            ),
+                          ],
+                          selected: {appState.currentThemeMode},
+                          onSelectionChanged: (selection) =>
+                              appState.updateThemeMode(selection.first),
+                        ),
+                      ),
+                      _SettingsRow(
+                        title: l10n.accentTitle,
+                        description: l10n.accentDesc,
+                        control: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final choice in AppAccentChoice.values)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: _AccentSwatch(
+                                  color: choice.swatch,
+                                  selected: appState.accentChoice == choice,
+                                  tooltip: _accentLabel(l10n, choice),
+                                  onTap: () =>
+                                      appState.updateAccentChoice(choice),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                if (_section == _SettingsSection.dataset)
+                  _SettingsCard(
+                    children: [
+                      _SettingsRow(
+                        title: l10n.captionExtension,
+                        description: l10n.captionExtensionDesc,
+                        control: SizedBox(
+                          width: 110,
+                          child: Focus(
+                            focusNode: _captionFocusNode,
+                            onFocusChange: (hasFocus) {
+                              if (!hasFocus) _commitCaptionExtension();
+                            },
+                            child: TextFormField(
+                              controller: _captionController,
+                              textAlign: TextAlign.center,
+                              style: monoStyle(context, size: 12.5),
+                              onFieldSubmitted: (_) =>
+                                  _commitCaptionExtension(),
+                            ),
                           ),
                         ),
-                        _SettingsRow(
-                          title: l10n.includeSubdirsTitle,
-                          description: l10n.includeSubdirsDesc,
-                          control: Switch(
-                            value: appState.includeSubdirectories,
-                            onChanged: appState.updateIncludeSubdirectories,
-                          ),
+                      ),
+                      _SettingsRow(
+                        title: l10n.includeSubdirsTitle,
+                        description: l10n.includeSubdirsDesc,
+                        control: AppSwitch(
+                          value: appState.includeSubdirectories,
+                          onChanged: appState.updateIncludeSubdirectories,
                         ),
-                        _SettingsRow(
-                          title: l10n.autoSaveTitle,
-                          description: l10n.autoSaveDesc,
-                          control: Switch(
-                            value: appState.autoSave,
-                            onChanged: appState.updateAutoSave,
-                          ),
+                      ),
+                      _SettingsRow(
+                        title: l10n.autoSaveTitle,
+                        description: l10n.autoSaveDesc,
+                        control: AppSwitch(
+                          value: appState.autoSave,
+                          onChanged: appState.updateAutoSave,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    _SettingsCard(
-                      title: l10n.llmSection,
-                      children: [
-                        _SettingsRow(
-                          title: l10n.llmActiveProfile,
-                          description: l10n.llmActiveProfileDesc,
-                          control: appState.llmProfiles.isEmpty
-                              ? Text(
-                                  l10n.llmNoProfiles,
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    color: context.semantic.muted,
-                                  ),
-                                )
-                              : DropdownButton<String>(
-                                  value: appState.activeLlmProfile?.id,
-                                  underline: const SizedBox.shrink(),
-                                  borderRadius: BorderRadius.circular(7),
-                                  items: [
-                                    for (final LlmProviderProfile p
-                                        in appState.llmProfiles)
-                                      DropdownMenuItem(
-                                        value: p.id,
-                                        child: Text(
-                                          p.name,
-                                          style:
-                                              const TextStyle(fontSize: 13),
-                                        ),
+                      ),
+                    ],
+                  ),
+                if (_section == _SettingsSection.assistant)
+                  _SettingsCard(
+                    children: [
+                      _SettingsRow(
+                        title: l10n.llmActiveProfile,
+                        description: l10n.llmActiveProfileDesc,
+                        control: appState.llmProfiles.isEmpty
+                            ? Text(
+                                l10n.llmNoProfiles,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: context.semantic.muted,
+                                ),
+                              )
+                            : DropdownButton<String>(
+                                value: appState.activeLlmProfile?.id,
+                                underline: const SizedBox.shrink(),
+                                borderRadius: BorderRadius.circular(7),
+                                items: [
+                                  for (final LlmProviderProfile p
+                                      in appState.llmProfiles)
+                                    DropdownMenuItem(
+                                      value: p.id,
+                                      child: Text(
+                                        p.name,
+                                        style: const TextStyle(fontSize: 13),
                                       ),
-                                  ],
-                                  onChanged: (id) {
-                                    if (id != null) {
-                                      appState.setActiveLlmProfile(id);
-                                    }
-                                  },
-                                ),
-                        ),
-                        _SettingsRow(
-                          title: l10n.agentConfirmWritesTitle,
-                          description: l10n.agentConfirmWritesDesc,
-                          control: Switch(
-                            value: appState.agentConfirmWrites,
-                            onChanged: appState.updateAgentConfirmWrites,
-                          ),
-                        ),
-                        _SettingsRow(
-                          title: l10n.llmManageProfiles,
-                          description: l10n.llmManageProfilesDesc,
-                          control: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              textStyle: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
+                                    ),
+                                ],
+                                onChanged: (id) {
+                                  if (id != null) {
+                                    appState.setActiveLlmProfile(id);
+                                  }
+                                },
                               ),
+                      ),
+                      _SettingsRow(
+                        title: l10n.agentConfirmWritesTitle,
+                        description: l10n.agentConfirmWritesDesc,
+                        control: AppSwitch(
+                          value: appState.agentConfirmWrites,
+                          onChanged: appState.updateAgentConfirmWrites,
+                        ),
+                      ),
+                      _SettingsRow(
+                        title: l10n.llmManageProfiles,
+                        description: l10n.llmManageProfilesDesc,
+                        control: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            textStyle: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
                             ),
-                            onPressed: () => showLlmProfilesDialog(context),
-                            icon: const Icon(Icons.tune, size: 15),
-                            label: Text(l10n.llmManageAction),
                           ),
+                          onPressed: () => showLlmProfilesDialog(context),
+                          icon: const Icon(Icons.tune, size: 15),
+                          label: Text(l10n.llmManageAction),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    _SettingsCard(
-                      title: l10n.aboutSection,
-                      children: [
-                        _SettingsRow(
-                          title: l10n.versionTitle,
-                          description: l10n.versionDesc,
-                          control: Text(
-                            AppInfo.version,
-                            style: monoStyle(context, size: 12.5),
-                          ),
+                      ),
+                    ],
+                  ),
+                if (_section == _SettingsSection.about)
+                  _SettingsCard(
+                    title: l10n.aboutSection,
+                    children: [
+                      _SettingsRow(
+                        title: l10n.versionTitle,
+                        description: l10n.versionDesc,
+                        control: Text(
+                          AppInfo.version,
+                          style: monoStyle(context, size: 12.5),
                         ),
-                        _SettingsRow(
-                          title: l10n.licenseTitle,
-                          description: AppInfo.copyright,
-                          control: Text(
-                            AppInfo.license,
-                            style: monoStyle(context, size: 12.5),
-                          ),
+                      ),
+                      _SettingsRow(
+                        title: l10n.licenseTitle,
+                        description: AppInfo.copyright,
+                        control: Text(
+                          AppInfo.license,
+                          style: monoStyle(context, size: 12.5),
                         ),
-                        _SettingsRow(
-                          title: l10n.sourceCodeTitle,
-                          description: AppInfo.repositoryUrl,
-                          control: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              visualDensity: VisualDensity.compact,
-                              textStyle: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                              ),
+                      ),
+                      _SettingsRow(
+                        title: l10n.sourceCodeTitle,
+                        description: AppInfo.repositoryUrl,
+                        control: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            textStyle: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
                             ),
-                            onPressed: _openRepository,
-                            icon: const Icon(Icons.open_in_new, size: 15),
-                            label: const Text('GitHub'),
                           ),
+                          onPressed: _openRepository,
+                          icon: const Icon(Icons.open_in_new, size: 15),
+                          label: const Text('GitHub'),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    _SettingsCard(
-                      title: l10n.dangerZone,
-                      danger: true,
-                      children: [
-                        _SettingsRow(
-                          title: l10n.resetSettings,
-                          description: l10n.resetDesc,
-                          control: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor:
-                                  Theme.of(context).colorScheme.error,
-                              side: BorderSide(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .error
-                                    .withAlpha(150),
-                              ),
-                              visualDensity: VisualDensity.compact,
-                              textStyle: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w600,
-                              ),
+                      ),
+                    ],
+                  ),
+                const SizedBox(height: 18),
+                if (_section == _SettingsSection.about)
+                  _SettingsCard(
+                    title: l10n.dangerZone,
+                    danger: true,
+                    children: [
+                      _SettingsRow(
+                        title: l10n.resetSettings,
+                        description: l10n.resetDesc,
+                        control: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.error,
+                            side: BorderSide(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.error.withAlpha(150),
                             ),
-                            onPressed: _showResetConfirmationDialog,
-                            child: Text(l10n.resetAction),
+                            visualDensity: VisualDensity.compact,
+                            textStyle: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
+                          onPressed: _showResetConfirmationDialog,
+                          child: Text(l10n.resetAction),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Which group of settings the dialog is showing.
+enum _SettingsSection { appearance, dataset, assistant, about }
+
+/// macOS-style source list: one entry per group, version pinned to the foot.
+class _SettingsSidebar extends StatelessWidget {
+  const _SettingsSidebar({required this.section, required this.onSelect});
+
+  final _SettingsSection section;
+  final ValueChanged<_SettingsSection> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+
+    final entries = <(_SettingsSection, IconData, String)>[
+      (
+        _SettingsSection.appearance,
+        Icons.palette_outlined,
+        l10n.appearanceSection,
+      ),
+      (_SettingsSection.dataset, Icons.dataset_outlined, l10n.datasetSection),
+      (_SettingsSection.assistant, Icons.smart_toy_outlined, l10n.llmSection),
+      (_SettingsSection.about, Icons.info_outline, l10n.aboutSection),
+    ];
+
+    return SizedBox(
+      width: 180,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 12),
+          for (final (value, icon, label) in entries)
+            _SidebarEntry(
+              icon: icon,
+              label: label,
+              selected: section == value,
+              onTap: () => onSelect(value),
+            ),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Text(
+              AppInfo.version,
+              style: monoStyle(
+                context,
+                size: AppText.small,
+                color: semantic.muted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SidebarEntry extends StatelessWidget {
+  const _SidebarEntry({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final semantic = context.semantic;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 1, 8, 1),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: selected
+                  ? scheme.primary.withValues(alpha: 0.22)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 15,
+                  color: selected ? scheme.primary : semantic.muted,
+                ),
+                const SizedBox(width: 9),
+                Flexible(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: AppText.base,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: selected ? scheme.onSurface : semantic.muted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -524,9 +689,9 @@ class _FontDownloadDialogState extends State<_FontDownloadDialog> {
     } catch (e) {
       if (!mounted) return;
       final l10n = AppLocalizations.of(context)!;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.fontDownloadFailed('$e'))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.fontDownloadFailed('$e'))));
       Navigator.of(context).pop(false);
     }
   }
@@ -587,8 +752,8 @@ class _AccentSwatch extends StatelessWidget {
     // A check that stays legible on any swatch hue.
     final checkColor =
         ThemeData.estimateBrightnessForColor(color) == Brightness.dark
-            ? Colors.white
-            : Colors.black;
+        ? Colors.white
+        : Colors.black;
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -616,12 +781,14 @@ class _AccentSwatch extends StatelessWidget {
 
 class _SettingsCard extends StatelessWidget {
   const _SettingsCard({
-    required this.title,
+    this.title,
     required this.children,
     this.danger = false,
   });
 
-  final String title;
+  /// Null when the sidebar entry already names this group — a card headed
+  /// "Appearance" under a sidebar row reading "Appearance" is just an echo.
+  final String? title;
   final List<Widget> children;
   final bool danger;
 
@@ -643,21 +810,22 @@ class _SettingsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: semantic.line)),
-            ),
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.8,
-                color: danger ? scheme.error : semantic.muted,
+          if (title != null)
+            Container(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: semantic.line)),
+              ),
+              child: Text(
+                title!,
+                style: TextStyle(
+                  fontSize: AppText.secondary,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.8,
+                  color: danger ? scheme.error : semantic.muted,
+                ),
               ),
             ),
-          ),
           for (var i = 0; i < children.length; i++) ...[
             if (i > 0) const Divider(),
             children[i],

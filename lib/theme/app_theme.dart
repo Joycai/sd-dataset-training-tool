@@ -25,12 +25,72 @@ abstract final class AppTokens {
   static const lightDanger = Color(0xFFB34545);
 }
 
+/// Layout metrics of the Xcode-style workbench. Fixed chrome sizes live
+/// here so the shell, the panels and the dialogs agree on one rhythm.
+abstract final class AppMetrics {
+  /// Title bar with the centered activity capsule.
+  static const double titleBar = 48;
+
+  /// Vertical icon rail left of the navigator.
+  static const double navRail = 46;
+
+  /// Square hit target of one rail item.
+  static const double railItem = 32;
+
+  /// Default width of the file navigator (left column).
+  static const double navigator = 236;
+
+  /// Default width of the inspector (right column).
+  static const double inspector = 280;
+
+  /// Bottom status bar.
+  static const double statusBar = 26;
+
+  /// Default height of the caption editor under the canvas.
+  static const double captionEditor = 252;
+
+  static const double switchWidth = 38;
+  static const double switchHeight = 22;
+}
+
+/// Corner radii. The design uses four steps only; reach for these instead
+/// of literals so a later tweak stays one edit.
+abstract final class AppRadii {
+  /// Window frame and the canvas image.
+  static const double window = 10;
+
+  /// Cards and popovers.
+  static const double card = 12;
+
+  /// Buttons, capsules, raised controls.
+  static const double control = 7;
+
+  /// Inputs, segmented-control slots and their thumbs.
+  static const double input = 6;
+
+  /// Fully rounded chips.
+  static const double pill = 99;
+}
+
+/// Type scale. 13 is the body size; everything else steps down from it.
+abstract final class AppText {
+  static const double base = 13;
+  static const double secondary = 12;
+  static const double small = 11;
+  static const double micro = 10;
+}
+
 /// Full neutral ramp + accent containers computed from one base color.
 ///
-/// Strategy: keep the original blue-gray design's saturation/lightness
-/// structure for every tone and swap in the accent's hue, so the whole
-/// UI — window background, panels, cards, hairlines, secondary text —
-/// takes on the theme color while contrast ratios stay as designed.
+/// Strategy: keep the design's saturation/lightness structure for every
+/// tone and swap in the accent's hue, so the whole UI — window background,
+/// panels, cards, hairlines, secondary text — takes on a hint of the theme
+/// color while contrast ratios stay as designed.
+///
+/// The lightness values are the refresh spec's tokens verbatim; the
+/// saturations sit between the spec's near-neutral grays and the stronger
+/// tint the palette used before, so switching accent still reads on the
+/// chrome without turning the whole window into a color wash.
 class AppPalette {
   const AppPalette._({
     required this.bg0,
@@ -39,6 +99,8 @@ class AppPalette {
     required this.line,
     required this.ink,
     required this.muted,
+    required this.glass,
+    required this.shadow,
     required this.container,
     required this.onContainer,
   });
@@ -61,6 +123,13 @@ class AppPalette {
   /// Secondary text.
   final Color muted;
 
+  /// Translucent panel fill for backdrop-blurred surfaces (overlay control
+  /// bars, popovers, the floating assistant).
+  final Color glass;
+
+  /// Ambient shadow under floating surfaces.
+  final Color shadow;
+
   /// Accent-tinted fill for selected M3 containers (SegmentedButton,
   /// chips…) — clearly colored, but calmer than the accent itself.
   final Color container;
@@ -70,29 +139,35 @@ class AppPalette {
 
   factory AppPalette.derive(Color accentSeed, Brightness brightness) {
     final hue = HSLColor.fromColor(accentSeed).hue;
-    Color tone(double sat, double light) =>
-        HSLColor.fromAHSL(1, hue, sat, light).toColor();
+    Color tone(double sat, double light, [double alpha = 1]) =>
+        HSLColor.fromAHSL(alpha, hue, sat, light).toColor();
 
-    // S/L pairs transcribed from the original fixed tokens (hue ~222°),
-    // so `tone` reproduces them exactly when given that hue.
+    // Lightness = the spec's token, saturation = the tint we keep on top
+    // of it. The trailing comment is the neutral color the spec quotes.
     return brightness == Brightness.dark
         ? AppPalette._(
-            bg0: tone(.15, .106), // was 0xFF17191F
-            bg1: tone(.14, .137), // was 0xFF1E2128
-            bg2: tone(.15, .175), // was 0xFF262A33
-            line: tone(.14, .239), // was 0xFF343946
-            ink: tone(.26, .931), // was 0xFFE9ECF2
-            muted: tone(.13, .610), // was 0xFF8F97A8
+            bg0: tone(.07, .122), // #1e1e20
+            bg1: tone(.07, .157), // #26262a
+            bg2: tone(.07, .202), // #313136
+            // Hairlines are a translucent light wash rather than a solid
+            // tone, so one value reads correctly on bg0, bg1 and bg2.
+            line: tone(.30, .850, .10), // rgba(255,255,255,.08)
+            ink: tone(.12, .953), // #f2f2f4
+            muted: tone(.06, .610), // #98989f
+            glass: tone(.07, .157, .80), // rgba(38,38,42,.8)
+            shadow: const Color(0x73000000), // rgba(0,0,0,.45)
             container: tone(.32, .295),
             onContainer: tone(.30, .920),
           )
         : AppPalette._(
-            bg0: tone(.17, .943), // was 0xFFEEF0F3
-            bg1: tone(.20, .980), // was 0xFFF9FAFB
-            bg2: const Color(0xFFFFFFFF),
-            line: tone(.18, .880), // was 0xFFDBDFE6
-            ink: tone(.125, .157), // was 0xFF23262D
-            muted: tone(.09, .459), // was 0xFF6A7280
+            bg0: tone(.15, .933), // #ececf0
+            bg1: tone(.16, .973), // #f7f7f9
+            bg2: const Color(0xFFFFFFFF), // #ffffff
+            line: tone(.35, .200, .11), // rgba(0,0,0,.09)
+            ink: tone(.10, .118), // #1d1d1f
+            muted: tone(.07, .490), // #7a7a80
+            glass: tone(.18, .968, .85), // rgba(246,246,248,.85)
+            shadow: const Color(0x2E000000), // rgba(0,0,0,.18)
             container: tone(.40, .870),
             onContainer: tone(.45, .180),
           );
@@ -178,10 +253,8 @@ enum AppAccentChoice {
   Color onAccentFor(Brightness b) =>
       b == Brightness.dark ? darkOnAccent : lightOnAccent;
 
-  static AppAccentChoice fromId(String? id) => values.firstWhere(
-        (c) => c.id == id,
-        orElse: () => AppAccentChoice.teal,
-      );
+  static AppAccentChoice fromId(String? id) =>
+      values.firstWhere((c) => c.id == id, orElse: () => AppAccentChoice.teal);
 }
 
 /// Data-state colors that must stay distinct from the accent.
@@ -193,6 +266,8 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     required this.raised,
     required this.line,
     required this.muted,
+    required this.glass,
+    required this.shadow,
   });
 
   /// Captioned / tag applied.
@@ -213,6 +288,12 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   /// Secondary text.
   final Color muted;
 
+  /// Translucent fill for backdrop-blurred surfaces.
+  final Color glass;
+
+  /// Ambient shadow under floating surfaces.
+  final Color shadow;
+
   @override
   AppSemanticColors copyWith({
     Color? ok,
@@ -221,6 +302,8 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
     Color? raised,
     Color? line,
     Color? muted,
+    Color? glass,
+    Color? shadow,
   }) {
     return AppSemanticColors(
       ok: ok ?? this.ok,
@@ -229,6 +312,8 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       raised: raised ?? this.raised,
       line: line ?? this.line,
       muted: muted ?? this.muted,
+      glass: glass ?? this.glass,
+      shadow: shadow ?? this.shadow,
     );
   }
 
@@ -242,6 +327,8 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
       raised: Color.lerp(raised, other.raised, t)!,
       line: Color.lerp(line, other.line, t)!,
       muted: Color.lerp(muted, other.muted, t)!,
+      glass: Color.lerp(glass, other.glass, t)!,
+      shadow: Color.lerp(shadow, other.shadow, t)!,
     );
   }
 }
@@ -308,37 +395,39 @@ ThemeData buildAppTheme(
     raised: palette.bg2,
     line: palette.line,
     muted: palette.muted,
+    glass: palette.glass,
+    shadow: palette.shadow,
   );
 
   // Container slots matter as much as primary: M3 widgets paint selected
   // states with them (SegmentedButton/FilterChip → secondaryContainer,
   // FAB → primaryContainer…). Leaving them at framework defaults is why a
   // theme-color change used to be barely visible.
-  final scheme =
-      (isDark ? const ColorScheme.dark() : const ColorScheme.light()).copyWith(
-    primary: accentColor,
-    onPrimary: onAccent,
-    secondary: accentColor,
-    onSecondary: onAccent,
-    tertiary: accentColor,
-    onTertiary: onAccent,
-    primaryContainer: palette.container,
-    onPrimaryContainer: palette.onContainer,
-    secondaryContainer: palette.container,
-    onSecondaryContainer: palette.onContainer,
-    tertiaryContainer: palette.container,
-    onTertiaryContainer: palette.onContainer,
-    surface: palette.bg0,
-    onSurface: palette.ink,
-    onSurfaceVariant: palette.muted,
-    surfaceContainerLow: palette.bg1,
-    surfaceContainerHigh: palette.bg2,
-    surfaceTint: accentColor,
-    outline: palette.line,
-    outlineVariant: palette.line,
-    error: isDark ? AppTokens.darkDanger : AppTokens.lightDanger,
-    onError: isDark ? const Color(0xFF2A0E0E) : const Color(0xFFFFFFFF),
-  );
+  final scheme = (isDark ? const ColorScheme.dark() : const ColorScheme.light())
+      .copyWith(
+        primary: accentColor,
+        onPrimary: onAccent,
+        secondary: accentColor,
+        onSecondary: onAccent,
+        tertiary: accentColor,
+        onTertiary: onAccent,
+        primaryContainer: palette.container,
+        onPrimaryContainer: palette.onContainer,
+        secondaryContainer: palette.container,
+        onSecondaryContainer: palette.onContainer,
+        tertiaryContainer: palette.container,
+        onTertiaryContainer: palette.onContainer,
+        surface: palette.bg0,
+        onSurface: palette.ink,
+        onSurfaceVariant: palette.muted,
+        surfaceContainerLow: palette.bg1,
+        surfaceContainerHigh: palette.bg2,
+        surfaceTint: accentColor,
+        outline: palette.line,
+        outlineVariant: palette.line,
+        error: isDark ? AppTokens.darkDanger : AppTokens.lightDanger,
+        onError: isDark ? const Color(0xFF2A0E0E) : const Color(0xFFFFFFFF),
+      );
 
   final base = ThemeData(
     useMaterial3: true,
@@ -370,7 +459,7 @@ ThemeData buildAppTheme(
       textStyle: TextStyle(fontSize: 12, color: scheme.surface),
       decoration: BoxDecoration(
         color: scheme.onSurface,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadii.input),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
@@ -378,17 +467,17 @@ ThemeData buildAppTheme(
       filled: true,
       fillColor: scheme.surface,
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      hintStyle: TextStyle(color: semantic.muted, fontSize: 13),
+      hintStyle: TextStyle(color: semantic.muted, fontSize: AppText.base),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(AppRadii.control),
         borderSide: BorderSide(color: semantic.line),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(AppRadii.control),
         borderSide: BorderSide(color: scheme.primary, width: 1.5),
       ),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(AppRadii.control),
         borderSide: BorderSide(color: semantic.line),
       ),
     ),

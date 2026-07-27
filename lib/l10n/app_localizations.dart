@@ -248,12 +248,6 @@ abstract class AppLocalizations {
   /// **'Image Tags'**
   String get imageTags;
 
-  /// No description provided for @assetsPanelTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Assets'**
-  String get assetsPanelTitle;
-
   /// No description provided for @searchFilenameHint.
   ///
   /// In en, this message translates to:
@@ -338,6 +332,12 @@ abstract class AppLocalizations {
   /// **'{count} images'**
   String imageCountShort(int count);
 
+  /// No description provided for @tagCountShort.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tags'**
+  String tagCountShort(int count);
+
   /// No description provided for @selectImageHint.
   ///
   /// In en, this message translates to:
@@ -361,6 +361,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fit to window'**
   String get fitToWindow;
+
+  /// No description provided for @zoomIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get zoomIn;
+
+  /// No description provided for @zoomOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get zoomOut;
 
   /// No description provided for @openInNewWindow.
   ///
@@ -685,6 +697,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exit compare'**
   String get aiExitCompare;
+
+  /// No description provided for @compareModeCapsule.
+  ///
+  /// In en, this message translates to:
+  /// **'Compare mode · {count} with results'**
+  String compareModeCapsule(int count);
+
+  /// No description provided for @compareModeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept or reject AI results one by one'**
+  String get compareModeHint;
+
+  /// No description provided for @compareModeExitGlobal.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit compare mode'**
+  String get compareModeExitGlobal;
+
+  /// No description provided for @compareBadgePending.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} to review'**
+  String compareBadgePending(int count);
+
+  /// No description provided for @compareBadgeReviewed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviewed'**
+  String get compareBadgeReviewed;
 
   /// No description provided for @aiExitCompareTooltip.
   ///
@@ -1080,6 +1122,12 @@ abstract class AppLocalizations {
   /// **'Gallery filter'**
   String get filterPanelTitle;
 
+  /// No description provided for @filterStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Filtered · {shown} / {total} match'**
+  String filterStatus(int shown, int total);
+
   /// No description provided for @filterMatches.
   ///
   /// In en, this message translates to:
@@ -1446,11 +1494,41 @@ abstract class AppLocalizations {
   /// **'Auto-save off'**
   String get autoSaveOffStatus;
 
-  /// No description provided for @saveShortcutHint.
+  /// No description provided for @shortcutHints.
   ///
   /// In en, this message translates to:
-  /// **'Ctrl+S to save now'**
-  String get saveShortcutHint;
+  /// **'Ctrl+S save · Ctrl+E AI tag · Ctrl+Z undo'**
+  String get shortcutHints;
+
+  /// No description provided for @aiServiceConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'AI service connected'**
+  String get aiServiceConnected;
+
+  /// No description provided for @aiServiceOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'AI service offline'**
+  String get aiServiceOffline;
+
+  /// No description provided for @navBrowse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse'**
+  String get navBrowse;
+
+  /// No description provided for @toggleNavigator.
+  ///
+  /// In en, this message translates to:
+  /// **'Show / hide navigator'**
+  String get toggleNavigator;
+
+  /// No description provided for @toggleInspector.
+  ///
+  /// In en, this message translates to:
+  /// **'Show / hide inspector'**
+  String get toggleInspector;
 
   /// No description provided for @appearanceSection.
   ///
@@ -1698,6 +1776,18 @@ abstract class AppLocalizations {
   /// **'AI Assistant'**
   String get agentPanelTitle;
 
+  /// No description provided for @agentMinimize.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse panel'**
+  String get agentMinimize;
+
+  /// No description provided for @agentExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand panel'**
+  String get agentExpand;
+
   /// No description provided for @agentNewSession.
   ///
   /// In en, this message translates to:
@@ -1877,6 +1967,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'LLM Backends'**
   String get llmProfilesTitle;
+
+  /// No description provided for @llmProviderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'PROVIDER'**
+  String get llmProviderLabel;
+
+  /// No description provided for @llmAddProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Add provider'**
+  String get llmAddProvider;
+
+  /// No description provided for @llmAddModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Add model'**
+  String get llmAddModel;
+
+  /// No description provided for @llmDeleteModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete model'**
+  String get llmDeleteModel;
+
+  /// No description provided for @llmEditProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get llmEditProvider;
+
+  /// No description provided for @llmDisplayName.
+  ///
+  /// In en, this message translates to:
+  /// **'Display name'**
+  String get llmDisplayName;
+
+  /// No description provided for @llmVisionBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Vision'**
+  String get llmVisionBadge;
+
+  /// No description provided for @llmInheritsFromProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'URL and key come from the provider \"{name}\".'**
+  String llmInheritsFromProvider(String name);
+
+  /// No description provided for @llmPricingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pricing (per Mtoken)'**
+  String get llmPricingTitle;
+
+  /// No description provided for @llmPricingNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Used for usage accounting only; never sent with requests.'**
+  String get llmPricingNote;
+
+  /// No description provided for @llmPriceInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Input'**
+  String get llmPriceInput;
+
+  /// No description provided for @llmPriceOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Output'**
+  String get llmPriceOutput;
+
+  /// No description provided for @llmPriceCacheRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache read'**
+  String get llmPriceCacheRead;
+
+  /// No description provided for @llmPriceCacheWrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Cache write'**
+  String get llmPriceCacheWrite;
 
   /// No description provided for @llmNewProfileName.
   ///

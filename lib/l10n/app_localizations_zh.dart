@@ -84,9 +84,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get imageTags => '图片标签';
 
   @override
-  String get assetsPanelTitle => '素材';
-
-  @override
   String get searchFilenameHint => '搜索文件名';
 
   @override
@@ -135,6 +132,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String tagCountShort(int count) {
+    return '$count 标签';
+  }
+
+  @override
   String get selectImageHint => '在左侧素材面板选择一张图片。';
 
   @override
@@ -145,6 +147,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get fitToWindow => '适应窗口';
+
+  @override
+  String get zoomIn => '放大';
+
+  @override
+  String get zoomOut => '缩小';
 
   @override
   String get openInNewWindow => '在独立窗口打开';
@@ -321,6 +329,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiExitCompare => '退出对比';
+
+  @override
+  String compareModeCapsule(int count) {
+    return '对比模式 · $count 张有结果';
+  }
+
+  @override
+  String get compareModeHint => '逐个接受 / 拒绝 AI 结果';
+
+  @override
+  String get compareModeExitGlobal => '全局退出对比';
+
+  @override
+  String compareBadgePending(int count) {
+    return '待审 $count';
+  }
+
+  @override
+  String get compareBadgeReviewed => '已审';
 
   @override
   String get aiExitCompareTooltip => '退出对比模式（对所有图片生效）';
@@ -545,6 +572,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get filterPanelTitle => '画廊过滤';
 
   @override
+  String filterStatus(int shown, int total) {
+    return '过滤中 · 匹配 $shown / $total';
+  }
+
+  @override
   String filterMatches(int shown, int total) {
     return '匹配 $shown / $total';
   }
@@ -758,7 +790,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autoSaveOffStatus => '自动保存已关闭';
 
   @override
-  String get saveShortcutHint => 'Ctrl+S 立即保存';
+  String get shortcutHints => 'Ctrl+S 保存 · Ctrl+E AI 识别 · Ctrl+Z 撤销';
+
+  @override
+  String get aiServiceConnected => 'AI 服务已连接';
+
+  @override
+  String get aiServiceOffline => 'AI 服务未连接';
+
+  @override
+  String get navBrowse => '浏览';
+
+  @override
+  String get toggleNavigator => '显示 / 隐藏文件导航器';
+
+  @override
+  String get toggleInspector => '显示 / 隐藏检查器';
 
   @override
   String get appearanceSection => '外观';
@@ -890,6 +937,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentPanelTitle => 'AI 助手';
 
   @override
+  String get agentMinimize => '收起面板';
+
+  @override
+  String get agentExpand => '展开面板';
+
+  @override
   String get agentNewSession => '新会话';
 
   @override
@@ -982,6 +1035,50 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get llmProfilesTitle => 'LLM 后端';
+
+  @override
+  String get llmProviderLabel => 'PROVIDER';
+
+  @override
+  String get llmAddProvider => '添加 Provider';
+
+  @override
+  String get llmAddModel => '添加模型';
+
+  @override
+  String get llmDeleteModel => '删除模型';
+
+  @override
+  String get llmEditProvider => '编辑';
+
+  @override
+  String get llmDisplayName => '显示名称';
+
+  @override
+  String get llmVisionBadge => '视觉';
+
+  @override
+  String llmInheritsFromProvider(String name) {
+    return '地址与 Key 由 Provider「$name」提供。';
+  }
+
+  @override
+  String get llmPricingTitle => '价格（每 Mtoken）';
+
+  @override
+  String get llmPricingNote => '仅用于用量统计，不影响请求。';
+
+  @override
+  String get llmPriceInput => '输入';
+
+  @override
+  String get llmPriceOutput => '输出';
+
+  @override
+  String get llmPriceCacheRead => '缓存读';
+
+  @override
+  String get llmPriceCacheWrite => '缓存写';
 
   @override
   String get llmNewProfileName => '新后端';

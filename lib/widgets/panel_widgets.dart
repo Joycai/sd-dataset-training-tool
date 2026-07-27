@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -112,7 +114,7 @@ class PanelIconButton extends StatelessWidget {
   }
 }
 
-/// Dense search/filter input used at the top of both side panels.
+/// Dense search/filter input used at the top of every side panel.
 class PanelSearchField extends StatelessWidget {
   const PanelSearchField({
     super.key,
@@ -120,6 +122,7 @@ class PanelSearchField extends StatelessWidget {
     this.onChanged,
     this.controller,
     this.focusNode,
+    this.padding = const EdgeInsets.fromLTRB(12, 0, 12, 10),
   });
 
   final String hint;
@@ -127,22 +130,303 @@ class PanelSearchField extends StatelessWidget {
   final TextEditingController? controller;
   final FocusNode? focusNode;
 
+  /// Outer padding. Panels that lay out their own header spacing pass
+  /// [EdgeInsets.zero].
+  final EdgeInsetsGeometry padding;
+
   @override
   Widget build(BuildContext context) {
     final semantic = context.semantic;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      padding: padding,
       child: TextField(
         controller: controller,
         focusNode: focusNode,
         onChanged: onChanged,
-        style: const TextStyle(fontSize: 13),
+        style: const TextStyle(fontSize: AppText.secondary),
         decoration: InputDecoration(
           hintText: hint,
-          prefixIcon: Icon(Icons.search, size: 16, color: semantic.muted),
+          hintStyle: TextStyle(
+            fontSize: AppText.secondary,
+            color: semantic.muted,
+          ),
+          // Denser than the app-wide input theme: side panels are narrow and
+          // the spec draws these fields at 22px of content height.
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 9,
+            vertical: 5,
+          ),
+          prefixIcon: Icon(Icons.search, size: 15, color: semantic.muted),
           prefixIconConstraints: const BoxConstraints(
-            minWidth: 32,
-            minHeight: 32,
+            minWidth: 28,
+            minHeight: 24,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadii.input),
+            borderSide: BorderSide(color: semantic.line),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadii.input),
+            borderSide: BorderSide(
+              color: Theme.of(context).colorScheme.primary,
+              width: 1.5,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One choice in a [SegmentedControl].
+class SegmentedOption<T> {
+  const SegmentedOption({required this.value, required this.label});
+
+  final T value;
+  final String label;
+}
+
+/// macOS-style segmented control: a recessed [surface] slot holding a
+/// raised thumb that slides to the selected segment.
+///
+/// Segments are equal-width, which is what makes the slide cheap — the
+/// thumb's alignment is a pure function of the selected index, so no
+/// measurement pass is needed. Callers size the control (an [Expanded], a
+/// [SizedBox]); it fills whatever width it is given.
+class SegmentedControl<T> extends StatelessWidget {
+  const SegmentedControl({
+    super.key,
+    required this.segments,
+    required this.value,
+    required this.onChanged,
+    this.fontSize = AppText.small,
+    this.verticalPadding = 3,
+  });
+
+  final List<SegmentedOption<T>> segments;
+  final T value;
+  final ValueChanged<T> onChanged;
+  final double fontSize;
+  final double verticalPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final semantic = context.semantic;
+    final index = segments.indexWhere((s) => s.value == value);
+    final alignX = segments.length < 2
+        ? 0.0
+        : -1 + 2 * index / (segments.length - 1);
+
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(AppRadii.input),
+      ),
+      child: Stack(
+        children: [
+          if (index >= 0)
+            Positioned.fill(
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 170),
+                curve: Curves.easeOut,
+                alignment: Alignment(alignX, 0),
+                child: FractionallySizedBox(
+                  widthFactor: 1 / segments.length,
+                  heightFactor: 1,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: semantic.raised,
+                      borderRadius: BorderRadius.circular(AppRadii.input - 2),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Row(
+            children: [
+              for (final segment in segments)
+                Expanded(
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => onChanged(segment.value),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: verticalPadding,
+                        ),
+                        child: Text(
+                          segment.label,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: fontSize,
+                            fontWeight: segment.value == value
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: segment.value == value
+                                ? scheme.onSurface
+                                : semantic.muted,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Frosted surface for anything that floats over content: the canvas
+/// control bar, popovers, the assistant panel.
+///
+/// The shadow is drawn outside the clip (a [BoxShadow] on the clipped child
+/// would be cut off by its own [ClipRRect]).
+class GlassSurface extends StatelessWidget {
+  const GlassSurface({
+    super.key,
+    required this.child,
+    this.borderRadius,
+    this.padding,
+    this.blurSigma = 10,
+    this.elevated = true,
+  });
+
+  final Widget child;
+  final BorderRadius? borderRadius;
+  final EdgeInsetsGeometry? padding;
+
+  /// Gaussian sigma, roughly half the CSS `blur()` radius of the spec.
+  final double blurSigma;
+
+  final bool elevated;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    final radius = borderRadius ?? BorderRadius.circular(AppRadii.card);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: elevated
+            ? [
+                BoxShadow(
+                  color: semantic.shadow,
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ]
+            : null,
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: semantic.glass,
+              borderRadius: radius,
+              border: Border.all(color: semantic.line),
+            ),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A Switch at the spec's 38x22: the stock Material 3 switch is 32px tall
+/// plus tap padding and collides with its neighbours in dense rows.
+class AppSwitch extends StatelessWidget {
+  const AppSwitch({super.key, required this.value, required this.onChanged});
+
+  final bool value;
+
+  /// Null disables the switch.
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: AppMetrics.switchWidth,
+      height: AppMetrics.switchHeight,
+      child: FittedBox(
+        fit: BoxFit.contain,
+        child: Switch(
+          value: value,
+          onChanged: onChanged,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+    );
+  }
+}
+
+/// Frosted modal shell: header, scrolling body, action row — the dialog
+/// chrome the refresh asks for, shared by the parameter and backend dialogs.
+class GlassDialog extends StatelessWidget {
+  const GlassDialog({
+    super.key,
+    required this.width,
+    required this.header,
+    required this.body,
+    this.actions = const [],
+  });
+
+  final double width;
+  final Widget header;
+  final Widget body;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: width),
+        child: GlassSurface(
+          borderRadius: BorderRadius.circular(14),
+          blurSigma: 14,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 14, 14, 12),
+                child: header,
+              ),
+              Container(height: 1, color: semantic.line),
+              // Flexible, not Expanded: short dialogs stay short.
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+                  child: body,
+                ),
+              ),
+              if (actions.isNotEmpty) ...[
+                Container(height: 1, color: semantic.line),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: actions,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -451,7 +735,8 @@ class _ReorderItemState extends State<_ReorderItem>
   void _measure(Duration _) {
     if (!mounted) return;
     final box = context.findRenderObject();
-    final colState = context.findAncestorStateOfType<_AnimatedReorderColumnState>();
+    final colState = context
+        .findAncestorStateOfType<_AnimatedReorderColumnState>();
     final colBox = colState?.context.findRenderObject();
     if (box is! RenderBox || !box.hasSize || colBox is! RenderBox) return;
     // Offset relative to the column, so scrolling never reads as movement.

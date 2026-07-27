@@ -237,6 +237,24 @@ class AiTaggerState extends ChangeNotifier {
 
   bool hasResultFor(String path) => _cache.containsKey(path);
 
+  /// How many images carry a cached result — the size of the compare-mode
+  /// backlog. O(1), unlike counting how many still have unaccepted
+  /// suggestions, which would mean diffing every image on every rebuild.
+  int get resultCount => _cache.length;
+
+  /// Predictions [path] has not taken yet, given its [currentTags]. Empty
+  /// both when there is no result and when everything has been accepted —
+  /// callers distinguish the two with [hasResultFor].
+  List<AiPrediction> pendingFor(String path, List<String> currentTags) {
+    final predictions = resultFor(path);
+    if (predictions == null) return const [];
+    final current = currentTags.toSet();
+    return [
+      for (final p in predictions)
+        if (!current.contains(p.tag)) p,
+    ];
+  }
+
   /// Stores a response obtained outside [interrogate] (the batch recognize
   /// run) in the per-image cache, with the same normalization, so it feeds
   /// the compare view exactly like a single-image run.

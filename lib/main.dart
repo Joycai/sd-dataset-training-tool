@@ -9,7 +9,6 @@ import 'l10n/app_localizations.dart';
 import 'services/settings_service.dart';
 import 'theme/app_theme.dart';
 import 'views/image_preview_window.dart';
-import 'views/settings_view.dart';
 import 'views/workbench_view.dart';
 
 bool get _isDesktop =>
@@ -51,12 +50,7 @@ void main(List<String> args) async {
     }
   }
 
-  runApp(
-    ChangeNotifierProvider.value(
-      value: appState,
-      child: const MyApp(),
-    ),
-  );
+  runApp(ChangeNotifierProvider.value(value: appState, child: const MyApp()));
 }
 
 class MyApp extends StatelessWidget {
@@ -92,16 +86,8 @@ class MyHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
-
-    return Scaffold(
-      body: IndexedStack(
-        index: appState.currentView.index,
-        children: const [
-          WorkbenchView(),
-          SettingsView(),
-        ],
-      ),
-    );
+    // Settings are a modal now, so the workbench is the only top-level view
+    // and there is nothing left to switch between.
+    return const Scaffold(body: WorkbenchView());
   }
 }

@@ -1,49 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
-import '../app_state.dart';
 import '../l10n/app_localizations.dart';
+import '../state/ai_tagger_state.dart';
 import '../state/dataset_state.dart';
 import '../state/editor_session.dart';
 import '../theme/app_theme.dart';
 
-/// Bottom status bar: current file facts, dataset tagging progress, and the
-/// autosave state.
+/// Bottom status bar: how far the dataset is tagged, whether the tagger
+/// service is reachable, and the always-on shortcut reminder.
+///
+/// File facts (name, resolution, size) live on the canvas overlay instead —
+/// they belong to the image being looked at, not to the session.
 class StatusBar extends StatelessWidget {
   const StatusBar({super.key});
-
-  String _formatBytes(int bytes) {
-    if (bytes >= 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / 1024).round()} KB';
-  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
-    // Only the autosave flag matters here; a full watch would rebuild the
-    // bar on every AppState notification (e.g. tag-library edits).
-    final autoSave = context.select<AppState, bool>((s) => s.autoSave);
     final dataset = context.watch<DatasetState>();
     final session = context.watch<EditorSession>();
+    final ai = context.watch<AiTaggerState>();
 
-    final file = dataset.selectedFile;
-    final parts = <String>[];
-    if (file != null) {
-      parts.add(p.basename(file.path));
-      if (session.imageWidth != null) {
-        parts.add('${session.imageWidth} x ${session.imageHeight}');
-      }
-      if (session.imageBytes != null) {
-        parts.add(_formatBytes(session.imageBytes!));
-      }
-    }
+    // The service exposes no explicit connection flag: a populated model
+    // list is the proof that a request round-tripped.
+    final connected = ai.models.isNotEmpty && ai.lastError == null;
+    final address = Uri.tryParse(ai.serverUrl)?.authority ?? ai.serverUrl;
+    final tagged = dataset.taggedCount == dataset.totalCount;
 
     return Container(
-      height: 30,
+      height: AppMetrics.statusBar,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: semantic.panel,
@@ -56,19 +43,9 @@ class StatusBar extends StatelessWidget {
           Expanded(
             child: Row(
               children: [
-                Flexible(
-                  child: Text(
-                    parts.join('  ·  '),
-                    overflow: TextOverflow.ellipsis,
-                    style: monoStyle(
-                      context,
-                      size: 11.5,
-                      color: semantic.muted,
-                    ),
-                  ),
-                ),
                 if (dataset.totalCount > 0) ...[
-                  const SizedBox(width: 18),
+                  _Dot(color: tagged ? semantic.ok : semantic.warn),
+                  const SizedBox(width: 7),
                   Text(
                     l10n.taggedProgress(
                       dataset.taggedCount,
@@ -76,34 +53,77 @@ class StatusBar extends StatelessWidget {
                     ),
                     style: monoStyle(
                       context,
-                      size: 11.5,
+                      size: AppText.small,
                       color: semantic.muted,
                     ),
                   ),
+                  const SizedBox(width: 18),
                 ],
+                if (dataset.tagFilterActive) ...[
+                  _Dot(color: semantic.warn),
+                  const SizedBox(width: 7),
+                  Text(
+                    l10n.filterStatus(
+                      dataset.visibleFiles.length,
+                      dataset.totalCount,
+                    ),
+                    style: monoStyle(
+                      context,
+                      size: AppText.small,
+                      color: semantic.warn,
+                    ),
+                  ),
+                  const SizedBox(width: 18),
+                ],
+                _Dot(color: connected ? semantic.ok : semantic.muted),
+                const SizedBox(width: 7),
+                Flexible(
+                  child: Text(
+                    '${connected ? l10n.aiServiceConnected : l10n.aiServiceOffline}'
+                    '  ·  $address',
+                    overflow: TextOverflow.ellipsis,
+                    style: monoStyle(
+                      context,
+                      size: AppText.small,
+                      color: semantic.muted,
+                    ),
+                  ),
+                ),
                 if (session.anchorTag != null) ...[
                   const SizedBox(width: 18),
-                  Flexible(child: _AnchorPill(session: session, l10n: l10n)),
+                  Flexible(
+                    child: _AnchorPill(session: session, l10n: l10n),
+                  ),
                 ],
               ],
             ),
           ),
           const SizedBox(width: 18),
           Text(
-            autoSave ? l10n.autoSaveOnStatus : l10n.autoSaveOffStatus,
+            l10n.shortcutHints,
             style: monoStyle(
               context,
-              size: 11.5,
-              color: autoSave ? semantic.ok : semantic.muted,
+              size: AppText.small,
+              color: semantic.muted,
             ),
-          ),
-          const SizedBox(width: 18),
-          Text(
-            l10n.saveShortcutHint,
-            style: monoStyle(context, size: 11.5, color: semantic.muted),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _Dot extends StatelessWidget {
+  const _Dot({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 7,
+      height: 7,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }
@@ -124,13 +144,13 @@ class _AnchorPill extends StatelessWidget {
       waitDuration: const Duration(milliseconds: 600),
       child: InkWell(
         onTap: session.clearAnchor,
-        borderRadius: BorderRadius.circular(99),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1.5),
           decoration: BoxDecoration(
             color: scheme.primary.withAlpha(31),
             border: Border.all(color: scheme.primary.withAlpha(115)),
-            borderRadius: BorderRadius.circular(99),
+            borderRadius: BorderRadius.circular(AppRadii.pill),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -141,7 +161,11 @@ class _AnchorPill extends StatelessWidget {
                 child: Text(
                   l10n.anchorStatusLabel(session.anchorTag!),
                   overflow: TextOverflow.ellipsis,
-                  style: monoStyle(context, size: 11, color: scheme.primary),
+                  style: monoStyle(
+                    context,
+                    size: AppText.small,
+                    color: scheme.primary,
+                  ),
                 ),
               ),
               const SizedBox(width: 5),

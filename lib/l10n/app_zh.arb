@@ -26,7 +26,6 @@
   "addTagsContent": "在此处粘贴以逗号分隔的标签，以添加到现有列表。",
   "imageTags": "图片标签",
 
-  "assetsPanelTitle": "素材",
   "searchFilenameHint": "搜索文件名",
   "filterAll": "全部",
   "filterUntagged": "未打标",
@@ -41,11 +40,19 @@
   "scanError": "扫描目录失败：{error}",
   "noDatasetOpen": "未打开文件夹",
   "imageCountShort": "{count} 张",
+  "tagCountShort": "{count} 标签",
+  "@tagCountShort": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
 
   "selectImageHint": "在左侧素材面板选择一张图片。",
   "previousImage": "上一张",
   "nextImage": "下一张",
   "fitToWindow": "适应窗口",
+  "zoomIn": "放大",
+  "zoomOut": "缩小",
   "openInNewWindow": "在独立窗口打开",
 
   "textTab": "文本",
@@ -114,6 +121,21 @@
   "aiAddAllNew": "添加全部新建议 ({count})",
   "aiRerun": "重新识别",
   "aiExitCompare": "退出对比",
+  "compareModeCapsule": "对比模式 · {count} 张有结果",
+  "@compareModeCapsule": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "compareModeHint": "逐个接受 / 拒绝 AI 结果",
+  "compareModeExitGlobal": "全局退出对比",
+  "compareBadgePending": "待审 {count}",
+  "@compareBadgePending": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "compareBadgeReviewed": "已审",
   "aiExitCompareTooltip": "退出对比模式（对所有图片生效）",
   "aiNoResultYet": "本图还没有识别结果。",
   "aiFirstRunHint": "首次使用某个模型需要下载，可能较慢。",
@@ -181,6 +203,13 @@
   "filesUpdated": "已更新 {count} 个文件",
   "noFilesChanged": "没有需要修改的文件。",
   "filterPanelTitle": "画廊过滤",
+  "filterStatus": "过滤中 · 匹配 {shown} / {total}",
+  "@filterStatus": {
+    "placeholders": {
+      "shown": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
   "filterMatches": "匹配 {shown} / {total}",
   "@filterMatches": {
     "placeholders": {
@@ -256,7 +285,13 @@
   "taggedProgress": "已打标 {tagged} / {total}",
   "autoSaveOnStatus": "自动保存已开启",
   "autoSaveOffStatus": "自动保存已关闭",
-  "saveShortcutHint": "Ctrl+S 立即保存",
+  "shortcutHints": "Ctrl+S 保存 · Ctrl+E AI 识别 · Ctrl+Z 撤销",
+  "aiServiceConnected": "AI 服务已连接",
+  "aiServiceOffline": "AI 服务未连接",
+
+  "navBrowse": "浏览",
+  "toggleNavigator": "显示 / 隐藏文件导航器",
+  "toggleInspector": "显示 / 隐藏检查器",
 
   "appearanceSection": "外观",
   "datasetSection": "数据集",
@@ -302,6 +337,8 @@
 
   "close": "关闭",
   "agentPanelTitle": "AI 助手",
+  "agentMinimize": "收起面板",
+  "agentExpand": "展开面板",
   "agentNewSession": "新会话",
   "agentStop": "停止",
   "agentSend": "发送",
@@ -334,6 +371,25 @@
   "llmManageProfilesDesc": "添加、编辑、测试和删除 LLM 后端配置",
   "llmManageAction": "管理",
   "llmProfilesTitle": "LLM 后端",
+  "llmProviderLabel": "PROVIDER",
+  "llmAddProvider": "添加 Provider",
+  "llmAddModel": "添加模型",
+  "llmDeleteModel": "删除模型",
+  "llmEditProvider": "编辑",
+  "llmDisplayName": "显示名称",
+  "llmVisionBadge": "视觉",
+  "llmInheritsFromProvider": "地址与 Key 由 Provider「{name}」提供。",
+  "@llmInheritsFromProvider": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "llmPricingTitle": "价格（每 Mtoken）",
+  "llmPricingNote": "仅用于用量统计，不影响请求。",
+  "llmPriceInput": "输入",
+  "llmPriceOutput": "输出",
+  "llmPriceCacheRead": "缓存读",
+  "llmPriceCacheWrite": "缓存写",
   "llmNewProfileName": "新后端",
   "llmSelectProfileHint": "在左侧选择一个后端，或新增一个。",
   "llmProfileName": "名称",

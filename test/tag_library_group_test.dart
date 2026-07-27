@@ -11,6 +11,7 @@ import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/editor_session.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
+import 'package:dataset_training_tool/state/workbench_layout.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/views/panels/tag_library_panel.dart';
 
@@ -41,6 +42,7 @@ void main() {
         ChangeNotifierProvider.value(value: dataset),
         ChangeNotifierProvider.value(value: session),
         ChangeNotifierProvider.value(value: ops),
+        ChangeNotifierProvider(create: (_) => WorkbenchLayout()),
       ],
       child: MaterialApp(
         theme: buildAppTheme(Brightness.dark),
@@ -69,8 +71,9 @@ void main() {
     expect(find.text('beta'), findsOneWidget);
   });
 
-  testWidgets('group edit mode: select two tags, send via context menu',
-      (tester) async {
+  testWidgets('group edit mode: select two tags, send via context menu', (
+    tester,
+  ) async {
     await appState.createTagGroup('outfit', 0xFF6A9BDD);
 
     await tester.pumpWidget(harness());
@@ -87,8 +90,10 @@ void main() {
     await tester.tap(find.text('alpha'));
     await tester.tap(find.text('beta'));
     await tester.pumpAndSettle();
-    expect(find.text('2 selected · right-click to send to a group'),
-        findsOneWidget);
+    expect(
+      find.text('2 selected · right-click to send to a group'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
     await tester.pumpAndSettle();
@@ -104,8 +109,9 @@ void main() {
     );
   });
 
-  testWidgets('right-click on an unselected tag sends only that tag',
-      (tester) async {
+  testWidgets('right-click on an unselected tag sends only that tag', (
+    tester,
+  ) async {
     final g = await appState.createTagGroup('outfit', 0xFF6A9BDD);
 
     await tester.pumpWidget(harness());
@@ -201,8 +207,9 @@ void main() {
     expect(appState.ungroupedTags, ['alpha', 'beta', 'gamma']);
   });
 
-  testWidgets('edit mode: arrows reorder groups and disable at the ends',
-      (tester) async {
+  testWidgets('edit mode: arrows reorder groups and disable at the ends', (
+    tester,
+  ) async {
     final g1 = await appState.createTagGroup('one', 1);
     final g2 = await appState.createTagGroup('two', 2);
 
@@ -228,8 +235,9 @@ void main() {
     expect(appState.tagGroups.map((g) => g.id), [g2.id, g1.id]);
   });
 
-  testWidgets('edit mode: color dot opens swatches and recolors the group',
-      (tester) async {
+  testWidgets('edit mode: color dot opens swatches and recolors the group', (
+    tester,
+  ) async {
     final g = await appState.createTagGroup('outfit', kTagGroupPresetColors[0]);
 
     await tester.pumpWidget(harness());
