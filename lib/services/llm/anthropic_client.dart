@@ -35,10 +35,10 @@ class AnthropicClient implements LlmClient {
   Uri _endpoint(LlmProviderProfile profile) => _url(profile, '/messages');
 
   Map<String, String> _headers(LlmProviderProfile profile) => {
-        'Content-Type': 'application/json',
-        'x-api-key': profile.apiKey,
-        'anthropic-version': apiVersion,
-      };
+    'Content-Type': 'application/json',
+    'x-api-key': profile.apiKey,
+    'anthropic-version': apiVersion,
+  };
 
   // --- Request building -------------------------------------------------
 
@@ -118,19 +118,19 @@ class AnthropicClient implements LlmClient {
   }
 
   List<Map<String, dynamic>> _contentBlocks(ChatMessage m) => [
-        for (final p in m.parts)
-          if (p.text != null && p.text!.isNotEmpty)
-            {'type': 'text', 'text': p.text}
-          else if (p.isImage)
-            {
-              'type': 'image',
-              'source': {
-                'type': 'base64',
-                'media_type': p.imageMimeType ?? 'image/jpeg',
-                'data': base64Encode(p.imageBytes!),
-              },
-            },
-      ];
+    for (final p in m.parts)
+      if (p.text != null && p.text!.isNotEmpty)
+        {'type': 'text', 'text': p.text}
+      else if (p.isImage)
+        {
+          'type': 'image',
+          'source': {
+            'type': 'base64',
+            'media_type': p.imageMimeType ?? 'image/jpeg',
+            'data': base64Encode(p.imageBytes!),
+          },
+        },
+  ];
 
   Map<String, dynamic> _parseArgs(String json) {
     try {
@@ -154,10 +154,12 @@ class AnthropicClient implements LlmClient {
       return await client.send(request).timeout(connectTimeout);
     } on TimeoutException {
       throw LlmException(
-          'Connection timed out after ${connectTimeout.inSeconds}s.');
+        'Connection timed out after ${connectTimeout.inSeconds}s.',
+      );
     } on SocketException catch (e) {
       throw LlmException(
-          'Cannot reach ${_endpoint(profile).host}: ${e.message}');
+        'Cannot reach ${_endpoint(profile).host}: ${e.message}',
+      );
     } on http.ClientException catch (e) {
       throw LlmException('HTTP error: ${e.message}');
     }
@@ -189,8 +191,10 @@ class AnthropicClient implements LlmClient {
       final body = _buildBody(profile, messages, tools, stream: true);
       final resp = await _send(client, profile, body);
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
-        throw LlmException('Server returned HTTP ${resp.statusCode}: '
-            '${_truncate(await _readBody(resp))}');
+        throw LlmException(
+          'Server returned HTTP ${resp.statusCode}: '
+          '${_truncate(await _readBody(resp))}',
+        );
       }
 
       // index → partially assembled tool_use block
@@ -202,8 +206,11 @@ class AnthropicClient implements LlmClient {
       final events = sseDataEvents(resp.stream).timeout(
         idleTimeout,
         onTimeout: (sink) {
-          sink.addError(LlmException(
-              'Stream stalled: no data for ${idleTimeout.inSeconds}s.'));
+          sink.addError(
+            LlmException(
+              'Stream stalled: no data for ${idleTimeout.inSeconds}s.',
+            ),
+          );
           sink.close();
         },
       );
@@ -220,8 +227,7 @@ class AnthropicClient implements LlmClient {
           }
           switch (obj['type']) {
             case 'message_start':
-              final usage =
-                  (obj['message'] as Map<String, dynamic>?)?['usage'];
+              final usage = (obj['message'] as Map<String, dynamic>?)?['usage'];
               if (usage is Map<String, dynamic>) {
                 inputTokens = (usage['input_tokens'] as num?)?.toInt() ?? 0;
               }
@@ -258,9 +264,11 @@ class AnthropicClient implements LlmClient {
               }
             case 'error':
               final err = obj['error'];
-              throw LlmException(err is Map<String, dynamic>
-                  ? 'API error: ${err['message']}'
-                  : 'API error.');
+              throw LlmException(
+                err is Map<String, dynamic>
+                    ? 'API error: ${err['message']}'
+                    : 'API error.',
+              );
             case 'message_stop':
               break;
           }
@@ -342,26 +350,30 @@ class AnthropicClient implements LlmClient {
           .timeout(connectTimeout);
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         throw LlmException(
-            'Server returned HTTP ${resp.statusCode}: ${_truncate(resp.body)}');
+          'Server returned HTTP ${resp.statusCode}: ${_truncate(resp.body)}',
+        );
       }
       final decoded = jsonDecode(utf8.decode(resp.bodyBytes));
       if (decoded is! Map<String, dynamic> || decoded['data'] is! List) {
         throw LlmException('Unexpected /models response shape.');
       }
-      final ids = (decoded['data'] as List)
-          .whereType<Map<String, dynamic>>()
-          .map((m) => (m['id'] ?? '').toString())
-          .where((id) => id.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      final ids =
+          (decoded['data'] as List)
+              .whereType<Map<String, dynamic>>()
+              .map((m) => (m['id'] ?? '').toString())
+              .where((id) => id.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
       return ids;
     } on TimeoutException {
       throw LlmException(
-          'Connection timed out after ${connectTimeout.inSeconds}s.');
+        'Connection timed out after ${connectTimeout.inSeconds}s.',
+      );
     } on SocketException catch (e) {
       throw LlmException(
-          'Cannot reach ${_url(profile, '/models').host}: ${e.message}');
+        'Cannot reach ${_url(profile, '/models').host}: ${e.message}',
+      );
     } on http.ClientException catch (e) {
       throw LlmException('HTTP error: ${e.message}');
     } on FormatException {

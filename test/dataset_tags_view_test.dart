@@ -14,6 +14,7 @@ import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/editor_session.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
+import 'package:dataset_training_tool/state/workbench_layout.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/views/panels/tag_library_panel.dart';
 
@@ -67,6 +68,7 @@ void main() {
         ChangeNotifierProvider.value(value: dataset),
         ChangeNotifierProvider.value(value: session),
         ChangeNotifierProvider.value(value: ops),
+        ChangeNotifierProvider(create: (_) => WorkbenchLayout()),
       ],
       child: MaterialApp(
         theme: buildAppTheme(Brightness.dark),
@@ -85,7 +87,9 @@ void main() {
   Future<void> openDatasetTab(WidgetTester tester) async {
     await tester.pumpWidget(harness());
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Dataset'));
+    // The tab label carries its tag count ("Dataset  12") since the views
+    // dropped their own title rows.
+    await tester.tap(find.textContaining('Dataset').first);
     await tester.pumpAndSettle();
   }
 

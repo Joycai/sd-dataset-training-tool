@@ -22,8 +22,9 @@ class ContextBudget {
   /// The most recent N messages are never folded (≈ the last 4 rounds).
   final int protectedTail;
 
-  int get inputBudget =>
-      (contextWindow - maxOutputTokens - safetyMargin).clamp(1024, 1 << 31).toInt();
+  int get inputBudget => (contextWindow - maxOutputTokens - safetyMargin)
+      .clamp(1024, 1 << 31)
+      .toInt();
 
   /// Estimated tokens for one image content part (768px JPEG, base64).
   static const imageTokens = 1600;
@@ -75,8 +76,7 @@ class ContextBudget {
   void compact(List<ChatMessage> history) {
     if (estimate(history) <= inputBudget) return;
 
-    bool isProtected(int i) =>
-        i == 0 || i >= history.length - protectedTail;
+    bool isProtected(int i) => i == 0 || i >= history.length - protectedTail;
 
     // Pass 1: elide tool result bodies, oldest first.
     for (var i = 0; i < history.length; i++) {
@@ -106,7 +106,9 @@ class ContextBudget {
 
   void _elide(ChatMessage m, String what) {
     final chars = m.parts.fold<int>(
-        0, (sum, p) => sum + (p.text?.length ?? 0) + (p.isImage ? 1 : 0));
+      0,
+      (sum, p) => sum + (p.text?.length ?? 0) + (p.isImage ? 1 : 0),
+    );
     final head = _firstLine(m.text);
     m.parts = [
       ChatContentPart.text(

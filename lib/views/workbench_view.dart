@@ -15,10 +15,12 @@ import '../state/dataset_state.dart';
 import '../state/editor_session.dart';
 import '../state/shortcut_relay.dart';
 import '../state/tag_ops.dart';
+import '../state/workbench_layout.dart';
+import '../widgets/icon_nav_rail.dart';
 import '../widgets/resize_handle.dart';
 import '../widgets/status_bar.dart';
 import '../widgets/workbench_top_bar.dart';
-import 'panels/agent_chat_panel.dart';
+import 'panels/agent_dock.dart';
 import 'panels/assets_panel.dart';
 import 'panels/caption_panel.dart';
 import 'panels/preview_panel.dart';
@@ -40,9 +42,6 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   static const double _panelMaxWidth = 480;
   static const double _centerMinWidth = 320;
   static const double _handleWidth = 7;
-  // AI assistant column bounds.
-  static const double _agentMinWidth = 260;
-  static const double _agentMaxWidth = 520;
   // Vertical split of the center column: both panes keep a usable minimum.
   static const double _previewMinHeight = 160;
   static const double _captionMinHeight = 150;
@@ -70,9 +69,9 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   final PreviewWindowLauncher _previewWindow = PreviewWindowLauncher();
   final FocusNode _libraryFilterFocus = FocusNode();
   final ShortcutRelay _shortcutRelay = ShortcutRelay();
+  final WorkbenchLayout _layout = WorkbenchLayout();
   late final AgentChatState _agentChat;
   bool _agentOpen = false;
-  double _agentWidth = SettingsService.defaultAgentPanelWidth;
   String? _lastLoadedPath;
   late double _leftWidth;
   late double _rightWidth;
@@ -102,9 +101,6 @@ class _WorkbenchViewState extends State<WorkbenchView> {
       tagOps: _tagOps,
       aiTagger: _aiTagger,
     );
-    SettingsService().loadAgentPanelWidth().then((value) {
-      if (mounted) setState(() => _agentWidth = value);
-    });
     SettingsService().loadAgentPanelOpen().then((value) {
       if (mounted) setState(() => _agentOpen = value);
     });
@@ -128,6 +124,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     _batchTag.dispose();
     _tagOps.dispose();
     _agentChat.dispose();
+    _layout.dispose();
     _libraryFilterFocus.dispose();
     super.dispose();
   }
@@ -224,20 +221,6 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     SettingsService().saveAgentPanelOpen(_agentOpen);
   }
 
-  /// Clamps the assistant column like the side panels, but accounting for
-  /// three fixed columns plus their handles. On very narrow windows the
-  /// assistant column gives way first so the center never collapses.
-  double _clampAgentWidth(
-      double value, double left, double right, double total) {
-    final available =
-        total - left - right - _centerMinWidth - 3 * _handleWidth;
-    if (available < _agentMinWidth) {
-      return available < 0 ? 0 : available;
-    }
-    final max = available.clamp(_agentMinWidth, _agentMaxWidth).toDouble();
-    return value.clamp(_agentMinWidth, max).toDouble();
-  }
-
   // Workbench shortcuts, dispatched from the root Focus node instead of a
   // CallbackShortcuts widget: unmatched keys keep bubbling up to the
   // app-level text-editing shortcuts instead of being swallowed here.
@@ -317,6 +300,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
         ChangeNotifierProvider.value(value: _batchTag),
         ChangeNotifierProvider.value(value: _tagOps),
         ChangeNotifierProvider.value(value: _agentChat),
+        ChangeNotifierProvider.value(value: _layout),
       ],
       child: Focus(
         autofocus: true,
@@ -329,181 +313,192 @@ class _WorkbenchViewState extends State<WorkbenchView> {
               onToggleAgent: _toggleAgentPanel,
             ),
             Expanded(
+              // The assistant floats over this area, so it is a Stack rather
+              // than another column.
               child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final total = constraints.maxWidth;
-                  // The assistant column (plus its handle) reserves width up
-                  // front, so the side-panel clamps shrink the sides instead
-                  // of letting the four fixed columns crush the center.
-                  final agentReserve = _agentOpen
-                      ? _agentWidth
-                              .clamp(_agentMinWidth, _agentMaxWidth)
-                              .toDouble() +
-                          _handleWidth
-                      : 0.0;
-                  final left = _clampPanelWidth(
-                      _leftWidth, _rightWidth + agentReserve, total);
-                  final right =
-                      _clampPanelWidth(_rightWidth, left + agentReserve, total);
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SizedBox(
-                        width: left,
-                        child: AssetsPanel(
-                          onOpenFolder: _openFolder,
-                          onRefresh: _refresh,
-                          onOpenExternalPreview: _openExternalPreview,
-                        ),
+                builder: (context, area) => Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const IconNavRail(),
+                          Expanded(
+                            // The rail sits outside the inner LayoutBuilder so
+                            // `total` is already the width the resizable
+                            // columns get to share.
+                            child: ListenableBuilder(
+                              listenable: _layout,
+                              builder: (context, _) => LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final total = constraints.maxWidth;
+                                  final showNavigator =
+                                      _layout.navigatorVisible;
+                                  final showInspector =
+                                      _layout.inspectorVisible;
+                                  // A hidden column contributes nothing to the other's clamp.
+                                  final left = showNavigator
+                                      ? _clampPanelWidth(
+                                          _leftWidth,
+                                          showInspector ? _rightWidth : 0,
+                                          total,
+                                        )
+                                      : 0.0;
+                                  final right = showInspector
+                                      ? _clampPanelWidth(
+                                          _rightWidth,
+                                          left,
+                                          total,
+                                        )
+                                      : 0.0;
+                                  return Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      if (showNavigator) ...[
+                                        SizedBox(
+                                          width: left,
+                                          child: AssetsPanel(
+                                            onOpenFolder: _openFolder,
+                                            onRefresh: _refresh,
+                                            onOpenExternalPreview:
+                                                _openExternalPreview,
+                                          ),
+                                        ),
+                                        ResizeHandle(
+                                          onDragStart: (x) {
+                                            _dragAnchorX = x;
+                                            _dragStartWidth = left;
+                                          },
+                                          onDragUpdate: (x) => setState(() {
+                                            _leftWidth = _clampPanelWidth(
+                                              _dragStartWidth +
+                                                  (x - _dragAnchorX),
+                                              right,
+                                              total,
+                                            );
+                                          }),
+                                          onDragEnd: _persistPanelWidths,
+                                          onReset: () {
+                                            setState(() {
+                                              _leftWidth = SettingsService
+                                                  .defaultLeftPanelWidth;
+                                            });
+                                            _persistPanelWidths();
+                                          },
+                                        ),
+                                      ],
+                                      Expanded(
+                                        child: LayoutBuilder(
+                                          builder: (context, center) {
+                                            final totalHeight =
+                                                center.maxHeight;
+                                            final topHeight = _clampTopHeight(
+                                              _centerSplit * totalHeight,
+                                              totalHeight,
+                                            );
+                                            return Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.stretch,
+                                              children: [
+                                                SizedBox(
+                                                  height: topHeight,
+                                                  // No padding: the canvas *is* the
+                                                  // window background, and the image
+                                                  // carries its own radius + shadow.
+                                                  child: PreviewPanel(
+                                                    onOpenExternalPreview:
+                                                        _openExternalPreview,
+                                                  ),
+                                                ),
+                                                ResizeHandle(
+                                                  axis: Axis.vertical,
+                                                  onDragStart: (y) {
+                                                    _dragAnchorY = y;
+                                                    _dragStartTopHeight =
+                                                        topHeight;
+                                                  },
+                                                  onDragUpdate: (y) => setState(
+                                                    () {
+                                                      _centerSplit =
+                                                          _clampTopHeight(
+                                                            _dragStartTopHeight +
+                                                                (y -
+                                                                    _dragAnchorY),
+                                                            totalHeight,
+                                                          ) /
+                                                          totalHeight;
+                                                    },
+                                                  ),
+                                                  onDragEnd:
+                                                      _persistCenterSplit,
+                                                  onReset: () {
+                                                    setState(() {
+                                                      _centerSplit =
+                                                          SettingsService
+                                                              .defaultCenterSplit;
+                                                    });
+                                                    _persistCenterSplit();
+                                                  },
+                                                ),
+                                                Expanded(
+                                                  // Flush like the canvas: the editor
+                                                  // is a panel, and its own top
+                                                  // hairline is the only separator.
+                                                  child: CaptionPanel(
+                                                    shortcutRelay:
+                                                        _shortcutRelay,
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      if (showInspector) ...[
+                                        ResizeHandle(
+                                          onDragStart: (x) {
+                                            _dragAnchorX = x;
+                                            _dragStartWidth = right;
+                                          },
+                                          onDragUpdate: (x) => setState(() {
+                                            _rightWidth = _clampPanelWidth(
+                                              _dragStartWidth -
+                                                  (x - _dragAnchorX),
+                                              left,
+                                              total,
+                                            );
+                                          }),
+                                          onDragEnd: _persistPanelWidths,
+                                          onReset: () {
+                                            setState(() {
+                                              _rightWidth = SettingsService
+                                                  .defaultRightPanelWidth;
+                                            });
+                                            _persistPanelWidths();
+                                          },
+                                        ),
+                                        SizedBox(
+                                          width: right,
+                                          child: TagLibraryPanel(
+                                            filterFocusNode:
+                                                _libraryFilterFocus,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      ResizeHandle(
-                        onDragStart: (x) {
-                          _dragAnchorX = x;
-                          _dragStartWidth = left;
-                        },
-                        onDragUpdate: (x) => setState(() {
-                          _leftWidth = _clampPanelWidth(
-                            _dragStartWidth + (x - _dragAnchorX),
-                            right + agentReserve,
-                            total,
-                          );
-                        }),
-                        onDragEnd: _persistPanelWidths,
-                        onReset: () {
-                          setState(() {
-                            _leftWidth = SettingsService.defaultLeftPanelWidth;
-                          });
-                          _persistPanelWidths();
-                        },
-                      ),
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, center) {
-                            final totalHeight = center.maxHeight;
-                            final topHeight = _clampTopHeight(
-                              _centerSplit * totalHeight,
-                              totalHeight,
-                            );
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                SizedBox(
-                                  height: topHeight,
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      8,
-                                      14,
-                                      8,
-                                      4,
-                                    ),
-                                    child: PreviewPanel(
-                                      onOpenExternalPreview:
-                                          _openExternalPreview,
-                                    ),
-                                  ),
-                                ),
-                                ResizeHandle(
-                                  axis: Axis.vertical,
-                                  onDragStart: (y) {
-                                    _dragAnchorY = y;
-                                    _dragStartTopHeight = topHeight;
-                                  },
-                                  onDragUpdate: (y) => setState(() {
-                                    _centerSplit =
-                                        _clampTopHeight(
-                                          _dragStartTopHeight +
-                                              (y - _dragAnchorY),
-                                          totalHeight,
-                                        ) /
-                                        totalHeight;
-                                  }),
-                                  onDragEnd: _persistCenterSplit,
-                                  onReset: () {
-                                    setState(() {
-                                      _centerSplit =
-                                          SettingsService.defaultCenterSplit;
-                                    });
-                                    _persistCenterSplit();
-                                  },
-                                ),
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      8,
-                                      3,
-                                      8,
-                                      14,
-                                    ),
-                                    child: CaptionPanel(
-                                      shortcutRelay: _shortcutRelay,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                      ResizeHandle(
-                        onDragStart: (x) {
-                          _dragAnchorX = x;
-                          _dragStartWidth = right;
-                        },
-                        onDragUpdate: (x) => setState(() {
-                          _rightWidth = _clampPanelWidth(
-                            _dragStartWidth - (x - _dragAnchorX),
-                            left + agentReserve,
-                            total,
-                          );
-                        }),
-                        onDragEnd: _persistPanelWidths,
-                        onReset: () {
-                          setState(() {
-                            _rightWidth =
-                                SettingsService.defaultRightPanelWidth;
-                          });
-                          _persistPanelWidths();
-                        },
-                      ),
-                      SizedBox(
-                        width: right,
-                        child: TagLibraryPanel(
-                          filterFocusNode: _libraryFilterFocus,
-                        ),
-                      ),
-                      if (_agentOpen) ...[
-                        ResizeHandle(
-                          onDragStart: (x) {
-                            _dragAnchorX = x;
-                            _dragStartWidth = _agentWidth;
-                          },
-                          onDragUpdate: (x) => setState(() {
-                            _agentWidth = _clampAgentWidth(
-                              _dragStartWidth - (x - _dragAnchorX),
-                              left,
-                              right,
-                              total,
-                            );
-                          }),
-                          onDragEnd: () => SettingsService()
-                              .saveAgentPanelWidth(_agentWidth),
-                          onReset: () {
-                            setState(() {
-                              _agentWidth =
-                                  SettingsService.defaultAgentPanelWidth;
-                            });
-                            SettingsService().saveAgentPanelWidth(_agentWidth);
-                          },
-                        ),
-                        SizedBox(
-                          width: _clampAgentWidth(
-                              _agentWidth, left, right, total),
-                          child: AgentChatPanel(onClose: _toggleAgentPanel),
-                        ),
-                      ],
-                    ],
-                  );
-                },
+                    ),
+                    if (_agentOpen)
+                      AgentDock(area: area.biggest, onClose: _toggleAgentPanel),
+                  ],
+                ),
               ),
             ),
             const StatusBar(),

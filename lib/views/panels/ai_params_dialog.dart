@@ -6,16 +6,15 @@ import '../../models/ai_tagger_models.dart';
 import '../../state/ai_tagger_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/model_picker.dart';
+import '../../widgets/panel_widgets.dart';
 
 /// Opens the AI interrogation parameters dialog. [ai] is passed explicitly
 /// because dialogs live above the workbench's provider subtree.
 Future<void> showAiParamsDialog(BuildContext context, AiTaggerState ai) {
   return showDialog<void>(
     context: context,
-    builder: (context) => ChangeNotifierProvider.value(
-      value: ai,
-      child: const _AiParamsDialog(),
-    ),
+    builder: (context) =>
+        ChangeNotifierProvider.value(value: ai, child: const _AiParamsDialog()),
   );
 }
 
@@ -39,8 +38,7 @@ class _AiParamsDialogState extends State<_AiParamsDialog> {
     super.initState();
     _ai = context.read<AiTaggerState>();
     _urlController = TextEditingController(text: _ai.serverUrl);
-    _ignoreController =
-        TextEditingController(text: _ai.ignoreTags.join(', '));
+    _ignoreController = TextEditingController(text: _ai.ignoreTags.join(', '));
     _sliderValue = _ai.threshold ?? _defaultCustomThreshold;
     // First open: fetch the model list so the dropdown has content.
     if (_ai.models.isEmpty && !_ai.loadingModels) {
@@ -79,135 +77,139 @@ class _AiParamsDialogState extends State<_AiParamsDialog> {
     }
     final thresholdApplies = selectedInfo?.category != 'caption';
 
-    return AlertDialog(
-      title: Row(
+    return GlassDialog(
+      width: 560,
+      header: Row(
         children: [
-          Icon(Icons.tune, size: 18, color: semantic.muted),
-          const SizedBox(width: 8),
+          Icon(Icons.tune, size: 17, color: semantic.muted),
+          const SizedBox(width: 9),
           Expanded(
-            child: Text(l10n.aiParamsTitle,
-                style: const TextStyle(fontSize: 15)),
+            child: Text(
+              l10n.aiParamsTitle,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
           ),
           _ConnectionBadge(ai: ai, l10n: l10n),
         ],
       ),
-      content: SizedBox(
-        width: 400,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _FieldLabel(text: l10n.aiServerUrl),
+          TextField(
+            controller: _urlController,
+            style: const TextStyle(fontSize: 13),
+            onSubmitted: (value) async {
+              await ai.setServerUrl(value);
+              await ai.refreshModels();
+            },
+          ),
+          const SizedBox(height: 14),
+          _FieldLabel(text: l10n.aiModelLabel),
+          Row(
             children: [
-              _FieldLabel(text: l10n.aiServerUrl),
-              TextField(
-                controller: _urlController,
-                style: const TextStyle(fontSize: 13),
-                onSubmitted: (value) async {
-                  await ai.setServerUrl(value);
-                  await ai.refreshModels();
-                },
+              Expanded(
+                child: ModelPickerField(ai: ai, l10n: l10n),
               ),
-              const SizedBox(height: 14),
-              _FieldLabel(text: l10n.aiModelLabel),
-              Row(
-                children: [
-                  Expanded(
-                    child: ModelPickerField(ai: ai, l10n: l10n),
-                  ),
-                  const SizedBox(width: 6),
-                  IconButton(
-                    icon: ai.loadingModels
-                        ? SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 1.5, color: semantic.muted),
-                          )
-                        : const Icon(Icons.refresh, size: 18),
-                    tooltip: l10n.aiRefreshModels,
-                    color: semantic.muted,
-                    onPressed: ai.loadingModels
-                        ? null
-                        : () async {
-                            await ai.setServerUrl(_urlController.text);
-                            await ai.refreshModels();
-                          },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(child: _FieldLabel(text: l10n.aiThresholdLabel)),
-                  Text(
-                    useDefaultThreshold
-                        ? l10n.aiUseModelDefault
-                        : _sliderValue.toStringAsFixed(2),
-                    style: monoStyle(context,
-                        size: 11.5,
-                        color: useDefaultThreshold || !thresholdApplies
-                            ? semantic.muted
-                            : scheme.onSurface),
-                  ),
-                  const SizedBox(width: 6),
-                  _CompactSwitch(
-                    value: !useDefaultThreshold && thresholdApplies,
-                    onChanged: thresholdApplies
-                        ? (custom) =>
-                            ai.setThreshold(custom ? _sliderValue : null)
-                        : null,
-                  ),
-                ],
-              ),
-              Slider(
-                value: _sliderValue,
-                min: 0.05,
-                max: 0.95,
-                divisions: 18,
-                onChanged: useDefaultThreshold || !thresholdApplies
+              const SizedBox(width: 6),
+              IconButton(
+                icon: ai.loadingModels
+                    ? SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: semantic.muted,
+                        ),
+                      )
+                    : const Icon(Icons.refresh, size: 18),
+                tooltip: l10n.aiRefreshModels,
+                color: semantic.muted,
+                onPressed: ai.loadingModels
                     ? null
-                    : (value) => setState(() => _sliderValue = value),
-                onChangeEnd: useDefaultThreshold || !thresholdApplies
-                    ? null
-                    : (value) => ai.setThreshold(value),
-              ),
-              Text(
-                thresholdApplies
-                    ? l10n.aiThresholdDesc
-                    : l10n.aiThresholdCaptionNote,
-                style: TextStyle(fontSize: 11.5, color: semantic.muted),
-              ),
-              const SizedBox(height: 14),
-              _FieldLabel(text: l10n.aiIgnoreTagsLabel),
-              TextField(
-                controller: _ignoreController,
-                style: const TextStyle(fontSize: 13),
-                maxLines: 2,
-                onSubmitted: (value) => ai.setIgnoreTagsFromInput(value),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                l10n.aiIgnoreTagsDesc,
-                style: TextStyle(fontSize: 11.5, color: semantic.muted),
-              ),
-              const SizedBox(height: 10),
-              const Divider(),
-              _SwitchRow(
-                label: l10n.aiUnderscoreToSpaces,
-                value: ai.underscoreToSpaces,
-                onChanged: ai.setUnderscoreToSpaces,
-              ),
-              _SwitchRow(
-                label: l10n.aiEscapeParentheses,
-                value: ai.escapeParentheses,
-                onChanged: ai.setEscapeParentheses,
+                    : () async {
+                        await ai.setServerUrl(_urlController.text);
+                        await ai.refreshModels();
+                      },
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: _FieldLabel(text: l10n.aiThresholdLabel)),
+              Text(
+                useDefaultThreshold
+                    ? l10n.aiUseModelDefault
+                    : _sliderValue.toStringAsFixed(2),
+                style: monoStyle(
+                  context,
+                  size: 11.5,
+                  color: useDefaultThreshold || !thresholdApplies
+                      ? semantic.muted
+                      : scheme.onSurface,
+                ),
+              ),
+              const SizedBox(width: 6),
+              AppSwitch(
+                value: !useDefaultThreshold && thresholdApplies,
+                onChanged: thresholdApplies
+                    ? (custom) => ai.setThreshold(custom ? _sliderValue : null)
+                    : null,
+              ),
+            ],
+          ),
+          Slider(
+            value: _sliderValue,
+            min: 0.05,
+            max: 0.95,
+            divisions: 18,
+            onChanged: useDefaultThreshold || !thresholdApplies
+                ? null
+                : (value) => setState(() => _sliderValue = value),
+            onChangeEnd: useDefaultThreshold || !thresholdApplies
+                ? null
+                : (value) => ai.setThreshold(value),
+          ),
+          Text(
+            thresholdApplies
+                ? l10n.aiThresholdDesc
+                : l10n.aiThresholdCaptionNote,
+            style: TextStyle(fontSize: 11.5, color: semantic.muted),
+          ),
+          const SizedBox(height: 14),
+          _FieldLabel(text: l10n.aiIgnoreTagsLabel),
+          TextField(
+            controller: _ignoreController,
+            style: const TextStyle(fontSize: 13),
+            maxLines: 2,
+            onSubmitted: (value) => ai.setIgnoreTagsFromInput(value),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            l10n.aiIgnoreTagsDesc,
+            style: TextStyle(fontSize: 11.5, color: semantic.muted),
+          ),
+          const SizedBox(height: 10),
+          const Divider(),
+          _SwitchRow(
+            label: l10n.aiUnderscoreToSpaces,
+            value: ai.underscoreToSpaces,
+            onChanged: ai.setUnderscoreToSpaces,
+          ),
+          _SwitchRow(
+            label: l10n.aiEscapeParentheses,
+            value: ai.escapeParentheses,
+            onChanged: ai.setEscapeParentheses,
+          ),
+        ],
       ),
       actions: [
-        TextButton(
+        // No "cancel": every control here writes straight through to
+        // AiTaggerState, so a cancel that did not revert would be a lie and
+        // one that did would mean shadowing the whole settings object.
+        FilledButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(l10n.confirm),
         ),
@@ -295,36 +297,9 @@ class _SwitchRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
         children: [
-          Expanded(
-            child: Text(label, style: const TextStyle(fontSize: 13)),
-          ),
-          _CompactSwitch(value: value, onChanged: onChanged),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
+          AppSwitch(value: value, onChanged: onChanged),
         ],
-      ),
-    );
-  }
-}
-
-/// A Switch scaled down to fit dense dialog rows: the stock Material 3
-/// switch is 32 px tall plus tap padding and collides with its neighbors.
-class _CompactSwitch extends StatelessWidget {
-  const _CompactSwitch({required this.value, required this.onChanged});
-
-  final bool value;
-  final ValueChanged<bool>? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 38,
-      height: 22,
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: Switch(
-          value: value,
-          onChanged: onChanged,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
       ),
     );
   }

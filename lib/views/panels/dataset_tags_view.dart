@@ -209,29 +209,38 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        PanelHeader(
-          title: l10n.datasetTagsTitle,
-          count: allTags.length,
-          actions: [
-            PanelIconButton(
-              icon: Icons.playlist_add,
-              tooltip: l10n.addTagsGlobalTooltip,
-              onPressed: dataset.totalCount > 0 && !ops.busy
-                  ? _showAddTagsDialog
-                  : null,
-            ),
-            PanelIconButton(
-              icon: Icons.filter_alt_off_outlined,
-              tooltip: l10n.clearTagFilter,
-              onPressed: dataset.tagFilterActive
-                  ? dataset.clearTagFilter
-                  : null,
-            ),
-          ],
-        ),
-        PanelSearchField(
-          hint: l10n.filterTagsHint,
-          onChanged: (value) => setState(() => _filter = value),
+        // Filter field and actions share one band; the tab above names this
+        // view and carries its tag count.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: PanelSearchField(
+                  hint: l10n.filterTagsHint,
+                  onChanged: (value) => setState(() => _filter = value),
+                  padding: EdgeInsets.zero,
+                ),
+              ),
+              const SizedBox(width: 4),
+              PanelIconButton(
+                icon: Icons.playlist_add,
+                tooltip: l10n.addTagsGlobalTooltip,
+                size: 16,
+                onPressed: dataset.totalCount > 0 && !ops.busy
+                    ? _showAddTagsDialog
+                    : null,
+              ),
+              PanelIconButton(
+                icon: Icons.filter_alt_off_outlined,
+                tooltip: l10n.clearTagFilter,
+                size: 16,
+                onPressed: dataset.tagFilterActive
+                    ? dataset.clearTagFilter
+                    : null,
+              ),
+            ],
+          ),
         ),
         if (dataset.tagFilterActive)
           Padding(
@@ -428,8 +437,7 @@ class _FilterGroupView extends StatelessWidget {
 
     final picked = await showDialog<(String, bool)>(
       context: context,
-      builder: (context) =>
-          _ConditionPickerDialog(tags: dataset.datasetTags),
+      builder: (context) => _ConditionPickerDialog(tags: dataset.datasetTags),
     );
     if (picked == null) return;
     _edit(
@@ -458,27 +466,24 @@ class _FilterGroupView extends StatelessWidget {
                 ? l10n.filterOpAnd
                 : l10n.filterOpOr,
             tooltip: l10n.filterToggleOpTooltip,
-            onTap: () => _edit(
-              filterToggleOp(dataset.tagFilterExpression, group.id),
-            ),
+            onTap: () =>
+                _edit(filterToggleOp(dataset.tagFilterExpression, group.id)),
           ),
         switch (child) {
           TagFilterCondition c => _ConditionChip(
-              condition: c,
-              toggleTooltip: l10n.filterToggleRoleTooltip,
-              removeTooltip: l10n.filterRemoveConditionTooltip,
-              onToggleRole: () => _edit(
-                filterToggleRole(dataset.tagFilterExpression, c.id),
-              ),
-              onRemove: () => _edit(
-                filterRemove(dataset.tagFilterExpression, c.id),
-              ),
-            ),
+            condition: c,
+            toggleTooltip: l10n.filterToggleRoleTooltip,
+            removeTooltip: l10n.filterRemoveConditionTooltip,
+            onToggleRole: () =>
+                _edit(filterToggleRole(dataset.tagFilterExpression, c.id)),
+            onRemove: () =>
+                _edit(filterRemove(dataset.tagFilterExpression, c.id)),
+          ),
           TagFilterGroup g => _FilterGroupView(
-              dataset: dataset,
-              group: g,
-              depth: depth + 1,
-            ),
+            dataset: dataset,
+            group: g,
+            depth: depth + 1,
+          ),
         },
       ],
       if (!isRoot) _Paren(text: ')', color: color),
@@ -511,9 +516,8 @@ class _FilterGroupView extends StatelessWidget {
           message: l10n.filterDissolveGroupTooltip,
           child: InkWell(
             borderRadius: BorderRadius.circular(99),
-            onTap: () => _edit(
-              filterDissolve(dataset.tagFilterExpression, group.id),
-            ),
+            onTap: () =>
+                _edit(filterDissolve(dataset.tagFilterExpression, group.id)),
             child: Padding(
               padding: const EdgeInsets.all(2),
               child: Icon(Icons.close, size: 12, color: semantic.muted),
@@ -698,9 +702,7 @@ class _ConditionPickerDialogState extends State<_ConditionPickerDialog> {
     final q = _query.trim().toLowerCase();
     final visible = q.isEmpty
         ? widget.tags
-        : widget.tags
-              .where((t) => t.tag.toLowerCase().contains(q))
-              .toList();
+        : widget.tags.where((t) => t.tag.toLowerCase().contains(q)).toList();
 
     return AlertDialog(
       title: Text(l10n.filterPickerTitle),
@@ -823,43 +825,59 @@ class _DatasetTagChip extends StatelessWidget {
     final semantic = context.semantic;
     final scheme = Theme.of(context).colorScheme;
 
+    // Four states, four colours: excluded from the gallery reads as the
+    // destructive one, included is the accent, on-this-image stays green,
+    // and everything else is inventory in muted ink.
+    final Color accentOfState;
+    if (filtered) {
+      accentOfState = filterExclude ? scheme.error : scheme.primary;
+    } else if (applied) {
+      accentOfState = semantic.ok;
+    } else {
+      accentOfState = semantic.muted;
+    }
+    final tinted = filtered || applied;
+
     final chip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 3.5),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2.5),
       decoration: BoxDecoration(
-        color: applied
-            ? Color.alphaBlend(semantic.ok.withAlpha(36), scheme.surface)
-            : scheme.surface,
+        color: tinted
+            ? Color.alphaBlend(accentOfState.withAlpha(38), semantic.panel)
+            : semantic.raised,
         border: Border.all(
-          color: filtered
-              ? scheme.primary
-              : applied
-              ? semantic.ok.withAlpha(140)
-              : semantic.line,
-          width: filtered ? 1.5 : 1,
+          color: tinted ? accentOfState.withAlpha(128) : semantic.line,
         ),
-        borderRadius: BorderRadius.circular(99),
+        borderRadius: BorderRadius.circular(AppRadii.pill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (filtered) ...[
             Icon(
-              filterExclude
-                  ? Icons.visibility_off_outlined
-                  : Icons.filter_alt_outlined,
-              size: 11,
-              color: scheme.primary,
+              filterExclude ? Icons.block_outlined : Icons.filter_alt_outlined,
+              size: 10,
+              color: accentOfState,
             ),
-            const SizedBox(width: 5),
+            const SizedBox(width: 4),
           ] else if (applied) ...[
-            Icon(Icons.check, size: 11, color: semantic.ok),
-            const SizedBox(width: 5),
+            Icon(Icons.check, size: 10, color: semantic.ok),
+            const SizedBox(width: 4),
           ],
-          Text(entry.tag, style: const TextStyle(fontSize: 12)),
+          Text(
+            entry.tag,
+            style: TextStyle(
+              fontSize: AppText.small,
+              color: tinted ? scheme.onSurface : semantic.muted,
+            ),
+          ),
           const SizedBox(width: 5),
           Text(
             '${entry.count}',
-            style: monoStyle(context, size: 10.5, color: semantic.muted),
+            style: monoStyle(
+              context,
+              size: AppText.micro,
+              color: semantic.muted,
+            ),
           ),
         ],
       ),
@@ -1045,7 +1063,9 @@ class _AddTagsDialogState extends State<_AddTagsDialog> {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
     final filtered = widget.filteredCount != widget.totalCount;
-    final targetCount = _onlyFiltered ? widget.filteredCount : widget.totalCount;
+    final targetCount = _onlyFiltered
+        ? widget.filteredCount
+        : widget.totalCount;
 
     return AlertDialog(
       title: Text(l10n.addTagsGlobalTitle),

@@ -87,9 +87,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imageTags => 'Image Tags';
 
   @override
-  String get assetsPanelTitle => 'Assets';
-
-  @override
   String get searchFilenameHint => 'Search filenames';
 
   @override
@@ -138,6 +135,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String tagCountShort(int count) {
+    return '$count tags';
+  }
+
+  @override
   String get selectImageHint => 'Select an image from the assets panel.';
 
   @override
@@ -148,6 +150,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fitToWindow => 'Fit to window';
+
+  @override
+  String get zoomIn => 'Zoom in';
+
+  @override
+  String get zoomOut => 'Zoom out';
 
   @override
   String get openInNewWindow => 'Open in separate window';
@@ -329,6 +337,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiExitCompare => 'Exit compare';
+
+  @override
+  String compareModeCapsule(int count) {
+    return 'Compare mode · $count with results';
+  }
+
+  @override
+  String get compareModeHint => 'Accept or reject AI results one by one';
+
+  @override
+  String get compareModeExitGlobal => 'Exit compare mode';
+
+  @override
+  String compareBadgePending(int count) {
+    return '$count to review';
+  }
+
+  @override
+  String get compareBadgeReviewed => 'Reviewed';
 
   @override
   String get aiExitCompareTooltip =>
@@ -562,6 +589,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get filterPanelTitle => 'Gallery filter';
 
   @override
+  String filterStatus(int shown, int total) {
+    return 'Filtered · $shown / $total match';
+  }
+
+  @override
   String filterMatches(int shown, int total) {
     return '$shown / $total match';
   }
@@ -776,7 +808,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autoSaveOffStatus => 'Auto-save off';
 
   @override
-  String get saveShortcutHint => 'Ctrl+S to save now';
+  String get shortcutHints => 'Ctrl+S save · Ctrl+E AI tag · Ctrl+Z undo';
+
+  @override
+  String get aiServiceConnected => 'AI service connected';
+
+  @override
+  String get aiServiceOffline => 'AI service offline';
+
+  @override
+  String get navBrowse => 'Browse';
+
+  @override
+  String get toggleNavigator => 'Show / hide navigator';
+
+  @override
+  String get toggleInspector => 'Show / hide inspector';
 
   @override
   String get appearanceSection => 'Appearance';
@@ -914,6 +961,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentPanelTitle => 'AI Assistant';
 
   @override
+  String get agentMinimize => 'Collapse panel';
+
+  @override
+  String get agentExpand => 'Expand panel';
+
+  @override
   String get agentNewSession => 'New conversation';
 
   @override
@@ -1010,6 +1063,51 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get llmProfilesTitle => 'LLM Backends';
+
+  @override
+  String get llmProviderLabel => 'PROVIDER';
+
+  @override
+  String get llmAddProvider => 'Add provider';
+
+  @override
+  String get llmAddModel => 'Add model';
+
+  @override
+  String get llmDeleteModel => 'Delete model';
+
+  @override
+  String get llmEditProvider => 'Edit';
+
+  @override
+  String get llmDisplayName => 'Display name';
+
+  @override
+  String get llmVisionBadge => 'Vision';
+
+  @override
+  String llmInheritsFromProvider(String name) {
+    return 'URL and key come from the provider \"$name\".';
+  }
+
+  @override
+  String get llmPricingTitle => 'Pricing (per Mtoken)';
+
+  @override
+  String get llmPricingNote =>
+      'Used for usage accounting only; never sent with requests.';
+
+  @override
+  String get llmPriceInput => 'Input';
+
+  @override
+  String get llmPriceOutput => 'Output';
+
+  @override
+  String get llmPriceCacheRead => 'Cache read';
+
+  @override
+  String get llmPriceCacheWrite => 'Cache write';
 
   @override
   String get llmNewProfileName => 'New backend';

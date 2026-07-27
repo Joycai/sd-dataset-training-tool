@@ -133,46 +133,61 @@ class _CaptionPanelState extends State<CaptionPanel> {
     final session = context.watch<EditorSession>();
     final ai = context.watch<AiTaggerState>();
 
+    // The editor is a panel under the canvas, not a floating card: one
+    // hairline separates them and the fill runs to the window edges.
     return Container(
-      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: semantic.panel,
-        border: Border.all(color: semantic.line),
-        borderRadius: BorderRadius.circular(10),
+        border: Border(top: BorderSide(color: semantic.line)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 12, 0),
+            padding: const EdgeInsets.fromLTRB(14, 7, 10, 7),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                // On narrow center columns the AI button collapses to an icon
-                // so the toolbar never overflows.
-                final compact = constraints.maxWidth < 420;
+                // On narrow center columns the labelled buttons collapse to
+                // icons so the toolbar never overflows. Compare mode adds a
+                // second labelled button, so it needs the wider budget —
+                // one flat threshold would either overflow there or hide the
+                // AI label at widths that comfortably fit it.
+                final compact =
+                    constraints.maxWidth < (ai.compareMode ? 520 : 380);
                 return Row(
                   children: [
-                    PanelTab(
-                      label: l10n.textTab,
-                      selected: _tab == _tabText,
-                      onTap: () => setState(() => _tab = _tabText),
+                    SizedBox(
+                      width: 128,
+                      child: SegmentedControl<int>(
+                        value: _tab,
+                        onChanged: (value) => setState(() => _tab = value),
+                        fontSize: AppText.secondary,
+                        segments: [
+                          SegmentedOption(value: _tabTags, label: l10n.tagsTab),
+                          SegmentedOption(value: _tabText, label: l10n.textTab),
+                        ],
+                      ),
                     ),
-                    PanelTab(
-                      label: l10n.tagsTab,
-                      selected: _tab == _tabTags,
-                      onTap: () => setState(() => _tab = _tabTags),
-                    ),
-                    // Single flex slot, right-aligned: keeps the AI buttons
-                    // flush right instead of splitting free width with a
-                    // Spacer.
+                    const SizedBox(width: 12),
+                    // The count owns the only flex slot. Pairing it with a
+                    // second flex child would hand half the slack to the save
+                    // indicator even when that renders nothing, and the count
+                    // would ellipsize with room to spare.
                     Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: _SaveStateIndicator(
-                          session: session,
-                          l10n: l10n,
+                      child: Text(
+                        l10n.tagCount(session.tags.length),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: monoStyle(
+                          context,
+                          size: AppText.small,
+                          color: semantic.muted,
                         ),
                       ),
+                    ),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 130),
+                      child: _SaveStateIndicator(session: session, l10n: l10n),
                     ),
                     const SizedBox(width: 10),
                     // Compare mode is a global flag; its exit control sits up
@@ -224,16 +239,10 @@ class _CaptionPanelState extends State<CaptionPanel> {
                       onPressed: _runAi,
                       l10n: l10n,
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.tune, size: 16),
+                    const SizedBox(width: 6),
+                    _OutlinedIconButton(
+                      icon: Icons.tune,
                       tooltip: l10n.aiParamsTitle,
-                      color: semantic.muted,
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(
-                        minWidth: 30,
-                        minHeight: 30,
-                      ),
-                      padding: EdgeInsets.zero,
                       onPressed: () => showAiParamsDialog(context, ai),
                     ),
                   ],
@@ -241,7 +250,7 @@ class _CaptionPanelState extends State<CaptionPanel> {
               },
             ),
           ),
-          const Divider(),
+          Container(height: 1, color: semantic.line),
           Expanded(
             child: !session.hasImage
                 ? Center(
@@ -307,66 +316,82 @@ class _CaptionPanelState extends State<CaptionPanel> {
                     style: TextStyle(fontSize: 12.5, color: semantic.muted),
                   ),
                 )
-              : ReorderableGridView.builder(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-                  itemCount: session.tags.length,
+              // A flowing wrap, not a grid: chips size to their tag, so long
+              // tags stop being truncated to a fixed cell width. Reordering
+              // hit-tests the real chip boxes (same pattern as the compare
+              // view's left column).
+              : ReorderableWrapperWidget(
+                  onReorder: session.reorderTag,
                   // Sort mode: drag starts immediately instead of after a
                   // long press. Null keeps the package's long-press default.
                   dragStartDelay: _sortMode ? Duration.zero : null,
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 170,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 3.4,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final (index, tag) in session.tags.indexed)
+                          // Tags are de-duplicated on parse, so the tag itself
+                          // is a stable key across reorders.
+                          ReorderableItemView(
+                            key: ValueKey(tag),
+                            index: index,
+                            // The trailing holder anchors insertion after this
+                            // tag; new tags from any source land there. In
+                            // sort mode the immediate drag recognizer swallows
+                            // its taps, so it is display-only there.
+                            child: AnchorableTag(
+                              active: session.anchorTag == tag,
+                              tooltip: l10n.tagAnchorHolderTooltip,
+                              onToggle: () => session.setAnchorTag(
+                                session.anchorTag == tag ? null : tag,
+                              ),
+                              child: _TagChip(
+                                label: tag,
+                                sortMode: _sortMode,
+                                groupColor: context
+                                    .watch<AppState>()
+                                    .groupOfTag(tag)
+                                    ?.color,
+                                onTap: () => _editTag(session, index),
+                                onDelete: () => session.removeTag(tag),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                  onReorder: session.reorderTag,
-                  itemBuilder: (context, index) {
-                    final tag = session.tags[index];
-                    // Tags are de-duplicated on parse, so the tag itself is a
-                    // stable key across reorders.
-                    final group = context.watch<AppState>().groupOfTag(tag);
-                    final anchored = session.anchorTag == tag;
-                    // The trailing holder anchors insertion after this tag;
-                    // new tags from any source land there. In sort mode the
-                    // immediate drag recognizer swallows its taps, so it is
-                    // display-only there.
-                    return AnchorableTag(
-                      key: ValueKey(tag),
-                      active: anchored,
-                      expandChild: true,
-                      tooltip: l10n.tagAnchorHolderTooltip,
-                      onToggle: () =>
-                          session.setAnchorTag(anchored ? null : tag),
-                      child: _TagChip(
-                        label: tag,
-                        sortMode: _sortMode,
-                        groupColor: group == null ? null : Color(group.color),
-                        onTap: () => _editTag(session, index),
-                        onDelete: () => session.removeTag(tag),
-                      ),
-                    );
-                  },
                 ),
         ),
+        Container(height: 1, color: semantic.line),
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+          padding: const EdgeInsets.fromLTRB(10, 4, 6, 4),
           child: Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: _addTagController,
                   focusNode: _addTagFocus,
-                  style: const TextStyle(fontSize: 12.5),
+                  style: const TextStyle(fontSize: AppText.secondary),
+                  // Borderless: the hairline above already separates this
+                  // row, and a boxed field inside a panel footer reads as a
+                  // second frame.
                   decoration: InputDecoration(
                     hintText: l10n.addTagHint,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8),
                     prefixIcon: Icon(
                       Icons.add,
                       size: 15,
                       color: semantic.muted,
                     ),
                     prefixIconConstraints: const BoxConstraints(
-                      minWidth: 30,
-                      minHeight: 30,
+                      minWidth: 26,
+                      minHeight: 26,
                     ),
                   ),
                   onSubmitted: (value) {
@@ -425,7 +450,9 @@ class _AiRunButton extends StatelessWidget {
             height: 12,
             child: CircularProgressIndicator(
               strokeWidth: 1.5,
-              color: semantic.muted,
+              color: compact
+                  ? semantic.muted
+                  : Theme.of(context).colorScheme.onPrimary,
             ),
           )
         : const Icon(Icons.auto_awesome, size: 14);
@@ -442,16 +469,27 @@ class _AiRunButton extends StatelessWidget {
       );
     }
 
+    // The one filled, accented control in the editor: AI tagging is the
+    // primary action of this toolbar.
     return Tooltip(
       message: '$label (Ctrl+E)',
-      child: TextButton.icon(
+      child: FilledButton.icon(
         onPressed: enabled ? onPressed : null,
         icon: icon,
-        label: Text(label, style: const TextStyle(fontSize: 12)),
-        style: TextButton.styleFrom(
+        label: Text(
+          label,
+          style: const TextStyle(
+            fontSize: AppText.secondary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        style: FilledButton.styleFrom(
           visualDensity: VisualDensity.compact,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           minimumSize: const Size(0, 28),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.input),
+          ),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ),
@@ -499,13 +537,9 @@ class _SaveStateIndicator extends StatelessWidget {
         tooltip = session.lastError;
       case SaveState.saved:
       case SaveState.clean:
-        if (session.lastSavedAt == null) {
-          return Text(
-            l10n.tagCount(session.tags.length),
-            overflow: TextOverflow.ellipsis,
-            style: monoStyle(context, size: 11.5, color: semantic.muted),
-          );
-        }
+        // Nothing saved yet in this session: the toolbar's tag count already
+        // says everything there is to say.
+        if (session.lastSavedAt == null) return const SizedBox.shrink();
         icon = Icons.check_circle_outline;
         final t = session.lastSavedAt!;
         final hhmm =
@@ -518,11 +552,6 @@ class _SaveStateIndicator extends StatelessWidget {
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          l10n.tagCount(session.tags.length),
-          style: monoStyle(context, size: 11.5, color: semantic.muted),
-        ),
-        const SizedBox(width: 12),
         ?leading,
         if (icon != null) Icon(icon, size: 13, color: color),
         const SizedBox(width: 4),
@@ -530,7 +559,7 @@ class _SaveStateIndicator extends StatelessWidget {
           child: Text(
             text,
             overflow: TextOverflow.ellipsis,
-            style: monoStyle(context, size: 11.5, color: color),
+            style: monoStyle(context, size: AppText.small, color: color),
           ),
         ),
       ],
@@ -558,37 +587,35 @@ class _TagChip extends StatelessWidget {
   /// taps anyway).
   final bool sortMode;
 
-  /// Tint from the tag's library group; null keeps the default look.
-  final Color? groupColor;
+  /// ARGB tint from the tag's library group; null keeps the default look.
+  final int? groupColor;
 
   @override
   Widget build(BuildContext context) {
     final semantic = context.semantic;
+    final tint = groupColor == null ? null : Color(groupColor!);
+    // Intrinsic width: the chip is as wide as its tag, which is what makes
+    // the wrap readable at a glance.
     final body = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9),
+      padding: const EdgeInsets.fromLTRB(10, 3, 7, 3),
       decoration: BoxDecoration(
-        color: groupColor == null
+        color: tint == null
             ? semantic.raised
-            : Color.alphaBlend(groupColor!.withAlpha(33), semantic.raised),
-        border: Border.all(color: groupColor?.withAlpha(153) ?? semantic.line),
-        borderRadius: BorderRadius.circular(7),
+            : Color.alphaBlend(tint.withAlpha(33), semantic.raised),
+        border: Border.all(color: tint?.withAlpha(153) ?? semantic.line),
+        borderRadius: BorderRadius.circular(AppRadii.control),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: AppText.secondary)),
+          const SizedBox(width: 6),
           if (sortMode)
             Icon(Icons.drag_indicator, size: 12, color: semantic.muted)
           else
             InkWell(
               onTap: onDelete,
-              borderRadius: BorderRadius.circular(99),
+              borderRadius: BorderRadius.circular(AppRadii.pill),
               child: Icon(Icons.close, size: 12, color: semantic.muted),
             ),
         ],
@@ -600,8 +627,45 @@ class _TagChip extends StatelessWidget {
     }
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(7),
+      borderRadius: BorderRadius.circular(AppRadii.control),
       child: body,
+    );
+  }
+}
+
+/// Outlined square icon button — the secondary partner to the filled AI
+/// action in the editor toolbar.
+class _OutlinedIconButton extends StatelessWidget {
+  const _OutlinedIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    return Tooltip(
+      message: tooltip,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onPressed,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            decoration: BoxDecoration(
+              border: Border.all(color: semantic.line),
+              borderRadius: BorderRadius.circular(AppRadii.input),
+            ),
+            child: Icon(icon, size: 15, color: semantic.muted),
+          ),
+        ),
+      ),
     );
   }
 }

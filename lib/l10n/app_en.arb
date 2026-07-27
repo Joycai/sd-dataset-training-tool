@@ -26,7 +26,6 @@
   "addTagsContent": "Paste comma-separated tags to add to the existing list.",
   "imageTags": "Image Tags",
 
-  "assetsPanelTitle": "Assets",
   "searchFilenameHint": "Search filenames",
   "filterAll": "All",
   "filterUntagged": "Untagged",
@@ -51,6 +50,12 @@
   },
   "noDatasetOpen": "No folder open",
   "imageCountShort": "{count} images",
+  "tagCountShort": "{count} tags",
+  "@tagCountShort": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "@imageCountShort": {
     "placeholders": {
       "count": { "type": "int" }
@@ -61,6 +66,8 @@
   "previousImage": "Previous image",
   "nextImage": "Next image",
   "fitToWindow": "Fit to window",
+  "zoomIn": "Zoom in",
+  "zoomOut": "Zoom out",
   "openInNewWindow": "Open in separate window",
 
   "textTab": "Text",
@@ -154,6 +161,21 @@
   },
   "aiRerun": "Re-run",
   "aiExitCompare": "Exit compare",
+  "compareModeCapsule": "Compare mode · {count} with results",
+  "@compareModeCapsule": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "compareModeHint": "Accept or reject AI results one by one",
+  "compareModeExitGlobal": "Exit compare mode",
+  "compareBadgePending": "{count} to review",
+  "@compareBadgePending": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "compareBadgeReviewed": "Reviewed",
   "aiExitCompareTooltip": "Exit compare mode (applies to all images)",
   "aiNoResultYet": "No result for this image yet.",
   "aiFirstRunHint": "First use of a model downloads it — this can take a while.",
@@ -283,6 +305,13 @@
   },
   "noFilesChanged": "No files needed changes.",
   "filterPanelTitle": "Gallery filter",
+  "filterStatus": "Filtered · {shown} / {total} match",
+  "@filterStatus": {
+    "placeholders": {
+      "shown": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
   "filterMatches": "{shown} / {total} match",
   "@filterMatches": {
     "placeholders": {
@@ -426,7 +455,13 @@
   },
   "autoSaveOnStatus": "Auto-save on",
   "autoSaveOffStatus": "Auto-save off",
-  "saveShortcutHint": "Ctrl+S to save now",
+  "shortcutHints": "Ctrl+S save · Ctrl+E AI tag · Ctrl+Z undo",
+  "aiServiceConnected": "AI service connected",
+  "aiServiceOffline": "AI service offline",
+
+  "navBrowse": "Browse",
+  "toggleNavigator": "Show / hide navigator",
+  "toggleInspector": "Show / hide inspector",
 
   "appearanceSection": "Appearance",
   "datasetSection": "Dataset",
@@ -487,6 +522,8 @@
 
   "close": "Close",
   "agentPanelTitle": "AI Assistant",
+  "agentMinimize": "Collapse panel",
+  "agentExpand": "Expand panel",
   "agentNewSession": "New conversation",
   "agentStop": "Stop",
   "agentSend": "Send",
@@ -529,6 +566,25 @@
   "llmManageProfilesDesc": "Add, edit, test and remove LLM backend configurations",
   "llmManageAction": "Manage",
   "llmProfilesTitle": "LLM Backends",
+  "llmProviderLabel": "PROVIDER",
+  "llmAddProvider": "Add provider",
+  "llmAddModel": "Add model",
+  "llmDeleteModel": "Delete model",
+  "llmEditProvider": "Edit",
+  "llmDisplayName": "Display name",
+  "llmVisionBadge": "Vision",
+  "llmInheritsFromProvider": "URL and key come from the provider \"{name}\".",
+  "@llmInheritsFromProvider": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "llmPricingTitle": "Pricing (per Mtoken)",
+  "llmPricingNote": "Used for usage accounting only; never sent with requests.",
+  "llmPriceInput": "Input",
+  "llmPriceOutput": "Output",
+  "llmPriceCacheRead": "Cache read",
+  "llmPriceCacheWrite": "Cache write",
   "llmNewProfileName": "New backend",
   "llmSelectProfileHint": "Select a backend on the left, or add a new one.",
   "llmProfileName": "Name",

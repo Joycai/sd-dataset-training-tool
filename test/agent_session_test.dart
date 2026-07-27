@@ -44,13 +44,13 @@ const _profile = LlmProviderProfile(
 );
 
 AgentTool _echoTool() => AgentTool(
-      spec: const AgentToolSpec(
-        name: 'echo',
-        description: 'echoes',
-        parametersSchema: {'type': 'object', 'properties': {}},
-      ),
-      handler: (args) async => toolOk({'echo': args['v']}),
-    );
+  spec: const AgentToolSpec(
+    name: 'echo',
+    description: 'echoes',
+    parametersSchema: {'type': 'object', 'properties': {}},
+  ),
+  handler: (args) async => toolOk({'echo': args['v']}),
+);
 
 void main() {
   test('text-only turn completes and records history', () async {
@@ -73,45 +73,51 @@ void main() {
     expect(session.history.last.text, 'hi there');
   });
 
-  test('tool call round-trip: result lands in history, loop continues',
-      () async {
-    final client = FakeLlmClient([
-      [
-        ToolCallsReady([
-          const ChatToolCall(
-              id: 'c1', name: 'echo', argumentsJson: '{"v": 42}'),
-        ]),
-        StreamDone(finishReason: 'tool_calls'),
-      ],
-      [TextDelta('done'), StreamDone(finishReason: 'stop')],
-    ]);
-    final session = AgentSession(
-      client: client,
-      registry: ToolRegistry([_echoTool()]),
-      profile: _profile,
-      systemPrompt: 'sys',
-    );
+  test(
+    'tool call round-trip: result lands in history, loop continues',
+    () async {
+      final client = FakeLlmClient([
+        [
+          ToolCallsReady([
+            const ChatToolCall(
+              id: 'c1',
+              name: 'echo',
+              argumentsJson: '{"v": 42}',
+            ),
+          ]),
+          StreamDone(finishReason: 'tool_calls'),
+        ],
+        [TextDelta('done'), StreamDone(finishReason: 'stop')],
+      ]);
+      final session = AgentSession(
+        client: client,
+        registry: ToolRegistry([_echoTool()]),
+        profile: _profile,
+        systemPrompt: 'sys',
+      );
 
-    final events = await session.run('run the tool').toList();
-    expect(events.whereType<AgentToolStarted>().length, 1);
-    final finished = events.whereType<AgentToolFinished>().single;
-    expect(jsonDecode(finished.result.text), {'echo': 42});
+      final events = await session.run('run the tool').toList();
+      expect(events.whereType<AgentToolStarted>().length, 1);
+      final finished = events.whereType<AgentToolFinished>().single;
+      expect(jsonDecode(finished.result.text), {'echo': 42});
 
-    // system, user, assistant(toolCalls), tool result, assistant text
-    expect(session.history.length, 5);
-    expect(session.history[3].role, ChatRole.tool);
-    expect(session.history[3].toolCallId, 'c1');
-    // The second model call saw the tool result.
-    expect(client.seenMessages[1].any((m) => m.role == ChatRole.tool), isTrue);
-  });
+      // system, user, assistant(toolCalls), tool result, assistant text
+      expect(session.history.length, 5);
+      expect(session.history[3].role, ChatRole.tool);
+      expect(session.history[3].toolCallId, 'c1');
+      // The second model call saw the tool result.
+      expect(
+        client.seenMessages[1].any((m) => m.role == ChatRole.tool),
+        isTrue,
+      );
+    },
+  );
 
   test('three consecutive tool errors abort the run', () async {
     List<LlmStreamEvent> badCall(String id) => [
-          ToolCallsReady([
-            ChatToolCall(id: id, name: 'nope', argumentsJson: '{}'),
-          ]),
-          StreamDone(finishReason: 'tool_calls'),
-        ];
+      ToolCallsReady([ChatToolCall(id: id, name: 'nope', argumentsJson: '{}')]),
+      StreamDone(finishReason: 'tool_calls'),
+    ];
     final client = FakeLlmClient([
       badCall('1'),
       badCall('2'),

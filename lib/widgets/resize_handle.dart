@@ -72,15 +72,17 @@ class _ResizeHandleState extends State<ResizeHandle> {
         // Anchor the gesture at pointer-down so the initial touch slop is
         // included in the first update instead of showing up as a dead zone.
         dragStartBehavior: DragStartBehavior.down,
-        onHorizontalDragStart:
-            horizontal ? (d) => _start(d.globalPosition.dx) : null,
+        onHorizontalDragStart: horizontal
+            ? (d) => _start(d.globalPosition.dx)
+            : null,
         onHorizontalDragUpdate: horizontal
             ? (d) => widget.onDragUpdate(d.globalPosition.dx)
             : null,
         onHorizontalDragEnd: horizontal ? (_) => _end() : null,
         onHorizontalDragCancel: horizontal ? _end : null,
-        onVerticalDragStart:
-            horizontal ? null : (d) => _start(d.globalPosition.dy),
+        onVerticalDragStart: horizontal
+            ? null
+            : (d) => _start(d.globalPosition.dy),
         onVerticalDragUpdate: horizontal
             ? null
             : (d) => widget.onDragUpdate(d.globalPosition.dy),

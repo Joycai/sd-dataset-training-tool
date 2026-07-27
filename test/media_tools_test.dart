@@ -23,8 +23,9 @@ void main() {
     // A real 64x32 PNG so the vision pipeline has something to decode.
     final image = img.Image(width: 64, height: 32);
     img.fill(image, color: img.ColorRgb8(200, 120, 40));
-    await File(p.join(tempDir.path, '001.png'))
-        .writeAsBytes(img.encodePng(image));
+    await File(
+      p.join(tempDir.path, '001.png'),
+    ).writeAsBytes(img.encodePng(image));
 
     dataset = DatasetState();
     await dataset.scan(
@@ -47,8 +48,7 @@ void main() {
 
   group('compressForVision', () {
     test('re-encodes as JPEG and keeps small images unscaled', () async {
-      final bytes =
-          await File(p.join(tempDir.path, '001.png')).readAsBytes();
+      final bytes = await File(p.join(tempDir.path, '001.png')).readAsBytes();
       final jpeg = await compressForVision(bytes);
       expect(jpeg, isNotNull);
       final decoded = img.decodeImage(jpeg!);
@@ -59,7 +59,8 @@ void main() {
     test('downscales the longest side to the cap', () async {
       final wide = img.Image(width: 2000, height: 500);
       final jpeg = await compressForVision(
-          Uint8List.fromList(img.encodePng(wide)));
+        Uint8List.fromList(img.encodePng(wide)),
+      );
       final decoded = img.decodeImage(jpeg!);
       expect(decoded!.width, kVisionMaxDimension);
       expect(decoded.height, (500 * 768 / 2000).round());
@@ -79,7 +80,11 @@ void main() {
 
     test('attaches an image part and reports the path order', () async {
       final result = await registry.dispatch(
-          'view_image', jsonEncode({'paths': ['001.png']}));
+        'view_image',
+        jsonEncode({
+          'paths': ['001.png'],
+        }),
+      );
       expect(result.isError, isFalse);
       expect(result.extraParts.length, 1);
       expect(result.extraParts.single.isImage, isTrue);
@@ -101,7 +106,11 @@ void main() {
 
     test('missing images produce an error result with no parts', () async {
       final result = await registry.dispatch(
-          'view_image', jsonEncode({'paths': ['nope.png']}));
+        'view_image',
+        jsonEncode({
+          'paths': ['nope.png'],
+        }),
+      );
       expect(result.isError, isTrue);
       expect(result.extraParts, isEmpty);
     });
@@ -112,7 +121,11 @@ void main() {
       final ai = AiTaggerState(SettingsService());
       final registry = ToolRegistry(buildTaggerTools(deps, ai));
       final result = await registry.dispatch(
-          'run_wd_tagger', jsonEncode({'paths': ['001.png']}));
+        'run_wd_tagger',
+        jsonEncode({
+          'paths': ['001.png'],
+        }),
+      );
       expect(result.isError, isTrue);
       expect(result.text, contains('no tagger model selected'));
       ai.dispose();

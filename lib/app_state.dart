@@ -8,11 +8,6 @@ import 'services/font_service.dart';
 import 'services/settings_service.dart';
 import 'theme/app_theme.dart';
 
-enum MainView {
-  editor,
-  settings,
-}
-
 class AppState extends ChangeNotifier {
   final SettingsService _settingsService;
 
@@ -207,8 +202,8 @@ class AppState extends ChangeNotifier {
             tags: (raw['tags'] as List<dynamic>? ?? const []).cast<String>(),
           ),
       ];
-      ungrouped =
-          (data['ungrouped'] as List<dynamic>? ?? const []).cast<String>();
+      ungrouped = (data['ungrouped'] as List<dynamic>? ?? const [])
+          .cast<String>();
     } on FormatException {
       rethrow;
     } catch (_) {
@@ -244,8 +239,9 @@ class AppState extends ChangeNotifier {
     final library = _commonTags.toSet();
     // De-duplicated, in caller order, restricted to library tags.
     final seen = <String>{};
-    final moving =
-        tags.where((t) => library.contains(t) && seen.add(t)).toList();
+    final moving = tags
+        .where((t) => library.contains(t) && seen.add(t))
+        .toList();
     if (moving.isEmpty) return;
     _tagGroups = [
       for (final g in _tagGroups)
@@ -260,30 +256,47 @@ class AppState extends ChangeNotifier {
 
   // --- LLM provider profiles (agent assistant) ---
 
-  List<LlmProviderProfile> _llmProfiles = [];
+  List<LlmProvider> _llmProviders = [];
   String? _llmActiveProfileId;
 
-  List<LlmProviderProfile> get llmProfiles => _llmProfiles;
+  List<LlmProvider> get llmProviders => _llmProviders;
   String? get llmActiveProfileId => _llmActiveProfileId;
+
+  /// Every provider/model pair, flattened into the shape the chat session
+  /// and the HTTP clients already speak.
+  List<LlmProviderProfile> get llmProfiles => [
+    for (final provider in _llmProviders)
+      for (final model in provider.models) provider.resolve(model),
+  ];
 
   /// The profile the assistant talks to, or null when none is configured.
   LlmProviderProfile? get activeLlmProfile {
-    for (final p in _llmProfiles) {
-      if (p.id == _llmActiveProfileId) return p;
+    final profiles = llmProfiles;
+    if (profiles.isEmpty) return null;
+    final wanted = _llmActiveProfileId;
+    if (wanted != null) {
+      for (final p in profiles) {
+        if (p.id == wanted) return p;
+      }
+      // Settings written before the tree stored the backend's own id, which
+      // is now a provider id; fall back to that provider's first model.
+      for (final p in profiles) {
+        if (p.id.startsWith('$wanted/')) return p;
+      }
     }
-    return _llmProfiles.isEmpty ? null : _llmProfiles.first;
+    return profiles.first;
   }
 
-  Future<void> updateLlmProfiles(List<LlmProviderProfile> profiles) async {
-    _llmProfiles = profiles;
-    // Keep the active id pointing at an existing profile.
-    if (_llmActiveProfileId != null &&
-        !profiles.any((p) => p.id == _llmActiveProfileId)) {
-      _llmActiveProfileId = profiles.isEmpty ? null : profiles.first.id;
+  Future<void> updateLlmProviders(List<LlmProvider> providers) async {
+    _llmProviders = providers;
+    // Keep the active id pointing at a pair that still exists.
+    final ids = {for (final p in llmProfiles) p.id};
+    if (_llmActiveProfileId != null && !ids.contains(_llmActiveProfileId)) {
+      _llmActiveProfileId = ids.isEmpty ? null : ids.first;
       await _settingsService.saveLlmActiveProfileId(_llmActiveProfileId);
     }
     notifyListeners();
-    await _settingsService.saveLlmProfilesJson(encodeLlmProfiles(profiles));
+    await _settingsService.saveLlmProfilesJson(encodeLlmProviders(providers));
   }
 
   Future<void> setActiveLlmProfile(String? id) async {
@@ -307,10 +320,13 @@ class AppState extends ChangeNotifier {
   // --- Other states remain unchanged ---
   Future<void> loadSettings() async {
     _locale = await _settingsService.loadLocale();
-    _fontChoice = AppFontChoiceX.fromId(await _settingsService.loadFontChoice());
+    _fontChoice = AppFontChoiceX.fromId(
+      await _settingsService.loadFontChoice(),
+    );
     _themeMode = await _settingsService.loadThemeMode();
-    _accentChoice =
-        AppAccentChoice.fromId(await _settingsService.loadAccentChoice());
+    _accentChoice = AppAccentChoice.fromId(
+      await _settingsService.loadAccentChoice(),
+    );
     _crossAxisCount = await _settingsService.loadCrossAxisCount();
     _thumbnailFill = await _settingsService.loadThumbnailFill();
     _includeSubdirectories = await _settingsService.loadIncludeSubdirectories();
@@ -320,8 +336,9 @@ class AppState extends ChangeNotifier {
     _tagGroups = await _settingsService.loadTagGroups();
     _rebuildTagToGroup();
     _autoSave = await _settingsService.loadAutoSave();
-    _llmProfiles =
-        decodeLlmProfiles(await _settingsService.loadLlmProfilesJson() ?? '');
+    _llmProviders = decodeLlmProviders(
+      await _settingsService.loadLlmProfilesJson() ?? '',
+    );
     _llmActiveProfileId = await _settingsService.loadLlmActiveProfileId();
     _agentConfirmWrites = await _settingsService.loadAgentConfirmWrites();
     final (leftWidth, rightWidth) = await _settingsService.loadPanelWidths();
@@ -472,15 +489,6 @@ class AppState extends ChangeNotifier {
     _accentChoice = choice;
     notifyListeners();
     await _settingsService.saveAccentChoice(choice.id);
-  }
-
-  MainView _mainView = MainView.editor;
-  MainView get currentView => _mainView;
-
-  void updateView(MainView view) {
-    if (_mainView == view) return;
-    _mainView = view;
-    notifyListeners();
   }
 
   String? _cachePath;

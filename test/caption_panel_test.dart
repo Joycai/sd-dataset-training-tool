@@ -118,8 +118,9 @@ void main() {
     expect(find.text('smile'), findsOneWidget);
   });
 
-  testWidgets('current tags reorder by long-press drag in compare mode',
-      (tester) async {
+  testWidgets('current tags reorder by long-press drag in compare mode', (
+    tester,
+  ) async {
     await tester.runAsync(() async {
       await session.load(imageA, '.txt'); // tags: alpha, beta
       expect(await ai.interrogate(imageA), isTrue);
@@ -151,13 +152,12 @@ void main() {
     await tester.pump();
   }
 
-  Finder anchorableOf(String tag) => find.ancestor(
-        of: find.text(tag),
-        matching: find.byType(AnchorableTag),
-      );
+  Finder anchorableOf(String tag) =>
+      find.ancestor(of: find.text(tag), matching: find.byType(AnchorableTag));
 
-  testWidgets('anchor holder places AI suggestions after the anchored tag',
-      (tester) async {
+  testWidgets('anchor holder places AI suggestions after the anchored tag', (
+    tester,
+  ) async {
     await tester.runAsync(() async {
       await session.load(imageA, '.txt'); // tags: alpha, beta
       expect(await ai.interrogate(imageA), isTrue); // suggests: smile
@@ -184,8 +184,9 @@ void main() {
     expect(session.anchorTag, isNull);
   });
 
-  testWidgets('anchor holder places typed tags after it in the tags view',
-      (tester) async {
+  testWidgets('anchor holder places typed tags after it in the tags view', (
+    tester,
+  ) async {
     await tester.runAsync(() async {
       await session.load(imageA, '.txt'); // tags: alpha, beta
     });
@@ -205,27 +206,29 @@ void main() {
   });
 
   testWidgets(
-      'switching to an uninterrogated image falls back to the tags view',
-      (tester) async {
-    await tester.runAsync(() async {
-      await session.load(imageA, '.txt');
-      expect(await ai.interrogate(imageA), isTrue);
-      // Regression: compare mode is a global flag; image B has no result, so
-      // the tags tab used to render the empty "no result yet" compare view
-      // instead of B's tags.
-      await session.load(imageB, '.txt');
-    });
+    'switching to an uninterrogated image falls back to the tags view',
+    (tester) async {
+      await tester.runAsync(() async {
+        await session.load(imageA, '.txt');
+        expect(await ai.interrogate(imageA), isTrue);
+        // Regression: compare mode is a global flag; image B has no result, so
+        // the tags tab used to render the empty "no result yet" compare view
+        // instead of B's tags.
+        await session.load(imageB, '.txt');
+      });
 
-    await tester.pumpWidget(harness());
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
 
-    expect(ai.compareMode, isTrue);
-    expect(find.byType(AiCompareView), findsNothing);
-    expect(find.text('gamma'), findsOneWidget);
-  });
+      expect(ai.compareMode, isTrue);
+      expect(find.byType(AiCompareView), findsNothing);
+      expect(find.text('gamma'), findsOneWidget);
+    },
+  );
 
-  testWidgets('sort mode toggle switches drag behavior and chip actions',
-      (tester) async {
+  testWidgets('sort mode toggle switches drag behavior and chip actions', (
+    tester,
+  ) async {
     await tester.runAsync(() async {
       await session.load(imageA, '.txt');
     });
@@ -235,27 +238,30 @@ void main() {
 
     // Edit mode: chips carry a delete button, drag needs a long press.
     expect(find.byIcon(Icons.close), findsNWidgets(2));
-    ReorderableGridView grid() =>
-        tester.widget<ReorderableGridView>(find.byType(ReorderableGridView));
-    expect(grid().dragStartDelay, isNull);
+    // Chips live in a reorderable wrap now, not a grid.
+    ReorderableWrapperWidget wrap() => tester.widget<ReorderableWrapperWidget>(
+      find.byType(ReorderableWrapperWidget),
+    );
+    expect(wrap().dragStartDelay, isNull);
 
     await tester.tap(find.byTooltip('Sort mode: drag tags to reorder'));
     await tester.pumpAndSettle();
 
     // Sort mode: no delete buttons, immediate drag.
     expect(find.byIcon(Icons.close), findsNothing);
-    expect(grid().dragStartDelay, Duration.zero);
+    expect(wrap().dragStartDelay, Duration.zero);
 
     // Switching images does not reset the mode.
     await tester.runAsync(() => session.load(imageB, '.txt'));
     await tester.pumpAndSettle();
     expect(find.text('gamma'), findsOneWidget);
     expect(find.byIcon(Icons.close), findsNothing);
-    expect(grid().dragStartDelay, Duration.zero);
+    expect(wrap().dragStartDelay, Duration.zero);
   });
 
-  testWidgets('tag chips are tinted with their library group color',
-      (tester) async {
+  testWidgets('tag chips are tinted with their library group color', (
+    tester,
+  ) async {
     const groupColor = 0xFF9B84E0;
     await tester.runAsync(() async {
       await appState.addCommonTags(['alpha']);

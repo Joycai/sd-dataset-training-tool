@@ -7,7 +7,9 @@ import 'package:provider/provider.dart';
 import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/tag_group.dart';
+import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
+import '../../state/workbench_layout.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
 import 'dataset_tags_view.dart';
@@ -26,11 +28,6 @@ class TagLibraryPanel extends StatefulWidget {
 }
 
 class _TagLibraryPanelState extends State<TagLibraryPanel> {
-  static const _tabLibrary = 0;
-  static const _tabDataset = 1;
-
-  int _tab = _tabLibrary;
-
   @override
   void initState() {
     super.initState();
@@ -46,8 +43,8 @@ class _TagLibraryPanelState extends State<TagLibraryPanel> {
   }
 
   void _onFilterFocus() {
-    if (widget.filterFocusNode?.hasFocus == true && _tab != _tabLibrary) {
-      setState(() => _tab = _tabLibrary);
+    if (widget.filterFocusNode?.hasFocus == true) {
+      context.read<WorkbenchLayout>().showInspectorTab(InspectorTab.library);
     }
   }
 
@@ -55,6 +52,19 @@ class _TagLibraryPanelState extends State<TagLibraryPanel> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
+    // The tab lives in the shared layout state: the icon rail selects it
+    // too, so it cannot be owned by this panel.
+    final layout = context.watch<WorkbenchLayout>();
+    final tab = layout.inspectorTab;
+    // Counts ride on the tab labels, which is why the views below no longer
+    // need a title row of their own. select (not watch): the tab strip must
+    // not rebuild on every unrelated library edit.
+    final libraryCount = context.select<AppState, int>(
+      (s) => s.commonTags.length,
+    );
+    final datasetCount = context.select<DatasetState, int>(
+      (s) => s.datasetTags.length,
+    );
 
     // The divider to the center column is drawn by the resize handle.
     return Container(
@@ -71,16 +81,16 @@ class _TagLibraryPanelState extends State<TagLibraryPanel> {
                 // panel's minimum width.
                 Flexible(
                   child: PanelTab(
-                    label: l10n.rightTabLibrary,
-                    selected: _tab == _tabLibrary,
-                    onTap: () => setState(() => _tab = _tabLibrary),
+                    label: '${l10n.rightTabLibrary}  $libraryCount',
+                    selected: tab == InspectorTab.library,
+                    onTap: () => layout.showInspectorTab(InspectorTab.library),
                   ),
                 ),
                 Flexible(
                   child: PanelTab(
-                    label: l10n.rightTabDataset,
-                    selected: _tab == _tabDataset,
-                    onTap: () => setState(() => _tab = _tabDataset),
+                    label: '${l10n.rightTabDataset}  $datasetCount',
+                    selected: tab == InspectorTab.dataset,
+                    onTap: () => layout.showInspectorTab(InspectorTab.dataset),
                   ),
                 ),
               ],
@@ -91,7 +101,7 @@ class _TagLibraryPanelState extends State<TagLibraryPanel> {
             // IndexedStack keeps both tabs alive so scroll positions and
             // filter text survive switching.
             child: IndexedStack(
-              index: _tab,
+              index: tab.index,
               sizing: StackFit.expand,
               children: [
                 _LibraryView(filterFocusNode: widget.filterFocusNode),
@@ -561,10 +571,10 @@ class _LibraryViewState extends State<_LibraryView> {
       final targets = _selected.contains(tag)
           // Selection in library order, so a batch send keeps a stable order.
           ? context
-              .read<AppState>()
-              .commonTags
-              .where(_selected.contains)
-              .toList()
+                .read<AppState>()
+                .commonTags
+                .where(_selected.contains)
+                .toList()
           : [tag];
       _showSendMenu(position, targets);
     } else {
@@ -591,56 +601,69 @@ class _LibraryViewState extends State<_LibraryView> {
     // (group, visible tags) sections; ungrouped last. Under a filter, empty
     // sections disappear; without one, empty groups stay visible so they can
     // be managed, but an empty ungrouped section is just noise.
-    final sections = <(TagGroup?, List<String>)>[
-      for (final group in appState.tagGroups)
-        (group, group.tags.where(matches).toList()),
-      (null, appState.ungroupedTags.where(matches).toList()),
-    ].where((s) {
-      if (query.isNotEmpty) return s.$2.isNotEmpty;
-      return s.$1 != null || s.$2.isNotEmpty;
-    }).toList();
+    final sections =
+        <(TagGroup?, List<String>)>[
+          for (final group in appState.tagGroups)
+            (group, group.tags.where(matches).toList()),
+          (null, appState.ungroupedTags.where(matches).toList()),
+        ].where((s) {
+          if (query.isNotEmpty) return s.$2.isNotEmpty;
+          return s.$1 != null || s.$2.isNotEmpty;
+        }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        PanelHeader(
-          title: l10n.tagLibraryTitle,
-          count: commonTags.length,
-          actions: [
-            PanelIconButton(
-              icon: Icons.add,
-              tooltip: l10n.addTagsTitle,
-              onPressed: _showAddDialog,
-            ),
-            PanelIconButton(
-              icon: Icons.create_new_folder_outlined,
-              tooltip: l10n.newGroupTitle,
-              onPressed: _createGroup,
-            ),
-            PanelIconButton(
-              icon: Icons.checklist,
-              tooltip: l10n.groupEditModeTooltip,
-              color: _groupEditMode ? scheme.primary : null,
-              onPressed: () => setState(() {
-                _groupEditMode = !_groupEditMode;
-                if (!_groupEditMode) _selected.clear();
-              }),
-            ),
-            // Import/export/clear live in an overflow menu; the Builder
-            // provides the button's own context to anchor the popup.
-            Builder(
-              builder: (buttonContext) => PanelIconButton(
-                icon: Icons.more_horiz,
-                tooltip: l10n.moreActionsTooltip,
-                onPressed: () => _showMoreMenu(buttonContext),
+        // Filter and actions share one band: the tab above already names
+        // this view and carries its count, so a separate title row would be
+        // a second header saying the same thing.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: PanelSearchField(
+                  hint: l10n.filterTagsHint,
+                  focusNode: widget.filterFocusNode,
+                  onChanged: (value) => setState(() => _filter = value),
+                  padding: EdgeInsets.zero,
+                ),
               ),
-            ),
-          ],
-        ),
-        PanelSearchField(
-          hint: l10n.filterTagsHint,
-          focusNode: widget.filterFocusNode,
-          onChanged: (value) => setState(() => _filter = value),
+              const SizedBox(width: 4),
+              PanelIconButton(
+                icon: Icons.add,
+                tooltip: l10n.addTagsTitle,
+                size: 16,
+                onPressed: _showAddDialog,
+              ),
+              PanelIconButton(
+                icon: Icons.create_new_folder_outlined,
+                tooltip: l10n.newGroupTitle,
+                size: 16,
+                onPressed: _createGroup,
+              ),
+              PanelIconButton(
+                icon: Icons.checklist,
+                tooltip: l10n.groupEditModeTooltip,
+                size: 16,
+                color: _groupEditMode ? scheme.primary : null,
+                onPressed: () => setState(() {
+                  _groupEditMode = !_groupEditMode;
+                  if (!_groupEditMode) _selected.clear();
+                }),
+              ),
+              // Import/export/clear live in an overflow menu; the Builder
+              // provides the button's own context to anchor the popup.
+              Builder(
+                builder: (buttonContext) => PanelIconButton(
+                  icon: Icons.more_horiz,
+                  tooltip: l10n.moreActionsTooltip,
+                  size: 16,
+                  onPressed: () => _showMoreMenu(buttonContext),
+                ),
+              ),
+            ],
+          ),
         ),
         Expanded(
           // Empty groups still render as sections (e.g. right after clearing
@@ -664,17 +687,18 @@ class _LibraryViewState extends State<_LibraryView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _PanelCard(
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _SectionLabel(
                               text: _groupEditMode
                                   ? (_selected.isEmpty
-                                      ? l10n.groupEditHint
-                                      : l10n.groupEditSelectedHint(
-                                          _selected.length,
-                                        ))
+                                        ? l10n.groupEditHint
+                                        : l10n.groupEditSelectedHint(
+                                            _selected.length,
+                                          ))
                                   : l10n.clickToApplyHint,
                               color: _groupEditMode ? scheme.primary : null,
                             ),
@@ -698,7 +722,8 @@ class _LibraryViewState extends State<_LibraryView> {
                                           deleteTooltip: l10n.deleteGroupMenu,
                                           colorTooltip:
                                               l10n.changeGroupColorTooltip,
-                                          moveUpTooltip: l10n.moveGroupUpTooltip,
+                                          moveUpTooltip:
+                                              l10n.moveGroupUpTooltip,
                                           moveDownTooltip:
                                               l10n.moveGroupDownTooltip,
                                           onContextMenu: group == null
@@ -780,45 +805,57 @@ class _LibraryViewState extends State<_LibraryView> {
                         ),
                       ),
                       if (newTags.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        // A hairline, not a card: this is a section of the
+                        // same list, not a separate surface.
+                        Container(height: 1, color: semantic.line),
                         const SizedBox(height: 10),
-                        _PanelCard(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Row(
                                 children: [
-                                  Expanded(
-                                    child: _SectionLabel(
-                                      text:
-                                          '${l10n.newTagsSection} (${newTags.length})',
+                                  Flexible(
+                                    child: Text(
+                                      l10n.newTagsSection,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: AppText.secondary,
+                                        fontWeight: FontWeight.w600,
+                                        color: scheme.onSurface,
+                                      ),
                                     ),
                                   ),
-                                  TextButton(
-                                    onPressed: () =>
-                                        appState.addCommonTags(newTags),
-                                    style: TextButton.styleFrom(
-                                      visualDensity: VisualDensity.compact,
-                                      textStyle: const TextStyle(fontSize: 12),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${newTags.length}',
+                                    style: monoStyle(
+                                      context,
+                                      size: AppText.small,
+                                      color: semantic.muted,
                                     ),
-                                    child: Text(l10n.addAllToLibrary),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
-                              Wrap(
-                                spacing: 7,
-                                runSpacing: 7,
-                                children: [
-                                  for (final tag in newTags)
-                                    _NewTagChip(
-                                      label: tag,
-                                      onTap: () =>
-                                          appState.addCommonTags([tag]),
-                                    ),
-                                ],
+                            ),
+                            const SizedBox(width: 8),
+                            _LinkButton(
+                              label: l10n.addAllToLibrary,
+                              onTap: () => appState.addCommonTags(newTags),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            for (final tag in newTags)
+                              _NewTagChip(
+                                label: tag,
+                                onTap: () => appState.addCommonTags([tag]),
                               ),
-                            ],
-                          ),
+                          ],
                         ),
                       ],
                     ],
@@ -833,7 +870,7 @@ class _LibraryViewState extends State<_LibraryView> {
             runSpacing: 4,
             children: [
               _LegendItem(color: semantic.ok, label: l10n.legendApplied),
-              _LegendItem(color: semantic.line, label: l10n.legendNotApplied),
+              _LegendItem(color: semantic.muted, label: l10n.legendNotApplied),
               _LegendItem(color: semantic.warn, label: l10n.legendNew),
             ],
           ),
@@ -860,28 +897,6 @@ class _SectionLabel extends StatelessWidget {
         letterSpacing: 0.3,
         color: color ?? context.semantic.muted,
       ),
-    );
-  }
-}
-
-/// Bordered card giving the library and new-tags areas a visual boundary.
-class _PanelCard extends StatelessWidget {
-  const _PanelCard({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final semantic = context.semantic;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border.all(color: semantic.line),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: child,
     );
   }
 }
@@ -1073,19 +1088,25 @@ class _LibraryTagChip extends StatelessWidget {
 
     final Color borderColor;
     final Color bgColor;
+    final Color textColor;
     if (selectionMode && selected) {
       borderColor = scheme.primary;
-      bgColor = Color.alphaBlend(scheme.primary.withAlpha(36), scheme.surface);
+      bgColor = Color.alphaBlend(scheme.primary.withAlpha(38), semantic.panel);
+      textColor = scheme.onSurface;
     } else if (!selectionMode && applied) {
-      borderColor = semantic.ok.withAlpha(140);
-      bgColor = Color.alphaBlend(semantic.ok.withAlpha(36), scheme.surface);
+      borderColor = semantic.ok.withAlpha(115);
+      bgColor = Color.alphaBlend(semantic.ok.withAlpha(38), semantic.panel);
+      textColor = scheme.onSurface;
     } else {
       borderColor = semantic.line;
-      bgColor = scheme.surface;
+      bgColor = semantic.raised;
+      // Unapplied tags are inventory, not state: muted ink keeps the applied
+      // ones readable as the foreground.
+      textColor = semantic.muted;
     }
 
     final chip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 3.5),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2.5),
       decoration: BoxDecoration(
         color: bgColor,
         border: Border.all(color: borderColor),
@@ -1095,16 +1116,16 @@ class _LibraryTagChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (selectionMode && selected) ...[
-            Icon(Icons.check, size: 11, color: scheme.primary),
-            const SizedBox(width: 5),
+            Icon(Icons.check, size: 10, color: scheme.primary),
+            const SizedBox(width: 4),
           ] else if (!selectionMode && applied) ...[
-            Icon(Icons.check, size: 11, color: semantic.ok),
-            const SizedBox(width: 5),
+            Icon(Icons.check, size: 10, color: semantic.ok),
+            const SizedBox(width: 4),
           ],
           if (dotColor != null) ...[
             Container(
-              width: 7,
-              height: 7,
+              width: 6,
+              height: 6,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: dotColor,
@@ -1112,7 +1133,10 @@ class _LibraryTagChip extends StatelessWidget {
             ),
             const SizedBox(width: 5),
           ],
-          Text(label, style: const TextStyle(fontSize: 12)),
+          Text(
+            label,
+            style: TextStyle(fontSize: AppText.small, color: textColor),
+          ),
         ],
       ),
     );
@@ -1141,28 +1165,88 @@ class _NewTagChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final semantic = context.semantic;
-    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 3.5),
-          decoration: BoxDecoration(
-            color: Color.alphaBlend(
-              semantic.warn.withAlpha(33),
-              scheme.surface,
+        child: CustomPaint(
+          painter: _DashedPillBorder(color: semantic.warn.withAlpha(140)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2.5),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.add, size: 10, color: semantic.warn),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: AppText.small,
+                    color: semantic.warn,
+                  ),
+                ),
+              ],
             ),
-            border: Border.all(color: semantic.warn.withAlpha(140)),
-            borderRadius: BorderRadius.circular(99),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.add, size: 11, color: semantic.warn),
-              const SizedBox(width: 5),
-              Text(label, style: const TextStyle(fontSize: 12)),
-            ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Dashed pill outline for the "not in the library yet" chips — a proposal
+/// reads as provisional, which a solid border does not convey.
+class _DashedPillBorder extends CustomPainter {
+  const _DashedPillBorder({required this.color});
+
+  final Color color;
+
+  static const double _dash = 3.5;
+  static const double _gap = 3;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      Radius.circular(size.height / 2),
+    );
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (final metric in (Path()..addRRect(rrect)).computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        canvas.drawPath(metric.extractPath(distance, distance + _dash), paint);
+        distance += _dash + _gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedPillBorder oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+/// Accent text action — the "全部入库" style link in section headers.
+class _LinkButton extends StatelessWidget {
+  const _LinkButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: AppText.small,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
       ),

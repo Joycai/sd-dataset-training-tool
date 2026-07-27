@@ -51,11 +51,11 @@ class AgentSession {
     this.maxTurnsPerRun = 24,
     this.sessionTokenCap = 1000000,
     this.confirmWrite,
-  })  : budget = ContextBudget(
-          contextWindow: profile.contextWindow,
-          maxOutputTokens: profile.maxOutputTokens,
-        ),
-        history = [ChatMessage.system(systemPrompt)];
+  }) : budget = ContextBudget(
+         contextWindow: profile.contextWindow,
+         maxOutputTokens: profile.maxOutputTokens,
+       ),
+       history = [ChatMessage.system(systemPrompt)];
 
   final LlmClient client;
   final ToolRegistry registry;
@@ -101,8 +101,10 @@ class AgentSession {
           return;
         }
         if (totalUsage.total >= sessionTokenCap) {
-          yield AgentFinished(AgentStopReason.tokenCap,
-              'session token cap ($sessionTokenCap) reached');
+          yield AgentFinished(
+            AgentStopReason.tokenCap,
+            'session token cap ($sessionTokenCap) reached',
+          );
           return;
         }
         budget.compact(history);
@@ -128,13 +130,17 @@ class AgentSession {
             }
           }
         } on LlmException catch (e) {
-          yield AgentFinished(cancel.isCancelled
-              ? AgentStopReason.cancelled
-              : AgentStopReason.error, e.message);
+          yield AgentFinished(
+            cancel.isCancelled
+                ? AgentStopReason.cancelled
+                : AgentStopReason.error,
+            e.message,
+          );
           return;
         }
 
-        totalUsage += usage ??
+        totalUsage +=
+            usage ??
             TokenUsage(
               prompt: budget.estimate(history),
               completion: ContextBudget.estimateText(textBuffer.toString()),
@@ -145,8 +151,9 @@ class AgentSession {
           return;
         }
 
-        history.add(ChatMessage.assistant(textBuffer.toString(),
-            toolCalls: calls));
+        history.add(
+          ChatMessage.assistant(textBuffer.toString(), toolCalls: calls),
+        );
         if (calls.isEmpty) {
           yield AgentFinished(AgentStopReason.completed);
           return;
@@ -172,25 +179,33 @@ class AgentSession {
             }
             yield AgentToolFinished(call, result);
           }
-          history.add(ChatMessage.toolResult(
-            toolCallId: call.id,
-            text: result.text,
-            extraParts: result.extraParts,
-          ));
-          consecutiveToolErrors = result.isError ? consecutiveToolErrors + 1 : 0;
+          history.add(
+            ChatMessage.toolResult(
+              toolCallId: call.id,
+              text: result.text,
+              extraParts: result.extraParts,
+            ),
+          );
+          consecutiveToolErrors = result.isError
+              ? consecutiveToolErrors + 1
+              : 0;
         }
         if (cancel.isCancelled) {
           yield AgentFinished(AgentStopReason.cancelled);
           return;
         }
         if (consecutiveToolErrors >= 3) {
-          yield AgentFinished(AgentStopReason.error,
-              'stopped after 3 consecutive tool errors');
+          yield AgentFinished(
+            AgentStopReason.error,
+            'stopped after 3 consecutive tool errors',
+          );
           return;
         }
       }
-      yield AgentFinished(AgentStopReason.maxTurns,
-          'stopped after $maxTurnsPerRun model turns');
+      yield AgentFinished(
+        AgentStopReason.maxTurns,
+        'stopped after $maxTurnsPerRun model turns',
+      );
     } finally {
       _busy = false;
       _cancel = null;
@@ -208,9 +223,9 @@ String buildAgentSystemPrompt({
 }) {
   final visionGuideline = visionEnabled
       ? '\n- view_image lets you actually see images (max 4 per call, '
-          'downscaled).\n  It is token-expensive: spot-check individual '
-          'images with it, never sweep\n  the dataset — bulk visual tagging '
-          'belongs to run_wd_tagger.'
+            'downscaled).\n  It is token-expensive: spot-check individual '
+            'images with it, never sweep\n  the dataset — bulk visual tagging '
+            'belongs to run_wd_tagger.'
       : '';
   return '''
 You are an assistant embedded in DataSetTrainingTool, a desktop app for

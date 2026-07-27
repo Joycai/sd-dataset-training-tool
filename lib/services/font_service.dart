@@ -13,16 +13,16 @@ enum AppFontChoice { system, harmony, misans }
 
 extension AppFontChoiceX on AppFontChoice {
   String get id => switch (this) {
-        AppFontChoice.system => 'system',
-        AppFontChoice.harmony => 'harmony',
-        AppFontChoice.misans => 'misans',
-      };
+    AppFontChoice.system => 'system',
+    AppFontChoice.harmony => 'harmony',
+    AppFontChoice.misans => 'misans',
+  };
 
   static AppFontChoice fromId(String? id) => switch (id) {
-        'harmony' => AppFontChoice.harmony,
-        'misans' => AppFontChoice.misans,
-        _ => AppFontChoice.system,
-      };
+    'harmony' => AppFontChoice.harmony,
+    'misans' => AppFontChoice.misans,
+    _ => AppFontChoice.system,
+  };
 }
 
 class _FontSpec {
@@ -151,10 +151,11 @@ class FontService extends ChangeNotifier {
       if (!ok) throw lastError ?? Exception('download failed');
 
       // 解压放到 isolate 里做——字体包几十 MB，主线程解压会卡死界面。
-      final extracted = await compute(
-        _extractFonts,
-        <String>[zipFile.path, dir.path, spec.entryPattern],
-      );
+      final extracted = await compute(_extractFonts, <String>[
+        zipFile.path,
+        dir.path,
+        spec.entryPattern,
+      ]);
       if (extracted.isEmpty) {
         throw Exception('No matching font files in the package');
       }

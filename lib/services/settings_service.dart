@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/tag_group.dart';
+import '../theme/app_theme.dart';
 
 class SettingsService {
   // --- 新增：Common Tags ---
@@ -50,7 +51,8 @@ class SettingsService {
 
   Future<int> loadCrossAxisCount() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt('crossAxisCount') ?? 4;
+    // 1 = the row list, the navigator's default presentation.
+    return prefs.getInt('crossAxisCount') ?? 1;
   }
 
   Future<void> saveThumbnailFill(bool value) async {
@@ -112,8 +114,8 @@ class SettingsService {
     );
   }
 
-  static const double defaultLeftPanelWidth = 264;
-  static const double defaultRightPanelWidth = 300;
+  static const double defaultLeftPanelWidth = AppMetrics.navigator;
+  static const double defaultRightPanelWidth = AppMetrics.inspector;
 
   Future<void> savePanelWidths(double left, double right) async {
     final prefs = await SharedPreferences.getInstance();
@@ -129,8 +131,9 @@ class SettingsService {
     );
   }
 
-  /// 中栏预览区占中栏总高的比例（0-1），对应原来的 flex 4:3。
-  static const double defaultCenterSplit = 4 / 7;
+  /// 中栏预览区占中栏总高的比例（0-1）。设计稿的编辑器高 252 / 画布区
+  /// 约 800，取其比例；已有用户的拖动结果照旧沿用。
+  static const double defaultCenterSplit = 0.685;
 
   Future<void> saveCenterSplit(double value) async {
     final prefs = await SharedPreferences.getInstance();
@@ -311,7 +314,52 @@ class SettingsService {
     return prefs.getInt('agentSessionTokenCap') ?? 1000000;
   }
 
-  static const double defaultAgentPanelWidth = 320;
+  static const double defaultAgentPanelWidth = 340;
+
+  /// Height of the floating assistant. Width alone is not enough once the
+  /// panel stops being a full-height column.
+  static const double defaultAgentPanelHeight = 460;
+
+  /// Distance from the workbench's bottom-right corner, in logical pixels.
+  static const double defaultAgentPanelInset = 16;
+
+  Future<void> saveAgentPanelHeight(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('agentPanelHeight', value);
+  }
+
+  Future<double> loadAgentPanelHeight() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble('agentPanelHeight') ?? defaultAgentPanelHeight;
+  }
+
+  /// Where the user dragged the panel: offsets of its right and bottom edges
+  /// from the workbench's. Stored rather than a top-left position so the
+  /// panel keeps its corner when the window is resized.
+  Future<void> saveAgentPanelOffset(double right, double bottom) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('agentPanelRight', right);
+    await prefs.setDouble('agentPanelBottom', bottom);
+  }
+
+  Future<(double, double)> loadAgentPanelOffset() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (
+      prefs.getDouble('agentPanelRight') ?? defaultAgentPanelInset,
+      prefs.getDouble('agentPanelBottom') ?? defaultAgentPanelInset,
+    );
+  }
+
+  /// Collapsed to its header bar.
+  Future<void> saveAgentPanelMinimized(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('agentPanelMinimized', value);
+  }
+
+  Future<bool> loadAgentPanelMinimized() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('agentPanelMinimized') ?? false;
+  }
 
   Future<void> saveAgentPanelWidth(double value) async {
     final prefs = await SharedPreferences.getInstance();

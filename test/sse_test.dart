@@ -26,26 +26,22 @@ void main() {
     final bytes = utf8.encode('data: {"t":"汉字"}\n\n');
     // Split inside the first CJK character's 3-byte sequence.
     final cut = bytes.indexOf(0xE6) + 1;
-    final events = await decode([
-      bytes.sublist(0, cut),
-      bytes.sublist(cut),
-    ]);
+    final events = await decode([bytes.sublist(0, cut), bytes.sublist(cut)]);
     expect(events, ['{"t":"汉字"}']);
   });
 
   test('joins multi-line data fields with newline', () async {
-    final events = await decode([
-      utf8.encode('data: line1\ndata: line2\n\n'),
-    ]);
+    final events = await decode([utf8.encode('data: line1\ndata: line2\n\n')]);
     expect(events, ['line1\nline2']);
   });
 
-  test('ignores comments and event/id lines, passes [DONE] through',
-      () async {
+  test('ignores comments and event/id lines, passes [DONE] through', () async {
     final events = await decode([
-      utf8.encode(': keep-alive\n\n'
-          'event: message_start\ndata: {"x":1}\n\n'
-          'data: [DONE]\n\n'),
+      utf8.encode(
+        ': keep-alive\n\n'
+        'event: message_start\ndata: {"x":1}\n\n'
+        'data: [DONE]\n\n',
+      ),
     ]);
     expect(events, ['{"x":1}', '[DONE]']);
   });

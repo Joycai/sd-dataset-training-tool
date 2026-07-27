@@ -22,7 +22,8 @@ class ImagePreviewWindow extends StatefulWidget {
 class _ImagePreviewWindowState extends State<ImagePreviewWindow> {
   late List<String> _imagePaths;
   late int _currentIndex;
-  final TransformationController _transformationController = TransformationController();
+  final TransformationController _transformationController =
+      TransformationController();
 
   @override
   void initState() {
@@ -59,10 +60,7 @@ class _ImagePreviewWindowState extends State<ImagePreviewWindow> {
   Future<void> _saveImage() async {
     final currentPath = _imagePaths[_currentIndex];
     final fileName = p.basename(currentPath);
-    await FileSaver.instance.saveFile(
-      name: fileName,
-      file: File(currentPath),
-    );
+    await FileSaver.instance.saveFile(name: fileName, file: File(currentPath));
   }
 
   @override
@@ -81,7 +79,9 @@ class _ImagePreviewWindowState extends State<ImagePreviewWindow> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                    onPressed: _currentIndex > 0 ? () => _changeImage(_currentIndex - 1) : null,
+                    onPressed: _currentIndex > 0
+                        ? () => _changeImage(_currentIndex - 1)
+                        : null,
                   ),
                   Expanded(
                     child: InteractiveViewer(
@@ -92,7 +92,10 @@ class _ImagePreviewWindowState extends State<ImagePreviewWindow> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.arrow_forward_ios, color: Colors.white),
+                    icon: const Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.white,
+                    ),
                     onPressed: _currentIndex < _imagePaths.length - 1
                         ? () => _changeImage(_currentIndex + 1)
                         : null,

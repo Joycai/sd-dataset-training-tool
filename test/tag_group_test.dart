@@ -48,17 +48,19 @@ void main() {
       expect(state.tagGroups.single.tags, ['a', 'b']);
     });
 
-    test('membership is exclusive: moving removes from the old group',
-        () async {
-      final g1 = await state.createTagGroup('one', 1);
-      final g2 = await state.createTagGroup('two', 2);
-      await state.moveTagsToGroup(['a', 'b'], g1.id);
-      await state.moveTagsToGroup(['b'], g2.id);
+    test(
+      'membership is exclusive: moving removes from the old group',
+      () async {
+        final g1 = await state.createTagGroup('one', 1);
+        final g2 = await state.createTagGroup('two', 2);
+        await state.moveTagsToGroup(['a', 'b'], g1.id);
+        await state.moveTagsToGroup(['b'], g2.id);
 
-      expect(state.tagGroups[0].tags, ['a']);
-      expect(state.tagGroups[1].tags, ['b']);
-      expect(state.groupOfTag('b')?.id, g2.id);
-    });
+        expect(state.tagGroups[0].tags, ['a']);
+        expect(state.tagGroups[1].tags, ['b']);
+        expect(state.groupOfTag('b')?.id, g2.id);
+      },
+    );
 
     test('move to null ungroups', () async {
       final g = await state.createTagGroup('one', 1);
@@ -122,15 +124,17 @@ void main() {
       expect(state.groupOfTag('a'), isNull);
     });
 
-    test('import/replace prunes group members but keeps empty groups',
-        () async {
-      final g = await state.createTagGroup('one', 1);
-      await state.moveTagsToGroup(['a'], g.id);
-      await state.updateCommonTags(['x', 'y']);
+    test(
+      'import/replace prunes group members but keeps empty groups',
+      () async {
+        final g = await state.createTagGroup('one', 1);
+        await state.moveTagsToGroup(['a'], g.id);
+        await state.updateCommonTags(['x', 'y']);
 
-      expect(state.tagGroups.single.tags, isEmpty);
-      expect(state.ungroupedTags, ['x', 'y']);
-    });
+        expect(state.tagGroups.single.tags, isEmpty);
+        expect(state.ungroupedTags, ['x', 'y']);
+      },
+    );
 
     test('clearCommonTags empties the library but keeps groups', () async {
       final g = await state.createTagGroup('one', 1);
@@ -161,8 +165,7 @@ void main() {
       expect(fresh.ungroupedTags.toSet(), {'c', 'd'});
     });
 
-    test('import merges into an existing group and keeps its color',
-        () async {
+    test('import merges into an existing group and keeps its color', () async {
       final g = await state.createTagGroup('outfit', 111);
       await state.moveTagsToGroup(['a'], g.id);
 
@@ -179,16 +182,18 @@ void main() {
       expect(state.groupOfTag('y'), isNull);
     });
 
-    test('import ungrouped list never pulls tags out of a local group',
-        () async {
-      final g = await state.createTagGroup('one', 1);
-      await state.moveTagsToGroup(['a'], g.id);
+    test(
+      'import ungrouped list never pulls tags out of a local group',
+      () async {
+        final g = await state.createTagGroup('one', 1);
+        await state.moveTagsToGroup(['a'], g.id);
 
-      await state.importLibraryJson('{"version":1,"ungrouped":["a","z"]}');
+        await state.importLibraryJson('{"version":1,"ungrouped":["a","z"]}');
 
-      expect(state.groupOfTag('a')?.id, g.id);
-      expect(state.commonTags, contains('z'));
-    });
+        expect(state.groupOfTag('a')?.id, g.id);
+        expect(state.commonTags, contains('z'));
+      },
+    );
 
     test('groups-only export creates empty groups on import', () async {
       await state.createTagGroup('outfit', 7);
@@ -207,18 +212,12 @@ void main() {
     });
 
     test('import rejects malformed payloads', () async {
-      expect(
-        () => state.importLibraryJson('not json'),
-        throwsFormatException,
-      );
+      expect(() => state.importLibraryJson('not json'), throwsFormatException);
       expect(
         () => state.importLibraryJson('{"groups":[{"name":1}]}'),
         throwsFormatException,
       );
-      expect(
-        () => state.importLibraryJson('[1,2,3]'),
-        throwsFormatException,
-      );
+      expect(() => state.importLibraryJson('[1,2,3]'), throwsFormatException);
     });
 
     test('groups persist across reload', () async {

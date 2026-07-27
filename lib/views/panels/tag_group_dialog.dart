@@ -194,17 +194,20 @@ class _TagGroupDialogState extends State<_TagGroupDialog> {
             _channelSlider(
               label: 'R',
               value: r,
-              onChanged: (v) => _setColor(0xFF000000 | (v << 16) | (g << 8) | b),
+              onChanged: (v) =>
+                  _setColor(0xFF000000 | (v << 16) | (g << 8) | b),
             ),
             _channelSlider(
               label: 'G',
               value: g,
-              onChanged: (v) => _setColor(0xFF000000 | (r << 16) | (v << 8) | b),
+              onChanged: (v) =>
+                  _setColor(0xFF000000 | (r << 16) | (v << 8) | b),
             ),
             _channelSlider(
               label: 'B',
               value: b,
-              onChanged: (v) => _setColor(0xFF000000 | (r << 16) | (g << 8) | v),
+              onChanged: (v) =>
+                  _setColor(0xFF000000 | (r << 16) | (g << 8) | v),
             ),
           ],
         ),
@@ -217,9 +220,9 @@ class _TagGroupDialogState extends State<_TagGroupDialog> {
         TextButton(
           onPressed: _nameController.text.trim().isEmpty
               ? null
-              : () => Navigator.of(context).pop(
-                    (name: _nameController.text.trim(), color: _color),
-                  ),
+              : () => Navigator.of(
+                  context,
+                ).pop((name: _nameController.text.trim(), color: _color)),
           child: Text(l10n.confirm),
         ),
       ],

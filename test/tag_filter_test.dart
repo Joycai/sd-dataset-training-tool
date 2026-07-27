@@ -77,20 +77,22 @@ void main() {
       root = filterRemove(root, subGroup.children.first.id);
       // One child left in the sub-group -> lifted into the root.
       expect(root.children.whereType<TagFilterGroup>(), isEmpty);
-      expect(
-        root.children.whereType<TagFilterCondition>().map((c) => c.tag),
-        ['x', 'b'],
-      );
+      expect(root.children.whereType<TagFilterCondition>().map((c) => c.tag), [
+        'x',
+        'b',
+      ]);
     });
 
     test('dissolve lifts children at the group position', () {
       final sub = or([has('a'), has('b')]);
       var root = and([has('x'), sub, has('y')]);
       root = filterDissolve(root, sub.id);
-      expect(
-        root.children.whereType<TagFilterCondition>().map((c) => c.tag),
-        ['x', 'a', 'b', 'y'],
-      );
+      expect(root.children.whereType<TagFilterCondition>().map((c) => c.tag), [
+        'x',
+        'a',
+        'b',
+        'y',
+      ]);
     });
 
     test('filterRemoveTag drops every condition on the tag', () {
@@ -100,10 +102,9 @@ void main() {
       ]);
       root = filterRemoveTag(root, 'a');
       // The or-group is left with one child and gets lifted.
-      expect(
-        root.children.whereType<TagFilterCondition>().map((c) => c.tag),
-        ['b'],
-      );
+      expect(root.children.whereType<TagFilterCondition>().map((c) => c.tag), [
+        'b',
+      ]);
     });
 
     test('normalize keeps the root group even when empty', () {

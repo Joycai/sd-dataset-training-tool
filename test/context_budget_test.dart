@@ -22,12 +22,12 @@ void main() {
 
   group('estimate', () {
     test('counts images at the flat rate', () {
-      final budget =
-          ContextBudget(contextWindow: 32768, maxOutputTokens: 4096);
+      final budget = ContextBudget(contextWindow: 32768, maxOutputTokens: 4096);
       final history = [
-        ChatMessage(role: ChatRole.user, parts: [
-          ChatContentPart.image(Uint8List(10)),
-        ]),
+        ChatMessage(
+          role: ChatRole.user,
+          parts: [ChatContentPart.image(Uint8List(10))],
+        ),
       ];
       // 4 overhead + 1600 image, ×1.1
       expect(budget.estimate(history), ((4 + 1600) * 1.1).ceil());
@@ -39,12 +39,11 @@ void main() {
         ChatMessage.toolResult(toolCallId: id, text: text);
 
     test('does nothing when under budget', () {
-      final budget =
-          ContextBudget(contextWindow: 200000, maxOutputTokens: 4096);
-      final history = [
-        ChatMessage.system('sys'),
-        ChatMessage.user('hello'),
-      ];
+      final budget = ContextBudget(
+        contextWindow: 200000,
+        maxOutputTokens: 4096,
+      );
+      final history = [ChatMessage.system('sys'), ChatMessage.user('hello')];
       budget.compact(history);
       expect(history[1].text, 'hello');
     });
@@ -61,9 +60,12 @@ void main() {
       final history = [
         ChatMessage.system('sys'),
         ChatMessage.user('question'),
-        ChatMessage.assistant('', toolCalls: const [
-          ChatToolCall(id: '1', name: 't', argumentsJson: '{}'),
-        ]),
+        ChatMessage.assistant(
+          '',
+          toolCalls: const [
+            ChatToolCall(id: '1', name: 't', argumentsJson: '{}'),
+          ],
+        ),
         tool(bigTool, '1'),
         ChatMessage.assistant('answer part'),
         ChatMessage.user('follow-up'),

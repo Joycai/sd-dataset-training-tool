@@ -55,11 +55,11 @@ class TagGroup {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'color': color,
-        'tags': tags,
-      };
+    'id': id,
+    'name': name,
+    'color': color,
+    'tags': tags,
+  };
 }
 
 String encodeTagGroups(List<TagGroup> groups) =>

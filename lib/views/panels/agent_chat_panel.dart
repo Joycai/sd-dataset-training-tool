@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'package:provider/provider.dart';
 
-import '../../app_state.dart';
+import '../settings_view.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/agent_chat_state.dart';
 import '../../theme/app_theme.dart';
@@ -12,22 +12,27 @@ import '../../theme/app_theme.dart';
 /// for the current brightness with the chat's compact font size.
 Widget chatMarkdown(BuildContext context, String text) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final base =
-      isDark ? MarkdownConfig.darkConfig : MarkdownConfig.defaultConfig;
+  final base = isDark
+      ? MarkdownConfig.darkConfig
+      : MarkdownConfig.defaultConfig;
   return MarkdownBlock(
     data: text,
     selectable: true,
-    config: base.copy(configs: [
-      PConfig(textStyle: const TextStyle(fontSize: 12.5, height: 1.45)),
-    ]),
+    config: base.copy(
+      configs: [
+        PConfig(textStyle: const TextStyle(fontSize: 12.5, height: 1.45)),
+      ],
+    ),
   );
 }
 
-/// The AI assistant column: transcript, input row, and session controls.
+/// The AI assistant's body: transcript, run state, and input row.
+///
+/// The header and the surface around it belong to whatever hosts this — the
+/// floating dock draws its own glass frame and title bar so the panel can be
+/// dragged and collapsed without this widget knowing about either.
 class AgentChatPanel extends StatefulWidget {
-  const AgentChatPanel({super.key, required this.onClose});
-
-  final VoidCallback onClose;
+  const AgentChatPanel({super.key});
 
   @override
   State<AgentChatPanel> createState() => _AgentChatPanelState();
@@ -113,136 +118,172 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
     final chat = context.watch<AgentChatState>();
     _autoScroll(chat);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: semantic.panel,
-        border: Border(left: BorderSide(color: semantic.line)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _Header(chat: chat, onClose: widget.onClose),
-          Expanded(
-            child: chat.hasProfile || chat.entries.isNotEmpty
-                ? ListView.builder(
-                    controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 4),
-                    itemCount: chat.entries.length,
-                    itemBuilder: (context, index) =>
-                        _EntryRow(entry: chat.entries[index]),
-                  )
-                : _NoProfileHint(),
-          ),
-          if (chat.busy)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.6,
-                      color: scheme.primary,
-                    ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: chat.hasProfile || chat.entries.isNotEmpty
+              ? ListView.builder(
+                  controller: _scroll,
+                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 4),
+                  itemCount: chat.entries.length,
+                  itemBuilder: (context, index) =>
+                      _EntryRow(entry: chat.entries[index]),
+                )
+              : _NoProfileHint(),
+        ),
+        if (chat.busy)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.6,
+                    color: scheme.primary,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n.agentRunning,
-                    style: TextStyle(fontSize: 11.5, color: semantic.muted),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.agentRunning,
+                  style: TextStyle(fontSize: 11.5, color: semantic.muted),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: scheme.error,
+                    textStyle: const TextStyle(fontSize: 11.5),
                   ),
-                  const Spacer(),
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      foregroundColor: scheme.error,
-                      textStyle: const TextStyle(fontSize: 11.5),
-                    ),
-                    onPressed: chat.stopRun,
-                    icon: const Icon(Icons.stop_circle_outlined, size: 14),
-                    label: Text(l10n.agentStop),
-                  ),
-                ],
-              ),
+                  onPressed: chat.stopRun,
+                  icon: const Icon(Icons.stop_circle_outlined, size: 14),
+                  label: Text(l10n.agentStop),
+                ),
+              ],
             ),
-          if (chat.pendingQuestion != null) _QuestionCard(chat: chat),
-          if (chat.pendingConfirm != null) _ConfirmBar(chat: chat),
-          _InputRow(
-            controller: _input,
-            focusNode: _inputFocus,
-            enabled: chat.hasProfile && !chat.busy,
-            onSend: () => _send(chat),
-            onExpand: _openComposer,
           ),
-          if (chat.totalTokens > 0)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              child: Text(
-                l10n.agentTokensUsed(chat.totalTokens),
-                style: monoStyle(context, size: 10.5, color: semantic.muted),
-              ),
+        if (chat.pendingQuestion != null) _QuestionCard(chat: chat),
+        if (chat.pendingConfirm != null) _ConfirmBar(chat: chat),
+        _InputRow(
+          controller: _input,
+          focusNode: _inputFocus,
+          enabled: chat.hasProfile && !chat.busy,
+          onSend: () => _send(chat),
+          onExpand: _openComposer,
+        ),
+        if (chat.totalTokens > 0)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+            child: Text(
+              l10n.agentTokensUsed(chat.totalTokens),
+              style: monoStyle(context, size: 10.5, color: semantic.muted),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.chat, required this.onClose});
+/// Title bar of the floating assistant: identity on the left, window
+/// controls on the right, and the whole strip doubles as the drag handle.
+class AgentPanelHeader extends StatelessWidget {
+  const AgentPanelHeader({
+    super.key,
+    required this.chat,
+    required this.onClose,
+    required this.minimized,
+    required this.onToggleMinimized,
+    required this.onDragUpdate,
+    required this.onDragEnd,
+  });
 
   final AgentChatState chat;
   final VoidCallback onClose;
+  final bool minimized;
+  final VoidCallback onToggleMinimized;
+  final ValueChanged<Offset> onDragUpdate;
+  final VoidCallback onDragEnd;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.only(left: 12, right: 4),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: semantic.line)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.smart_toy_outlined,
-              size: 15, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.agentPanelTitle,
-                  style: const TextStyle(
-                      fontSize: 12.5, fontWeight: FontWeight.w600),
+    return MouseRegion(
+      cursor: SystemMouseCursors.move,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanUpdate: (details) => onDragUpdate(details.delta),
+        onPanEnd: (_) => onDragEnd(),
+        // Deliberately no double-tap-to-collapse: a double-tap recognizer
+        // here keeps the gesture arena open for its timeout, so every single
+        // click on the three buttons in this bar would be delayed by ~300ms.
+        // The minimize button is the discoverable path anyway.
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.only(left: 12, right: 4),
+          decoration: BoxDecoration(
+            border: minimized
+                ? null
+                : Border(bottom: BorderSide(color: semantic.line)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.smart_toy_outlined,
+                size: 15,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.agentPanelTitle,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (chat.profileName != null)
+                      Text(
+                        chat.profileName!,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 10, color: semantic.muted),
+                      ),
+                  ],
                 ),
-                if (chat.profileName != null)
-                  Text(
-                    chat.profileName!,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 10, color: semantic.muted),
-                  ),
-              ],
-            ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add_comment_outlined, size: 16),
+                tooltip: l10n.agentNewSession,
+                color: semantic.muted,
+                visualDensity: VisualDensity.compact,
+                onPressed: chat.busy ? null : () => chat.resetSession(),
+              ),
+              IconButton(
+                icon: Icon(
+                  minimized ? Icons.expand_less : Icons.remove,
+                  size: 16,
+                ),
+                tooltip: minimized ? l10n.agentExpand : l10n.agentMinimize,
+                color: semantic.muted,
+                visualDensity: VisualDensity.compact,
+                onPressed: onToggleMinimized,
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 16),
+                tooltip: l10n.cancel,
+                color: semantic.muted,
+                visualDensity: VisualDensity.compact,
+                onPressed: onClose,
+              ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.add_comment_outlined, size: 16),
-            tooltip: l10n.agentNewSession,
-            color: semantic.muted,
-            visualDensity: VisualDensity.compact,
-            onPressed: chat.busy ? null : () => chat.resetSession(),
-          ),
-          IconButton(
-            icon: const Icon(Icons.close, size: 16),
-            tooltip: l10n.cancel,
-            color: semantic.muted,
-            visualDensity: VisualDensity.compact,
-            onPressed: onClose,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -253,7 +294,9 @@ class _NoProfileHint extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
-    return Center(
+    // Scrollable: as a floating panel this can be shorter than the hint,
+    // and a clipped call-to-action is worse than a scrolled one.
+    return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -272,8 +315,7 @@ class _NoProfileHint extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 textStyle: const TextStyle(fontSize: 12),
               ),
-              onPressed: () =>
-                  context.read<AppState>().updateView(MainView.settings),
+              onPressed: () => showSettingsDialog(context),
               child: Text(l10n.agentOpenSettings),
             ),
           ],
@@ -303,8 +345,7 @@ class _EntryRow extends StatelessWidget {
           child: IntrinsicWidth(
             child: Container(
               margin: const EdgeInsets.only(bottom: 8, left: 30),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
                 color: scheme.primary.withAlpha(28),
                 borderRadius: BorderRadius.circular(9),
@@ -324,8 +365,7 @@ class _EntryRow extends StatelessWidget {
         final text = switch (entry.noticeType) {
           AgentNoticeType.cancelled => l10n.agentStoppedNotice,
           AgentNoticeType.reset => l10n.agentSessionResetNotice,
-          AgentNoticeType.error || null =>
-            l10n.agentErrorNotice(entry.text),
+          AgentNoticeType.error || null => l10n.agentErrorNotice(entry.text),
         };
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -425,8 +465,11 @@ class _ToolCardState extends State<_ToolCard> {
                   if (entry.toolArgs.isNotEmpty && entry.toolArgs != '{}')
                     SelectableText(
                       _clip(entry.toolArgs),
-                      style: monoStyle(context,
-                          size: 10.5, color: semantic.muted),
+                      style: monoStyle(
+                        context,
+                        size: 10.5,
+                        color: semantic.muted,
+                      ),
                     ),
                   if (entry.toolResult.isNotEmpty) ...[
                     const SizedBox(height: 4),
@@ -485,16 +528,15 @@ class _ConfirmBar extends StatelessWidget {
                 child: Text(
                   l10n.agentConfirmTitle,
                   style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            pending.toolName,
-            style: monoStyle(context, size: 11.5),
-          ),
+          Text(pending.toolName, style: monoStyle(context, size: 11.5)),
           if (pending.argsJson.isNotEmpty && pending.argsJson != '{}')
             Padding(
               padding: const EdgeInsets.only(top: 2),
@@ -510,7 +552,9 @@ class _ConfirmBar extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   textStyle: const TextStyle(
-                      fontSize: 11.5, fontWeight: FontWeight.w600),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 onPressed: () => chat.resolveConfirm(allow: true),
                 child: Text(l10n.agentConfirmAllow),
@@ -671,7 +715,9 @@ class _QuestionCardState extends State<_QuestionCard> {
                 child: Text(
                   l10n.agentQuestionTitle,
                   style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               IconButton(
@@ -715,11 +761,12 @@ class _QuestionCardState extends State<_QuestionCard> {
                   style: const TextStyle(fontSize: 12),
                   decoration: InputDecoration(
                     hintText: l10n.agentQuestionCustomHint,
-                    hintStyle:
-                        TextStyle(fontSize: 11.5, color: semantic.muted),
+                    hintStyle: TextStyle(fontSize: 11.5, color: semantic.muted),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 7),
+                      horizontal: 8,
+                      vertical: 7,
+                    ),
                     border: const OutlineInputBorder(),
                   ),
                   onSubmitted: (_) => _sendCustom(),

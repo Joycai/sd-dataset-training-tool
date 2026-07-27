@@ -12,8 +12,11 @@ import '../../models/llm_models.dart';
 export '../../models/llm_models.dart' show AgentToolSpec;
 
 class AgentToolResult {
-  const AgentToolResult(this.text,
-      {this.isError = false, this.extraParts = const []});
+  const AgentToolResult(
+    this.text, {
+    this.isError = false,
+    this.extraParts = const [],
+  });
 
   /// The text returned to the model (usually compact JSON).
   final String text;
@@ -24,15 +27,16 @@ class AgentToolResult {
   final List<ChatContentPart> extraParts;
 }
 
-AgentToolResult toolOk(Map<String, dynamic> json,
-        {List<ChatContentPart> extraParts = const []}) =>
-    AgentToolResult(jsonEncode(json), extraParts: extraParts);
+AgentToolResult toolOk(
+  Map<String, dynamic> json, {
+  List<ChatContentPart> extraParts = const [],
+}) => AgentToolResult(jsonEncode(json), extraParts: extraParts);
 
 AgentToolResult toolError(String message) =>
     AgentToolResult(jsonEncode({'error': message}), isError: true);
 
-typedef AgentToolHandler = Future<AgentToolResult> Function(
-    Map<String, dynamic> args);
+typedef AgentToolHandler =
+    Future<AgentToolResult> Function(Map<String, dynamic> args);
 
 class AgentTool {
   const AgentTool({
@@ -51,12 +55,11 @@ class AgentTool {
 
 class ToolRegistry {
   ToolRegistry(List<AgentTool> tools)
-      : _byName = {for (final t in tools) t.spec.name: t};
+    : _byName = {for (final t in tools) t.spec.name: t};
 
   final Map<String, AgentTool> _byName;
 
-  List<AgentToolSpec> get specs =>
-      [for (final t in _byName.values) t.spec];
+  List<AgentToolSpec> get specs => [for (final t in _byName.values) t.spec];
 
   AgentTool? find(String name) => _byName[name];
 
@@ -65,8 +68,10 @@ class ToolRegistry {
   Future<AgentToolResult> dispatch(String name, String argumentsJson) async {
     final tool = _byName[name];
     if (tool == null) {
-      return toolError('unknown tool "$name"; available: '
-          '${_byName.keys.join(', ')}');
+      return toolError(
+        'unknown tool "$name"; available: '
+        '${_byName.keys.join(', ')}',
+      );
     }
     final Map<String, dynamic> args;
     try {

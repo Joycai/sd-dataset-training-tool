@@ -11,6 +11,7 @@ import 'package:dataset_training_tool/services/ai_tagger_service.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/ai_tagger_state.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
+import 'package:dataset_training_tool/widgets/panel_widgets.dart';
 import 'package:dataset_training_tool/views/panels/ai_params_dialog.dart';
 
 void main() {
@@ -24,29 +25,36 @@ void main() {
     bool legacy = false,
     double vram = 0,
     String description = '',
-  }) =>
-      {
-        'ModelName': name,
-        'SupportedVideo': false,
-        'RepositoryLink': '',
-        'Category': category,
-        'Recommended': recommended,
-        'Uncensored': uncensored,
-        'Legacy': legacy,
-        'VramGB': vram,
-        'Description': description,
-        'Advice': '',
-      };
+  }) => {
+    'ModelName': name,
+    'SupportedVideo': false,
+    'RepositoryLink': '',
+    'Category': category,
+    'Recommended': recommended,
+    'Uncensored': uncensored,
+    'Legacy': legacy,
+    'VramGB': vram,
+    'Description': description,
+    'Advice': '',
+  };
 
   final configResponse = {
     'Interrogators': [
-      model('SmilingWolf/wd-eva02-large-tagger-v3',
-          recommended: true, vram: 2, description: 'EVA02 tagger'),
+      model(
+        'SmilingWolf/wd-eva02-large-tagger-v3',
+        recommended: true,
+        vram: 2,
+        description: 'EVA02 tagger',
+      ),
       model('SmilingWolf/wd-vit-tagger-v3', vram: 1),
       model('SmilingWolf/wd-v1-4-vit-tagger', legacy: true, vram: 1),
       model('DeepDanbooru', legacy: true, vram: 1),
-      model('fancyfeast/llama-joycaption-beta-one-hf-llava',
-          category: 'caption', uncensored: true, vram: 18),
+      model(
+        'fancyfeast/llama-joycaption-beta-one-hf-llava',
+        category: 'caption',
+        uncensored: true,
+        vram: 18,
+      ),
       model('BLIP', category: 'caption', legacy: true, vram: 2),
     ],
     'Editors': <Map<String, dynamic>>[],
@@ -59,8 +67,11 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final client = MockClient((request) async {
       if (request.url.path == '/getconfig') {
-        return http.Response(jsonEncode(configResponse), 200,
-            headers: {'content-type': 'application/json'});
+        return http.Response(
+          jsonEncode(configResponse),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
       }
       return http.Response('not found', 404);
     });
@@ -100,8 +111,7 @@ void main() {
 
   testWidgets('menu groups models and collapses legacy ones', (tester) async {
     await openDialogAndMenu(tester);
-    final l10n = AppLocalizations.of(
-        tester.element(find.byType(AlertDialog)))!;
+    final l10n = AppLocalizations.of(tester.element(find.byType(GlassDialog)))!;
 
     // Section headers present.
     expect(find.text(l10n.aiModelGroupTag), findsOneWidget);
@@ -130,14 +140,16 @@ void main() {
     expect(find.text('BLIP'), findsNothing);
   });
 
-  testWidgets('filter narrows the list and surfaces legacy matches',
-      (tester) async {
+  testWidgets('filter narrows the list and surfaces legacy matches', (
+    tester,
+  ) async {
     await openDialogAndMenu(tester);
-    final l10n = AppLocalizations.of(
-        tester.element(find.byType(AlertDialog)))!;
+    final l10n = AppLocalizations.of(tester.element(find.byType(GlassDialog)))!;
 
     await tester.enterText(
-        find.widgetWithText(TextField, l10n.aiModelFilterHint), 'v1-4');
+      find.widgetWithText(TextField, l10n.aiModelFilterHint),
+      'v1-4',
+    );
     await tester.pumpAndSettle();
 
     // Legacy match shows inline; non-matches and collapse rows are gone.
@@ -146,13 +158,16 @@ void main() {
     expect(find.text(l10n.aiModelGroupCaption), findsNothing);
 
     await tester.enterText(
-        find.widgetWithText(TextField, 'v1-4'), 'zzz-no-such');
+      find.widgetWithText(TextField, 'v1-4'),
+      'zzz-no-such',
+    );
     await tester.pumpAndSettle();
     expect(find.text(l10n.aiModelFilterNoMatch), findsOneWidget);
   });
 
-  testWidgets('picking a model updates state and closes the menu',
-      (tester) async {
+  testWidgets('picking a model updates state and closes the menu', (
+    tester,
+  ) async {
     await openDialogAndMenu(tester);
 
     await tester.tap(find.text('wd-vit-tagger-v3'));
@@ -165,8 +180,7 @@ void main() {
 
   testWidgets('caption model disables the threshold controls', (tester) async {
     await openDialogAndMenu(tester);
-    final l10n = AppLocalizations.of(
-        tester.element(find.byType(AlertDialog)))!;
+    final l10n = AppLocalizations.of(tester.element(find.byType(GlassDialog)))!;
 
     await tester.tap(find.text('llama-joycaption-beta-one-hf-llava'));
     await tester.pumpAndSettle();
