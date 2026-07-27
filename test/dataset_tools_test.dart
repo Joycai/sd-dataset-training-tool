@@ -24,8 +24,10 @@ void main() {
   late DatasetState dataset;
   late ToolRegistry registry;
 
-  Future<Map<String, dynamic>> call(String tool,
-      [Map<String, dynamic> args = const {}]) async {
+  Future<Map<String, dynamic>> call(
+    String tool, [
+    Map<String, dynamic> args = const {},
+  ]) async {
     final result = await registry.dispatch(tool, jsonEncode(args));
     return jsonDecode(result.text) as Map<String, dynamic>;
   }
@@ -35,8 +37,9 @@ void main() {
     for (final name in ['001', '002', '003']) {
       await File(p.join(tempDir.path, '$name.png')).writeAsBytes(_pngBytes);
     }
-    await File(p.join(tempDir.path, '001.txt'))
-        .writeAsString('1girl, solo, long hair');
+    await File(
+      p.join(tempDir.path, '001.txt'),
+    ).writeAsString('1girl, solo, long hair');
     await File(p.join(tempDir.path, '002.txt')).writeAsString('1girl, smile');
     // 003 stays uncaptioned.
 
@@ -54,7 +57,11 @@ void main() {
           libraryTags: () => ['1girl', 'solo', 'standing'],
           tagGroups: () => [
             const TagGroup(
-                id: 'g1', name: 'subject', color: 0, tags: ['1girl', 'solo']),
+              id: 'g1',
+              name: 'subject',
+              color: 0,
+              tags: ['1girl', 'solo'],
+            ),
           ],
         ),
       ),
@@ -94,8 +101,7 @@ void main() {
       expect(out['caption_extension'], '.txt');
     });
 
-    test('get_tag_stats returns [tag, count] pairs sorted by count',
-        () async {
+    test('get_tag_stats returns [tag, count] pairs sorted by count', () async {
       final out = await call('get_tag_stats');
       expect(out['total_unique'], 4);
       expect((out['tags'] as List).first, ['1girl', 2]);
@@ -127,10 +133,7 @@ void main() {
 
       final untagged = await call('list_images', {'untagged_only': true});
       expect(untagged['total_matches'], 1);
-      expect(
-        ((untagged['images'] as List).single as Map)['path'],
-        '003.png',
-      );
+      expect(((untagged['images'] as List).single as Map)['path'], '003.png');
     });
 
     test('read_captions resolves relative paths and flags misses', () async {
@@ -144,8 +147,10 @@ void main() {
 
     test('get_tag_library returns groups and ungrouped remainder', () async {
       final out = await call('get_tag_library');
-      expect(((out['groups'] as List).single as Map)['tags'],
-          ['1girl', 'solo']);
+      expect(((out['groups'] as List).single as Map)['tags'], [
+        '1girl',
+        'solo',
+      ]);
       expect(out['ungrouped'], ['standing']);
     });
   });

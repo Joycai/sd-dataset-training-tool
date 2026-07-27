@@ -54,17 +54,17 @@ class AiModelInfo {
   final String advice;
 
   factory AiModelInfo.fromJson(Map<String, dynamic> json) => AiModelInfo(
-        modelName: (json['ModelName'] as String?) ?? '',
-        supportedVideo: (json['SupportedVideo'] as bool?) ?? false,
-        repositoryLink: (json['RepositoryLink'] as String?) ?? '',
-        category: (json['Category'] as String?) ?? '',
-        recommended: (json['Recommended'] as bool?) ?? false,
-        uncensored: (json['Uncensored'] as bool?) ?? false,
-        legacy: (json['Legacy'] as bool?) ?? false,
-        vramGb: (json['VramGB'] as num?)?.toDouble() ?? 0,
-        description: (json['Description'] as String?) ?? '',
-        advice: (json['Advice'] as String?) ?? '',
-      );
+    modelName: (json['ModelName'] as String?) ?? '',
+    supportedVideo: (json['SupportedVideo'] as bool?) ?? false,
+    repositoryLink: (json['RepositoryLink'] as String?) ?? '',
+    category: (json['Category'] as String?) ?? '',
+    recommended: (json['Recommended'] as bool?) ?? false,
+    uncensored: (json['Uncensored'] as bool?) ?? false,
+    legacy: (json['Legacy'] as bool?) ?? false,
+    vramGb: (json['VramGB'] as num?)?.toDouble() ?? 0,
+    description: (json['Description'] as String?) ?? '',
+    advice: (json['Advice'] as String?) ?? '',
+  );
 
   @override
   String toString() => modelName;
@@ -126,11 +126,11 @@ class AiModelParameter {
       );
 
   Map<String, dynamic> toJson() => {
-        'Key': key,
-        'Value': value,
-        'Type': type,
-        'Comment': comment,
-      };
+    'Key': key,
+    'Value': value,
+    'Type': type,
+    'Comment': comment,
+  };
 }
 
 /// The `/getmodelparams` response. Use [threshold] to read a WD tagger's
@@ -151,14 +151,14 @@ class AiModelParams {
   final List<AiModelParameter> parameters;
 
   factory AiModelParams.fromJson(Map<String, dynamic> json) => AiModelParams(
-        success: (json['Success'] as bool?) ?? false,
-        errorMessage: (json['ErrorMessage'] as String?) ?? '',
-        type: (json['Type'] as String?) ?? '',
-        parameters: ((json['Parameters'] as List?) ?? const [])
-            .whereType<Map<String, dynamic>>()
-            .map(AiModelParameter.fromJson)
-            .toList(),
-      );
+    success: (json['Success'] as bool?) ?? false,
+    errorMessage: (json['ErrorMessage'] as String?) ?? '',
+    type: (json['Type'] as String?) ?? '',
+    parameters: ((json['Parameters'] as List?) ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AiModelParameter.fromJson)
+        .toList(),
+  );
 
   /// The `threshold` parameter's value parsed as a double, or null if the
   /// model has no threshold parameter.
@@ -184,10 +184,7 @@ class AiModelRequest {
   /// Builds a WD14 tagger request. When [threshold] is given it is sent as a
   /// `float1` parameter; the server then filters tags below it before
   /// responding. Omit it to let the server use the model's default.
-  factory AiModelRequest.wd({
-    required String modelName,
-    double? threshold,
-  }) =>
+  factory AiModelRequest.wd({required String modelName, double? threshold}) =>
       AiModelRequest(
         modelName: modelName,
         additionalParameters: [
@@ -201,10 +198,11 @@ class AiModelRequest {
       );
 
   Map<String, dynamic> toJson() => {
-        'ModelName': modelName,
-        'AdditionalParameters':
-            additionalParameters.map((e) => e.toJson()).toList(),
-      };
+    'ModelName': modelName,
+    'AdditionalParameters': additionalParameters
+        .map((e) => e.toJson())
+        .toList(),
+  };
 }
 
 /// A single predicted tag with its confidence, from an interrogate result.
@@ -215,9 +213,9 @@ class AiTag {
   final double probability;
 
   factory AiTag.fromJson(Map<String, dynamic> json) => AiTag(
-        tag: (json['Tag'] as String?) ?? '',
-        probability: (json['Probability'] as num?)?.toDouble() ?? 0,
-      );
+    tag: (json['Tag'] as String?) ?? '',
+    probability: (json['Probability'] as num?)?.toDouble() ?? 0,
+  );
 }
 
 /// The per-model block inside an interrogate response's `Result` array.
@@ -228,12 +226,12 @@ class AiModelResult {
   final List<AiTag> tags;
 
   factory AiModelResult.fromJson(Map<String, dynamic> json) => AiModelResult(
-        modelName: (json['ModelName'] as String?) ?? '',
-        tags: ((json['Tags'] as List?) ?? const [])
-            .whereType<Map<String, dynamic>>()
-            .map(AiTag.fromJson)
-            .toList(),
-      );
+    modelName: (json['ModelName'] as String?) ?? '',
+    tags: ((json['Tags'] as List?) ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(AiTag.fromJson)
+        .toList(),
+  );
 }
 
 /// The `/interrogateimage` response.

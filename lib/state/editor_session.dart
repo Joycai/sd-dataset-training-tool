@@ -158,9 +158,7 @@ class EditorSession extends ChangeNotifier {
       return;
     }
     final next = _tags.indexOf(current) + delta;
-    setAnchorTag(
-      (next < 0 || next >= _tags.length) ? null : _tags[next],
-    );
+    setAnchorTag((next < 0 || next >= _tags.length) ? null : _tags[next]);
   }
 
   void applyTag(String tag) {
@@ -179,9 +177,7 @@ class EditorSession extends ChangeNotifier {
   void toggleTag(String tag) => hasTag(tag) ? removeTag(tag) : applyTag(tag);
 
   void addTagsFromInput(String input) {
-    _insertTags(
-      _parseTags(input).where((t) => !_tags.contains(t)).toList(),
-    );
+    _insertTags(_parseTags(input).where((t) => !_tags.contains(t)).toList());
   }
 
   void _insertTags(List<String> parts) {

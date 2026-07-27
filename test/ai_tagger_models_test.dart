@@ -8,7 +8,8 @@ import 'package:dataset_training_tool/services/ai_tagger_service.dart';
 void main() {
   group('AiServerConfig', () {
     test('parses /getconfig response', () {
-      final json = jsonDecode('''
+      final json =
+          jsonDecode('''
       {
         "Interrogators": [
           {"ModelName": "SmilingWolf/wd-swinv2-tagger-v3",
@@ -18,12 +19,15 @@ void main() {
         "Editors": [],
         "Translators": []
       }
-      ''') as Map<String, dynamic>;
+      ''')
+              as Map<String, dynamic>;
 
       final config = AiServerConfig.fromJson(json);
       expect(config.interrogators, hasLength(1));
-      expect(config.interrogators.first.modelName,
-          'SmilingWolf/wd-swinv2-tagger-v3');
+      expect(
+        config.interrogators.first.modelName,
+        'SmilingWolf/wd-swinv2-tagger-v3',
+      );
       expect(config.editors, isEmpty);
       expect(config.translators, isEmpty);
     });
@@ -31,12 +35,14 @@ void main() {
 
   group('AiModelParams', () {
     test('parses /getmodelparams response and reads threshold', () {
-      final json = jsonDecode('''
+      final json =
+          jsonDecode('''
       { "Success": true, "ErrorMessage": "", "Type": "wd",
         "Parameters": [
           {"Key": "threshold", "Value": "0.35", "Type": "float1", "Comment": ""}
         ] }
-      ''') as Map<String, dynamic>;
+      ''')
+              as Map<String, dynamic>;
 
       final params = AiModelParams.fromJson(json);
       expect(params.success, isTrue);
@@ -64,7 +70,12 @@ void main() {
       expect(req.toJson(), {
         'ModelName': 'SmilingWolf/wd-swinv2-tagger-v3',
         'AdditionalParameters': [
-          {'Key': 'threshold', 'Value': '0.25', 'Type': 'float1', 'Comment': ''}
+          {
+            'Key': 'threshold',
+            'Value': '0.25',
+            'Type': 'float1',
+            'Comment': '',
+          },
         ],
       });
     });
@@ -77,7 +88,8 @@ void main() {
 
   group('AiInterrogateResponse', () {
     test('parses response and de-duplicates tags across models', () {
-      final json = jsonDecode('''
+      final json =
+          jsonDecode('''
       {
         "Success": true,
         "ErrorMessage": "Image successfully processed.",
@@ -90,7 +102,8 @@ void main() {
                       {"Tag": "smile", "Probability": 0.8} ] }
         ]
       }
-      ''') as Map<String, dynamic>;
+      ''')
+              as Map<String, dynamic>;
 
       final resp = AiInterrogateResponse.fromJson(json);
       expect(resp.success, isTrue);
@@ -106,16 +119,20 @@ void main() {
 
     test('keeps underscores when requested', () {
       expect(
-        AiTaggerService.normalizeTag('long_hair',
-            underscoreStyle: TagUnderscoreStyle.keep),
+        AiTaggerService.normalizeTag(
+          'long_hair',
+          underscoreStyle: TagUnderscoreStyle.keep,
+        ),
         'long_hair',
       );
     });
 
     test('escapes parentheses when requested', () {
       expect(
-        AiTaggerService.normalizeTag('smile (expression)',
-            escapeParentheses: true),
+        AiTaggerService.normalizeTag(
+          'smile (expression)',
+          escapeParentheses: true,
+        ),
         r'smile \(expression\)',
       );
     });

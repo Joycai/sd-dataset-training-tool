@@ -123,14 +123,19 @@ class TagOps extends ChangeNotifier {
   }) {
     final parts = parseTagText(input);
     if (parts.isEmpty) return Future.value(0);
-    return _rewriteAll(label, (tags) {
-      final next = [...tags];
-      final seen = next.toSet();
-      final fresh = parts.where(seen.add).toList();
-      if (fresh.isEmpty) return null;
-      next.insertAll((index ?? next.length).clamp(0, next.length), fresh);
-      return next;
-    }, files: files, createMissing: true);
+    return _rewriteAll(
+      label,
+      (tags) {
+        final next = [...tags];
+        final seen = next.toSet();
+        final fresh = parts.where(seen.add).toList();
+        if (fresh.isEmpty) return null;
+        next.insertAll((index ?? next.length).clamp(0, next.length), fresh);
+        return next;
+      },
+      files: files,
+      createMissing: true,
+    );
   }
 
   /// Rewrites one image's caption file to exactly [text], recording undo.

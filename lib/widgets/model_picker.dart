@@ -64,7 +64,8 @@ class _ModelPickerFieldState extends State<ModelPickerField> {
           borderRadius: BorderRadius.circular(7),
           onTap: ai.models.isEmpty
               ? null
-              : () => controller.isOpen ? controller.close() : controller.open(),
+              : () =>
+                    controller.isOpen ? controller.close() : controller.open(),
           child: InputDecorator(
             decoration: const InputDecoration(),
             isEmpty: false,
@@ -75,20 +76,26 @@ class _ModelPickerFieldState extends State<ModelPickerField> {
                       ? Text(
                           l10n.aiNoModels,
                           overflow: TextOverflow.ellipsis,
-                          style:
-                              TextStyle(fontSize: 12.5, color: semantic.muted),
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: semantic.muted,
+                          ),
                         )
                       : Text(
                           selected.modelName,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontSize: 12.5, color: scheme.onSurface),
+                            fontSize: 12.5,
+                            color: scheme.onSurface,
+                          ),
                         ),
                 ),
                 if (selected != null && selected.recommended) ...[
                   const SizedBox(width: 6),
                   _ModelBadge(
-                      text: l10n.aiBadgeRecommended, color: semantic.ok),
+                    text: l10n.aiBadgeRecommended,
+                    color: semantic.ok,
+                  ),
                 ],
                 const SizedBox(width: 4),
                 Icon(Icons.arrow_drop_down, size: 18, color: semantic.muted),
@@ -150,16 +157,24 @@ class _ModelMenuState extends State<_ModelMenu> {
       rows.addAll([for (final m in models.where(matches)) _row(m)]);
     } else {
       final sections = [
-        (l10n.aiModelGroupTag, Icons.sell_outlined,
-            models.where((m) => m.category == 'tag').toList()),
-        (l10n.aiModelGroupCaption, Icons.notes,
-            models.where((m) => m.category != 'tag').toList()),
+        (
+          l10n.aiModelGroupTag,
+          Icons.sell_outlined,
+          models.where((m) => m.category == 'tag').toList(),
+        ),
+        (
+          l10n.aiModelGroupCaption,
+          Icons.notes,
+          models.where((m) => m.category != 'tag').toList(),
+        ),
       ];
       for (final (title, icon, sectionModels) in sections) {
-        final current =
-            sectionModels.where((m) => !m.legacy && matches(m)).toList();
-        final legacy =
-            sectionModels.where((m) => m.legacy && matches(m)).toList();
+        final current = sectionModels
+            .where((m) => !m.legacy && matches(m))
+            .toList();
+        final legacy = sectionModels
+            .where((m) => m.legacy && matches(m))
+            .toList();
         if (current.isEmpty && legacy.isEmpty) continue;
         rows.add(_sectionHeader(title, icon));
         rows.addAll(current.map(_row));
@@ -177,13 +192,17 @@ class _ModelMenuState extends State<_ModelMenu> {
       }
     }
     if (rows.isEmpty) {
-      rows.add(Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Center(
-          child: Text(l10n.aiModelFilterNoMatch,
-              style: TextStyle(fontSize: 12, color: semantic.muted)),
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Center(
+            child: Text(
+              l10n.aiModelFilterNoMatch,
+              style: TextStyle(fontSize: 12, color: semantic.muted),
+            ),
+          ),
         ),
-      ));
+      );
     }
 
     return SizedBox(
@@ -200,10 +219,11 @@ class _ModelMenuState extends State<_ModelMenu> {
               style: const TextStyle(fontSize: 12.5),
               decoration: InputDecoration(
                 hintText: l10n.aiModelFilterHint,
-                prefixIcon:
-                    Icon(Icons.search, size: 15, color: semantic.muted),
-                prefixIconConstraints:
-                    const BoxConstraints(minWidth: 30, minHeight: 28),
+                prefixIcon: Icon(Icons.search, size: 15, color: semantic.muted),
+                prefixIconConstraints: const BoxConstraints(
+                  minWidth: 30,
+                  minHeight: 28,
+                ),
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -230,9 +250,10 @@ class _ModelMenuState extends State<_ModelMenu> {
                   Icon(Icons.info_outline, size: 12, color: semantic.muted),
                   const SizedBox(width: 5),
                   Expanded(
-                    child: Text(l10n.aiVramFootnote,
-                        style:
-                            TextStyle(fontSize: 11, color: semantic.muted)),
+                    child: Text(
+                      l10n.aiVramFootnote,
+                      style: TextStyle(fontSize: 11, color: semantic.muted),
+                    ),
                   ),
                 ],
               ),
@@ -251,8 +272,7 @@ class _ModelMenuState extends State<_ModelMenu> {
         children: [
           Icon(icon, size: 13, color: semantic.muted),
           const SizedBox(width: 6),
-          Text(title,
-              style: TextStyle(fontSize: 11, color: semantic.muted)),
+          Text(title, style: TextStyle(fontSize: 11, color: semantic.muted)),
         ],
       ),
     );
@@ -262,17 +282,24 @@ class _ModelMenuState extends State<_ModelMenu> {
     final semantic = context.semantic;
     return InkWell(
       onTap: () => setState(() {
-        expanded ? _expandedLegacy.remove(section) : _expandedLegacy.add(section);
+        expanded
+            ? _expandedLegacy.remove(section)
+            : _expandedLegacy.add(section);
       }),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 5, 10, 5),
         child: Row(
           children: [
-            Icon(expanded ? Icons.expand_more : Icons.chevron_right,
-                size: 14, color: semantic.muted),
+            Icon(
+              expanded ? Icons.expand_more : Icons.chevron_right,
+              size: 14,
+              color: semantic.muted,
+            ),
             const SizedBox(width: 4),
-            Text(widget.l10n.aiModelLegacyGroup(count),
-                style: TextStyle(fontSize: 11.5, color: semantic.muted)),
+            Text(
+              widget.l10n.aiModelLegacyGroup(count),
+              style: TextStyle(fontSize: 11.5, color: semantic.muted),
+            ),
           ],
         ),
       ),
@@ -287,8 +314,9 @@ class _ModelMenuState extends State<_ModelMenu> {
     // Show the repo name without the org prefix; the full name lives in the
     // info tooltip and the closed field.
     final slash = m.modelName.indexOf('/');
-    final shortName =
-        slash > 0 ? m.modelName.substring(slash + 1) : m.modelName;
+    final shortName = slash > 0
+        ? m.modelName.substring(slash + 1)
+        : m.modelName;
     final highVram = m.vramGb >= 12;
     final nameColor = m.legacy
         ? semantic.muted
@@ -322,9 +350,11 @@ class _ModelMenuState extends State<_ModelMenu> {
               const SizedBox(width: 6),
               Text(
                 _vramLabel(m.vramGb),
-                style: monoStyle(context,
-                    size: 10.5,
-                    color: highVram ? semantic.warn : semantic.muted),
+                style: monoStyle(
+                  context,
+                  size: 10.5,
+                  color: highVram ? semantic.warn : semantic.muted,
+                ),
               ),
             ],
             if (m.description.isNotEmpty || m.advice.isNotEmpty) ...[
@@ -338,12 +368,14 @@ class _ModelMenuState extends State<_ModelMenu> {
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     TextSpan(text: m.description),
-                    if (m.advice.isNotEmpty)
-                      TextSpan(text: '\n\n${m.advice}'),
+                    if (m.advice.isNotEmpty) TextSpan(text: '\n\n${m.advice}'),
                   ],
                 ),
-                child:
-                    Icon(Icons.info_outline, size: 14, color: semantic.muted),
+                child: Icon(
+                  Icons.info_outline,
+                  size: 14,
+                  color: semantic.muted,
+                ),
               ),
             ],
             if (isSelected) ...[

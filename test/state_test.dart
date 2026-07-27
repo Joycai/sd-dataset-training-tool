@@ -130,8 +130,14 @@ void main() {
     expect(session.tags, ['blush', '1girl', 'long hair', 'smile', 'solo']);
     expect(session.anchorTag, 'blush');
     session.applyTag('dress');
-    expect(session.tags,
-        ['blush', 'dress', '1girl', 'long hair', 'smile', 'solo']);
+    expect(session.tags, [
+      'blush',
+      'dress',
+      '1girl',
+      'long hair',
+      'smile',
+      'solo',
+    ]);
     expect(session.anchorTag, 'dress');
 
     // Renaming the anchored tag keeps the anchor on the successor.
@@ -148,39 +154,43 @@ void main() {
     session.dispose();
   });
 
-  test('insertion anchor is remembered by name across image switches',
-      () async {
-    // A and C have "shared"; B does not.
-    await File(p.join(tempDir.path, '001.txt'))
-        .writeAsString('shared, alpha');
-    await File(p.join(tempDir.path, '002.txt')).writeAsString('beta');
-    await File(p.join(tempDir.path, '003.txt'))
-        .writeAsString('gamma, shared');
+  test(
+    'insertion anchor is remembered by name across image switches',
+    () async {
+      // A and C have "shared"; B does not.
+      await File(
+        p.join(tempDir.path, '001.txt'),
+      ).writeAsString('shared, alpha');
+      await File(p.join(tempDir.path, '002.txt')).writeAsString('beta');
+      await File(
+        p.join(tempDir.path, '003.txt'),
+      ).writeAsString('gamma, shared');
 
-    final session = EditorSession()..autoSaveEnabled = false;
-    await session.load(File(p.join(tempDir.path, '001.png')), '.txt');
-    session.setAnchorTag('shared');
-    expect(session.anchorTag, 'shared');
+      final session = EditorSession()..autoSaveEnabled = false;
+      await session.load(File(p.join(tempDir.path, '001.png')), '.txt');
+      session.setAnchorTag('shared');
+      expect(session.anchorTag, 'shared');
 
-    // B lacks the tag: anchor lies dormant, adds append at the end.
-    await session.load(File(p.join(tempDir.path, '002.png')), '.txt');
-    expect(session.anchorTag, isNull);
-    session.applyTag('delta');
-    expect(session.tags, ['beta', 'delta']);
+      // B lacks the tag: anchor lies dormant, adds append at the end.
+      await session.load(File(p.join(tempDir.path, '002.png')), '.txt');
+      expect(session.anchorTag, isNull);
+      session.applyTag('delta');
+      expect(session.tags, ['beta', 'delta']);
 
-    // C has it again: the anchor re-activates and inserts after it.
-    await session.load(File(p.join(tempDir.path, '003.png')), '.txt');
-    expect(session.anchorTag, 'shared');
-    session.applyTag('epsilon');
-    expect(session.tags, ['gamma', 'shared', 'epsilon']);
+      // C has it again: the anchor re-activates and inserts after it.
+      await session.load(File(p.join(tempDir.path, '003.png')), '.txt');
+      expect(session.anchorTag, 'shared');
+      session.applyTag('epsilon');
+      expect(session.tags, ['gamma', 'shared', 'epsilon']);
 
-    // Unload clears the memory.
-    await session.unload();
-    await session.load(File(p.join(tempDir.path, '001.png')), '.txt');
-    expect(session.anchorTag, isNull);
+      // Unload clears the memory.
+      await session.unload();
+      await session.load(File(p.join(tempDir.path, '001.png')), '.txt');
+      expect(session.anchorTag, isNull);
 
-    session.dispose();
-  });
+      session.dispose();
+    },
+  );
 
   test('moveAnchor cycles through the tags and the append state', () async {
     final session = EditorSession()..autoSaveEnabled = false;

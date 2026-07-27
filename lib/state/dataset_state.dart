@@ -59,8 +59,9 @@ class DatasetState extends ChangeNotifier {
 
   List<File> get allFiles => _files;
   int get totalCount => _files.length;
-  int get taggedCount => _taggedCountCache ??=
-      _files.where((f) => _hasCaption[f.path] == true).length;
+  int get taggedCount => _taggedCountCache ??= _files
+      .where((f) => _hasCaption[f.path] == true)
+      .length;
   int get untaggedCount => totalCount - taggedCount;
 
   /// Drops every derived cache; call before notifying after any change to

@@ -29,8 +29,10 @@ void main() {
   String cap(String name) => p.join(tempDir.path, '$name.txt');
   Future<String> readCap(String name) => File(cap(name)).readAsString();
 
-  Future<Map<String, dynamic>> call(String tool,
-      [Map<String, dynamic> args = const {}]) async {
+  Future<Map<String, dynamic>> call(
+    String tool, [
+    Map<String, dynamic> args = const {},
+  ]) async {
     final result = await registry.dispatch(tool, jsonEncode(args));
     return jsonDecode(result.text) as Map<String, dynamic>;
   }
@@ -83,8 +85,12 @@ void main() {
 
       await tagOps.undo();
       expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
-      expect(
-          dataset.tagsOf(img('001')), ['trigger', '1girl', 'smile', 'watermark']);
+      expect(dataset.tagsOf(img('001')), [
+        'trigger',
+        '1girl',
+        'smile',
+        'watermark',
+      ]);
     });
 
     test('identical content is a no-op without history', () async {
@@ -99,8 +105,7 @@ void main() {
   });
 
   group('write tools', () {
-    test('remove_tag_everywhere sweeps the dataset and is undoable',
-        () async {
+    test('remove_tag_everywhere sweeps the dataset and is undoable', () async {
       final out = await call('remove_tag_everywhere', {'tag': 'watermark'});
       expect(out['changed_files'], 2);
       expect(await readCap('001'), 'trigger, 1girl, smile');
@@ -108,14 +113,15 @@ void main() {
     });
 
     test('replace_tag_everywhere de-duplicates in place', () async {
-      final out = await call(
-          'replace_tag_everywhere', {'tag': '1girl', 'replacement': '1woman'});
+      final out = await call('replace_tag_everywhere', {
+        'tag': '1girl',
+        'replacement': '1woman',
+      });
       expect(out['changed_files'], 2);
       expect(await readCap('002'), 'trigger, 1woman, watermark');
     });
 
-    test('add_tags_everywhere respects filters and creates captions',
-        () async {
+    test('add_tags_everywhere respects filters and creates captions', () async {
       final out = await call('add_tags_everywhere', {
         'tags': ['masterpiece'],
         'untagged_only': true,

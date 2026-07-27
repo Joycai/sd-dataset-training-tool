@@ -36,7 +36,7 @@ class AgentChatEntry {
   }
 
   AgentChatEntry.notice(AgentNoticeType type, [String message = ''])
-      : kind = AgentEntryKind.notice {
+    : kind = AgentEntryKind.notice {
     noticeType = type;
     text = message;
     isError = type == AgentNoticeType.error;
@@ -184,8 +184,9 @@ class AgentChatState extends ChangeNotifier {
       case AgentStopReason.maxTurns:
       case AgentStopReason.tokenCap:
       case AgentStopReason.error:
-        entries.add(AgentChatEntry.notice(
-            AgentNoticeType.error, message ?? reason.name));
+        entries.add(
+          AgentChatEntry.notice(AgentNoticeType.error, message ?? reason.name),
+        );
     }
   }
 
@@ -223,44 +224,46 @@ class AgentChatState extends ChangeNotifier {
   /// The UI-bound ask_user tool: blocks the agent loop until the user picks
   /// an option (or types a custom reply) in the panel's question card.
   AgentTool _buildAskUserTool() => AgentTool(
-        spec: const AgentToolSpec(
-          name: 'ask_user',
-          description:
-              'Ask the user a question and wait for their answer. Use this '
-              'whenever you need a decision or clarification before '
-              'proceeding (e.g. choosing between cleanup strategies) '
-              'instead of ending your reply with an open question. Provide '
-              '2-5 short, concrete options when the answer space is known; '
-              'the user can always type a custom reply.',
-          parametersSchema: {
-            'type': 'object',
-            'properties': {
-              'question': {'type': 'string'},
-              'options': {
-                'type': 'array',
-                'items': {'type': 'string'},
-                'description': 'short choice labels, max 5',
-              },
-            },
-            'required': ['question'],
+    spec: const AgentToolSpec(
+      name: 'ask_user',
+      description:
+          'Ask the user a question and wait for their answer. Use this '
+          'whenever you need a decision or clarification before '
+          'proceeding (e.g. choosing between cleanup strategies) '
+          'instead of ending your reply with an open question. Provide '
+          '2-5 short, concrete options when the answer space is known; '
+          'the user can always type a custom reply.',
+      parametersSchema: {
+        'type': 'object',
+        'properties': {
+          'question': {'type': 'string'},
+          'options': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description': 'short choice labels, max 5',
           },
-        ),
-        handler: (args) async {
-          final question = requireString(args, 'question');
-          final options = optStringList(args, 'options', maxLength: 5);
-          final pending = PendingUserQuestion(question, options);
-          pendingQuestion = pending;
-          _touch();
-          final answer = await pending.completer.future;
-          pendingQuestion = null;
-          _touch();
-          if (answer == null) {
-            return toolError('the user dismissed the question without '
-                'answering; proceed with your best judgment or finish');
-          }
-          return toolOk({'answer': answer});
         },
-      );
+        'required': ['question'],
+      },
+    ),
+    handler: (args) async {
+      final question = requireString(args, 'question');
+      final options = optStringList(args, 'options', maxLength: 5);
+      final pending = PendingUserQuestion(question, options);
+      pendingQuestion = pending;
+      _touch();
+      final answer = await pending.completer.future;
+      pendingQuestion = null;
+      _touch();
+      if (answer == null) {
+        return toolError(
+          'the user dismissed the question without '
+          'answering; proceed with your best judgment or finish',
+        );
+      }
+      return toolOk({'answer': answer});
+    },
+  );
 
   AgentSession _createSession(LlmProviderProfile profile) {
     final deps = DatasetToolsDeps(
@@ -280,8 +283,8 @@ class AgentChatState extends ChangeNotifier {
     final summary = root == null
         ? 'no dataset directory is open yet'
         : '$root — ${dataset.totalCount} images '
-            '(${dataset.taggedCount} captioned), '
-            '${dataset.datasetTags.length} unique tags';
+              '(${dataset.taggedCount} captioned), '
+              '${dataset.datasetTags.length} unique tags';
     return AgentSession(
       client: _clients[profile.kind]!,
       registry: registry,

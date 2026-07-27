@@ -67,7 +67,9 @@ class AiTaggerService {
     } on TimeoutException {
       throw AiTaggerException('Request timed out after ${timeout.inSeconds}s.');
     } on SocketException catch (e) {
-      throw AiTaggerException('Cannot reach AI server at $baseUrl: ${e.message}');
+      throw AiTaggerException(
+        'Cannot reach AI server at $baseUrl: ${e.message}',
+      );
     } on http.ClientException catch (e) {
       throw AiTaggerException('HTTP error: ${e.message}');
     }
@@ -90,7 +92,9 @@ class AiTaggerService {
     } on TimeoutException {
       throw AiTaggerException('Request timed out after ${timeout.inSeconds}s.');
     } on SocketException catch (e) {
-      throw AiTaggerException('Cannot reach AI server at $baseUrl: ${e.message}');
+      throw AiTaggerException(
+        'Cannot reach AI server at $baseUrl: ${e.message}',
+      );
     } on http.ClientException catch (e) {
       throw AiTaggerException('HTTP error: ${e.message}');
     }
@@ -99,7 +103,8 @@ class AiTaggerService {
   Map<String, dynamic> _decodeObject(http.Response resp) {
     if (resp.statusCode != 200) {
       throw AiTaggerException(
-          'Server returned HTTP ${resp.statusCode}: ${resp.body}');
+        'Server returned HTTP ${resp.statusCode}: ${resp.body}',
+      );
     }
     try {
       final decoded = jsonDecode(utf8.decode(resp.bodyBytes));
@@ -116,8 +121,9 @@ class AiTaggerService {
   /// Never throws — use it to drive a "connected" indicator.
   Future<bool> ping(String baseUrl) async {
     try {
-      final resp =
-          await _client.get(_uri(baseUrl, '/getconfig')).timeout(connectTimeout);
+      final resp = await _client
+          .get(_uri(baseUrl, '/getconfig'))
+          .timeout(connectTimeout);
       return resp.statusCode == 200;
     } catch (_) {
       return false;
@@ -141,16 +147,18 @@ class AiTaggerService {
   /// (e.g. `wd` for WD14 taggers, `dd` for DeepDanbooru). Returned in the
   /// same three-bucket shape as `/getconfig`.
   Future<AiServerConfig> listModelsByType(String baseUrl, String type) async {
-    final resp =
-        await _get(baseUrl, '/listmodelsbytype', connectTimeout, {'name': type});
+    final resp = await _get(baseUrl, '/listmodelsbytype', connectTimeout, {
+      'name': type,
+    });
     return AiServerConfig.fromJson(_decodeObject(resp));
   }
 
   /// `POST /getmodelparams` — the tunable parameters of one model. For WD
   /// taggers the useful field is [AiModelParams.threshold].
   Future<AiModelParams> getModelParams(String baseUrl, String modelName) async {
-    final resp = await _post(
-        baseUrl, '/getmodelparams', {'Name': modelName}, connectTimeout);
+    final resp = await _post(baseUrl, '/getmodelparams', {
+      'Name': modelName,
+    }, connectTimeout);
     return AiModelParams.fromJson(_decodeObject(resp));
   }
 
@@ -203,13 +211,19 @@ class AiTaggerService {
       'FileName': fileName,
       'Models': models.map((m) => m.toJson()).toList(),
     };
-    final resp =
-        await _post(baseUrl, '/interrogateimage', body, requestTimeout);
+    final resp = await _post(
+      baseUrl,
+      '/interrogateimage',
+      body,
+      requestTimeout,
+    );
     final result = AiInterrogateResponse.fromJson(_decodeObject(resp));
     if (!result.success) {
-      throw AiTaggerException(result.errorMessage.isEmpty
-          ? 'Interrogation failed.'
-          : result.errorMessage);
+      throw AiTaggerException(
+        result.errorMessage.isEmpty
+            ? 'Interrogation failed.'
+            : result.errorMessage,
+      );
     }
     return result;
   }
@@ -233,11 +247,13 @@ class AiTaggerService {
       serializeVramUsage: serializeVramUsage,
     );
     return resp.allTags
-        .map((t) => normalizeTag(
-              t,
-              underscoreStyle: underscoreStyle,
-              escapeParentheses: escapeParentheses,
-            ))
+        .map(
+          (t) => normalizeTag(
+            t,
+            underscoreStyle: underscoreStyle,
+            escapeParentheses: escapeParentheses,
+          ),
+        )
         .where((t) => t.isNotEmpty)
         .toList();
   }

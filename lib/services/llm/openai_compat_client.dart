@@ -39,10 +39,9 @@ class OpenAiCompatClient implements LlmClient {
       _url(profile, '/chat/completions');
 
   Map<String, String> _headers(LlmProviderProfile profile) => {
-        'Content-Type': 'application/json',
-        if (profile.apiKey.isNotEmpty)
-          'Authorization': 'Bearer ${profile.apiKey}',
-      };
+    'Content-Type': 'application/json',
+    if (profile.apiKey.isNotEmpty) 'Authorization': 'Bearer ${profile.apiKey}',
+  };
 
   // --- Request building -------------------------------------------------
 
@@ -52,27 +51,26 @@ class OpenAiCompatClient implements LlmClient {
     List<AgentToolSpec> tools, {
     required bool stream,
     int? maxTokensOverride,
-  }) =>
-      {
-        'model': profile.model,
-        'messages': _convertMessages(messages),
-        'stream': stream,
-        if (stream) 'stream_options': {'include_usage': true},
-        'max_tokens': maxTokensOverride ?? profile.maxOutputTokens,
-        'temperature': profile.temperature,
-        if (tools.isNotEmpty)
-          'tools': [
-            for (final t in tools)
-              {
-                'type': 'function',
-                'function': {
-                  'name': t.name,
-                  'description': t.description,
-                  'parameters': t.parametersSchema,
-                },
-              },
-          ],
-      };
+  }) => {
+    'model': profile.model,
+    'messages': _convertMessages(messages),
+    'stream': stream,
+    if (stream) 'stream_options': {'include_usage': true},
+    'max_tokens': maxTokensOverride ?? profile.maxOutputTokens,
+    'temperature': profile.temperature,
+    if (tools.isNotEmpty)
+      'tools': [
+        for (final t in tools)
+          {
+            'type': 'function',
+            'function': {
+              'name': t.name,
+              'description': t.description,
+              'parameters': t.parametersSchema,
+            },
+          },
+      ],
+  };
 
   List<Map<String, dynamic>> _convertMessages(List<ChatMessage> messages) {
     final out = <Map<String, dynamic>>[];
@@ -97,10 +95,7 @@ class OpenAiCompatClient implements LlmClient {
                   {
                     'id': c.id,
                     'type': 'function',
-                    'function': {
-                      'name': c.name,
-                      'arguments': c.argumentsJson,
-                    },
+                    'function': {'name': c.name, 'arguments': c.argumentsJson},
                   },
               ],
           });
@@ -140,16 +135,18 @@ class OpenAiCompatClient implements LlmClient {
     ];
   }
 
-  List<Map<String, dynamic>> _imageParts(ChatMessage m) =>
-      [for (final p in m.parts.where((p) => p.isImage)) _imagePart(p)];
+  List<Map<String, dynamic>> _imageParts(ChatMessage m) => [
+    for (final p in m.parts.where((p) => p.isImage)) _imagePart(p),
+  ];
 
   Map<String, dynamic> _imagePart(ChatContentPart p) => {
-        'type': 'image_url',
-        'image_url': {
-          'url': 'data:${p.imageMimeType ?? 'image/jpeg'};base64,'
-              '${base64Encode(p.imageBytes!)}',
-        },
-      };
+    'type': 'image_url',
+    'image_url': {
+      'url':
+          'data:${p.imageMimeType ?? 'image/jpeg'};base64,'
+          '${base64Encode(p.imageBytes!)}',
+    },
+  };
 
   /// One-shot compatibility repair for a 4xx response: strips or renames the
   /// parameters the server complained about. Returns null when nothing in
@@ -187,9 +184,12 @@ class OpenAiCompatClient implements LlmClient {
       return await client.send(request).timeout(connectTimeout);
     } on TimeoutException {
       throw LlmException(
-          'Connection timed out after ${connectTimeout.inSeconds}s.');
+        'Connection timed out after ${connectTimeout.inSeconds}s.',
+      );
     } on SocketException catch (e) {
-      throw LlmException('Cannot reach ${_endpoint(profile).host}: ${e.message}');
+      throw LlmException(
+        'Cannot reach ${_endpoint(profile).host}: ${e.message}',
+      );
     } on http.ClientException catch (e) {
       throw LlmException('HTTP error: ${e.message}');
     }
@@ -219,12 +219,14 @@ class OpenAiCompatClient implements LlmClient {
         resp = await _send(client, profile, adjusted);
         if (resp.statusCode >= 200 && resp.statusCode < 300) return resp;
         throw LlmException(
-            'Server returned HTTP ${resp.statusCode}: '
-            '${_truncate(await _readBody(resp))}');
+          'Server returned HTTP ${resp.statusCode}: '
+          '${_truncate(await _readBody(resp))}',
+        );
       }
     }
     throw LlmException(
-        'Server returned HTTP ${resp.statusCode}: ${_truncate(error)}');
+      'Server returned HTTP ${resp.statusCode}: ${_truncate(error)}',
+    );
   }
 
   static String _truncate(String s) =>
@@ -252,8 +254,11 @@ class OpenAiCompatClient implements LlmClient {
       final events = sseDataEvents(resp.stream).timeout(
         idleTimeout,
         onTimeout: (sink) {
-          sink.addError(LlmException(
-              'Stream stalled: no data for ${idleTimeout.inSeconds}s.'));
+          sink.addError(
+            LlmException(
+              'Stream stalled: no data for ${idleTimeout.inSeconds}s.',
+            ),
+          );
           sink.close();
         },
       );
@@ -304,8 +309,9 @@ class OpenAiCompatClient implements LlmClient {
       final calls = acc.build();
       if (calls.isNotEmpty) yield ToolCallsReady(calls);
       yield StreamDone(
-        finishReason:
-            finishReason.isEmpty && calls.isNotEmpty ? 'tool_calls' : finishReason,
+        finishReason: finishReason.isEmpty && calls.isNotEmpty
+            ? 'tool_calls'
+            : finishReason,
         usage: usage,
       );
     } on LlmException {
@@ -362,26 +368,30 @@ class OpenAiCompatClient implements LlmClient {
           .timeout(connectTimeout);
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
         throw LlmException(
-            'Server returned HTTP ${resp.statusCode}: ${_truncate(resp.body)}');
+          'Server returned HTTP ${resp.statusCode}: ${_truncate(resp.body)}',
+        );
       }
       final decoded = jsonDecode(utf8.decode(resp.bodyBytes));
       if (decoded is! Map<String, dynamic> || decoded['data'] is! List) {
         throw LlmException('Unexpected /models response shape.');
       }
-      final ids = (decoded['data'] as List)
-          .whereType<Map<String, dynamic>>()
-          .map((m) => (m['id'] ?? '').toString())
-          .where((id) => id.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      final ids =
+          (decoded['data'] as List)
+              .whereType<Map<String, dynamic>>()
+              .map((m) => (m['id'] ?? '').toString())
+              .where((id) => id.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
       return ids;
     } on TimeoutException {
       throw LlmException(
-          'Connection timed out after ${connectTimeout.inSeconds}s.');
+        'Connection timed out after ${connectTimeout.inSeconds}s.',
+      );
     } on SocketException catch (e) {
       throw LlmException(
-          'Cannot reach ${_url(profile, '/models').host}: ${e.message}');
+        'Cannot reach ${_url(profile, '/models').host}: ${e.message}',
+      );
     } on http.ClientException catch (e) {
       throw LlmException('HTTP error: ${e.message}');
     } on FormatException {
@@ -406,8 +416,9 @@ class _ToolCallAccumulator {
     final index = (delta['index'] as num?)?.toInt();
     final id = delta['id'] as String?;
     final function = delta['function'];
-    final name =
-        function is Map<String, dynamic> ? function['name'] as String? : null;
+    final name = function is Map<String, dynamic>
+        ? function['name'] as String?
+        : null;
     final args = function is Map<String, dynamic>
         ? function['arguments'] as String?
         : null;
@@ -434,13 +445,14 @@ class _ToolCallAccumulator {
   }
 
   List<ChatToolCall> build() => [
-        for (var i = 0; i < _calls.length; i++)
-          if (_calls[i].name.isNotEmpty)
-            ChatToolCall(
-              id: _calls[i].id.isEmpty ? 'call_$i' : _calls[i].id,
-              name: _calls[i].name,
-              argumentsJson:
-                  _calls[i].args.isEmpty ? '{}' : _calls[i].args.toString(),
-            ),
-      ];
+    for (var i = 0; i < _calls.length; i++)
+      if (_calls[i].name.isNotEmpty)
+        ChatToolCall(
+          id: _calls[i].id.isEmpty ? 'call_$i' : _calls[i].id,
+          name: _calls[i].name,
+          argumentsJson: _calls[i].args.isEmpty
+              ? '{}'
+              : _calls[i].args.toString(),
+        ),
+  ];
 }

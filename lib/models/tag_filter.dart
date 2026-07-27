@@ -47,7 +47,7 @@ class TagFilterCondition extends TagFilterNode {
   const TagFilterCondition(super.id, this.tag, {required this.exclude});
 
   TagFilterCondition.create(String tag, {required bool exclude})
-      : this(TagFilterNode.nextId(), tag, exclude: exclude);
+    : this(TagFilterNode.nextId(), tag, exclude: exclude);
 
   final String tag;
 
@@ -65,7 +65,7 @@ class TagFilterGroup extends TagFilterNode {
   const TagFilterGroup(super.id, this.op, this.children);
 
   TagFilterGroup.create(TagFilterOp op, {List<TagFilterNode>? children})
-      : this(TagFilterNode.nextId(), op, children ?? const []);
+    : this(TagFilterNode.nextId(), op, children ?? const []);
 
   final TagFilterOp op;
   final List<TagFilterNode> children;
@@ -86,9 +86,9 @@ class TagFilterGroup extends TagFilterNode {
 
   @override
   Map<String, dynamic> toJson() => {
-        'op': op == TagFilterOp.or ? 'or' : 'and',
-        'children': [for (final c in children) c.toJson()],
-      };
+    'op': op == TagFilterOp.or ? 'or' : 'and',
+    'children': [for (final c in children) c.toJson()],
+  };
 
   String encode() => jsonEncode(toJson());
 
@@ -132,10 +132,12 @@ TagFilterGroup filterAddTo(
 TagFilterGroup filterRemove(TagFilterGroup root, int nodeId) {
   TagFilterNode walk(TagFilterNode node) {
     if (node is! TagFilterGroup) return node;
-    return node.copyWith(children: [
-      for (final c in node.children)
-        if (c.id != nodeId) walk(c),
-    ]);
+    return node.copyWith(
+      children: [
+        for (final c in node.children)
+          if (c.id != nodeId) walk(c),
+      ],
+    );
   }
 
   return filterNormalize(walk(root) as TagFilterGroup);
@@ -197,10 +199,12 @@ TagFilterGroup filterDissolve(TagFilterGroup root, int groupId) {
 TagFilterGroup filterRemoveTag(TagFilterGroup root, String tag) {
   TagFilterNode walk(TagFilterNode node) {
     if (node is! TagFilterGroup) return node;
-    return node.copyWith(children: [
-      for (final c in node.children)
-        if (c is! TagFilterCondition || c.tag != tag) walk(c),
-    ]);
+    return node.copyWith(
+      children: [
+        for (final c in node.children)
+          if (c is! TagFilterCondition || c.tag != tag) walk(c),
+      ],
+    );
   }
 
   return filterNormalize(walk(root) as TagFilterGroup);
