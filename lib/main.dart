@@ -38,11 +38,13 @@ void main(List<String> args) async {
       final arguments =
           jsonDecode(windowController.arguments) as Map<String, dynamic>;
       runApp(
-        ChangeNotifierProvider.value(
-          value: appState,
-          child: ImagePreviewWindow(
-            windowController: windowController,
-            args: arguments,
+        _withoutSemantics(
+          ChangeNotifierProvider.value(
+            value: appState,
+            child: ImagePreviewWindow(
+              windowController: windowController,
+              args: arguments,
+            ),
           ),
         ),
       );
@@ -50,8 +52,36 @@ void main(List<String> args) async {
     }
   }
 
-  runApp(ChangeNotifierProvider.value(value: appState, child: const MyApp()));
+  runApp(
+    _withoutSemantics(
+      ChangeNotifierProvider.value(value: appState, child: const MyApp()),
+    ),
+  );
 }
+
+/// Opts the whole app out of the platform accessibility tree.
+///
+/// Semantics stays off until some accessibility client attaches — which on a
+/// stock Windows desktop can happen with nothing installed and nobody asking.
+/// As soon as it does, Flutter's Windows accessibility bridge mis-orders this
+/// app's first semantics update and gives up on its AXTree:
+///
+///     Failed to update ui::AXTree, error: 0 will not be in the tree and is
+///     not the new root
+///
+/// Every later update then fails too, and the next window resize — maximizing
+/// by double-clicking the title bar is the easy way to hit it — dereferences a
+/// node the bridge never created and takes the process down with an access
+/// violation, losing whatever caption was being edited. That is
+/// flutter/flutter#182444, still open upstream; it is a bug in the bridge's
+/// diffing, not in any one widget here — bisecting showed that excluding *any*
+/// single panel from semantics is enough to reshuffle the update and hide it,
+/// so there is nothing local to fix.
+///
+/// With no semantics nodes below the root the bridge has nothing to diff, so
+/// the crash cannot happen. The cost is screen-reader support, which this app
+/// has never actually provided. Remove this once the upstream fix lands.
+Widget _withoutSemantics(Widget child) => ExcludeSemantics(child: child);
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

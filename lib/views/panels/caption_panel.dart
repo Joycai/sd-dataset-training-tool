@@ -152,43 +152,80 @@ class _CaptionPanelState extends State<CaptionPanel> {
                 // second labelled button, so it needs the wider budget —
                 // one flat threshold would either overflow there or hide the
                 // AI label at widths that comfortably fit it.
+                //
+                // The budgets have to include the save indicator: it is up to
+                // 130 wide, it is not a flex child, and it appears the moment
+                // anything is edited or saved. Sized for the wider of the two
+                // locales (English) with headroom; toolbar_overflow_test
+                // sweeps every width to keep them honest.
                 final compact =
-                    constraints.maxWidth < (ai.compareMode ? 520 : 380);
+                    constraints.maxWidth < (ai.compareMode ? 680 : 480);
+                // How much the save indicator may take. It is not a flex
+                // child — the count owns the only flex slot — so a fixed cap
+                // is what overflowed: below a certain width there is simply
+                // no room for 130px of "unsaved changes". Handing it whatever
+                // is left over lets it ellipsize down and then disappear
+                // instead of pushing the toolbar past its edge. Non-compact
+                // widths reserve the full cap by construction (see above).
+                final indicatorRoom = compact
+                    ? (constraints.maxWidth - (ai.compareMode ? 300.0 : 264.0))
+                          .clamp(0.0, 130.0)
+                    : 130.0;
+                // Narrower than this the icon and its gap are all that would
+                // fit, which reads as a glitch rather than as a status.
+                final showSaveState = indicatorRoom >= 40;
+                // Narrower still and even the icon-only toolbar is over
+                // budget, because the tab control's 128 and the buttons are
+                // all rigid. The tag count yields its slot so the tab control
+                // can shrink into it — the tags themselves are right below,
+                // so the count is the cheapest thing to drop, and handing its
+                // flex slot straight over keeps exactly one flex child in the
+                // row (see below).
+                final tight =
+                    constraints.maxWidth < (ai.compareMode ? 310 : 266);
+                final tabs = SegmentedControl<int>(
+                  value: _tab,
+                  onChanged: (value) => setState(() => _tab = value),
+                  fontSize: AppText.secondary,
+                  segments: [
+                    SegmentedOption(value: _tabTags, label: l10n.tagsTab),
+                    SegmentedOption(value: _tabText, label: l10n.textTab),
+                  ],
+                );
                 return Row(
                   children: [
-                    SizedBox(
-                      width: 128,
-                      child: SegmentedControl<int>(
-                        value: _tab,
-                        onChanged: (value) => setState(() => _tab = value),
-                        fontSize: AppText.secondary,
-                        segments: [
-                          SegmentedOption(value: _tabTags, label: l10n.tagsTab),
-                          SegmentedOption(value: _tabText, label: l10n.textTab),
-                        ],
-                      ),
-                    ),
+                    // The tab control ellipsizes its own labels, so letting it
+                    // take the flex slot degrades it instead of the toolbar.
+                    if (tight)
+                      Expanded(child: tabs)
+                    else
+                      SizedBox(width: 128, child: tabs),
                     const SizedBox(width: 12),
-                    // The count owns the only flex slot. Pairing it with a
-                    // second flex child would hand half the slack to the save
-                    // indicator even when that renders nothing, and the count
-                    // would ellipsize with room to spare.
-                    Expanded(
-                      child: Text(
-                        l10n.tagCount(session.tags.length),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: monoStyle(
-                          context,
-                          size: AppText.small,
-                          color: semantic.muted,
+                    // Exactly one flex child at any width. Pairing the count
+                    // with a second flex child would hand half the slack to
+                    // the save indicator even when that renders nothing, and
+                    // the count would ellipsize with room to spare.
+                    if (!tight)
+                      Expanded(
+                        child: Text(
+                          l10n.tagCount(session.tags.length),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: monoStyle(
+                            context,
+                            size: AppText.small,
+                            color: semantic.muted,
+                          ),
                         ),
                       ),
-                    ),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 130),
-                      child: _SaveStateIndicator(session: session, l10n: l10n),
-                    ),
+                    if (showSaveState)
+                      ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: indicatorRoom),
+                        child: _SaveStateIndicator(
+                          session: session,
+                          l10n: l10n,
+                        ),
+                      ),
                     const SizedBox(width: 10),
                     // Compare mode is a global flag; its exit control sits up
                     // here (not inside the compare view) so it doesn't read
