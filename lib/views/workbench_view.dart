@@ -70,6 +70,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   final FocusNode _libraryFilterFocus = FocusNode();
   final ShortcutRelay _shortcutRelay = ShortcutRelay();
   final WorkbenchLayout _layout = WorkbenchLayout();
+  late final AppState _appState;
   late final AgentChatState _agentChat;
   bool _agentOpen = false;
   String? _lastLoadedPath;
@@ -87,12 +88,18 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   @override
   void initState() {
     super.initState();
-    final appState = context.read<AppState>();
+    // Held as a field, not re-read on demand: dispose() unsubscribes from it,
+    // and by then the element is deactivated and an ancestor lookup throws.
+    final appState = _appState = context.read<AppState>();
     _leftWidth = appState.leftPanelWidth;
     _rightWidth = appState.rightPanelWidth;
     _centerSplit = appState.centerSplit;
     _session.onSaved = _dataset.updateCaptionText;
     _dataset.addListener(_onDatasetChanged);
+    // Library edits are the other half of the local vocabulary; the dataset
+    // half rides along on [_onDatasetChanged].
+    appState.addListener(_syncLocalTags);
+    _syncLocalTags();
     _aiTagger.loadSettings();
     _batchTag.loadSettings();
     _agentChat = AgentChatState(
@@ -117,6 +124,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
 
   @override
   void dispose() {
+    _appState.removeListener(_syncLocalTags);
     _dataset.removeListener(_onDatasetChanged);
     _dataset.dispose();
     _session.dispose();
@@ -130,6 +138,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   }
 
   void _onDatasetChanged() {
+    _syncLocalTags();
     final selected = _dataset.selectedFile;
     if (selected?.path == _lastLoadedPath) return;
     _lastLoadedPath = selected?.path;
@@ -138,6 +147,37 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     } else {
       _session.load(selected, context.read<AppState>().captionExtension);
     }
+  }
+
+  List<DatasetTag>? _lastDatasetTags;
+  List<String>? _lastLibraryTags;
+  int _lastLibraryLength = -1;
+
+  /// Feeds the tag dictionary the vocabulary this user actually writes, so
+  /// autocomplete also offers the tags danbooru has never heard of — trigger
+  /// words, private character names, project conventions.
+  ///
+  /// Both sources notify far more often than they change: the dataset on
+  /// every selection move, the app state on every panel drag. `datasetTags`
+  /// is a cache that only gets a new list instance when captions change, and
+  /// the library's identity-plus-length pair catches every way it can be
+  /// edited (add and remove mutate it in place; replace and import swap it),
+  /// so this bails out without touching the map in the common case.
+  void _syncLocalTags() {
+    final datasetTags = _dataset.datasetTags;
+    final library = _appState.commonTags;
+    if (identical(datasetTags, _lastDatasetTags) &&
+        identical(library, _lastLibraryTags) &&
+        library.length == _lastLibraryLength) {
+      return;
+    }
+    _lastDatasetTags = datasetTags;
+    _lastLibraryTags = library;
+    _lastLibraryLength = library.length;
+    _appState.tagDictionary.setLocalTags(
+      datasetUsage: {for (final tag in datasetTags) tag.tag: tag.count},
+      libraryTags: library,
+    );
   }
 
   Future<void> _scan(String directory) async {

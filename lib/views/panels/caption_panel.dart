@@ -8,7 +8,9 @@ import '../../state/ai_tagger_state.dart';
 import '../../state/editor_session.dart';
 import '../../state/shortcut_relay.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/danbooru_tag_menu.dart';
 import '../../widgets/panel_widgets.dart';
+import '../../widgets/tag_autocomplete_field.dart';
 import 'ai_compare_view.dart';
 import 'ai_params_dialog.dart';
 
@@ -124,6 +126,17 @@ class _CaptionPanelState extends State<CaptionPanel> {
     if (newValue != null) {
       session.replaceTagAt(index, newValue);
     }
+  }
+
+  /// Right-click on a tag: what danbooru knows about it, one click away.
+  Future<void> _showTagLinks(String tag, Offset globalPosition) async {
+    final dictionary = context.read<AppState>().tagDictionary;
+    final action = await showPanelContextMenu<String>(
+      context: context,
+      position: globalPosition,
+      items: danbooruTagMenuItems(context, tag: tag, dictionary: dictionary),
+    );
+    await handleDanbooruTagMenuAction(action, tag);
   }
 
   @override
@@ -308,7 +321,7 @@ class _CaptionPanelState extends State<CaptionPanel> {
                               (ai.running ||
                                   ai.hasResultFor(session.image!.path))
                           ? AiCompareView(onRunAi: _runAi)
-                          : _buildTagsView(session, l10n, semantic),
+                          : _buildTagsView(session, ai, l10n, semantic),
                     ],
                   ),
           ),
@@ -340,6 +353,7 @@ class _CaptionPanelState extends State<CaptionPanel> {
 
   Widget _buildTagsView(
     EditorSession session,
+    AiTaggerState ai,
     AppLocalizations l10n,
     AppSemanticColors semantic,
   ) {
@@ -393,6 +407,8 @@ class _CaptionPanelState extends State<CaptionPanel> {
                                     ?.color,
                                 onTap: () => _editTag(session, index),
                                 onDelete: () => session.removeTag(tag),
+                                onContextMenu: (position) =>
+                                    _showTagLinks(tag, position),
                               ),
                             ),
                           ),
@@ -407,9 +423,16 @@ class _CaptionPanelState extends State<CaptionPanel> {
           child: Row(
             children: [
               Expanded(
-                child: TextField(
+                child: TagAutocompleteField(
                   controller: _addTagController,
                   focusNode: _addTagFocus,
+                  dictionary: context.read<AppState>().tagDictionary,
+                  // Completions come out spelled the way this user's AI
+                  // suggestions already are — one setting, not two.
+                  insertStyle: TagInsertStyle(
+                    underscoreToSpaces: ai.underscoreToSpaces,
+                    escapeParentheses: ai.escapeParentheses,
+                  ),
                   style: const TextStyle(fontSize: AppText.secondary),
                   // Borderless: the hairline above already separates this
                   // row, and a boxed field inside a panel footer reads as a
@@ -611,6 +634,7 @@ class _TagChip extends StatelessWidget {
     required this.label,
     required this.onTap,
     required this.onDelete,
+    required this.onContextMenu,
     this.sortMode = false,
     this.groupColor,
   });
@@ -618,6 +642,11 @@ class _TagChip extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
   final VoidCallback onDelete;
+
+  /// Right-click, with the global tap position for menu placement. Kept
+  /// outside the sort-mode branch below: looking a tag up is useful whether
+  /// or not the chip is currently draggable.
+  final ValueChanged<Offset> onContextMenu;
 
   /// Sort mode: the chip is drag-only — no tap-to-edit, and the delete
   /// button is replaced by a drag handle (immediate drag would swallow the
@@ -659,13 +688,15 @@ class _TagChip extends StatelessWidget {
       ),
     );
 
-    if (sortMode) {
-      return MouseRegion(cursor: SystemMouseCursors.grab, child: body);
-    }
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadii.control),
-      child: body,
+    return GestureDetector(
+      onSecondaryTapUp: (details) => onContextMenu(details.globalPosition),
+      child: sortMode
+          ? MouseRegion(cursor: SystemMouseCursors.grab, child: body)
+          : InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(AppRadii.control),
+              child: body,
+            ),
     );
   }
 }

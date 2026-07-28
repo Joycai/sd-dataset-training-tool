@@ -43,3 +43,6 @@ flutter:
   generate: true
   assets:
     - assets/icon/icon.png
+    # WD tagger label file (SmilingWolf/wd-swinv2-tagger-v3, selected_tags.csv)
+    # — the offline tag dictionary behind caption autocomplete.
+    - assets/tags/wd_tags.csv

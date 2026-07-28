@@ -11,6 +11,7 @@ import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
 import '../../state/workbench_layout.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/danbooru_tag_menu.dart';
 import '../../widgets/panel_widgets.dart';
 import 'dataset_tags_view.dart';
 import 'tag_group_dialog.dart';
@@ -210,6 +211,12 @@ class _LibraryViewState extends State<_LibraryView> {
       context: context,
       position: position,
       items: [
+        ...danbooruTagMenuItems(
+          context,
+          tag: tag,
+          dictionary: appState.tagDictionary,
+        ),
+        const PopupMenuDivider(height: 9),
         panelMenuItem(
           context: context,
           value: 'remove',
@@ -218,6 +225,7 @@ class _LibraryViewState extends State<_LibraryView> {
         ),
       ],
     );
+    if (await handleDanbooruTagMenuAction(action, tag)) return;
     if (action == 'remove') {
       await appState.removeCommonTags([tag]);
     }
