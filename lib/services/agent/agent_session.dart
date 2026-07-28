@@ -184,6 +184,7 @@ class AgentSession {
               toolCallId: call.id,
               text: result.text,
               extraParts: result.extraParts,
+              pinned: result.pinned,
             ),
           );
           consecutiveToolErrors = result.isError
@@ -242,6 +243,13 @@ Guidelines:
 - The first tag of a caption is often the LoRA trigger word. Preserve tag
   order unless asked otherwise, and never remove the first tag without
   explicit confirmation from the user.
+- To change only the *order* of an image's tags, use reorder_caption — it
+  refuses any order that is not a permutation of that image's current tags.
+  Re-read a caption with read_captions immediately before reordering it and
+  copy the tags from that result; never retype a caption from memory, and
+  never reconstruct one you read many turns ago. Reach for write_caption
+  only when the tags themselves change, and pass expect_same_tags when they
+  should not.
 - When the user asks for changes, describe your plan briefly before acting,
   and report exact numbers (images affected) afterwards.
 - Every write operation you perform can be undone by the user (Ctrl+Z), and

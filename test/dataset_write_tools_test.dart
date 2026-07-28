@@ -131,13 +131,43 @@ void main() {
       expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
     });
 
-    test('write_caption reorders one image via relative path', () async {
+    test('write_caption rewrites one image via relative path', () async {
       final out = await call('write_caption', {
         'path': '001.png',
         'caption': 'trigger, smile, 1girl, watermark',
       });
       expect(out['written'], isTrue);
+      expect(out['added'], isEmpty);
+      expect(out['removed'], isEmpty);
       expect(await readCap('001'), 'trigger, smile, 1girl, watermark');
+    });
+
+    test('write_caption reports the tags it added and removed', () async {
+      final out = await call('write_caption', {
+        'path': '001.png',
+        'caption': 'trigger, 1girl, smile, masterpiece',
+      });
+      expect(out['added'], ['masterpiece']);
+      expect(out['removed'], ['watermark']);
+    });
+
+    test('write_caption honours expect_same_tags', () async {
+      final result = await registry.dispatch(
+        'write_caption',
+        jsonEncode({
+          'path': '001.png',
+          // "smile" silently dropped, "masterpiece" invented — exactly the
+          // corruption a from-memory rewrite produces.
+          'caption': 'trigger, 1girl, masterpiece, watermark',
+          'expect_same_tags': true,
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('masterpiece'));
+      expect(result.text, contains('smile'));
+      // The file is untouched.
+      expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
+      expect(tagOps.canUndo, isFalse);
     });
 
     test('write_caption rejects paths outside the dataset', () async {
@@ -146,6 +176,87 @@ void main() {
         jsonEncode({'path': '../evil.png', 'caption': 'x'}),
       );
       expect(result.isError, isTrue);
+    });
+
+    test('reorder_caption permutes and is undoable', () async {
+      final out = await call('reorder_caption', {
+        'path': '001.png',
+        'order': ['trigger', 'smile', 'watermark', '1girl'],
+      });
+      expect(out['written'], isTrue);
+      expect(await readCap('001'), 'trigger, smile, watermark, 1girl');
+
+      await tagOps.undo();
+      expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
+    });
+
+    test('reorder_caption refuses an order that drops a tag', () async {
+      final result = await registry.dispatch(
+        'reorder_caption',
+        jsonEncode({
+          'path': '001.png',
+          'order': ['trigger', 'smile', '1girl'],
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('left out'));
+      expect(result.text, contains('watermark'));
+      expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
+      expect(tagOps.canUndo, isFalse);
+    });
+
+    test('reorder_caption refuses an order that invents a tag', () async {
+      final result = await registry.dispatch(
+        'reorder_caption',
+        jsonEncode({
+          'path': '001.png',
+          'order': ['trigger', '1girl', 'smile', 'watermark', 'masterpiece'],
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('not on this image'));
+      expect(result.text, contains('masterpiece'));
+      expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
+    });
+
+    test('reorder_caption error echoes the image\'s current tags', () async {
+      final result = await registry.dispatch(
+        'reorder_caption',
+        jsonEncode({
+          'path': '002.png',
+          'order': ['1girl'],
+        }),
+      );
+      // The model needs the ground truth to retry from, not just a refusal.
+      expect(result.text, contains('trigger, 1girl, watermark'));
+    });
+
+    test('reorder_caption keeps the file\'s own tag spelling', () async {
+      await File(cap('001')).writeAsString('trigger, long_hair, smile');
+      await dataset.scan(
+        directoryPath: tempDir.path,
+        recursive: false,
+        captionExtension: '.txt',
+      );
+      // The model types the spaced style; the file keeps the underscore.
+      final out = await call('reorder_caption', {
+        'path': '001.png',
+        'order': ['Trigger', 'smile', 'long hair'],
+      });
+      expect(out['written'], isTrue);
+      expect(await readCap('001'), 'trigger, smile, long_hair');
+    });
+
+    test('reorder_caption rejects an uncaptioned image', () async {
+      final result = await registry.dispatch(
+        'reorder_caption',
+        jsonEncode({
+          'path': '003.png',
+          'order': ['whatever'],
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(File(cap('003')).existsSync(), isFalse);
     });
 
     test('undo_last_operation only reverts AI operations', () async {

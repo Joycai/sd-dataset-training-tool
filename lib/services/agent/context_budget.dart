@@ -69,23 +69,38 @@ class ContextBudget {
 
   /// Shrinks [history] in place until it fits [inputBudget].
   ///
-  /// Priority: (1) fold old tool results, (2) fold old user/assistant text.
+  /// Priority: (1) fold old *unpinned* tool results, (2) fold old
+  /// user/assistant text, (3) fold pinned tool results as a last resort.
   /// The system prompt (index 0), the last [protectedTail] messages, and
   /// message *structure* (roles, tool_call ids) are always preserved so the
   /// wire protocols stay valid.
+  ///
+  /// The pinned pass exists because folding a `read_captions` body out from
+  /// under a long per-image rewrite leaves the model retyping captions from
+  /// memory — it invents tags and drops real ones. Deferring those bodies
+  /// keeps the source of truth in context for as long as the window allows;
+  /// pass 3 still guarantees the history shrinks when it must.
   void compact(List<ChatMessage> history) {
     if (estimate(history) <= inputBudget) return;
 
     bool isProtected(int i) => i == 0 || i >= history.length - protectedTail;
 
-    // Pass 1: elide tool result bodies, oldest first.
-    for (var i = 0; i < history.length; i++) {
-      if (isProtected(i)) continue;
-      final m = history[i];
-      if (m.role != ChatRole.tool || _isElided(m)) continue;
-      _elide(m, 'tool result');
-      if (estimate(history) <= inputBudget) return;
+    /// Folds tool results oldest first, returning true once history fits.
+    bool foldToolResults({required bool pinned}) {
+      for (var i = 0; i < history.length; i++) {
+        if (isProtected(i)) continue;
+        final m = history[i];
+        if (m.role != ChatRole.tool || m.pinned != pinned || _isElided(m)) {
+          continue;
+        }
+        _elide(m, 'tool result');
+        if (estimate(history) <= inputBudget) return true;
+      }
+      return false;
     }
+
+    // Pass 1: elide unpinned tool result bodies, oldest first.
+    if (foldToolResults(pinned: false)) return;
 
     // Pass 2: fold old user/assistant turns, oldest first.
     for (var i = 0; i < history.length; i++) {
@@ -96,6 +111,9 @@ class ContextBudget {
       _elide(m, m.role == ChatRole.user ? 'user message' : 'assistant message');
       if (estimate(history) <= inputBudget) return;
     }
+
+    // Pass 3: nothing cheap is left — the pinned bodies go too.
+    foldToolResults(pinned: true);
   }
 
   static const _elidedPrefix = '[elided ';

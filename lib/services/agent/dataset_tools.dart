@@ -13,6 +13,7 @@ import 'package:path/path.dart' as p;
 import '../../models/tag_group.dart';
 import '../../state/dataset_state.dart';
 import '../../state/tag_ops.dart';
+import '../../utils/tag_text.dart';
 import 'agent_tools.dart';
 
 class DatasetToolsDeps {
@@ -230,10 +231,7 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
       if (root == null) return toolError('no dataset directory is open');
       final paths = requireStringList(args, 'paths', maxLength: 50);
       final d = deps.dataset;
-      // Canonical lookup tolerates case/separator differences on Windows.
-      final canonical = {
-        for (final f in d.allFiles) p.canonicalize(f.path): f.path,
-      };
+      final canonical = canonicalIndex(d);
       final out = <Map<String, dynamic>>[];
       for (final rel in paths) {
         final resolved = resolveDatasetPath(root, rel);
@@ -248,7 +246,9 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
           'tags': d.tagsOf(key),
         });
       }
-      return toolOk({'captions': out});
+      // Pinned: per-image rewrites read this once and then work from it for
+      // many turns, so it must outlive ordinary compaction.
+      return toolOk({'captions': out}, pinned: true);
     },
   ),
   AgentTool(
@@ -281,7 +281,31 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
 /// The write tools (Phase 2). Every mutation goes through [TagOps], so it
 /// lands on the shared undo stack with an `AI: ` label the user can inspect
 /// in the top bar and revert with Ctrl+Z.
+///
+/// Every handler here is wrapped in [_guardBusy]: [TagOps] refuses reentrant
+/// runs by returning "0 files changed", which the model would otherwise read
+/// as "no image matched" and move on from a write that never happened.
 List<AgentTool> buildWriteTools(DatasetToolsDeps deps, TagOps tagOps) => [
+  for (final tool in _writeTools(deps, tagOps))
+    AgentTool(
+      spec: tool.spec,
+      isWrite: tool.isWrite,
+      handler: _guardBusy(tagOps, tool.handler),
+    ),
+];
+
+AgentToolHandler _guardBusy(TagOps tagOps, AgentToolHandler inner) =>
+    (args) async {
+      if (tagOps.busy) {
+        return toolError(
+          'another caption operation is still running; nothing was '
+          'written — wait and retry',
+        );
+      }
+      return inner(args);
+    };
+
+List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
   AgentTool(
     isWrite: true,
     spec: const AgentToolSpec(
@@ -437,12 +461,78 @@ List<AgentTool> buildWriteTools(DatasetToolsDeps deps, TagOps tagOps) => [
   AgentTool(
     isWrite: true,
     spec: const AgentToolSpec(
+      name: 'reorder_caption',
+      description:
+          'Reorder one image\'s caption tags — the tool for sorting tags '
+          'by category. The order you give must be a permutation of the '
+          'tags the image already has: nothing may be added, removed or '
+          'reworded. A mismatch writes nothing and returns the image\'s '
+          'current tags, so reorder from a fresh read_captions rather '
+          'than from memory. Use write_caption only when the tags '
+          'themselves have to change. Undoable.',
+      parametersSchema: {
+        'type': 'object',
+        'properties': {
+          'path': {
+            'type': 'string',
+            'description': 'image path as returned by list_images',
+          },
+          'order': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description':
+                'every tag the image already has, exactly once, in the '
+                'new order',
+          },
+        },
+        'required': ['path', 'order'],
+      },
+    ),
+    handler: (args) async {
+      final root = deps.rootDir();
+      if (root == null) return toolError('no dataset directory is open');
+      final rel = requireString(args, 'path');
+      final order = requireStringList(args, 'order');
+      final key = resolveImageKey(deps.dataset, root, rel);
+      if (key == null) return toolError('image not found in dataset: $rel');
+
+      final current = deps.dataset.tagsOf(key);
+      if (current.isEmpty) return toolError('$rel has no caption to reorder');
+
+      final match = matchPermutation(current, order);
+      if (match.unknown.isNotEmpty || match.missing.isNotEmpty) {
+        return toolError(
+          'nothing was written: the given order is not a permutation of '
+          '$rel\'s tags'
+          '${match.unknown.isEmpty ? '' : '; not on this image: '
+                '${match.unknown.join(", ")}'}'
+          '${match.missing.isEmpty ? '' : '; left out: '
+                '${match.missing.join(", ")}'}'
+          '. Its ${current.length} current tags are: ${current.join(", ")}',
+        );
+      }
+      final written = await tagOps.rewriteOne(
+        key,
+        match.ordered.join(', '),
+        label: 'AI: reorder ${p.basename(key)}',
+      );
+      return toolOk({
+        'written': written,
+        'unchanged': !written,
+        'tags': match.ordered,
+      });
+    },
+  ),
+  AgentTool(
+    isWrite: true,
+    spec: const AgentToolSpec(
       name: 'write_caption',
       description:
           'Overwrite one image\'s caption with exactly the given text '
-          '(comma-separated tags). Use for per-image edits such as '
-          'reordering; prefer the batch tools for dataset-wide '
-          'changes. Undoable.',
+          '(comma-separated tags). For changing *which* tags an image '
+          'carries; to change only their order use reorder_caption, and '
+          'for dataset-wide changes prefer the batch tools. The result '
+          'reports which tags this write added and removed. Undoable.',
       parametersSchema: {
         'type': 'object',
         'properties': {
@@ -451,6 +541,13 @@ List<AgentTool> buildWriteTools(DatasetToolsDeps deps, TagOps tagOps) => [
             'description': 'image path as returned by list_images',
           },
           'caption': {'type': 'string'},
+          'expect_same_tags': {
+            'type': 'boolean',
+            'description':
+                'reject the write if it would add or remove any tag; set '
+                'it whenever you mean to rewrite without changing the '
+                'tag set',
+          },
         },
         'required': ['path', 'caption'],
       },
@@ -463,20 +560,43 @@ List<AgentTool> buildWriteTools(DatasetToolsDeps deps, TagOps tagOps) => [
       if (caption is! String) {
         return toolError('missing required string parameter "caption"');
       }
-      final resolved = resolveDatasetPath(root, rel);
-      final canonical = {
-        for (final f in deps.dataset.allFiles) p.canonicalize(f.path): f.path,
-      };
-      final key = resolved == null ? null : canonical[resolved];
-      if (key == null) {
-        return toolError('image not found in dataset: $rel');
+      final key = resolveImageKey(deps.dataset, root, rel);
+      if (key == null) return toolError('image not found in dataset: $rel');
+
+      final before = deps.dataset.tagsOf(key);
+      final after = parseTagText(caption);
+      final beforeSet = before.toSet();
+      final afterSet = after.toSet();
+      final added = [
+        for (final t in after)
+          if (!beforeSet.contains(t)) t,
+      ];
+      final removed = [
+        for (final t in before)
+          if (!afterSet.contains(t)) t,
+      ];
+
+      if (optBool(args, 'expect_same_tags') &&
+          (added.isNotEmpty || removed.isNotEmpty)) {
+        return toolError(
+          'nothing was written: expect_same_tags was set but this caption '
+          'would change the tag set'
+          '${added.isEmpty ? '' : '; added: ${added.join(", ")}'}'
+          '${removed.isEmpty ? '' : '; removed: ${removed.join(", ")}'}'
+          '. Its ${before.length} current tags are: ${before.join(", ")}',
+        );
       }
       final written = await tagOps.rewriteOne(
         key,
         caption,
         label: 'AI: rewrite ${p.basename(key)}',
       );
-      return toolOk({'written': written, 'unchanged': !written});
+      return toolOk({
+        'written': written,
+        'unchanged': !written,
+        'added': added,
+        'removed': removed,
+      });
     },
   ),
   AgentTool(
@@ -526,6 +646,58 @@ List<File> _filterFiles(
     out.add(f);
   }
   return out;
+}
+
+/// Canonicalized path → the dataset's own path key. Canonicalizing tolerates
+/// the case and separator differences a model introduces on Windows.
+Map<String, String> canonicalIndex(DatasetState dataset) => {
+  for (final f in dataset.allFiles) p.canonicalize(f.path): f.path,
+};
+
+/// Resolves one model-supplied relative path to the dataset's path key, or
+/// null when it escapes the root or names no image in the dataset.
+String? resolveImageKey(DatasetState dataset, String root, String rel) {
+  final resolved = resolveDatasetPath(root, rel);
+  return resolved == null ? null : canonicalIndex(dataset)[resolved];
+}
+
+/// The outcome of lining a model-supplied tag order up against a caption's
+/// own tags: [ordered] is the reordered caption, [unknown] the entries that
+/// match no tag on the image, [missing] the tags left out of the order.
+typedef PermutationMatch = ({
+  List<String> ordered,
+  List<String> unknown,
+  List<String> missing,
+});
+
+/// Maps a requested tag order onto the caption's own tag spellings.
+///
+/// Matching folds case and underscore style ([tagLookupKey]), so a model
+/// that types `long hair` where the file says `long_hair` still reorders
+/// instead of silently rewording — [ordered] always carries the file's
+/// original spelling. Anything that does not line up one-to-one is reported
+/// rather than written, which is what keeps a reorder from inventing or
+/// dropping tags.
+PermutationMatch matchPermutation(List<String> current, List<String> order) {
+  final remaining = <String, List<String>>{};
+  for (final tag in current) {
+    (remaining[tagLookupKey(tag)] ??= <String>[]).add(tag);
+  }
+  final ordered = <String>[];
+  final unknown = <String>[];
+  for (final tag in order) {
+    final bucket = remaining[tagLookupKey(tag)];
+    if (bucket == null || bucket.isEmpty) {
+      unknown.add(tag);
+      continue;
+    }
+    ordered.add(bucket.removeAt(0));
+  }
+  return (
+    ordered: ordered,
+    unknown: unknown,
+    missing: [for (final bucket in remaining.values) ...bucket],
+  );
 }
 
 /// Resolves a model-supplied path against the dataset root; returns the
