@@ -16,6 +16,7 @@ class AgentToolResult {
     this.text, {
     this.isError = false,
     this.extraParts = const [],
+    this.pinned = false,
   });
 
   /// The text returned to the model (usually compact JSON).
@@ -25,12 +26,22 @@ class AgentToolResult {
 
   /// Images attached to the result (`view_image`); empty for text tools.
   final List<ChatContentPart> extraParts;
+
+  /// Marks a result the model is expected to keep working from verbatim
+  /// (`read_captions`), so history compaction folds it last rather than
+  /// first. See [ChatMessage.pinned].
+  final bool pinned;
 }
 
 AgentToolResult toolOk(
   Map<String, dynamic> json, {
   List<ChatContentPart> extraParts = const [],
-}) => AgentToolResult(jsonEncode(json), extraParts: extraParts);
+  bool pinned = false,
+}) => AgentToolResult(
+  jsonEncode(json),
+  extraParts: extraParts,
+  pinned: pinned,
+);
 
 AgentToolResult toolError(String message) =>
     AgentToolResult(jsonEncode({'error': message}), isError: true);

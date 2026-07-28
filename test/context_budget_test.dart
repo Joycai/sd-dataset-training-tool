@@ -83,6 +83,51 @@ void main() {
       expect(history[6].text, 'final');
     });
 
+    test('pinned tool results outlive unpinned ones', () {
+      final budget = ContextBudget(
+        contextWindow: 2048,
+        maxOutputTokens: 512,
+        protectedTail: 2,
+      );
+      final history = [
+        ChatMessage.system('sys'),
+        ChatMessage.user('question'),
+        // The captions the model is rewriting from, read first and needed
+        // longest.
+        ChatMessage.toolResult(
+          toolCallId: '1',
+          text: 'c' * 3000,
+          pinned: true,
+        ),
+        tool('x' * 8000, '2'),
+        ChatMessage.assistant('progress'),
+        ChatMessage.assistant('final'),
+      ];
+      budget.compact(history);
+      expect(history[3].text, startsWith('[elided tool result'));
+      expect(history[2].text, 'c' * 3000);
+    });
+
+    test('pinned tool results still fold as a last resort', () {
+      final budget = ContextBudget(
+        contextWindow: 1,
+        maxOutputTokens: 1,
+        protectedTail: 1,
+      );
+      final history = [
+        ChatMessage.system('sys'),
+        ChatMessage.toolResult(
+          toolCallId: '1',
+          text: 'c' * 50000,
+          pinned: true,
+        ),
+        ChatMessage.assistant('tail'),
+      ];
+      budget.compact(history);
+      expect(history[1].text, startsWith('[elided tool result'));
+      expect(history[1].toolCallId, '1');
+    });
+
     test('terminates even when everything is folded', () {
       final budget = ContextBudget(
         contextWindow: 1,

@@ -416,6 +416,7 @@ class ChatMessage {
     List<ChatContentPart>? parts,
     this.toolCalls = const [],
     this.toolCallId,
+    this.pinned = false,
   }) : parts = parts ?? [];
 
   factory ChatMessage.system(String text) =>
@@ -437,10 +438,12 @@ class ChatMessage {
     required String toolCallId,
     required String text,
     List<ChatContentPart> extraParts = const [],
+    bool pinned = false,
   }) => ChatMessage(
     role: ChatRole.tool,
     parts: [ChatContentPart.text(text), ...extraParts],
     toolCallId: toolCallId,
+    pinned: pinned,
   );
 
   final ChatRole role;
@@ -450,6 +453,11 @@ class ChatMessage {
 
   final List<ChatToolCall> toolCalls;
   final String? toolCallId;
+
+  /// Content the model is still expected to be working from verbatim (the
+  /// captions it is reordering, say). Compaction folds pinned messages only
+  /// as a last resort — see [ContextBudget.compact].
+  final bool pinned;
 
   String get text =>
       parts.where((p) => p.text != null).map((p) => p.text).join();
