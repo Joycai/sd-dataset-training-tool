@@ -1183,4 +1183,80 @@ class AppLocalizationsEn extends AppLocalizations {
   String llmDeleteConfirmContent(String name) {
     return 'Delete \"$name\"? This cannot be undone.';
   }
+
+  @override
+  String get tagWikiAction => 'Danbooru wiki';
+
+  @override
+  String get tagPostsAction => 'Danbooru posts';
+
+  @override
+  String get tagWikiTooltip => 'Open the danbooru wiki (F1)';
+
+  @override
+  String get tagNotInDictionary => 'Not in the tag dictionary';
+
+  @override
+  String tagPostCount(int count) {
+    return '$count posts on danbooru';
+  }
+
+  @override
+  String tagSuggestionAlias(String alias) {
+    return 'alias: $alias';
+  }
+
+  @override
+  String tagSuggestionLocalUsed(int count) {
+    return 'your tag · $count images in this dataset';
+  }
+
+  @override
+  String get tagSuggestionLocalLibrary => 'your tag · from the tag library';
+
+  @override
+  String tagNotInDictionaryUsed(int count) {
+    return 'Not in the tag dictionary · $count images in this dataset';
+  }
+
+  @override
+  String get tagDictionaryTitle => 'Tag dictionary';
+
+  @override
+  String get tagDictionaryDesc =>
+      'Suggests danbooru tags while you type in the caption editor';
+
+  @override
+  String get tagDictionaryStatusLoading => 'Loading…';
+
+  @override
+  String tagDictionaryStatusBundled(int count) {
+    return 'Built-in · $count tags';
+  }
+
+  @override
+  String tagDictionaryStatusFull(int count) {
+    return 'Full · $count tags';
+  }
+
+  @override
+  String get tagDictionaryFullTitle => 'Full danbooru dictionary';
+
+  @override
+  String get tagDictionaryFullDesc =>
+      'Downloads the top 100k tags with aliases, artists and copyrights (~3.5 MB)';
+
+  @override
+  String get tagDictionaryDownloadAction => 'Download';
+
+  @override
+  String get tagDictionaryRemoveAction => 'Remove';
+
+  @override
+  String get tagDictionaryDownloading => 'Downloading…';
+
+  @override
+  String tagDictionaryDownloadFailed(String error) {
+    return 'Download failed: $error';
+  }
 }

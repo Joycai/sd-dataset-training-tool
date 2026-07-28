@@ -39,6 +39,28 @@ void main() {
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
   });
 
+  testWidgets('library tags reach the tag dictionary as local suggestions', (
+    WidgetTester tester,
+  ) async {
+    final appState = await _createAppState();
+
+    await tester.pumpWidget(_wrapApp(appState));
+    await tester.pumpAndSettle();
+
+    // addCommonTags mutates the list in place, so the workbench's change
+    // check has to notice this by length rather than identity.
+    await appState.addCommonTags(['myoc_trigger']);
+    await tester.pumpAndSettle();
+
+    final hit = appState.tagDictionary.search('myoc').single;
+    expect(hit.name, 'myoc_trigger');
+    expect(hit.isLocal, isTrue);
+    // In the library, but on no image yet — so it weighs zero and the open
+    // dataset reports no usage for it at all.
+    expect(hit.count, 0);
+    expect(appState.tagDictionary.localUsage('myoc_trigger'), isNull);
+  });
+
   testWidgets('the rail opens settings as a modal and closes it again', (
     WidgetTester tester,
   ) async {

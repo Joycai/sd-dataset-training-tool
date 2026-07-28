@@ -6,6 +6,7 @@ import 'models/llm_models.dart';
 import 'models/tag_group.dart';
 import 'services/font_service.dart';
 import 'services/settings_service.dart';
+import 'services/tag_dictionary_service.dart';
 import 'theme/app_theme.dart';
 
 class AppState extends ChangeNotifier {
@@ -16,6 +17,15 @@ class AppState extends ChangeNotifier {
   /// 每个进度包都会重建 MaterialApp 整树。
   final FontService fontService = FontService();
   String? _lastFontFamily;
+
+  /// Danbooru tag dictionary behind caption autocomplete. Held here rather
+  /// than in the workbench's provider tree because the settings dialog — a
+  /// route above it — also has to reach it.
+  ///
+  /// Deliberately *not* forwarded through [notifyListeners]: it notifies on
+  /// every 256 KB of a download, and the only widgets that care listen to it
+  /// directly.
+  final TagDictionaryService tagDictionary = TagDictionaryService();
 
   AppState(this._settingsService) {
     fontService.addListener(_onFontServiceChanged);
@@ -32,6 +42,7 @@ class AppState extends ChangeNotifier {
   void dispose() {
     fontService.removeListener(_onFontServiceChanged);
     fontService.dispose();
+    tagDictionary.dispose();
     super.dispose();
   }
 

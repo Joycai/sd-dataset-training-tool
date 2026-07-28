@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
@@ -51,6 +52,11 @@ void main(List<String> args) async {
       return;
     }
   }
+
+  // Not awaited: parsing the tag dictionary spawns an isolate, and the
+  // caption editor is perfectly usable in the fraction of a second before
+  // autocomplete comes online — the field listens and picks it up.
+  unawaited(appState.tagDictionary.init());
 
   runApp(
     _withoutSemantics(

@@ -621,5 +621,61 @@
     "placeholders": {
       "name": { "type": "String" }
     }
+  },
+
+  "tagWikiAction": "Danbooru wiki",
+  "tagPostsAction": "Danbooru posts",
+  "tagWikiTooltip": "Open the danbooru wiki (F1)",
+  "tagNotInDictionary": "Not in the tag dictionary",
+  "tagPostCount": "{count} posts on danbooru",
+  "@tagPostCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "tagSuggestionAlias": "alias: {alias}",
+  "@tagSuggestionAlias": {
+    "placeholders": {
+      "alias": { "type": "String" }
+    }
+  },
+  "tagSuggestionLocalUsed": "your tag · {count} images in this dataset",
+  "@tagSuggestionLocalUsed": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "tagSuggestionLocalLibrary": "your tag · from the tag library",
+  "tagNotInDictionaryUsed": "Not in the tag dictionary · {count} images in this dataset",
+  "@tagNotInDictionaryUsed": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "tagDictionaryTitle": "Tag dictionary",
+  "tagDictionaryDesc": "Suggests danbooru tags while you type in the caption editor",
+  "tagDictionaryStatusLoading": "Loading…",
+  "tagDictionaryStatusBundled": "Built-in · {count} tags",
+  "@tagDictionaryStatusBundled": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "tagDictionaryStatusFull": "Full · {count} tags",
+  "@tagDictionaryStatusFull": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "tagDictionaryFullTitle": "Full danbooru dictionary",
+  "tagDictionaryFullDesc": "Downloads the top 100k tags with aliases, artists and copyrights (~3.5 MB)",
+  "tagDictionaryDownloadAction": "Download",
+  "tagDictionaryRemoveAction": "Remove",
+  "tagDictionaryDownloading": "Downloading…",
+  "tagDictionaryDownloadFailed": "Download failed: {error}",
+  "@tagDictionaryDownloadFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
   }
 }

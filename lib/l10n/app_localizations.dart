@@ -2183,6 +2183,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Delete \"{name}\"? This cannot be undone.'**
   String llmDeleteConfirmContent(String name);
+
+  /// No description provided for @tagWikiAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Danbooru wiki'**
+  String get tagWikiAction;
+
+  /// No description provided for @tagPostsAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Danbooru posts'**
+  String get tagPostsAction;
+
+  /// No description provided for @tagWikiTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the danbooru wiki (F1)'**
+  String get tagWikiTooltip;
+
+  /// No description provided for @tagNotInDictionary.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in the tag dictionary'**
+  String get tagNotInDictionary;
+
+  /// No description provided for @tagPostCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} posts on danbooru'**
+  String tagPostCount(int count);
+
+  /// No description provided for @tagSuggestionAlias.
+  ///
+  /// In en, this message translates to:
+  /// **'alias: {alias}'**
+  String tagSuggestionAlias(String alias);
+
+  /// No description provided for @tagSuggestionLocalUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'your tag · {count} images in this dataset'**
+  String tagSuggestionLocalUsed(int count);
+
+  /// No description provided for @tagSuggestionLocalLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'your tag · from the tag library'**
+  String get tagSuggestionLocalLibrary;
+
+  /// No description provided for @tagNotInDictionaryUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in the tag dictionary · {count} images in this dataset'**
+  String tagNotInDictionaryUsed(int count);
+
+  /// No description provided for @tagDictionaryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag dictionary'**
+  String get tagDictionaryTitle;
+
+  /// No description provided for @tagDictionaryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggests danbooru tags while you type in the caption editor'**
+  String get tagDictionaryDesc;
+
+  /// No description provided for @tagDictionaryStatusLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading…'**
+  String get tagDictionaryStatusLoading;
+
+  /// No description provided for @tagDictionaryStatusBundled.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in · {count} tags'**
+  String tagDictionaryStatusBundled(int count);
+
+  /// No description provided for @tagDictionaryStatusFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Full · {count} tags'**
+  String tagDictionaryStatusFull(int count);
+
+  /// No description provided for @tagDictionaryFullTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Full danbooru dictionary'**
+  String get tagDictionaryFullTitle;
+
+  /// No description provided for @tagDictionaryFullDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads the top 100k tags with aliases, artists and copyrights (~3.5 MB)'**
+  String get tagDictionaryFullDesc;
+
+  /// No description provided for @tagDictionaryDownloadAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get tagDictionaryDownloadAction;
+
+  /// No description provided for @tagDictionaryRemoveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get tagDictionaryRemoveAction;
+
+  /// No description provided for @tagDictionaryDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading…'**
+  String get tagDictionaryDownloading;
+
+  /// No description provided for @tagDictionaryDownloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed: {error}'**
+  String tagDictionaryDownloadFailed(String error);
 }
 
 class _AppLocalizationsDelegate

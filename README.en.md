@@ -39,6 +39,9 @@ The main interface is a "browse → preview/edit → tag management" three-colum
 - **Image preview above the editor**, with a draggable split.
 - **Caption editing**: automatically loads the `.txt` file matching the image (extension configurable); save writes it back.
 - **Tag view**: switch a comma-separated caption into chips — double-click to edit, delete, drag to reorder, with bidirectional sync to the text box.
+- **Tag autocomplete**: typing a tag by hand suggests danbooru tags as you go, ranked by post count and coloured by category. `↑`/`↓` select, `Tab` or `Enter` completes, `F1` opens the tag's wiki. Completions are spelled using the same style settings as the AI tagger, so hand-typed and AI-suggested tags never diverge.
+- **Your own tags**: tags used in the current dataset or held in the tag library that danbooru has never heard of — custom trigger words, your own character names — are suggested too, marked with a hollow dot and "your tag · N images in this dataset". They are guaranteed a slice of the list rather than being pushed out by danbooru tags sharing a prefix, and are inserted exactly as you spell them, with no style conversion. A dataset tag has to appear on at least **5 images** before it is suggested, so your typos don't get fed back to you; tag-library entries are exempt, since putting one there was already a deliberate choice.
+- **Tag lookup**: right-click any tag (in the editor or the library) to see its danbooru post count and jump straight to its wiki or a post search. Tags the dictionary has never heard of report how many images in this dataset use them — forty means it's yours, one usually means a typo.
 - **AI compare mode**: AI results are shown side by side with the current caption; accept/reject tags one by one or apply all at once. A global exit-compare control lives in the top bar.
 
 ### AI-Assisted Tagging (AiApiServer)
@@ -69,6 +72,7 @@ The main interface is a "browse → preview/edit → tag management" three-colum
 | `Ctrl+F` | Focus the tag library filter |
 | `←` / `→` | Previous / next image |
 | `Ctrl+Z` / `Ctrl+Shift+Z` (or `Ctrl+Y`) | Undo / redo batch tag operations |
+| `↑` / `↓`, `Tab`, `F1` | Autocomplete list: select / complete / open the wiki (only while the list is open) |
 
 ### Image Preview Window
 - **Separate native window**, freely resizable and movable.
@@ -78,6 +82,7 @@ The main interface is a "browse → preview/edit → tag management" three-colum
 - **Multi-language**: built-in English and Chinese.
 - **Themes**: light / dark / follow system.
 - **UI font**: system default / HarmonyOS Sans / MiSans, downloaded on demand.
+- **Tag dictionary**: ~11k danbooru tags ship with the app (offline, and the same vocabulary the WD tagger emits); the full top-100k dictionary — with aliases, artists and copyrights — can be downloaded with one click.
 - **AI server URL** and **caption file extension** are configurable.
 - **Persistence**: language, theme, window layout, directories, tag library, etc. are saved automatically; one-click reset available.
 

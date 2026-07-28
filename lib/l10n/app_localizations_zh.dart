@@ -1151,4 +1151,78 @@ class AppLocalizationsZh extends AppLocalizations {
   String llmDeleteConfirmContent(String name) {
     return '确定删除“$name”吗？此操作无法撤销。';
   }
+
+  @override
+  String get tagWikiAction => 'Danbooru Wiki';
+
+  @override
+  String get tagPostsAction => 'Danbooru 示例图';
+
+  @override
+  String get tagWikiTooltip => '打开 Danbooru wiki（F1）';
+
+  @override
+  String get tagNotInDictionary => '词典中未收录';
+
+  @override
+  String tagPostCount(int count) {
+    return 'Danbooru 上有 $count 张图';
+  }
+
+  @override
+  String tagSuggestionAlias(String alias) {
+    return '别名：$alias';
+  }
+
+  @override
+  String tagSuggestionLocalUsed(int count) {
+    return '本地标签 · 数据集中 $count 张图在用';
+  }
+
+  @override
+  String get tagSuggestionLocalLibrary => '本地标签 · 来自标签库';
+
+  @override
+  String tagNotInDictionaryUsed(int count) {
+    return '词典中未收录 · 数据集中 $count 张图在用';
+  }
+
+  @override
+  String get tagDictionaryTitle => '标签词典';
+
+  @override
+  String get tagDictionaryDesc => '在标注编辑器里输入标签时提供 Danbooru 标签建议';
+
+  @override
+  String get tagDictionaryStatusLoading => '加载中…';
+
+  @override
+  String tagDictionaryStatusBundled(int count) {
+    return '内置 · $count 条';
+  }
+
+  @override
+  String tagDictionaryStatusFull(int count) {
+    return '完整 · $count 条';
+  }
+
+  @override
+  String get tagDictionaryFullTitle => '完整 Danbooru 词典';
+
+  @override
+  String get tagDictionaryFullDesc => '下载按热度排序的前 10 万条标签，含别名、画师与作品分类（约 3.5 MB）';
+
+  @override
+  String get tagDictionaryDownloadAction => '下载';
+
+  @override
+  String get tagDictionaryRemoveAction => '删除';
+
+  @override
+  String get tagDictionaryDownloading => '下载中…';
+
+  @override
+  String tagDictionaryDownloadFailed(String error) {
+    return '下载失败：$error';
+  }
 }

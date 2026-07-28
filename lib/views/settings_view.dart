@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,7 +6,9 @@ import '../app_state.dart';
 import '../l10n/app_localizations.dart';
 import '../models/llm_models.dart';
 import '../services/font_service.dart';
+import '../services/tag_dictionary_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/external_links.dart';
 import '../widgets/panel_widgets.dart';
 import 'panels/llm_profile_dialog.dart';
 
@@ -189,19 +189,19 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
-  /// 用系统默认浏览器打开项目主页。桌面端直接调系统命令,避免引入依赖。
-  Future<void> _openRepository() async {
-    const url = AppInfo.repositoryUrl;
+  /// 用系统默认浏览器打开项目主页。打不开不致命,行内已显示完整链接可手动复制。
+  Future<void> _openRepository() =>
+      openExternalUrl(Uri.parse(AppInfo.repositoryUrl));
+
+  Future<void> _downloadFullTagDictionary() async {
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      if (Platform.isWindows) {
-        await Process.start('rundll32', ['url.dll,FileProtocolHandler', url]);
-      } else if (Platform.isMacOS) {
-        await Process.start('open', [url]);
-      } else {
-        await Process.start('xdg-open', [url]);
-      }
-    } catch (_) {
-      // 打不开浏览器不致命,行内已显示完整链接可手动复制。
+      await context.read<AppState>().tagDictionary.downloadFullDictionary();
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.tagDictionaryDownloadFailed('$e'))),
+      );
     }
   }
 
@@ -402,6 +402,32 @@ class _SettingsViewState extends State<SettingsView> {
                           onChanged: appState.updateAutoSave,
                         ),
                       ),
+                      // The dictionary notifies far too often to be forwarded
+                      // through AppState (every 256 KB of a download), so
+                      // these two rows subscribe to it directly.
+                      _SettingsRow(
+                        title: l10n.tagDictionaryTitle,
+                        description: l10n.tagDictionaryDesc,
+                        control: ListenableBuilder(
+                          listenable: appState.tagDictionary,
+                          builder: (context, _) => Text(
+                            _tagDictionaryStatus(l10n, appState.tagDictionary),
+                            style: monoStyle(context, size: 12.5),
+                          ),
+                        ),
+                      ),
+                      _SettingsRow(
+                        title: l10n.tagDictionaryFullTitle,
+                        description: l10n.tagDictionaryFullDesc,
+                        control: ListenableBuilder(
+                          listenable: appState.tagDictionary,
+                          builder: (context, _) => _TagDictionaryAction(
+                            dictionary: appState.tagDictionary,
+                            onDownload: _downloadFullTagDictionary,
+                            l10n: l10n,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 if (_section == _SettingsSection.assistant)
@@ -540,6 +566,70 @@ class _SettingsViewState extends State<SettingsView> {
           ),
         ),
       ],
+    );
+  }
+}
+
+String _tagDictionaryStatus(
+  AppLocalizations l10n,
+  TagDictionaryService dictionary,
+) {
+  if (!dictionary.isReady) return l10n.tagDictionaryStatusLoading;
+  return dictionary.source == TagDictionarySource.full
+      ? l10n.tagDictionaryStatusFull(dictionary.entryCount)
+      : l10n.tagDictionaryStatusBundled(dictionary.entryCount);
+}
+
+/// Download / remove control for the optional full dictionary, with the
+/// download's own progress in place of the button while it runs.
+class _TagDictionaryAction extends StatelessWidget {
+  const _TagDictionaryAction({
+    required this.dictionary,
+    required this.onDownload,
+    required this.l10n,
+  });
+
+  final TagDictionaryService dictionary;
+  final Future<void> Function() onDownload;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    if (dictionary.busy) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 13,
+            height: 13,
+            // Indeterminate until the server sends a content length.
+            child: CircularProgressIndicator(
+              strokeWidth: 1.5,
+              value: dictionary.progress,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            l10n.tagDictionaryDownloading,
+            style: TextStyle(fontSize: 12.5, color: context.semantic.muted),
+          ),
+        ],
+      );
+    }
+
+    final installed = dictionary.hasFullDictionary;
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        visualDensity: VisualDensity.compact,
+        textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+      ),
+      onPressed: installed ? dictionary.removeFullDictionary : onDownload,
+      icon: Icon(installed ? Icons.delete_outline : Icons.download, size: 15),
+      label: Text(
+        installed
+            ? l10n.tagDictionaryRemoveAction
+            : l10n.tagDictionaryDownloadAction,
+      ),
     );
   }
 }
