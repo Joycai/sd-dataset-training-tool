@@ -114,14 +114,14 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
     );
     if (confirmed != true || !mounted) return;
 
-    final count = await ops.deleteEverywhere(
+    final result = await ops.deleteEverywhere(
       entry.tag,
       label: l10n.opDeleteLabel(entry.tag),
     );
     // Conditions on a tag that no longer exists are stale (an include would
     // blank the gallery); drop them from the expression.
     dataset.removeTagFromFilter(entry.tag);
-    _showResult(count);
+    _showResult(result);
   }
 
   Future<void> _showReplaceDialog(DatasetTag entry) async {
@@ -134,7 +134,7 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
     if (result == null || !mounted) return;
 
     final (mode, input) = result;
-    final count = switch (mode) {
+    final outcome = switch (mode) {
       _EditMode.replace => await ops.replaceEverywhere(
         entry.tag,
         input,
@@ -153,7 +153,7 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
         label: l10n.opInsertLabel(entry.tag),
       ),
     };
-    _showResult(count);
+    _showResult(outcome);
   }
 
   Future<void> _showAddTagsDialog() async {
@@ -170,25 +170,31 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
     if (result == null || !mounted) return;
 
     final (input, index, onlyFiltered) = result;
-    final count = await ops.addEverywhere(
+    final outcome = await ops.addEverywhere(
       input,
       index: index,
       files: onlyFiltered ? List.of(dataset.visibleFiles) : null,
       label: l10n.opAddGlobalLabel(input.trim()),
     );
-    _showResult(count);
+    _showResult(outcome);
   }
 
-  void _showResult(int count) {
+  /// A sweep skips caption files it cannot write, so the snack bar has to
+  /// name them — otherwise a failed write is indistinguishable from a file
+  /// that simply needed no change.
+  void _showResult(BatchRewriteResult result) {
     if (!mounted) return;
     final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          count == 0 ? l10n.noFilesChanged : l10n.filesUpdated(count),
-        ),
-      ),
-    );
+    final message = switch ((result.changed, result.failed)) {
+      (0, 0) => l10n.noFilesChanged,
+      (0, final failed) => l10n.filesFailed(failed),
+      (final changed, 0) => l10n.filesUpdated(changed),
+      (final changed, final failed) =>
+        '${l10n.filesUpdated(changed)} · ${l10n.filesFailed(failed)}',
+    };
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override

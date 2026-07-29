@@ -569,6 +569,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noFilesChanged => '没有需要修改的文件。';
 
   @override
+  String filesFailed(int count) {
+    return '$count 个文件写入失败';
+  }
+
+  @override
   String get filterPanelTitle => '画廊过滤';
 
   @override
