@@ -6,9 +6,11 @@ import 'package:provider/provider.dart';
 import '../settings_view.dart';
 import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
+import '../../models/llm_models.dart';
 import '../../models/prompt_preset.dart';
 import '../../state/agent_chat_state.dart';
 import '../../theme/app_theme.dart';
+import 'llm_profile_dialog.dart';
 import 'prompt_preset_dialog.dart';
 
 /// Markdown rendering shared by the user and assistant bubbles: the preset
@@ -255,17 +257,16 @@ class AgentPanelHeader extends StatelessWidget {
                   children: [
                     Text(
                       l10n.agentPanelTitle,
+                      // Two stacked rows in a 40px bar leave the title no
+                      // room to wrap when the panel is dragged narrow.
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    if (chat.profileName != null)
-                      Text(
-                        chat.profileName!,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 10, color: semantic.muted),
-                      ),
+                    _ProfileMenuButton(chat: chat),
                   ],
                 ),
               ),
@@ -295,6 +296,160 @@ class AgentPanelHeader extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The backend name under the panel title, doubling as the switcher.
+///
+/// It used to be plain text: the only way to move the assistant to another
+/// model was the Settings dialog, three clicks away from the conversation
+/// the switch is about.
+class _ProfileMenuButton extends StatelessWidget {
+  const _ProfileMenuButton({required this.chat});
+
+  final AgentChatState chat;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final app = context.watch<AppState>();
+    final providers = app.llmProviders;
+    final activeId = app.activeLlmProfile?.id;
+    // With a single provider its name is already in the closed label, so the
+    // header would just repeat it above one short list.
+    final groupByProvider = providers.length > 1;
+
+    return PopupMenuButton<String>(
+      tooltip: l10n.agentSwitchProfile,
+      position: PopupMenuPosition.under,
+      constraints: const BoxConstraints(minWidth: 200, maxWidth: 340),
+      padding: EdgeInsets.zero,
+      // A run is bound to the backend it started on; switching underneath it
+      // would leave the header disagreeing with what is actually answering.
+      enabled: !chat.busy,
+      onSelected: chat.switchProfile,
+      itemBuilder: (_) => [
+        if (providers.isEmpty)
+          PopupMenuItem<String>(
+            enabled: false,
+            height: 34,
+            child: Text(
+              l10n.llmNoProfiles,
+              style: TextStyle(fontSize: 11.5, color: semantic.muted),
+            ),
+          ),
+        for (final provider in providers) ...[
+          if (groupByProvider)
+            PopupMenuItem<String>(
+              enabled: false,
+              height: 26,
+              child: Text(
+                provider.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 10.5, color: semantic.muted),
+              ),
+            ),
+          for (final model in provider.models)
+            _profileItem(
+              context,
+              provider: provider,
+              model: model,
+              grouped: groupByProvider,
+              activeId: activeId,
+            ),
+        ],
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          height: 34,
+          // The menu is gone by the time this runs, so the dialog opens from
+          // the panel's context rather than the popup route's.
+          onTap: () => showLlmProfilesDialog(context),
+          child: Row(
+            children: [
+              Icon(Icons.tune, size: 13, color: semantic.muted),
+              const SizedBox(width: 7),
+              Text(
+                l10n.llmManageProfiles,
+                style: TextStyle(fontSize: 11.5, color: semantic.muted),
+              ),
+            ],
+          ),
+        ),
+      ],
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              chat.profileName ?? l10n.llmNoProfiles,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10, color: semantic.muted),
+            ),
+          ),
+          Icon(Icons.arrow_drop_down, size: 13, color: semantic.muted),
+        ],
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _profileItem(
+    BuildContext context, {
+    required LlmProvider provider,
+    required LlmModelConfig model,
+    required bool grouped,
+    required String? activeId,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+    final profile = provider.resolve(model);
+    final active = profile.id == activeId;
+    // The provider name is already above the row (or in the closed label);
+    // a single model under a single provider is the only case with nothing
+    // else to say, and there `profile.name` is just the provider name.
+    final label = grouped || provider.models.length > 1
+        ? model.label
+        : profile.name;
+    return PopupMenuItem<String>(
+      value: profile.id,
+      height: 32,
+      child: Padding(
+        padding: EdgeInsets.only(left: grouped ? 10 : 0),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: active ? scheme.primary : null,
+                ),
+              ),
+            ),
+            if (profile.supportsVision) ...[
+              const SizedBox(width: 6),
+              Tooltip(
+                message: l10n.llmVisionBadge,
+                child: Icon(
+                  Icons.image_outlined,
+                  size: 13,
+                  color: semantic.muted,
+                ),
+              ),
+            ],
+            if (active) ...[
+              const SizedBox(width: 6),
+              Icon(Icons.check, size: 13, color: scheme.primary),
+            ],
+          ],
         ),
       ),
     );
@@ -378,6 +533,9 @@ class _EntryRow extends StatelessWidget {
           AgentNoticeType.cancelled => l10n.agentStoppedNotice,
           AgentNoticeType.reset => l10n.agentSessionResetNotice,
           AgentNoticeType.tokenCap => l10n.agentTokenCapNotice,
+          AgentNoticeType.profileSwitched => l10n.agentProfileSwitchedNotice(
+            entry.text,
+          ),
           AgentNoticeType.error || null => l10n.agentErrorNotice(entry.text),
         };
         return Padding(

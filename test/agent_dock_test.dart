@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
+import 'package:dataset_training_tool/models/llm_models.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/agent_chat_state.dart';
 import 'package:dataset_training_tool/state/ai_tagger_state.dart';
@@ -152,6 +153,43 @@ void main() {
     await tester.tap(find.byTooltip('Expand panel'));
     await tester.pumpAndSettle();
     expect(dockRect(tester).height, greaterThan(200));
+  });
+
+  testWidgets('the header picks the backend, no trip to settings', (
+    tester,
+  ) async {
+    await appState.updateLlmProviders([
+      const LlmProvider(
+        id: 'p1',
+        name: 'Alpha',
+        models: [LlmModelConfig(id: 'm1', modelId: 'alpha-mini')],
+      ),
+      const LlmProvider(
+        id: 'p2',
+        name: 'Beta',
+        models: [
+          LlmModelConfig(id: 'm1', modelId: 'beta-fast'),
+          LlmModelConfig(id: 'm2', modelId: 'beta-pro'),
+        ],
+      ),
+    ]);
+    const area = Size(1000, 700);
+    useSurface(tester, area);
+    await tester.pumpWidget(harness(area));
+    await tester.pumpAndSettle();
+
+    // No stored choice: the first pair is the active one.
+    expect(find.text('Alpha'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Switch backend'));
+    await tester.pumpAndSettle();
+    // Providers with several models group under a header.
+    expect(find.text('Beta'), findsOneWidget);
+    await tester.tap(find.text('beta-pro'));
+    await tester.pumpAndSettle();
+
+    expect(appState.activeLlmProfile?.id, 'p2/m2');
+    expect(find.text('Beta · beta-pro'), findsOneWidget);
   });
 
   testWidgets('a window smaller than the panel minimum still lays out', (

@@ -1878,6 +1878,18 @@ abstract class AppLocalizations {
   /// **'Dataset changed — conversation reset.'**
   String get agentSessionResetNotice;
 
+  /// No description provided for @agentSwitchProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch backend'**
+  String get agentSwitchProfile;
+
+  /// No description provided for @agentProfileSwitchedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Switched to \"{name}\" — the next message starts a new conversation, without the context above.'**
+  String agentProfileSwitchedNotice(String name);
+
   /// No description provided for @agentErrorNotice.
   ///
   /// In en, this message translates to:

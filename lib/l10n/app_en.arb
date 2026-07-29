@@ -544,6 +544,13 @@
   "agentQuestionDismiss": "Dismiss without answering",
   "agentStoppedNotice": "Stopped.",
   "agentSessionResetNotice": "Dataset changed — conversation reset.",
+  "agentSwitchProfile": "Switch backend",
+  "agentProfileSwitchedNotice": "Switched to \"{name}\" — the next message starts a new conversation, without the context above.",
+  "@agentProfileSwitchedNotice": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
   "agentErrorNotice": "Error: {message}",
   "@agentErrorNotice": {
     "placeholders": {
