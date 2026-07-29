@@ -105,9 +105,13 @@ class BatchRewriteResult {
 }
 
 /// Dataset-wide caption rewrites — delete / replace / insert next to a tag —
-/// with an undo/redo history. Each operation snapshots the exact on-disk text
-/// of every file it touches, so undo restores files byte-for-byte even though
-/// the rewrite itself normalizes separators to ", ".
+/// with an undo/redo history. "Dataset-wide" means the dataset's active
+/// subdirectory scope ([DatasetState.scopedFiles]): when the navigator is
+/// showing one folder, so is every sweep here.
+///
+/// Each operation snapshots the exact on-disk text of every file it touches,
+/// so undo restores files byte-for-byte even though the rewrite itself
+/// normalizes separators to ", ".
 class TagOps extends ChangeNotifier {
   TagOps({required this.dataset, this.beforeMutate, this.onCaptionsChanged});
 
@@ -192,8 +196,8 @@ class TagOps extends ChangeNotifier {
   /// first, null = after the last tag; clamped), skipping tags a file
   /// already has. Uncaptioned images get their caption file created; undoing
   /// writes the empty string back rather than deleting the file. Restrict
-  /// the sweep with [files] (e.g. the filtered gallery); defaults to the
-  /// whole dataset.
+  /// the sweep further with [files] (e.g. the filtered gallery); defaults to
+  /// the active subdirectory scope.
   Future<BatchRewriteResult> addEverywhere(
     String input, {
     int? index,
@@ -344,11 +348,11 @@ class TagOps extends ChangeNotifier {
   Future<void> redo() => _replay(from: _redoStack, to: _undoStack, undo: false);
 
   /// Runs [transform] over every captioned image ([files] defaults to the
-  /// whole dataset); a null return leaves the file untouched. With
-  /// [createMissing], uncaptioned images run through as the empty tag list
-  /// and get their caption file created. IO failures skip the file so one
-  /// bad path never aborts the batch — only files actually rewritten enter
-  /// the history — but every skip is collected into
+  /// dataset's active subdirectory scope); a null return leaves the file
+  /// untouched. With [createMissing], uncaptioned images run through as the
+  /// empty tag list and get their caption file created. IO failures skip the
+  /// file so one bad path never aborts the batch — only files actually
+  /// rewritten enter the history — but every skip is collected into
   /// [BatchRewriteResult.failures] so the caller can report it instead of
   /// passing it off as "no change needed".
   Future<BatchRewriteResult> _rewriteAll(
@@ -364,7 +368,7 @@ class TagOps extends ChangeNotifier {
     final failures = <RewriteFailure>[];
     try {
       await beforeMutate?.call();
-      for (final file in files ?? dataset.allFiles) {
+      for (final file in files ?? dataset.scopedFiles) {
         final captionPath = dataset.captionPathFor(file.path);
         final captionFile = File(captionPath);
         var before = '';

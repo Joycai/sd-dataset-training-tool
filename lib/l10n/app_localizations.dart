@@ -254,6 +254,36 @@ abstract class AppLocalizations {
   /// **'Search filenames'**
   String get searchFilenameHint;
 
+  /// No description provided for @subdirAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All folders'**
+  String get subdirAll;
+
+  /// No description provided for @subdirRoot.
+  ///
+  /// In en, this message translates to:
+  /// **'Root folder'**
+  String get subdirRoot;
+
+  /// No description provided for @subdirPickerTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch subdirectory. The selected folder also scopes the tag statistics, the batch edits and the AI assistant.'**
+  String get subdirPickerTooltip;
+
+  /// No description provided for @subdirScopeNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Scope: {name}'**
+  String subdirScopeNotice(String name);
+
+  /// No description provided for @subdirScopeClearTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to the whole dataset'**
+  String get subdirScopeClearTooltip;
+
   /// No description provided for @filterAll.
   ///
   /// In en, this message translates to:

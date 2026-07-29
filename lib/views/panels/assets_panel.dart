@@ -10,6 +10,7 @@ import '../../state/ai_tagger_state.dart';
 import '../../state/dataset_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
+import '../../widgets/subdirectory_picker.dart';
 
 /// Left panel — the file navigator: search, caption-status segments, and the
 /// file list.
@@ -56,6 +57,10 @@ class AssetsPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (dataset.hasSubdirectories) ...[
+                  SubdirectoryPicker(dataset: dataset),
+                  const SizedBox(height: 8),
+                ],
                 PanelSearchField(
                   hint: l10n.searchFilenameHint,
                   onChanged: dataset.setQuery,

@@ -14,7 +14,6 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
-import 'package:path/path.dart' as p;
 
 import '../../models/ai_tagger_models.dart';
 import '../../models/llm_models.dart';
@@ -95,16 +94,14 @@ List<AgentTool> buildTaggerTools(DatasetToolsDeps deps, AiTaggerState ai) => [
           ? (args['threshold'] as num).toDouble()
           : ai.threshold;
       final ignore = ai.ignoreTags.map((t) => t.toLowerCase()).toSet();
-      final canonical = {
-        for (final f in deps.dataset.allFiles) p.canonicalize(f.path): f.path,
-      };
+      final canonical = canonicalIndex(deps.dataset);
 
       final out = <Map<String, dynamic>>[];
       for (final rel in paths) {
         final resolved = resolveDatasetPath(root, rel);
         final key = resolved == null ? null : canonical[resolved];
         if (key == null) {
-          out.add({'path': rel, 'error': 'not found in dataset'});
+          out.add({'path': rel, 'error': notFoundMessage(deps.dataset, rel)});
           continue;
         }
         try {
@@ -197,9 +194,7 @@ List<AgentTool> buildVisionTools(DatasetToolsDeps deps) => [
       final root = deps.rootDir();
       if (root == null) return toolError('no dataset directory is open');
       final paths = requireStringList(args, 'paths', maxLength: 4);
-      final canonical = {
-        for (final f in deps.dataset.allFiles) p.canonicalize(f.path): f.path,
-      };
+      final canonical = canonicalIndex(deps.dataset);
       final attached = <String>[];
       final failed = <Map<String, String>>[];
       final parts = <ChatContentPart>[];
@@ -207,7 +202,10 @@ List<AgentTool> buildVisionTools(DatasetToolsDeps deps) => [
         final resolved = resolveDatasetPath(root, rel);
         final key = resolved == null ? null : canonical[resolved];
         if (key == null) {
-          failed.add({'path': rel, 'error': 'not found in dataset'});
+          failed.add({
+            'path': rel,
+            'error': notFoundMessage(deps.dataset, rel),
+          });
           continue;
         }
         Uint8List? jpeg;

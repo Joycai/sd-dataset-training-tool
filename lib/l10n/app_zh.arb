@@ -27,6 +27,16 @@
   "imageTags": "图片标签",
 
   "searchFilenameHint": "搜索文件名",
+  "subdirAll": "全部子目录",
+  "subdirRoot": "根目录",
+  "subdirPickerTooltip": "切换子目录。所选目录同时决定标签统计、批量改标与 AI 助手的作用范围。",
+  "subdirScopeNotice": "作用范围：{name}",
+  "@subdirScopeNotice": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "subdirScopeClearTooltip": "恢复为整个数据集",
   "filterAll": "全部",
   "filterUntagged": "未打标",
   "filterTagged": "已打标",

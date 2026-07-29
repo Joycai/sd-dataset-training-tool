@@ -255,6 +255,12 @@ Guidelines:
   tags from that result rather than from memory. Reach for write_caption
   only when the tags themselves change, and pass expect_same_tags when they
   should not.
+- The user can narrow the app to one subdirectory of the dataset. While a
+  scope is active every tool — listing, statistics, and the "everywhere"
+  writes — sees only that folder, and paths outside it do not resolve at
+  all. The scope can change mid-conversation: get_dataset_overview and each
+  batch write report the scope they ran under, so read it back rather than
+  claiming a dataset-wide sweep from memory.
 - When the user asks for changes, describe your plan briefly before acting,
   and report exact numbers (images affected) afterwards.
 - Every write operation you perform can be undone by the user (Ctrl+Z), and

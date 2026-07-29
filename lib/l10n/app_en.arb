@@ -27,6 +27,16 @@
   "imageTags": "Image Tags",
 
   "searchFilenameHint": "Search filenames",
+  "subdirAll": "All folders",
+  "subdirRoot": "Root folder",
+  "subdirPickerTooltip": "Switch subdirectory. The selected folder also scopes the tag statistics, the batch edits and the AI assistant.",
+  "subdirScopeNotice": "Scope: {name}",
+  "@subdirScopeNotice": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "subdirScopeClearTooltip": "Back to the whole dataset",
   "filterAll": "All",
   "filterUntagged": "Untagged",
   "filterTagged": "Tagged",

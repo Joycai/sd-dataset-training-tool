@@ -8,6 +8,7 @@ import '../../state/editor_session.dart';
 import '../../state/tag_ops.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
+import '../../widgets/subdirectory_picker.dart';
 
 enum _TagMenuAction {
   filterInclude,
@@ -248,6 +249,17 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
             ],
           ),
         ),
+        // Every action in this panel is a sweep, and the scope decides how
+        // far it reaches — it has to be visible from here, not only from the
+        // navigator on the far side of the window.
+        if (dataset.activeSubdirectory != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+            child: _ScopeBanner(
+              label: subdirectoryLabel(l10n, dataset.activeSubdirectory),
+              onClear: () => dataset.setSubdirectory(null),
+            ),
+          ),
         if (dataset.tagFilterActive)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
@@ -308,6 +320,54 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
                 ),
         ),
       ],
+    );
+  }
+}
+
+/// Names the subdirectory every operation in this panel is confined to, with
+/// a way back out to the whole dataset.
+class _ScopeBanner extends StatelessWidget {
+  const _ScopeBanner({required this.label, required this.onClear});
+
+  final String label;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(9, 5, 5, 5),
+      decoration: BoxDecoration(
+        color: scheme.primary.withAlpha(23),
+        border: Border.all(color: scheme.primary.withAlpha(115)),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.folder, size: 13, color: scheme.primary),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              l10n.subdirScopeNotice(label),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11.5, color: scheme.primary),
+            ),
+          ),
+          Tooltip(
+            message: l10n.subdirScopeClearTooltip,
+            child: InkWell(
+              onTap: onClear,
+              borderRadius: BorderRadius.circular(99),
+              child: Padding(
+                padding: const EdgeInsets.all(3),
+                child: Icon(Icons.close, size: 13, color: scheme.primary),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

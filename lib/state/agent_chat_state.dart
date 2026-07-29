@@ -314,11 +314,16 @@ class AgentChatState extends ChangeNotifier {
       _buildAskUserTool(),
     ]);
     final root = app.browsingDirectory;
+    final scope = dataset.activeSubdirectory;
     final summary = root == null
         ? 'no dataset directory is open yet'
         : '$root — ${dataset.totalCount} images '
               '(${dataset.taggedCount} captioned), '
-              '${dataset.datasetTags.length} unique tags';
+              '${dataset.datasetTags.length} unique tags'
+              // Only the counts above are scoped, so say so here rather than
+              // letting them read as the whole dataset's.
+              '${scope == null ? '' : '; scope: subdirectory '
+                        '"${scope.isEmpty ? '.' : scope}" only'}';
     return AgentSession(
       client: _clients[profile.kind]!,
       registry: registry,
