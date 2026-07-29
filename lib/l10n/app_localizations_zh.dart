@@ -1136,6 +1136,103 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get agentSkillsSection => '内置技能';
+
+  @override
+  String get characterSheetSkill => '按标准样本打标…';
+
+  @override
+  String get characterSheetTitle => '按标准样本打标';
+
+  @override
+  String get characterSheetIntro =>
+      '助手会用打标器抽样跑一遍数据集，算出你给的固定标签该怎么和打标器的结果合并，产出一份合并规则供你审阅。这一步不会写入任何 caption。';
+
+  @override
+  String get characterSheetName => '规则集名称';
+
+  @override
+  String get characterSheetNameHint => '比如角色名';
+
+  @override
+  String get characterSheetTrigger => '触发词';
+
+  @override
+  String get characterSheetTriggerHint => '会作为每张图 caption 的第一个标签';
+
+  @override
+  String get characterSheetIdentity => '固定特征';
+
+  @override
+  String get characterSheetIdentityHint => '发色、发型、胸部、瞳色…… 每张图都写';
+
+  @override
+  String get characterSheetGarments => '服装';
+
+  @override
+  String get characterSheetGarmentsHint => '裙子、手套、鞋靴、配饰…… 只在打标器看见时才写';
+
+  @override
+  String get characterSheetExtra => '额外要求（可选）';
+
+  @override
+  String get characterSheetExtraHint => '留空则完全按打标器的结果来';
+
+  @override
+  String get characterSheetSampleSize => '采样张数';
+
+  @override
+  String get characterSheetSampleSizeSuffix => '张';
+
+  @override
+  String get characterSheetStart => '开始';
+
+  @override
+  String get characterSheetTagsHelp => '一行一个，或用逗号分隔。';
+
+  @override
+  String get characterSheetSummaryTitle => '按标准样本打标（规划阶段）';
+
+  @override
+  String characterSheetSummarySample(int count) {
+    return '采样 $count 张';
+  }
+
+  @override
+  String get mergeRulesTitle => '合并规则';
+
+  @override
+  String mergeRulesSampled(int count) {
+    return '基于 $count 张采样';
+  }
+
+  @override
+  String get mergeRulesTrigger => '触发词';
+
+  @override
+  String get mergeRulesIdentity => '恒定写入';
+
+  @override
+  String get mergeRulesConflict => '恒定删除';
+
+  @override
+  String get mergeRulesGarments => '服装（由打标器结果决定是否写入）';
+
+  @override
+  String get mergeRulesPassthrough => '沿用打标器结果';
+
+  @override
+  String get mergeRulesNotes => '备注';
+
+  @override
+  String get mergeRulesNeverWritten => '采样中没有依据，不会写入';
+
+  @override
+  String mergeRulesEvidence(String tags) {
+    return '当打标器给出：$tags';
+  }
+
+  @override
   String get llmSection => 'AI 助手（LLM）';
 
   @override

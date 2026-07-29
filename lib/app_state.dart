@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'models/caption_type.dart';
 import 'models/llm_models.dart';
+import 'models/merge_rules.dart';
 import 'models/prompt_preset.dart';
 import 'models/tag_group.dart';
 import 'services/font_service.dart';
@@ -380,6 +381,50 @@ class AppState extends ChangeNotifier {
     await _savePromptPresets();
   }
 
+  // --- Character merge rules (assistant, phase A) ---
+
+  List<CharacterMergeRules> _mergeRuleSets = [];
+
+  /// Saved rule sets, newest first.
+  List<CharacterMergeRules> get mergeRuleSets => _mergeRuleSets;
+
+  /// Kept small deliberately: these are working artifacts of one dataset, and
+  /// there is no management UI for them yet — an unbounded list would only
+  /// grow a preference nobody can prune.
+  static const int kMaxMergeRuleSets = 20;
+
+  static int _mergeRulesIdCounter = 0;
+
+  /// Stores [rules] and returns them with their assigned id. A rule set whose
+  /// character name matches an existing one replaces it rather than piling
+  /// up: re-running the skill after fixing the sheet is the normal case.
+  Future<CharacterMergeRules> saveMergeRules(CharacterMergeRules rules) async {
+    final stored = rules.withId(
+      '${DateTime.now().microsecondsSinceEpoch}-${_mergeRulesIdCounter++}',
+    );
+    final name = stored.character.trim().toLowerCase();
+    final rest = [
+      for (final r in _mergeRuleSets)
+        if (name.isEmpty || r.character.trim().toLowerCase() != name) r,
+    ];
+    _mergeRuleSets = [stored, ...rest].take(kMaxMergeRuleSets).toList();
+    notifyListeners();
+    await _settingsService.saveAgentMergeRulesJson(
+      encodeMergeRules(_mergeRuleSets),
+    );
+    return stored;
+  }
+
+  Future<void> deleteMergeRules(String id) async {
+    final next = _mergeRuleSets.where((r) => r.id != id).toList();
+    if (next.length == _mergeRuleSets.length) return;
+    _mergeRuleSets = next;
+    notifyListeners();
+    await _settingsService.saveAgentMergeRulesJson(
+      encodeMergeRules(_mergeRuleSets),
+    );
+  }
+
   /// Whether agent write tools require user confirmation before running.
   bool _agentConfirmWrites = true;
   bool get agentConfirmWrites => _agentConfirmWrites;
@@ -444,6 +489,9 @@ class AppState extends ChangeNotifier {
     _agentSessionTokenCap = await _settingsService.loadAgentSessionTokenCap();
     _promptPresets = decodePromptPresets(
       await _settingsService.loadAgentPromptPresetsJson() ?? '',
+    );
+    _mergeRuleSets = decodeMergeRules(
+      await _settingsService.loadAgentMergeRulesJson() ?? '',
     );
     final (leftWidth, rightWidth) = await _settingsService.loadPanelWidths();
     _leftPanelWidth = leftWidth;

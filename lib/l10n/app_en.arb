@@ -627,6 +627,53 @@
     }
   },
 
+  "agentSkillsSection": "Built-in skills",
+  "characterSheetSkill": "Character sheet tagging…",
+  "characterSheetTitle": "Character sheet tagging",
+  "characterSheetIntro": "The assistant samples the dataset with the tagger and works out how your fixed tags combine with what the tagger sees. It produces merge rules for you to review — no caption is written in this step.",
+  "characterSheetName": "Rule set name",
+  "characterSheetNameHint": "e.g. the character's name",
+  "characterSheetTrigger": "Trigger word",
+  "characterSheetTriggerHint": "written as the first tag of every caption",
+  "characterSheetIdentity": "Fixed traits",
+  "characterSheetIdentityHint": "hair colour, hairstyle, breast size, eyes… written on every image",
+  "characterSheetGarments": "Outfit",
+  "characterSheetGarmentsHint": "dress, gloves, boots, accessories… written only where the tagger saw them",
+  "characterSheetExtra": "Additional requirements (optional)",
+  "characterSheetExtraHint": "leave empty to go entirely by the tagger's output",
+  "characterSheetSampleSize": "Sample size",
+  "characterSheetSampleSizeSuffix": "images",
+  "characterSheetStart": "Start",
+  "characterSheetTagsHelp": "One per line, or comma-separated.",
+  "characterSheetSummaryTitle": "Character sheet tagging (planning)",
+  "characterSheetSummarySample": "Sampling {count} images",
+  "@characterSheetSummarySample": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "mergeRulesTitle": "Merge rules",
+  "mergeRulesSampled": "from {count} sampled images",
+  "@mergeRulesSampled": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "mergeRulesTrigger": "Trigger word",
+  "mergeRulesIdentity": "Always written",
+  "mergeRulesConflict": "Always removed",
+  "mergeRulesGarments": "Outfit, gated by the tagger",
+  "mergeRulesPassthrough": "Kept from the tagger",
+  "mergeRulesNotes": "Notes",
+  "mergeRulesNeverWritten": "no evidence in the sample — never written",
+  "mergeRulesEvidence": "when the tagger says: {tags}",
+  "@mergeRulesEvidence": {
+    "placeholders": {
+      "tags": { "type": "String" }
+    }
+  },
+
   "llmSection": "AI Assistant (LLM)",
   "llmActiveProfile": "Active backend",
   "llmActiveProfileDesc": "Which configured LLM backend the assistant talks to",
