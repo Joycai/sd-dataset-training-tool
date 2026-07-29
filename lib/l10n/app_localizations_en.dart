@@ -1032,6 +1032,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentConfirmReject => 'Reject';
 
   @override
+  String get agentTokenCapTitle => 'Conversation token budget';
+
+  @override
+  String get agentTokenCapDesc =>
+      'Stops a conversation once it has spent this many tokens. Every turn re-sends the whole history, so batch work spends it fast — raise it, or start a new conversation when it runs out. Applies to the next conversation.';
+
+  @override
+  String get agentTokenCapUnlimited => 'No limit';
+
+  @override
+  String get agentTokenCapNotice =>
+      'This conversation reached its token budget. Start a new conversation, or raise the budget in Settings.';
+
+  @override
+  String agentTokensUsedOfCap(int used, int cap) {
+    return '$used / $cap tokens used this conversation';
+  }
+
+  @override
   String get agentConfirmWritesTitle => 'Confirm writes';
 
   @override

@@ -555,6 +555,18 @@
   "agentConfirmAllow": "Allow",
   "agentConfirmAllowAll": "Allow all this conversation",
   "agentConfirmReject": "Reject",
+  "agentTokenCapTitle": "Conversation token budget",
+  "agentTokenCapDesc": "Stops a conversation once it has spent this many tokens. Every turn re-sends the whole history, so batch work spends it fast — raise it, or start a new conversation when it runs out. Applies to the next conversation.",
+  "agentTokenCapUnlimited": "No limit",
+  "agentTokenCapNotice": "This conversation reached its token budget. Start a new conversation, or raise the budget in Settings.",
+  "agentTokensUsedOfCap": "{used} / {cap} tokens used this conversation",
+  "@agentTokensUsedOfCap": {
+    "placeholders": {
+      "used": { "type": "int" },
+      "cap": { "type": "int" }
+    }
+  },
+
   "agentConfirmWritesTitle": "Confirm writes",
   "agentConfirmWritesDesc": "Ask before the assistant modifies caption files; every change stays undoable either way",
 

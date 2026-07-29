@@ -65,7 +65,9 @@ class AgentSession {
   /// Model turns per user request; guards against infinite tool loops.
   final int maxTurnsPerRun;
 
-  /// Cumulative token cap for the whole conversation.
+  /// Cumulative token cap for the whole conversation; 0 or less means no
+  /// cap. Every turn re-sends the whole history, so this grows quadratically
+  /// in turns — it is a spend guard, not a context measure.
   final int sessionTokenCap;
 
   /// When set, write tools require this callback to return true before they
@@ -100,7 +102,7 @@ class AgentSession {
           yield AgentFinished(AgentStopReason.cancelled);
           return;
         }
-        if (totalUsage.total >= sessionTokenCap) {
+        if (sessionTokenCap > 0 && totalUsage.total >= sessionTokenCap) {
           yield AgentFinished(
             AgentStopReason.tokenCap,
             'session token cap ($sessionTokenCap) reached',

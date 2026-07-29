@@ -1007,6 +1007,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentConfirmReject => '拒绝';
 
   @override
+  String get agentTokenCapTitle => '会话用量上限';
+
+  @override
+  String get agentTokenCapDesc =>
+      '单个会话累计用掉这么多 token 后停止。每轮都会重发整段历史，批量任务消耗很快——可以调高，或用完后新开会话。对下一个会话生效。';
+
+  @override
+  String get agentTokenCapUnlimited => '不限';
+
+  @override
+  String get agentTokenCapNotice => '本会话已用完 token 额度。新开一个会话继续，或到设置里调高上限。';
+
+  @override
+  String agentTokensUsedOfCap(int used, int cap) {
+    return '本会话已用 $used / $cap tokens';
+  }
+
+  @override
   String get agentConfirmWritesTitle => '写操作需确认';
 
   @override

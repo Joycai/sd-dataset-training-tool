@@ -18,7 +18,7 @@ import 'tag_ops.dart';
 enum AgentEntryKind { user, assistant, tool, notice }
 
 /// What a notice row represents; the panel maps these to localized text.
-enum AgentNoticeType { cancelled, error, reset }
+enum AgentNoticeType { cancelled, error, reset, tokenCap }
 
 /// One row in the chat transcript. Mutable: assistant text streams in and
 /// tool entries flip from running to finished.
@@ -107,6 +107,11 @@ class AgentChatState extends ChangeNotifier {
   bool get busy => _busy;
   int get totalTokens => _session?.totalUsage.total ?? 0;
 
+  /// The cap the running conversation was created with — changing the
+  /// setting mid-conversation must not make the footer disagree with the
+  /// session that is actually enforcing it. 0 = uncapped.
+  int get tokenCap => _session?.sessionTokenCap ?? app.agentSessionTokenCap;
+
   /// Name of the profile the current/next session uses, for the header.
   String? get profileName => app.activeLlmProfile?.name;
 
@@ -181,8 +186,12 @@ class AgentChatState extends ChangeNotifier {
         break;
       case AgentStopReason.cancelled:
         entries.add(AgentChatEntry.notice(AgentNoticeType.cancelled));
-      case AgentStopReason.maxTurns:
       case AgentStopReason.tokenCap:
+        // Its own notice: "session token cap (1000000) reached" tells the
+        // user nothing about what to do, and the way out (raise the cap, or
+        // start a fresh conversation) is not obvious.
+        entries.add(AgentChatEntry.notice(AgentNoticeType.tokenCap));
+      case AgentStopReason.maxTurns:
       case AgentStopReason.error:
         entries.add(
           AgentChatEntry.notice(AgentNoticeType.error, message ?? reason.name),
@@ -289,6 +298,7 @@ class AgentChatState extends ChangeNotifier {
       client: _clients[profile.kind]!,
       registry: registry,
       profile: profile,
+      sessionTokenCap: app.agentSessionTokenCap,
       systemPrompt: buildAgentSystemPrompt(
         localeName: app.currentLocale.languageCode == 'zh'
             ? 'Chinese (简体中文)'

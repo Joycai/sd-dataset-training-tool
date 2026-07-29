@@ -476,6 +476,32 @@ class _SettingsViewState extends State<SettingsView> {
                         ),
                       ),
                       _SettingsRow(
+                        title: l10n.agentTokenCapTitle,
+                        description: l10n.agentTokenCapDesc,
+                        control: DropdownButton<int>(
+                          value: appState.agentSessionTokenCap,
+                          underline: const SizedBox.shrink(),
+                          borderRadius: BorderRadius.circular(7),
+                          items: [
+                            for (final stop in _tokenCapChoices(
+                              appState.agentSessionTokenCap,
+                            ))
+                              DropdownMenuItem(
+                                value: stop,
+                                child: Text(
+                                  _formatTokenCap(l10n, stop),
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              appState.updateAgentSessionTokenCap(value);
+                            }
+                          },
+                        ),
+                      ),
+                      _SettingsRow(
                         title: l10n.promptPresetsTitle,
                         description: l10n.promptPresetsDesc,
                         control: OutlinedButton.icon(
@@ -652,6 +678,26 @@ class _TagDictionaryAction extends StatelessWidget {
 }
 
 /// Which group of settings the dialog is showing.
+/// Offered spend caps for one assistant conversation, 0 = uncapped. Every
+/// turn re-sends the whole history, so a 32K-window model burns roughly its
+/// window per turn: 1M is only ~35 model turns, which a couple of batch
+/// requests can spend. Hence the room above it.
+const List<int> _tokenCapStops = [500000, 1000000, 2000000, 5000000];
+
+/// The stops plus whatever is currently stored (a value from an older build
+/// must not silently read as one of ours), uncapped last.
+List<int> _tokenCapChoices(int current) => [
+  ...{..._tokenCapStops, if (current > 0) current}.toList()..sort(),
+  0,
+];
+
+String _formatTokenCap(AppLocalizations l10n, int value) {
+  if (value == 0) return l10n.agentTokenCapUnlimited;
+  if (value < 1000000) return '${value ~/ 1000}K';
+  final millions = value / 1000000;
+  return '${millions.toStringAsFixed(value % 1000000 == 0 ? 0 : 1)}M';
+}
+
 enum _SettingsSection { appearance, dataset, assistant, about }
 
 /// macOS-style source list: one entry per group, version pinned to the foot.
