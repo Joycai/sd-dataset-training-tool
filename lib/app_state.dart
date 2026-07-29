@@ -390,6 +390,19 @@ class AppState extends ChangeNotifier {
     await _settingsService.saveAgentConfirmWrites(value);
   }
 
+  /// Cumulative token budget for one assistant conversation; 0 = no cap.
+  /// Applies to the next conversation, not one already running.
+  int _agentSessionTokenCap = 1000000;
+  int get agentSessionTokenCap => _agentSessionTokenCap;
+
+  Future<void> updateAgentSessionTokenCap(int value) async {
+    final next = value < 0 ? 0 : value;
+    if (_agentSessionTokenCap == next) return;
+    _agentSessionTokenCap = next;
+    notifyListeners();
+    await _settingsService.saveAgentSessionTokenCap(next);
+  }
+
   // --- Other states remain unchanged ---
   Future<void> loadSettings() async {
     _locale = await _settingsService.loadLocale();
@@ -414,6 +427,7 @@ class AppState extends ChangeNotifier {
     );
     _llmActiveProfileId = await _settingsService.loadLlmActiveProfileId();
     _agentConfirmWrites = await _settingsService.loadAgentConfirmWrites();
+    _agentSessionTokenCap = await _settingsService.loadAgentSessionTokenCap();
     _promptPresets = decodePromptPresets(
       await _settingsService.loadAgentPromptPresetsJson() ?? '',
     );

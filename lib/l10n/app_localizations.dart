@@ -1908,6 +1908,36 @@ abstract class AppLocalizations {
   /// **'Reject'**
   String get agentConfirmReject;
 
+  /// No description provided for @agentTokenCapTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversation token budget'**
+  String get agentTokenCapTitle;
+
+  /// No description provided for @agentTokenCapDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Stops a conversation once it has spent this many tokens. Every turn re-sends the whole history, so batch work spends it fast — raise it, or start a new conversation when it runs out. Applies to the next conversation.'**
+  String get agentTokenCapDesc;
+
+  /// No description provided for @agentTokenCapUnlimited.
+  ///
+  /// In en, this message translates to:
+  /// **'No limit'**
+  String get agentTokenCapUnlimited;
+
+  /// No description provided for @agentTokenCapNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'This conversation reached its token budget. Start a new conversation, or raise the budget in Settings.'**
+  String get agentTokenCapNotice;
+
+  /// No description provided for @agentTokensUsedOfCap.
+  ///
+  /// In en, this message translates to:
+  /// **'{used} / {cap} tokens used this conversation'**
+  String agentTokensUsedOfCap(int used, int cap);
+
   /// No description provided for @agentConfirmWritesTitle.
   ///
   /// In en, this message translates to:

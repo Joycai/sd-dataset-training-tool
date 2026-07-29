@@ -185,4 +185,29 @@ void main() {
     expect(done.reason, AgentStopReason.tokenCap);
     expect(client.calls, 1); // second run never reached the model
   });
+
+  test('a cap of 0 never stops the conversation', () async {
+    final client = FakeLlmClient([
+      for (var i = 0; i < 2; i++)
+        [
+          TextDelta('big'),
+          StreamDone(
+            finishReason: 'stop',
+            usage: const TokenUsage(prompt: 900, completion: 200),
+          ),
+        ],
+    ]);
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+      sessionTokenCap: 0,
+    );
+
+    await session.run('one').toList();
+    final events = await session.run('two').toList();
+    expect((events.last as AgentFinished).reason, AgentStopReason.completed);
+    expect(client.calls, 2);
+  });
 }

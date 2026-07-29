@@ -192,14 +192,7 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
           onExpand: _openComposer,
           onPickPreset: _insertPreset,
         ),
-        if (chat.totalTokens > 0)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-            child: Text(
-              l10n.agentTokensUsed(chat.totalTokens),
-              style: monoStyle(context, size: 10.5, color: semantic.muted),
-            ),
-          ),
+        if (chat.totalTokens > 0) _UsageFooter(chat: chat),
       ],
     );
   }
@@ -384,6 +377,7 @@ class _EntryRow extends StatelessWidget {
         final text = switch (entry.noticeType) {
           AgentNoticeType.cancelled => l10n.agentStoppedNotice,
           AgentNoticeType.reset => l10n.agentSessionResetNotice,
+          AgentNoticeType.tokenCap => l10n.agentTokenCapNotice,
           AgentNoticeType.error || null => l10n.agentErrorNotice(entry.text),
         };
         return Padding(
@@ -679,6 +673,37 @@ class _InputRow extends StatelessWidget {
             onPressed: enabled ? onSend : null,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Cumulative usage of the conversation. With a cap set it reads "used /
+/// cap" and turns amber near the end: hitting the cap ends the run, and a
+/// counter that only ever climbs gives no warning that it is coming.
+class _UsageFooter extends StatelessWidget {
+  const _UsageFooter({required this.chat});
+
+  final AgentChatState chat;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final cap = chat.tokenCap;
+    final nearCap = cap > 0 && chat.totalTokens >= cap * 0.8;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Text(
+        cap > 0
+            ? l10n.agentTokensUsedOfCap(chat.totalTokens, cap)
+            : l10n.agentTokensUsed(chat.totalTokens),
+        style: monoStyle(
+          context,
+          size: 10.5,
+          color: nearCap ? semantic.warn : semantic.muted,
+        ),
       ),
     );
   }

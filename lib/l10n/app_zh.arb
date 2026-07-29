@@ -360,6 +360,12 @@
   "agentConfirmAllow": "允许",
   "agentConfirmAllowAll": "本会话全部允许",
   "agentConfirmReject": "拒绝",
+  "agentTokenCapTitle": "会话用量上限",
+  "agentTokenCapDesc": "单个会话累计用掉这么多 token 后停止。每轮都会重发整段历史，批量任务消耗很快——可以调高，或用完后新开会话。对下一个会话生效。",
+  "agentTokenCapUnlimited": "不限",
+  "agentTokenCapNotice": "本会话已用完 token 额度。新开一个会话继续，或到设置里调高上限。",
+  "agentTokensUsedOfCap": "本会话已用 {used} / {cap} tokens",
+
   "agentConfirmWritesTitle": "写操作需确认",
   "agentConfirmWritesDesc": "助手修改 caption 文件前先征求确认；无论开关与否，所有改动都可撤销",
 
