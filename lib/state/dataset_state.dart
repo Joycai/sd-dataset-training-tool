@@ -16,6 +16,20 @@ class DatasetTag {
   final int count;
 }
 
+/// One directory of the dataset that directly holds images.
+class DatasetSubdirectory {
+  const DatasetSubdirectory(this.path, this.count);
+
+  /// Path relative to the dataset root, `/`-separated. The empty string is
+  /// the root directory itself.
+  final String path;
+
+  /// Images sitting directly in this directory.
+  final int count;
+
+  bool get isRoot => path.isEmpty;
+}
+
 /// Scans a dataset directory and tracks per-image caption status and tags,
 /// the search/filter state of the assets panel, and the current selection.
 class DatasetState extends ChangeNotifier {
@@ -33,6 +47,13 @@ class DatasetState extends ChangeNotifier {
   final Map<String, List<String>> _tagsByPath = {};
   // Set mirror of _tagsByPath for O(1) lookups in the filter evaluation.
   final Map<String, Set<String>> _tagSetsByPath = {};
+  // Image path -> its directory relative to the dataset root, computed once
+  // per scan so the scope check is a map lookup rather than path arithmetic.
+  Map<String, String> _dirByPath = {};
+  String? _rootPath;
+  List<DatasetSubdirectory> _subdirectories = const [];
+  String? _activeSubdirectory;
+  List<File>? _scopedCache;
   List<DatasetTag>? _tagCountsCache;
   // Derived-list caches: several panels read these getters in every build,
   // so they are computed once per state change instead of once per read.
@@ -57,9 +78,67 @@ class DatasetState extends ChangeNotifier {
   TagFilterGroup get tagFilterExpression => _tagFilterExpr;
   bool get tagFilterActive => !_tagFilterExpr.isEmpty;
 
+  /// Every image of the last scan, ignoring the active subdirectory. Almost
+  /// nothing wants this — see [scopedFiles].
   List<File> get allFiles => _files;
-  int get totalCount => _files.length;
-  int get taggedCount => _taggedCountCache ??= _files
+
+  // --- Subdirectory scope ------------------------------------------------
+  //
+  // A dataset is often split into per-concept folders (`10_char`, `20_style`
+  // …). Picking one narrows the navigator *and* every sweep that follows —
+  // the tag index, the batch rewrites, the AI runs and the agent tools all
+  // read [scopedFiles], so "everywhere" always means "everywhere in what the
+  // navigator is showing you".
+
+  /// The directory of the last scan, or null when nothing is open.
+  String? get rootPath => _rootPath;
+
+  /// Directories holding images, root first then alphabetical.
+  List<DatasetSubdirectory> get subdirectories => _subdirectories;
+
+  /// Whether the scan found images in more than one directory — i.e. whether
+  /// there is anything to switch between.
+  bool get hasSubdirectories => _subdirectories.length > 1;
+
+  /// The directory every operation is restricted to (relative to the root,
+  /// `''` = the root directory itself), or null for the whole dataset.
+  String? get activeSubdirectory => _activeSubdirectory;
+
+  /// The images the active subdirectory scope allows. This — not [allFiles] —
+  /// is what dataset-wide operations sweep.
+  List<File> get scopedFiles => _scopedCache ??= _computeScopedFiles();
+
+  List<File> _computeScopedFiles() {
+    final scope = _activeSubdirectory;
+    if (scope == null) return _files;
+    return _files.where((f) => _dirByPath[f.path] == scope).toList();
+  }
+
+  bool _inScope(String imagePath) =>
+      _activeSubdirectory == null ||
+      _dirByPath[imagePath] == _activeSubdirectory;
+
+  /// Restricts the app to one subdirectory; null (or a directory the current
+  /// scan does not have) means the whole dataset.
+  void setSubdirectory(String? value) {
+    final next = value != null && _subdirectories.any((d) => d.path == value)
+        ? value
+        : null;
+    if (_activeSubdirectory == next) return;
+    _activeSubdirectory = next;
+    // The selection can now sit outside the scope; leaving it would let the
+    // editor keep writing into a file the navigator no longer lists.
+    if (_selectedPath != null && !_inScope(_selectedPath!)) {
+      _selectedPath = null;
+    }
+    _scopedCache = null;
+    _tagCountsCache = null;
+    _invalidateDerived();
+    notifyListeners();
+  }
+
+  int get totalCount => scopedFiles.length;
+  int get taggedCount => _taggedCountCache ??= scopedFiles
       .where((f) => _hasCaption[f.path] == true)
       .length;
   int get untaggedCount => totalCount - taggedCount;
@@ -71,14 +150,14 @@ class DatasetState extends ChangeNotifier {
     _taggedCountCache = null;
   }
 
-  /// Every tag in the dataset with its image count, most frequent first
+  /// Every tag in the active scope with its image count, most frequent first
   /// (alphabetical within equal counts). Cached until captions change.
   List<DatasetTag> get datasetTags => _tagCountsCache ??= _computeTagCounts();
 
   List<DatasetTag> _computeTagCounts() {
     final counts = <String, int>{};
-    for (final tags in _tagsByPath.values) {
-      for (final tag in tags) {
+    for (final file in scopedFiles) {
+      for (final tag in _tagsByPath[file.path] ?? const <String>[]) {
         counts[tag] = (counts[tag] ?? 0) + 1;
       }
     }
@@ -102,13 +181,14 @@ class DatasetState extends ChangeNotifier {
   String captionPathFor(String imagePath) =>
       '${p.withoutExtension(imagePath)}$_captionExtension';
 
-  /// Files after search + caption-status + tag filtering; the grid and the
-  /// previous/next navigation both operate on this list.
+  /// Files after the subdirectory scope plus search + caption-status + tag
+  /// filtering; the grid and the previous/next navigation both operate on
+  /// this list.
   List<File> get visibleFiles => _visibleCache ??= _computeVisibleFiles();
 
   List<File> _computeVisibleFiles() {
     final q = _query.trim().toLowerCase();
-    return _files.where((f) {
+    return scopedFiles.where((f) {
       if (q.isNotEmpty && !p.basename(f.path).toLowerCase().contains(q)) {
         return false;
       }
@@ -305,6 +385,17 @@ class DatasetState extends ChangeNotifier {
 
     found.sort((a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()));
     _files = found;
+    _rootPath = directoryPath;
+    _dirByPath = {
+      for (final f in found) f.path: _relativeDirOf(directoryPath, f.path),
+    };
+    _subdirectories = _computeSubdirectories();
+    // A refresh of the same dataset keeps the chosen scope; a scope whose
+    // directory is gone falls back to the whole dataset.
+    if (_activeSubdirectory != null &&
+        !_subdirectories.any((d) => d.path == _activeSubdirectory)) {
+      _activeSubdirectory = null;
+    }
     _hasCaption
       ..clear()
       ..addAll(captioned);
@@ -314,15 +405,39 @@ class DatasetState extends ChangeNotifier {
     _tagSetsByPath
       ..clear()
       ..addAll(tagsByPath.map((k, v) => MapEntry(k, v.toSet())));
+    _scopedCache = null;
     _tagCountsCache = null;
     _invalidateDerived();
     _captionExtension = captionExtension;
     _isLoading = false;
     _error = error;
-    if (_selectedPath != null && !captioned.containsKey(_selectedPath)) {
+    if (_selectedPath != null &&
+        (!captioned.containsKey(_selectedPath) || !_inScope(_selectedPath!))) {
       _selectedPath = null;
     }
     notifyListeners();
+  }
+
+  /// An image's directory relative to the dataset root, `/`-separated so the
+  /// key is stable regardless of the platform separator. `''` is the root.
+  static String _relativeDirOf(String root, String imagePath) {
+    final rel = p.relative(p.dirname(imagePath), from: root);
+    if (rel == '.' || rel.isEmpty) return '';
+    return p.split(rel).join('/');
+  }
+
+  List<DatasetSubdirectory> _computeSubdirectories() {
+    final counts = <String, int>{};
+    for (final dir in _dirByPath.values) {
+      counts[dir] = (counts[dir] ?? 0) + 1;
+    }
+    final dirs = counts.keys.toList()
+      // The root sorts first; the rest alphabetically, case-insensitively.
+      ..sort((a, b) {
+        if (a.isEmpty != b.isEmpty) return a.isEmpty ? -1 : 1;
+        return a.toLowerCase().compareTo(b.toLowerCase());
+      });
+    return [for (final dir in dirs) DatasetSubdirectory(dir, counts[dir]!)];
   }
 
   void clear() {
@@ -331,6 +446,11 @@ class DatasetState extends ChangeNotifier {
     _hasCaption.clear();
     _tagsByPath.clear();
     _tagSetsByPath.clear();
+    _dirByPath = {};
+    _rootPath = null;
+    _subdirectories = const [];
+    _activeSubdirectory = null;
+    _scopedCache = null;
     _tagCountsCache = null;
     _invalidateDerived();
     _selectedPath = null;

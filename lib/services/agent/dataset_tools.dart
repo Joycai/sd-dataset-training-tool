@@ -4,6 +4,12 @@
 /// they always see the current dataset. All image paths exchanged with the
 /// model are *relative to the dataset root* — shorter, and resolving them
 /// back is guarded against directory traversal.
+///
+/// Every tool here — read and write alike — sees only
+/// [DatasetState.scopedFiles], the dataset's active subdirectory scope. The
+/// model is never handed a path it may not also write to, which is what keeps
+/// "remove this tag everywhere" honest when the user has narrowed the app to
+/// one folder.
 library;
 
 import 'dart:io';
@@ -39,7 +45,10 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
       name: 'get_dataset_overview',
       description:
           'Overview of the currently open dataset: image counts, caption '
-          'status, number of unique tags. Call this first.',
+          'status, number of unique tags, and the active subdirectory '
+          'scope. Call this first, and again before a batch write if the '
+          'conversation has been going for a while — the user can change '
+          'the scope at any time.',
       parametersSchema: {'type': 'object', 'properties': {}},
     ),
     handler: (args) async {
@@ -50,6 +59,12 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
       final d = deps.dataset;
       return toolOk({
         'root': root,
+        'scope': scopeLabel(d),
+        if (d.subdirectories.length > 1)
+          'subdirectories': [
+            for (final s in d.subdirectories)
+              {'path': s.isRoot ? '.' : s.path, 'images': s.count},
+          ],
         'total_images': d.totalCount,
         'captioned': d.taggedCount,
         'uncaptioned': d.untaggedCount,
@@ -62,10 +77,10 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
     spec: const AgentToolSpec(
       name: 'get_tag_stats',
       description:
-          'Tags across the whole dataset with how many images carry '
-          'each, as [tag, count] pairs. The primary way to understand '
-          'the tag vocabulary — prefer this over reading captions '
-          'image by image.',
+          'Tags across the dataset (or the active subdirectory scope) '
+          'with how many images carry each, as [tag, count] pairs. The '
+          'primary way to understand the tag vocabulary — prefer this '
+          'over reading captions image by image.',
       parametersSchema: {
         'type': 'object',
         'properties': {
@@ -140,8 +155,10 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
       name: 'list_images',
       description:
           'List images (paths relative to the dataset root), filterable '
-          'by tags and caption status. Use the filters plus pagination — '
-          'do not page through the whole dataset without need.',
+          'by tags and caption status. Only images inside the active '
+          'subdirectory scope are listed. Use the filters plus '
+          'pagination — do not page through the whole dataset without '
+          'need.',
       parametersSchema: {
         'type': 'object',
         'properties': {
@@ -180,7 +197,7 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
 
       final d = deps.dataset;
       final matched = <({String path, int nTags, bool captioned})>[];
-      for (final f in d.allFiles) {
+      for (final f in d.scopedFiles) {
         if (nameQuery != null &&
             !p.basename(f.path).toLowerCase().contains(nameQuery)) {
           continue;
@@ -198,6 +215,7 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
       }
       final page = matched.skip(offset).take(limit).toList();
       return toolOk({
+        'scope': scopeLabel(d),
         'total_matches': matched.length,
         'offset': offset,
         'returned': page.length,
@@ -237,7 +255,7 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
         final resolved = resolveDatasetPath(root, rel);
         final key = resolved == null ? null : canonical[resolved];
         if (key == null) {
-          out.add({'path': rel, 'error': 'not found in dataset'});
+          out.add({'path': rel, 'error': notFoundMessage(d, rel)});
           continue;
         }
         out.add({
@@ -282,6 +300,10 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
 /// lands on the shared undo stack with an `AI: ` label the user can inspect
 /// in the top bar and revert with Ctrl+Z.
 ///
+/// The "everywhere" tools sweep the active subdirectory scope, not
+/// necessarily the whole dataset; each result carries the scope it ran under
+/// so the model reports what actually happened.
+///
 /// Every handler here is wrapped in [_guardBusy]: [TagOps] refuses reentrant
 /// runs by returning "0 files changed", which the model would otherwise read
 /// as "no image matched" and move on from a write that never happened.
@@ -311,8 +333,8 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
     spec: const AgentToolSpec(
       name: 'remove_tag_everywhere',
       description:
-          'Remove one tag from every caption in the dataset that has '
-          'it. Undoable.',
+          'Remove one tag from every caption that has it, within the '
+          'active subdirectory scope. Undoable.',
       parametersSchema: {
         'type': 'object',
         'properties': {
@@ -325,6 +347,7 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
       final tag = requireString(args, 'tag');
       return _batchResult(
         await tagOps.deleteEverywhere(tag, label: 'AI: remove "$tag"'),
+        scope: scopeLabel(deps.dataset),
       );
     },
   ),
@@ -357,6 +380,7 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
           replacement,
           label: 'AI: replace "$tag" → "$replacement"',
         ),
+        scope: scopeLabel(deps.dataset),
       );
     },
   ),
@@ -399,6 +423,7 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
               'AI: insert ${tags.join(", ")} '
               '${after ? 'after' : 'before'} "$anchor"',
         ),
+        scope: scopeLabel(deps.dataset),
       );
     },
   ),
@@ -408,8 +433,9 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
       name: 'add_tags_everywhere',
       description:
           'Add tags to captions at a given position (0 = first, omitted '
-          '= append at end). By default affects the whole dataset; '
-          'narrow it with the same filters as list_images. Captions '
+          '= append at end). By default affects everything in the active '
+          'subdirectory scope; narrow it further with the same filters '
+          'as list_images. Captions '
           'that already contain a tag are skipped; uncaptioned images '
           'get a caption file created. Undoable.',
       parametersSchema: {
@@ -456,6 +482,7 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
           files: files,
           label: 'AI: add ${tags.join(", ")}',
         ),
+        scope: scopeLabel(deps.dataset),
       );
     },
   ),
@@ -534,6 +561,7 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
           unlistedFirst: unlisted == 'start',
           label: 'AI: sort caption tags',
         ),
+        scope: scopeLabel(deps.dataset),
         extra: {'scanned_files': files.length},
       );
     },
@@ -577,7 +605,9 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
       final rel = requireString(args, 'path');
       final order = requireStringList(args, 'order');
       final key = resolveImageKey(deps.dataset, root, rel);
-      if (key == null) return toolError('image not found in dataset: $rel');
+      if (key == null) {
+        return toolError('image ${notFoundMessage(deps.dataset, rel)}');
+      }
 
       final current = deps.dataset.tagsOf(key);
       if (current.isEmpty) return toolError('$rel has no caption to reorder');
@@ -650,7 +680,9 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
         return toolError('missing required string parameter "caption"');
       }
       final key = resolveImageKey(deps.dataset, root, rel);
-      if (key == null) return toolError('image not found in dataset: $rel');
+      if (key == null) {
+        return toolError('image ${notFoundMessage(deps.dataset, rel)}');
+      }
 
       final before = deps.dataset.tagsOf(key);
       final after = parseTagText(caption);
@@ -724,12 +756,17 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
 /// so the skipped ones must be named here: reporting only `changed_files`
 /// would let a sweep that failed on every file read as "nothing matched".
 /// Nothing written *and* files failed is an error, not a no-op.
+///
+/// [scope] travels with every success: the user can narrow the app to one
+/// subdirectory mid-conversation, and a model working from a stale overview
+/// would otherwise report a folder-wide sweep as a dataset-wide one.
 AgentToolResult _batchResult(
   BatchRewriteResult result, {
+  required String scope,
   Map<String, dynamic> extra = const {},
 }) {
   if (result.failures.isEmpty) {
-    return toolOk({'changed_files': result.changed, ...extra});
+    return toolOk({'changed_files': result.changed, 'scope': scope, ...extra});
   }
   const sample = 5;
   if (result.changed == 0) {
@@ -742,6 +779,7 @@ AgentToolResult _batchResult(
   }
   return toolOk({
     'changed_files': result.changed,
+    'scope': scope,
     'failed_files': result.failed,
     'failures': [
       for (final f in result.failures.take(sample))
@@ -752,6 +790,23 @@ AgentToolResult _batchResult(
   });
 }
 
+/// The "no such image" message. It has to name the scope when one is active:
+/// a path that merely sits in another subdirectory reads as a typo otherwise,
+/// and the model retries it instead of asking about the scope.
+String notFoundMessage(DatasetState dataset, String rel) {
+  final scope = dataset.activeSubdirectory;
+  if (scope == null) return 'not found in dataset: $rel';
+  return 'not found in the active scope (subdirectory '
+      '"${scope.isEmpty ? '.' : scope}"): $rel';
+}
+
+/// How the active subdirectory scope is described to the model.
+String scopeLabel(DatasetState dataset) {
+  final scope = dataset.activeSubdirectory;
+  if (scope == null) return 'whole dataset';
+  return 'subdirectory "${scope.isEmpty ? '.' : scope}" only';
+}
+
 List<File> _filterFiles(
   DatasetState dataset, {
   required List<String> include,
@@ -760,7 +815,7 @@ List<File> _filterFiles(
   String? nameQuery,
 }) {
   final out = <File>[];
-  for (final f in dataset.allFiles) {
+  for (final f in dataset.scopedFiles) {
     if (nameQuery != null &&
         !p.basename(f.path).toLowerCase().contains(nameQuery)) {
       continue;
@@ -774,10 +829,12 @@ List<File> _filterFiles(
   return out;
 }
 
-/// Canonicalized path → the dataset's own path key. Canonicalizing tolerates
-/// the case and separator differences a model introduces on Windows.
+/// Canonicalized path → the dataset's own path key, over the active scope
+/// only: an image the model may not write to must not resolve at all.
+/// Canonicalizing tolerates the case and separator differences a model
+/// introduces on Windows.
 Map<String, String> canonicalIndex(DatasetState dataset) => {
-  for (final f in dataset.allFiles) p.canonicalize(f.path): f.path,
+  for (final f in dataset.scopedFiles) p.canonicalize(f.path): f.path,
 };
 
 /// Resolves one model-supplied relative path to the dataset's path key, or

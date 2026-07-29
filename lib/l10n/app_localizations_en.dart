@@ -90,6 +90,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get searchFilenameHint => 'Search filenames';
 
   @override
+  String get subdirAll => 'All folders';
+
+  @override
+  String get subdirRoot => 'Root folder';
+
+  @override
+  String get subdirPickerTooltip =>
+      'Switch subdirectory. The selected folder also scopes the tag statistics, the batch edits and the AI assistant.';
+
+  @override
+  String subdirScopeNotice(String name) {
+    return 'Scope: $name';
+  }
+
+  @override
+  String get subdirScopeClearTooltip => 'Back to the whole dataset';
+
+  @override
   String get filterAll => 'All';
 
   @override

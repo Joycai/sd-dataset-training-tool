@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
@@ -9,6 +11,7 @@ import '../../state/batch_tag_state.dart';
 import '../../state/dataset_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/model_picker.dart';
+import '../../widgets/subdirectory_picker.dart';
 import 'ai_params_dialog.dart';
 
 /// Opens the batch tagging dialog. The states are passed explicitly because
@@ -92,18 +95,16 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
     _batch.setBlacklistFromInput(_blacklistController.text);
   }
 
-  List<String> _targetPaths(DatasetState dataset) {
-    final files = _onlyFiltered ? dataset.visibleFiles : dataset.allFiles;
-    return [for (final f in files) f.path];
-  }
+  /// The run targets the active subdirectory scope, not the whole dataset —
+  /// same rule as every other batch operation.
+  List<File> _targetFiles(DatasetState dataset) =>
+      _onlyFiltered ? dataset.visibleFiles : dataset.scopedFiles;
 
   void _start() {
     final l10n = AppLocalizations.of(context)!;
     final dataset = context.read<DatasetState>();
     _persistFields();
-    final files = List.of(
-      _onlyFiltered ? dataset.visibleFiles : dataset.allFiles,
-    );
+    final files = List.of(_targetFiles(dataset));
     setState(() => _started = true);
     // Not awaited: the dialog follows the run through the state's notifies.
     _batch.run(files: files, operationLabel: l10n.batchTagOperationLabel);
@@ -125,8 +126,8 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
     final ai = context.watch<AiTaggerState>();
     final batch = context.watch<BatchTagState>();
     final dataset = context.watch<DatasetState>();
-    final filtered = dataset.visibleFiles.length != dataset.allFiles.length;
-    final targetCount = _targetPaths(dataset).length;
+    final filtered = dataset.visibleFiles.length != dataset.scopedFiles.length;
+    final targetCount = _targetFiles(dataset).length;
     final canStart = ai.modelName != null && targetCount > 0;
     final overwrite = batch.mode == BatchTagMode.overwrite;
     final recognizeOnly = batch.mode == BatchTagMode.recognizeOnly;
@@ -297,6 +298,21 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
               ],
               const SizedBox(height: 10),
               const Divider(),
+              // The target count alone would not say *why* it is smaller
+              // than the dataset.
+              if (dataset.activeSubdirectory != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 2),
+                  child: Text(
+                    l10n.subdirScopeNotice(
+                      subdirectoryLabel(l10n, dataset.activeSubdirectory),
+                    ),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
               if (filtered)
                 Row(
                   children: [

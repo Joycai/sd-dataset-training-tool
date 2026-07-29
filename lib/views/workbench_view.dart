@@ -206,6 +206,9 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     // agent conversation is likewise about the old dataset.
     _batchTag.requestCancel();
     _dataset.clearTagFilter();
+    // A scope named for the previous dataset's folder would otherwise
+    // survive into the new one if both happen to have a folder by that name.
+    _dataset.setSubdirectory(null);
     _tagOps.clearHistory();
     _agentChat.resetSession(datasetSwitched: true);
     await context.read<AppState>().setBrowsingDirectory(directory);

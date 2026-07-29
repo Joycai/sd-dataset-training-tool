@@ -87,6 +87,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get searchFilenameHint => '搜索文件名';
 
   @override
+  String get subdirAll => '全部子目录';
+
+  @override
+  String get subdirRoot => '根目录';
+
+  @override
+  String get subdirPickerTooltip => '切换子目录。所选目录同时决定标签统计、批量改标与 AI 助手的作用范围。';
+
+  @override
+  String subdirScopeNotice(String name) {
+    return '作用范围：$name';
+  }
+
+  @override
+  String get subdirScopeClearTooltip => '恢复为整个数据集';
+
+  @override
   String get filterAll => '全部';
 
   @override
