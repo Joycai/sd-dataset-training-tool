@@ -766,6 +766,19 @@ class _RulesCard extends StatelessWidget {
               ),
             ),
           ],
+          // The rules are saved but inert until a batch run applies them, and
+          // that lives outside this panel.
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              l10n.mergeRulesApplyHint,
+              style: TextStyle(
+                fontSize: 10.5,
+                height: 1.4,
+                color: scheme.primary,
+              ),
+            ),
+          ),
         ],
       ),
     );

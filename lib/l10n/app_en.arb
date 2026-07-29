@@ -627,6 +627,26 @@
     }
   },
 
+  "batchTagModeSheet": "Sheet",
+  "batchTagModeSheetDesc": "Rebuilds every caption from a saved character sheet: the trigger word and fixed traits always, outfit items only where the tagger saw them, and the tagger's expression / background / pose / framing kept as-is.",
+  "batchTagRulesLabel": "Rule set",
+  "batchTagRulesHint": "Pick a rule set",
+  "batchTagRulesUnnamed": "Unnamed rule set",
+  "batchTagRulesEmpty": "No rule sets yet. Run the character sheet skill in the assistant first — it produces the rules this mode applies.",
+  "batchTagRulesSummary": "{identity} fixed traits · {garments} outfit items · {conflicts} always removed",
+  "@batchTagRulesSummary": {
+    "placeholders": {
+      "identity": { "type": "int" },
+      "garments": { "type": "int" },
+      "conflicts": { "type": "int" }
+    }
+  },
+  "batchTagEvidenceThreshold": "Outfit evidence threshold",
+  "batchTagEvidenceThresholdDesc": "Lower than the tagger's own threshold on purpose: the sheet already says the character wears these, so a faint sighting is more likely real than invented. Raise it to the tagger's threshold to disable the allowance.",
+  "batchTagSheetOverwriteWarning": "Captions are rebuilt, not merged — existing tags are replaced. One undo reverts the whole run.",
+
+  "mergeRulesApplyHint": "To apply these across the dataset, open batch tagging and pick the \"Sheet\" mode.",
+
   "agentSkillsSection": "Built-in skills",
   "characterSheetSkill": "Character sheet tagging…",
   "characterSheetTitle": "Character sheet tagging",

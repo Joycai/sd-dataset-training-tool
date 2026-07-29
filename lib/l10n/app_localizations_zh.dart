@@ -1136,6 +1136,44 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get batchTagModeSheet => '标准样本';
+
+  @override
+  String get batchTagModeSheetDesc =>
+      '按保存的标准样本规则重建每张图的 caption：触发词和固定特征恒定写入，服装只在打标器看见时才写，表情/背景/姿势/景别沿用打标器结果。';
+
+  @override
+  String get batchTagRulesLabel => '规则集';
+
+  @override
+  String get batchTagRulesHint => '选择一个规则集';
+
+  @override
+  String get batchTagRulesUnnamed => '未命名规则集';
+
+  @override
+  String get batchTagRulesEmpty => '还没有规则集。先在助手里跑「按标准样本打标」技能，本模式应用的就是它产出的规则。';
+
+  @override
+  String batchTagRulesSummary(int identity, int garments, int conflicts) {
+    return '$identity 项固定特征 · $garments 件服装 · $conflicts 个恒定删除';
+  }
+
+  @override
+  String get batchTagEvidenceThreshold => '服装证据阈值';
+
+  @override
+  String get batchTagEvidenceThresholdDesc =>
+      '刻意低于打标器主阈值：标准样本已经说了角色穿着这些，所以一次微弱的识别更可能是真看见了而不是幻觉。调到主阈值即可关闭这项宽容。';
+
+  @override
+  String get batchTagSheetOverwriteWarning =>
+      'caption 是重建而非合并，原有标签会被替换。一次撤销可回退整批。';
+
+  @override
+  String get mergeRulesApplyHint => '要把规则应用到整个数据集，打开批量打标并选择「标准样本」模式。';
+
+  @override
   String get agentSkillsSection => '内置技能';
 
   @override

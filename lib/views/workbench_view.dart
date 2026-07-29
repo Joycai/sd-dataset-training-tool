@@ -105,6 +105,14 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     appState.addListener(_rescanIfCaptionTypeChanged);
     _syncLocalTags();
     _aiTagger.loadSettings();
+    // The rule sets live on AppState; BatchTagState only remembers which one
+    // was chosen, so it asks for the body at run time.
+    _batchTag.resolveRules = (id) {
+      for (final r in appState.mergeRuleSets) {
+        if (r.id == id) return r;
+      }
+      return null;
+    };
     _batchTag.loadSettings();
     _agentChat = AgentChatState(
       app: appState,

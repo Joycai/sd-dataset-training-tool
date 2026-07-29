@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../models/ai_tagger_models.dart';
+import '../models/merge_rules.dart';
 import '../services/ai_tagger_service.dart';
 import '../services/settings_service.dart';
 import '../utils/tag_text.dart';
@@ -24,6 +25,11 @@ enum BatchTagMode {
   /// [AiTaggerState] and compare mode is entered when the run finishes, so
   /// every image can be reviewed side-by-side.
   recognizeOnly,
+
+  /// Each caption is rebuilt from a saved character sheet plus the
+  /// predictions, per [applyMergeRules]. The rule set decides what is written;
+  /// the existing caption is replaced, not merged into.
+  characterSheet,
 }
 
 /// The per-run configuration of a batch tagging pass. Pure data so the merge
@@ -34,6 +40,8 @@ class BatchTagConfig {
     this.preservedTags = const [],
     this.keepFirstN = 0,
     this.blacklist = const [],
+    this.rules,
+    this.evidenceThreshold = kDefaultEvidenceThreshold,
   });
 
   final BatchTagMode mode;
@@ -48,6 +56,13 @@ class BatchTagConfig {
 
   /// Append mode: predictions matching this list are never appended.
   final List<String> blacklist;
+
+  /// Character-sheet mode: the rule set to apply. A run in that mode with no
+  /// rules is refused rather than treated as a no-op.
+  final CharacterMergeRules? rules;
+
+  /// Character-sheet mode: the confidence garment evidence must clear.
+  final double evidenceThreshold;
 }
 
 /// Merges AI [predicted] tags into [current] according to [config]. Returns
@@ -89,6 +104,10 @@ List<String>? mergeBatchTags({
     case BatchTagMode.recognizeOnly:
       // Recognize-only never touches captions; the run stores predictions on
       // AiTaggerState instead of merging them here.
+      return null;
+    case BatchTagMode.characterSheet:
+      // Needs the confidences this signature has already thrown away; the
+      // run calls applyMergeRules directly.
       return null;
   }
   return listEquals(next, current) ? null : next;
@@ -135,11 +154,30 @@ class BatchTagState extends ChangeNotifier {
   List<String> _preservedTags = [];
   int _keepFirstN = 0;
   List<String> _blacklist = [];
+  String? _rulesId;
+  double _evidenceThreshold = kDefaultEvidenceThreshold;
 
   BatchTagMode get mode => _mode;
   List<String> get preservedTags => _preservedTags;
   int get keepFirstN => _keepFirstN;
   List<String> get blacklist => _blacklist;
+
+  /// Id of the character-sheet rule set to apply, or null when none is
+  /// chosen. The rule sets themselves live on AppState; this only remembers
+  /// the choice, so a deleted rule set simply stops resolving.
+  String? get rulesId => _rulesId;
+
+  double get evidenceThreshold => _evidenceThreshold;
+
+  /// Supplies the chosen rule set at run time. Set by the workbench from
+  /// AppState; this state deliberately does not depend on AppState.
+  CharacterMergeRules? Function(String id)? resolveRules;
+
+  CharacterMergeRules? get selectedRules {
+    final id = _rulesId;
+    if (id == null) return null;
+    return resolveRules?.call(id);
+  }
 
   // --- Run progress ----------------------------------------------------
 
@@ -176,7 +214,24 @@ class BatchTagState extends ChangeNotifier {
     _preservedTags = await _settings.loadBatchTagPreservedTags();
     _keepFirstN = await _settings.loadBatchTagKeepFirstN();
     _blacklist = await _settings.loadBatchTagBlacklist();
+    _rulesId = await _settings.loadBatchTagRulesId();
+    _evidenceThreshold = await _settings.loadBatchTagEvidenceThreshold();
     notifyListeners();
+  }
+
+  Future<void> setRulesId(String? value) async {
+    if (value == _rulesId) return;
+    _rulesId = value;
+    notifyListeners();
+    await _settings.saveBatchTagRulesId(value);
+  }
+
+  Future<void> setEvidenceThreshold(double value) async {
+    final clamped = value.clamp(0.0, 1.0).toDouble();
+    if (clamped == _evidenceThreshold) return;
+    _evidenceThreshold = clamped;
+    notifyListeners();
+    await _settings.saveBatchTagEvidenceThreshold(clamped);
   }
 
   Future<void> setMode(BatchTagMode value) async {
@@ -216,6 +271,8 @@ class BatchTagState extends ChangeNotifier {
     preservedTags: _preservedTags,
     keepFirstN: _keepFirstN,
     blacklist: _blacklist,
+    rules: selectedRules,
+    evidenceThreshold: _evidenceThreshold,
   );
 
   /// Stops the run after the in-flight interrogation finishes. Files already
@@ -239,6 +296,24 @@ class BatchTagState extends ChangeNotifier {
     final model = ai.modelName;
     if (model == null) return false;
     final runConfig = config;
+    // A character-sheet run with no rule set has nothing to apply; failing
+    // here beats rewriting every caption to the empty string.
+    if (runConfig.mode == BatchTagMode.characterSheet &&
+        runConfig.rules == null) {
+      return false;
+    }
+
+    // Character-sheet mode needs a number for the ordinary threshold, because
+    // it asks the server for tags *below* it and then draws the line itself.
+    // Every other mode can leave it null and let the server decide.
+    double? requestThreshold = ai.threshold;
+    var mainThreshold = ai.threshold ?? kFallbackThreshold;
+    if (runConfig.mode == BatchTagMode.characterSheet) {
+      mainThreshold = ai.threshold ?? await _resolveModelThreshold(model);
+      requestThreshold = runConfig.evidenceThreshold < mainThreshold
+          ? runConfig.evidenceThreshold
+          : mainThreshold;
+    }
 
     _running = true;
     _cancelRequested = false;
@@ -264,7 +339,7 @@ class BatchTagState extends ChangeNotifier {
             ai.serverUrl,
             file,
             models: [
-              AiModelRequest.wd(modelName: model, threshold: ai.threshold),
+              AiModelRequest.wd(modelName: model, threshold: requestThreshold),
             ],
           );
           if (recognizeOnly) {
@@ -272,8 +347,12 @@ class BatchTagState extends ChangeNotifier {
             ai.storeResult(file.path, resp);
             _changed++;
           } else {
-            final predicted = _normalizePredictions(resp);
-            final edit = await _applyToCaption(file.path, predicted, runConfig);
+            final edit = await _applyToCaption(
+              file.path,
+              _normalizePredictions(resp),
+              runConfig,
+              mainThreshold,
+            );
             if (edit != null) {
               edits.add(edit);
               _changed++;
@@ -311,8 +390,9 @@ class BatchTagState extends ChangeNotifier {
   /// caption file counts as an empty one and is created on write.
   Future<CaptionEdit?> _applyToCaption(
     String imagePath,
-    List<String> predicted,
+    List<ScoredTag> predicted,
     BatchTagConfig runConfig,
+    double mainThreshold,
   ) async {
     final captionPath = dataset.captionPathFor(imagePath);
     final captionFile = File(captionPath);
@@ -320,11 +400,21 @@ class BatchTagState extends ChangeNotifier {
     if (await captionFile.exists()) {
       before = await captionFile.readAsString();
     }
-    final next = mergeBatchTags(
-      current: parseTagText(before),
-      predicted: predicted,
-      config: runConfig,
-    );
+    final current = parseTagText(before);
+    final rules = runConfig.rules;
+    final next = runConfig.mode == BatchTagMode.characterSheet && rules != null
+        ? applyMergeRules(
+            current: current,
+            predicted: predicted,
+            rules: rules,
+            threshold: mainThreshold,
+            evidenceThreshold: runConfig.evidenceThreshold,
+          )
+        : mergeBatchTags(
+            current: current,
+            predicted: [for (final s in predicted) s.tag],
+            config: runConfig,
+          );
     if (next == null) return null;
     final after = next.join(', ');
     await captionFile.writeAsString(after);
@@ -336,10 +426,26 @@ class BatchTagState extends ChangeNotifier {
     );
   }
 
-  /// Flattens a response into a normalized tag list: cleaned with the AI
-  /// state's normalization settings, de-duplicated keeping the best
+  /// The model's own default threshold, for the one mode that has to know
+  /// where the line is. Falls back to [kFallbackThreshold] when the server
+  /// cannot say — a wrong-but-typical line beats refusing to run.
+  Future<double> _resolveModelThreshold(String model) async {
+    try {
+      final params = await _service.getModelParams(ai.serverUrl, model);
+      return params.threshold ?? kFallbackThreshold;
+    } catch (_) {
+      return kFallbackThreshold;
+    }
+  }
+
+  /// The WD-tagger convention, used only when neither the user nor the server
+  /// names a threshold.
+  static const double kFallbackThreshold = 0.35;
+
+  /// Flattens a response into a normalized, scored tag list: cleaned with the
+  /// AI state's normalization settings, de-duplicated keeping the best
   /// probability, sorted by probability descending, ignore list applied.
-  List<String> _normalizePredictions(AiInterrogateResponse resp) {
+  List<ScoredTag> _normalizePredictions(AiInterrogateResponse resp) {
     final best = <String, double>{};
     for (final result in resp.results) {
       for (final t in result.tags) {
@@ -363,7 +469,7 @@ class BatchTagState extends ChangeNotifier {
             .where((e) => !ignore.contains(e.key.toLowerCase()))
             .toList()
           ..sort((a, b) => b.value.compareTo(a.value));
-    return [for (final e in entries) e.key];
+    return [for (final e in entries) (tag: e.key, probability: e.value)];
   }
 
   @override

@@ -151,6 +151,20 @@ void main() {
       expect(problem, contains('same tag'));
     });
 
+    test('rejects a garment tag claimed as another garment\'s evidence', () {
+      // The application pass treats a garment's own tag as evidence for
+      // itself, so this leaves "dress" with two owners.
+      final problem = validateMergeRules(
+        _rules(
+          garments: const [
+            GarmentRule(tag: 'dress', evidence: ['skirt']),
+            GarmentRule(tag: 'gown', evidence: ['Dress']),
+          ],
+        ),
+      );
+      expect(problem, contains('which one it means'));
+    });
+
     test('a garment with no evidence is legal — it simply never fires', () {
       expect(
         validateMergeRules(

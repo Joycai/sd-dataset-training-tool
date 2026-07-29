@@ -10,6 +10,17 @@ library;
 
 import 'dart:convert';
 
+/// One tagger prediction with the confidence the tagger gave it.
+///
+/// The application pass needs the numbers, not just the words: an outfit item
+/// the character sheet already vouches for deserves a lower bar than a tag
+/// being asserted from scratch. See [applyMergeRules].
+typedef ScoredTag = ({String tag, double probability});
+
+/// Default bar for garment evidence — deliberately below a tagger's usual
+/// threshold. See [applyMergeRules] for why the two differ.
+const double kDefaultEvidenceThreshold = 0.2;
+
 /// One garment/accessory from the character sheet, with the tagger vocabulary
 /// that counts as evidence it is visible in a given image.
 class GarmentRule {
@@ -137,6 +148,98 @@ class CharacterMergeRules {
     sampledImages: sampledImages,
     notes: notes,
   );
+}
+
+/// Builds one image's caption from [predicted] and [rules]. Returns null when
+/// the result equals [current], mirroring the TagOps transform contract so
+/// unchanged files are never rewritten.
+///
+/// The output order is the one a LoRA caption wants: trigger word, then the
+/// fixed traits, then whichever outfit items the tagger vouched for, then
+/// everything else the tagger said — expression, background, pose, framing —
+/// in confidence order.
+///
+/// Two thresholds, because the two kinds of tag are not equally uncertain.
+/// [threshold] gates tags the tagger asserts on its own. [evidenceThreshold]
+/// — lower — gates garment evidence, where the character sheet has already
+/// told us the item exists and the only question is whether this crop shows
+/// it. A 0.2 `gloves` on a character known to wear gloves is far more likely
+/// a real sighting than a hallucination. Passing an [evidenceThreshold] above
+/// [threshold] is meaningless (evidence would leak into the passthrough
+/// instead of being converted), so it is clamped down.
+List<String>? applyMergeRules({
+  required List<String> current,
+  required List<ScoredTag> predicted,
+  required CharacterMergeRules rules,
+  required double threshold,
+  required double evidenceThreshold,
+}) {
+  final evidenceCut = evidenceThreshold > threshold
+      ? threshold
+      : evidenceThreshold;
+
+  // Which garment each tagger word belongs to. Explicit evidence first, then
+  // each garment's own tag as implicit evidence for itself — if the tagger
+  // says `high heel boots` outright, that is the strongest evidence there is
+  // — without letting the implicit entry steal a word another garment
+  // explicitly claimed.
+  final owner = <String, String>{};
+  for (final g in rules.garments) {
+    for (final e in g.evidence) {
+      owner.putIfAbsent(e.toLowerCase(), () => g.tag);
+    }
+  }
+  for (final g in rules.garments) {
+    owner.putIfAbsent(g.tag.toLowerCase(), () => g.tag);
+  }
+
+  final conflicts = {for (final t in rules.conflictTags) t.toLowerCase()};
+
+  // A garment fires on any evidence above the lower bar; every word that
+  // fired it is then spent, which is how `skirt` on a lower-body crop turns
+  // into `dress` instead of joining it.
+  final fired = <String>{};
+  final spent = <String>{};
+  for (final s in predicted) {
+    if (s.probability < evidenceCut) continue;
+    final key = s.tag.toLowerCase();
+    final garment = owner[key];
+    if (garment == null) continue;
+    fired.add(garment);
+    spent.add(key);
+  }
+
+  final out = <String>[];
+  final seen = <String>{};
+  void emit(String tag) {
+    final trimmed = tag.trim();
+    if (trimmed.isEmpty) return;
+    if (seen.add(trimmed.toLowerCase())) out.add(trimmed);
+  }
+
+  emit(rules.triggerWord);
+  for (final t in rules.identityTags) {
+    emit(t);
+  }
+  for (final g in rules.garments) {
+    if (fired.contains(g.tag)) emit(g.tag);
+  }
+  for (final s in predicted) {
+    if (s.probability < threshold) continue;
+    final key = s.tag.toLowerCase();
+    if (conflicts.contains(key) || spent.contains(key)) continue;
+    emit(s.tag);
+  }
+
+  return _sameTags(out, current) ? null : out;
+}
+
+bool _sameTags(List<String> a, List<String> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }
 
 List<String> _stringList(Object? raw) {

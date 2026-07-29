@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../views/settings_view.dart';
+import '../app_state.dart';
 import '../l10n/app_localizations.dart';
 import '../state/ai_tagger_state.dart';
 import '../state/batch_tag_state.dart';
@@ -97,6 +98,7 @@ class _BatchRailButton extends StatelessWidget {
               ai: context.read<AiTaggerState>(),
               batch: batch,
               dataset: dataset,
+              appState: context.read<AppState>(),
             ),
     );
   }

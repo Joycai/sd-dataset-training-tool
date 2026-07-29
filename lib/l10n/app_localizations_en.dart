@@ -1167,6 +1167,46 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get batchTagModeSheet => 'Sheet';
+
+  @override
+  String get batchTagModeSheetDesc =>
+      'Rebuilds every caption from a saved character sheet: the trigger word and fixed traits always, outfit items only where the tagger saw them, and the tagger\'s expression / background / pose / framing kept as-is.';
+
+  @override
+  String get batchTagRulesLabel => 'Rule set';
+
+  @override
+  String get batchTagRulesHint => 'Pick a rule set';
+
+  @override
+  String get batchTagRulesUnnamed => 'Unnamed rule set';
+
+  @override
+  String get batchTagRulesEmpty =>
+      'No rule sets yet. Run the character sheet skill in the assistant first — it produces the rules this mode applies.';
+
+  @override
+  String batchTagRulesSummary(int identity, int garments, int conflicts) {
+    return '$identity fixed traits · $garments outfit items · $conflicts always removed';
+  }
+
+  @override
+  String get batchTagEvidenceThreshold => 'Outfit evidence threshold';
+
+  @override
+  String get batchTagEvidenceThresholdDesc =>
+      'Lower than the tagger\'s own threshold on purpose: the sheet already says the character wears these, so a faint sighting is more likely real than invented. Raise it to the tagger\'s threshold to disable the allowance.';
+
+  @override
+  String get batchTagSheetOverwriteWarning =>
+      'Captions are rebuilt, not merged — existing tags are replaced. One undo reverts the whole run.';
+
+  @override
+  String get mergeRulesApplyHint =>
+      'To apply these across the dataset, open batch tagging and pick the \"Sheet\" mode.';
+
+  @override
   String get agentSkillsSection => 'Built-in skills';
 
   @override

@@ -198,11 +198,26 @@ String? validateMergeRules(CharacterMergeRules rules) {
     }
   }
 
+  // Before the ownership check below: two rules writing the same tag would
+  // also trip it, and "merge these two entries" is the more actionable of the
+  // two diagnoses.
   final seen = <String>{};
   for (final g in rules.garments) {
     if (!seen.add(g.tag.toLowerCase())) {
       return 'two garment rules write the same tag "${g.tag}"; merge their '
           'evidence into one entry';
+    }
+  }
+
+  // The application pass treats a garment's own tag as evidence for itself,
+  // so another garment claiming that word leaves two owners for it — the
+  // same ambiguity as shared evidence, one step removed.
+  for (final g in rules.garments) {
+    final claimant = owner[g.tag.toLowerCase()];
+    if (claimant != null && claimant != g.tag) {
+      return '"${g.tag}" is a garment of its own but also evidence for '
+          '"$claimant"; when the tagger emits it there is no way to tell '
+          'which one it means';
     }
   }
 
