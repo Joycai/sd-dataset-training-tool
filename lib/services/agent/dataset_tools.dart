@@ -323,11 +323,9 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
     ),
     handler: (args) async {
       final tag = requireString(args, 'tag');
-      final changed = await tagOps.deleteEverywhere(
-        tag,
-        label: 'AI: remove "$tag"',
+      return _batchResult(
+        await tagOps.deleteEverywhere(tag, label: 'AI: remove "$tag"'),
       );
-      return toolOk({'changed_files': changed});
     },
   ),
   AgentTool(
@@ -353,12 +351,13 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
     handler: (args) async {
       final tag = requireString(args, 'tag');
       final replacement = requireString(args, 'replacement');
-      final changed = await tagOps.replaceEverywhere(
-        tag,
-        replacement,
-        label: 'AI: replace "$tag" → "$replacement"',
+      return _batchResult(
+        await tagOps.replaceEverywhere(
+          tag,
+          replacement,
+          label: 'AI: replace "$tag" → "$replacement"',
+        ),
       );
-      return toolOk({'changed_files': changed});
     },
   ),
   AgentTool(
@@ -391,15 +390,16 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
       final anchor = requireString(args, 'anchor_tag');
       final tags = requireStringList(args, 'tags', maxLength: 50);
       final after = optBool(args, 'after', fallback: true);
-      final changed = await tagOps.insertBeside(
-        anchor,
-        tags.join(', '),
-        after: after,
-        label:
-            'AI: insert ${tags.join(", ")} '
-            '${after ? 'after' : 'before'} "$anchor"',
+      return _batchResult(
+        await tagOps.insertBeside(
+          anchor,
+          tags.join(', '),
+          after: after,
+          label:
+              'AI: insert ${tags.join(", ")} '
+              '${after ? 'after' : 'before'} "$anchor"',
+        ),
       );
-      return toolOk({'changed_files': changed});
     },
   ),
   AgentTool(
@@ -449,13 +449,14 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
         untaggedOnly: optBool(args, 'untagged_only'),
         nameQuery: optString(args, 'name_query')?.toLowerCase(),
       );
-      final changed = await tagOps.addEverywhere(
-        tags.join(', '),
-        index: index,
-        files: files,
-        label: 'AI: add ${tags.join(", ")}',
+      return _batchResult(
+        await tagOps.addEverywhere(
+          tags.join(', '),
+          index: index,
+          files: files,
+          label: 'AI: add ${tags.join(", ")}',
+        ),
       );
-      return toolOk({'changed_files': changed});
     },
   ),
   AgentTool(
@@ -505,20 +506,23 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
           'nothing was written: the given order is not a permutation of '
           '$rel\'s tags'
           '${match.unknown.isEmpty ? '' : '; not on this image: '
-                '${match.unknown.join(", ")}'}'
+                    '${match.unknown.join(", ")}'}'
           '${match.missing.isEmpty ? '' : '; left out: '
-                '${match.missing.join(", ")}'}'
+                    '${match.missing.join(", ")}'}'
           '. Its ${current.length} current tags are: ${current.join(", ")}',
         );
       }
-      final written = await tagOps.rewriteOne(
+      final result = await tagOps.rewriteOne(
         key,
         match.ordered.join(', '),
         label: 'AI: reorder ${p.basename(key)}',
       );
+      if (result.failed) {
+        return toolError('nothing was written for $rel: ${result.error}');
+      }
       return toolOk({
-        'written': written,
-        'unchanged': !written,
+        'written': result.written,
+        'unchanged': result.unchanged,
         'tags': match.ordered,
       });
     },
@@ -586,14 +590,17 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
           '. Its ${before.length} current tags are: ${before.join(", ")}',
         );
       }
-      final written = await tagOps.rewriteOne(
+      final result = await tagOps.rewriteOne(
         key,
         caption,
         label: 'AI: rewrite ${p.basename(key)}',
       );
+      if (result.failed) {
+        return toolError('nothing was written for $rel: ${result.error}');
+      }
       return toolOk({
-        'written': written,
-        'unchanged': !written,
+        'written': result.written,
+        'unchanged': result.unchanged,
         'added': added,
         'removed': removed,
       });
@@ -625,6 +632,36 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
     },
   ),
 ];
+
+/// Reports a dataset-wide rewrite back to the model.
+///
+/// A sweep skips caption files it cannot read or write instead of aborting,
+/// so the skipped ones must be named here: reporting only `changed_files`
+/// would let a sweep that failed on every file read as "nothing matched".
+/// Nothing written *and* files failed is an error, not a no-op.
+AgentToolResult _batchResult(BatchRewriteResult result) {
+  if (result.failures.isEmpty) {
+    return toolOk({'changed_files': result.changed});
+  }
+  const sample = 5;
+  if (result.changed == 0) {
+    return toolError(
+      'nothing was written: all ${result.failed} caption files this '
+      'operation tried to rewrite failed — '
+      '${result.failures.take(sample).join('; ')}'
+      '${result.failed > sample ? '; …' : ''}',
+    );
+  }
+  return toolOk({
+    'changed_files': result.changed,
+    'failed_files': result.failed,
+    'failures': [
+      for (final f in result.failures.take(sample))
+        {'caption_file': p.basename(f.captionPath), 'error': f.error},
+    ],
+    'failures_truncated': result.failed > sample,
+  });
+}
 
 List<File> _filterFiles(
   DatasetState dataset, {

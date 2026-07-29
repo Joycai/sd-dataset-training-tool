@@ -99,8 +99,9 @@ void main() {
     });
 
     test('deleteEverywhere rewrites every file with the tag', () async {
-      final count = await ops.deleteEverywhere('b', label: 'delete b');
-      expect(count, 2);
+      final result = await ops.deleteEverywhere('b', label: 'delete b');
+      expect(result.changed, 2);
+      expect(result.failures, isEmpty);
       expect(await readCap('001'), 'a, c');
       expect(await readCap('002'), 'c, d');
       expect(flushCalls, 1);
@@ -129,12 +130,12 @@ void main() {
 
     test('replaceEverywhere replaces in place and de-duplicates', () async {
       // 001 [a, b, c]: c -> [x, b]; b already present, so only x lands.
-      final count = await ops.replaceEverywhere(
+      final result = await ops.replaceEverywhere(
         'c',
         'x, b',
         label: 'replace c',
       );
-      expect(count, 2);
+      expect(result.changed, 2);
       expect(await readCap('001'), 'a, b, x');
       expect(await readCap('002'), 'b, x, d');
     });
@@ -153,8 +154,8 @@ void main() {
     test(
       'addEverywhere appends by default and creates missing captions',
       () async {
-        final count = await ops.addEverywhere('x', label: 'add x');
-        expect(count, 3);
+        final result = await ops.addEverywhere('x', label: 'add x');
+        expect(result.changed, 3);
         expect(await readCap('001'), 'a, b, c, x');
         expect(await readCap('002'), 'b, c, d, x');
         // 003 had no caption file: it gets created.
@@ -173,8 +174,8 @@ void main() {
       'addEverywhere inserts at the index, clamped, skipping duplicates',
       () async {
         // 001 [a, b, c]: a already present, only x lands at the head.
-        final count = await ops.addEverywhere('x, a', index: 0, label: 'add');
-        expect(count, 3);
+        final result = await ops.addEverywhere('x, a', index: 0, label: 'add');
+        expect(result.changed, 3);
         expect(await readCap('001'), 'x, a, b, c');
         expect(await readCap('002'), 'x, a, b, c, d');
         expect(await readCap('003'), 'x, a');
@@ -189,8 +190,12 @@ void main() {
       final target = dataset.allFiles
           .where((f) => p.basename(f.path) == '002.png')
           .toList();
-      final count = await ops.addEverywhere('x', files: target, label: 'add x');
-      expect(count, 1);
+      final result = await ops.addEverywhere(
+        'x',
+        files: target,
+        label: 'add x',
+      );
+      expect(result.changed, 1);
       expect(await readCap('001'), 'a, b, c');
       expect(await readCap('002'), 'b, c, d, x');
       expect(File(cap('003')).existsSync(), isFalse);
@@ -199,9 +204,9 @@ void main() {
     test(
       'addEverywhere with empty or all-duplicate input is a no-op',
       () async {
-        expect(await ops.addEverywhere('  ', label: 'noop'), 0);
+        expect((await ops.addEverywhere('  ', label: 'noop')).changed, 0);
         // Every file already has its tags — b for 001/002 — but 003 gains it.
-        expect(await ops.addEverywhere('b', label: 'add b'), 1);
+        expect((await ops.addEverywhere('b', label: 'add b')).changed, 1);
         expect(await readCap('001'), 'a, b, c');
         expect(await readCap('003'), 'b');
       },
@@ -220,8 +225,8 @@ void main() {
     test('semantic no-op touches nothing and records no history', () async {
       // Replacing a tag with itself changes no tag list; 002's odd spacing
       // alone must not count as a change.
-      final count = await ops.replaceEverywhere('b', 'b', label: 'noop');
-      expect(count, 0);
+      final result = await ops.replaceEverywhere('b', 'b', label: 'noop');
+      expect(result.changed, 0);
       expect(await readCap('002'), 'b,  c ,d');
       expect(ops.canUndo, isFalse);
       expect(changeReports, isEmpty);

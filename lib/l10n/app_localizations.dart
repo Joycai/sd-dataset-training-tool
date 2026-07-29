@@ -1116,6 +1116,12 @@ abstract class AppLocalizations {
   /// **'No files needed changes.'**
   String get noFilesChanged;
 
+  /// No description provided for @filesFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} files could not be written'**
+  String filesFailed(int count);
+
   /// No description provided for @filterPanelTitle.
   ///
   /// In en, this message translates to:

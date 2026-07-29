@@ -28,6 +28,82 @@ class TagOperation {
   final List<CaptionEdit> edits;
 }
 
+/// How a single-file rewrite ended. "Nothing was written" is not one state
+/// but three, and callers must tell them apart: a caller that reads a failed
+/// write as "no change needed" moves on from a change that never landed.
+enum RewriteOutcome {
+  /// The file now holds the requested text.
+  written,
+
+  /// The file already held exactly this text; nothing to do.
+  unchanged,
+
+  /// Another operation was running; the rewrite was not even attempted.
+  busy,
+
+  /// Reading or writing the caption file threw.
+  failed,
+}
+
+/// The result of [TagOps.rewriteOne].
+class RewriteResult {
+  const RewriteResult.written()
+    : outcome = RewriteOutcome.written,
+      error = null;
+
+  const RewriteResult.unchanged()
+    : outcome = RewriteOutcome.unchanged,
+      error = null;
+
+  const RewriteResult.busy()
+    : outcome = RewriteOutcome.busy,
+      error = 'another caption operation is still running';
+
+  const RewriteResult.failed(String this.error)
+    : outcome = RewriteOutcome.failed;
+
+  final RewriteOutcome outcome;
+
+  /// Why nothing was written; null for [written] and [unchanged].
+  final String? error;
+
+  bool get written => outcome == RewriteOutcome.written;
+
+  /// The file already matched the requested text — a legitimate no-op.
+  bool get unchanged => outcome == RewriteOutcome.unchanged;
+
+  /// Nothing was written *and* the caller must not read that as "no change
+  /// needed": the IO failed or the operation was refused.
+  bool get failed => error != null;
+}
+
+/// One caption file a batch rewrite could not read or write.
+class RewriteFailure {
+  const RewriteFailure({required this.captionPath, required this.error});
+
+  final String captionPath;
+  final String error;
+
+  @override
+  String toString() => '$captionPath: $error';
+}
+
+/// The result of a dataset-wide rewrite. A batch never aborts on one bad
+/// path, so the files it skipped have to travel back with the count — left
+/// out, they read as "no change needed".
+class BatchRewriteResult {
+  const BatchRewriteResult({required this.changed, required this.failures});
+
+  const BatchRewriteResult.none() : changed = 0, failures = const [];
+
+  /// Number of caption files actually rewritten.
+  final int changed;
+
+  final List<RewriteFailure> failures;
+
+  int get failed => failures.length;
+}
+
 /// Dataset-wide caption rewrites — delete / replace / insert next to a tag —
 /// with an undo/redo history. Each operation snapshots the exact on-disk text
 /// of every file it touches, so undo restores files byte-for-byte even though
@@ -64,8 +140,11 @@ class TagOps extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Removes [tag] from every caption. Returns the number of files changed.
-  Future<int> deleteEverywhere(String tag, {required String label}) {
+  /// Removes [tag] from every caption.
+  Future<BatchRewriteResult> deleteEverywhere(
+    String tag, {
+    required String label,
+  }) {
     return _rewriteAll(label, (tags) {
       if (!tags.contains(tag)) return null;
       return tags.where((t) => t != tag).toList();
@@ -74,7 +153,7 @@ class TagOps extends ChangeNotifier {
 
   /// Replaces [tag] in place with the (comma-splittable) replacement,
   /// de-duplicating against the file's remaining tags.
-  Future<int> replaceEverywhere(
+  Future<BatchRewriteResult> replaceEverywhere(
     String tag,
     String replacementInput, {
     required String label,
@@ -92,7 +171,7 @@ class TagOps extends ChangeNotifier {
 
   /// Inserts the (comma-splittable) input directly before or after [tag] in
   /// every caption that has it, skipping tags the file already contains.
-  Future<int> insertBeside(
+  Future<BatchRewriteResult> insertBeside(
     String tag,
     String insertionInput, {
     required bool after,
@@ -115,14 +194,14 @@ class TagOps extends ChangeNotifier {
   /// writes the empty string back rather than deleting the file. Restrict
   /// the sweep with [files] (e.g. the filtered gallery); defaults to the
   /// whole dataset.
-  Future<int> addEverywhere(
+  Future<BatchRewriteResult> addEverywhere(
     String input, {
     int? index,
     List<File>? files,
     required String label,
   }) {
     final parts = parseTagText(input);
-    if (parts.isEmpty) return Future.value(0);
+    if (parts.isEmpty) return Future.value(const BatchRewriteResult.none());
     return _rewriteAll(
       label,
       (tags) {
@@ -139,51 +218,67 @@ class TagOps extends ChangeNotifier {
   }
 
   /// Rewrites one image's caption file to exactly [text], recording undo.
-  /// A missing caption file is created. Returns true when the file was
-  /// written; false when the content is already identical, another
-  /// operation is running, or IO failed.
-  Future<bool> rewriteOne(
+  /// A missing caption file is created. The result distinguishes a real
+  /// write from an identical-content no-op and from an IO failure — see
+  /// [RewriteOutcome].
+  Future<RewriteResult> rewriteOne(
     String imagePath,
     String text, {
     required String label,
   }) async {
-    if (_busy) return false;
+    if (_busy) return const RewriteResult.busy();
     _busy = true;
     notifyListeners();
-    CaptionEdit? edit;
+    final RewriteResult result;
     try {
-      await beforeMutate?.call();
-      final captionPath = dataset.captionPathFor(imagePath);
-      final captionFile = File(captionPath);
-      var before = '';
-      try {
-        if (await captionFile.exists()) {
-          before = await captionFile.readAsString();
-        }
-      } catch (_) {
-        return false;
-      }
-      if (before == text) return false;
-      try {
-        await captionFile.writeAsString(text);
-      } catch (_) {
-        return false;
-      }
-      edit = CaptionEdit(
-        imagePath: imagePath,
-        captionPath: captionPath,
-        before: before,
-        after: text,
-      );
-      dataset.updateCaptionText(imagePath, text);
-      _undoStack.add(TagOperation(label: label, edits: [edit]));
-      _redoStack.clear();
+      result = await _rewriteOneLocked(imagePath, text, label);
     } finally {
       _busy = false;
       notifyListeners();
     }
-    onCaptionsChanged?.call({imagePath});
-    return true;
+    if (result.written) onCaptionsChanged?.call({imagePath});
+    return result;
+  }
+
+  /// The body of [rewriteOne], run with [_busy] already held.
+  Future<RewriteResult> _rewriteOneLocked(
+    String imagePath,
+    String text,
+    String label,
+  ) async {
+    await beforeMutate?.call();
+    final captionPath = dataset.captionPathFor(imagePath);
+    final captionFile = File(captionPath);
+    var before = '';
+    try {
+      if (await captionFile.exists()) {
+        before = await captionFile.readAsString();
+      }
+    } catch (e) {
+      return RewriteResult.failed('cannot read "$captionPath": $e');
+    }
+    if (before == text) return const RewriteResult.unchanged();
+    try {
+      await captionFile.writeAsString(text);
+    } catch (e) {
+      return RewriteResult.failed('cannot write "$captionPath": $e');
+    }
+    dataset.updateCaptionText(imagePath, text);
+    _undoStack.add(
+      TagOperation(
+        label: label,
+        edits: [
+          CaptionEdit(
+            imagePath: imagePath,
+            captionPath: captionPath,
+            before: before,
+            after: text,
+          ),
+        ],
+      ),
+    );
+    _redoStack.clear();
+    return const RewriteResult.written();
   }
 
   /// Records an operation whose file rewrites already happened elsewhere
@@ -204,17 +299,20 @@ class TagOps extends ChangeNotifier {
   /// [createMissing], uncaptioned images run through as the empty tag list
   /// and get their caption file created. IO failures skip the file so one
   /// bad path never aborts the batch — only files actually rewritten enter
-  /// the history.
-  Future<int> _rewriteAll(
+  /// the history — but every skip is collected into
+  /// [BatchRewriteResult.failures] so the caller can report it instead of
+  /// passing it off as "no change needed".
+  Future<BatchRewriteResult> _rewriteAll(
     String label,
     List<String>? Function(List<String> tags) transform, {
     List<File>? files,
     bool createMissing = false,
   }) async {
-    if (_busy) return 0;
+    if (_busy) return const BatchRewriteResult.none();
     _busy = true;
     notifyListeners();
     final edits = <CaptionEdit>[];
+    final failures = <RewriteFailure>[];
     try {
       await beforeMutate?.call();
       for (final file in files ?? dataset.allFiles) {
@@ -227,7 +325,10 @@ class TagOps extends ChangeNotifier {
           } else if (!createMissing) {
             continue;
           }
-        } catch (_) {
+        } catch (e) {
+          failures.add(
+            RewriteFailure(captionPath: captionPath, error: 'cannot read: $e'),
+          );
           continue;
         }
         final tags = parseTagText(before);
@@ -238,7 +339,10 @@ class TagOps extends ChangeNotifier {
         final after = next.join(', ');
         try {
           await captionFile.writeAsString(after);
-        } catch (_) {
+        } catch (e) {
+          failures.add(
+            RewriteFailure(captionPath: captionPath, error: 'cannot write: $e'),
+          );
           continue;
         }
         edits.add(
@@ -264,7 +368,7 @@ class TagOps extends ChangeNotifier {
     if (edits.isNotEmpty) {
       onCaptionsChanged?.call({for (final e in edits) e.imagePath});
     }
-    return edits.length;
+    return BatchRewriteResult(changed: edits.length, failures: failures);
   }
 
   Future<void> _replay({

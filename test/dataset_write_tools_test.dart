@@ -71,14 +71,20 @@ void main() {
     await tempDir.delete(recursive: true);
   });
 
+  // A directory sitting where [name]'s caption file belongs: File.exists is
+  // false for it and every write to it throws, which is how these tests
+  // simulate an unwritable caption without fiddling with permissions.
+  Future<void> blockCaption(String name) => Directory(cap(name)).create();
+
   group('TagOps.rewriteOne', () {
     test('writes, indexes and undoes byte-for-byte', () async {
-      final ok = await tagOps.rewriteOne(
+      final result = await tagOps.rewriteOne(
         img('001'),
         'trigger, smile, 1girl',
         label: 'AI: rewrite 001.png',
       );
-      expect(ok, isTrue);
+      expect(result.written, isTrue);
+      expect(result.failed, isFalse);
       expect(await readCap('001'), 'trigger, smile, 1girl');
       // The in-memory index followed the write.
       expect(dataset.tagsOf(img('001')), ['trigger', 'smile', '1girl']);
@@ -94,13 +100,32 @@ void main() {
     });
 
     test('identical content is a no-op without history', () async {
-      final ok = await tagOps.rewriteOne(
+      final result = await tagOps.rewriteOne(
         img('001'),
         'trigger, 1girl, smile, watermark',
         label: 'AI: rewrite',
       );
-      expect(ok, isFalse);
+      expect(result.unchanged, isTrue);
+      expect(result.written, isFalse);
+      expect(result.failed, isFalse);
       expect(tagOps.canUndo, isFalse);
+    });
+
+    test('a failed write is not reported as unchanged', () async {
+      await blockCaption('003');
+      final result = await tagOps.rewriteOne(
+        img('003'),
+        'masterpiece',
+        label: 'AI: rewrite 003.png',
+      );
+      expect(result.failed, isTrue);
+      expect(result.written, isFalse);
+      // The distinction that matters: "no change needed" would let a caller
+      // move on from a write that never landed.
+      expect(result.unchanged, isFalse);
+      expect(result.error, contains('cannot write'));
+      expect(tagOps.canUndo, isFalse);
+      expect(dataset.hasCaption(img('003')), isFalse);
     });
   });
 
@@ -168,6 +193,73 @@ void main() {
       // The file is untouched.
       expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
       expect(tagOps.canUndo, isFalse);
+    });
+
+    test('write_caption errors when the caption file is unwritable', () async {
+      await blockCaption('003');
+      final result = await registry.dispatch(
+        'write_caption',
+        jsonEncode({'path': '003.png', 'caption': 'masterpiece'}),
+      );
+      // Not {'written': false, 'unchanged': true} — that reads as "this
+      // image needed no change" and the model walks away from a lost write.
+      expect(result.isError, isTrue);
+      expect(result.text, contains('nothing was written'));
+      expect(result.text, contains('003'));
+      expect(tagOps.canUndo, isFalse);
+    });
+
+    test(
+      'reorder_caption errors when the caption file is unwritable',
+      () async {
+        // 001 is captioned and indexed; replacing the file with a directory
+        // leaves the reorder valid but the write impossible.
+        await File(cap('001')).delete();
+        await Directory(cap('001')).create();
+        final result = await registry.dispatch(
+          'reorder_caption',
+          jsonEncode({
+            'path': '001.png',
+            'order': ['trigger', 'smile', 'watermark', '1girl'],
+          }),
+        );
+        expect(result.isError, isTrue);
+        expect(result.text, contains('nothing was written'));
+        expect(tagOps.canUndo, isFalse);
+      },
+    );
+
+    test('add_tags_everywhere reports the files it could not write', () async {
+      await blockCaption('003');
+      final out = await call('add_tags_everywhere', {
+        'tags': ['masterpiece'],
+      });
+      expect(out['changed_files'], 2);
+      // The skipped file is named rather than silently dropped.
+      expect(out['failed_files'], 1);
+      expect((out['failures'] as List).single['caption_file'], '003.txt');
+      expect(await readCap('001'), endsWith('masterpiece'));
+    });
+
+    test('a sweep that writes nothing and fails is an error', () async {
+      await File(cap('001')).delete();
+      await Directory(cap('001')).create();
+      await File(cap('002')).delete();
+      await Directory(cap('002')).create();
+      await blockCaption('003');
+      await dataset.scan(
+        directoryPath: tempDir.path,
+        recursive: false,
+        captionExtension: '.txt',
+      );
+      final result = await registry.dispatch(
+        'add_tags_everywhere',
+        jsonEncode({
+          'tags': ['masterpiece'],
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('nothing was written'));
     });
 
     test('write_caption rejects paths outside the dataset', () async {

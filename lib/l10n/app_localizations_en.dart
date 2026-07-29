@@ -586,6 +586,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noFilesChanged => 'No files needed changes.';
 
   @override
+  String filesFailed(int count) {
+    return '$count files could not be written';
+  }
+
+  @override
   String get filterPanelTitle => 'Gallery filter';
 
   @override

@@ -304,6 +304,12 @@
     }
   },
   "noFilesChanged": "No files needed changes.",
+  "filesFailed": "{count} files could not be written",
+  "@filesFailed": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "filterPanelTitle": "Gallery filter",
   "filterStatus": "Filtered · {shown} / {total} match",
   "@filterStatus": {
