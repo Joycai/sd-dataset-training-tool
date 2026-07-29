@@ -564,6 +564,27 @@
   "agentConfirmWritesTitle": "Confirm writes",
   "agentConfirmWritesDesc": "Ask before the assistant modifies caption files; every change stays undoable either way",
 
+  "promptPresetsTitle": "Prompt presets",
+  "promptPresetsDesc": "Save prompts you use often and drop them into the assistant's input with one click",
+  "promptPresetsEmpty": "No prompt presets yet",
+  "promptPresetsManage": "Manage presets…",
+  "promptPresetAdd": "Add prompt",
+  "promptPresetNewName": "New prompt",
+  "promptPresetUntitled": "Untitled",
+  "promptPresetName": "Name",
+  "promptPresetContent": "Prompt text",
+  "promptPresetContentHint": "The text inserted into the assistant's input…",
+  "promptPresetSelectHint": "Select a prompt on the left, or add a new one.",
+  "promptPresetMoveUp": "Move up",
+  "promptPresetMoveDown": "Move down",
+  "promptPresetDeleteConfirmTitle": "Delete prompt",
+  "promptPresetDeleteConfirmContent": "Delete \"{name}\"? This cannot be undone.",
+  "@promptPresetDeleteConfirmContent": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+
   "llmSection": "AI Assistant (LLM)",
   "llmActiveProfile": "Active backend",
   "llmActiveProfileDesc": "Which configured LLM backend the assistant talks to",

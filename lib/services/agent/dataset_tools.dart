@@ -462,10 +462,92 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
   AgentTool(
     isWrite: true,
     spec: const AgentToolSpec(
+      name: 'sort_captions_everywhere',
+      description:
+          'Sort the tags of many captions at once against a single '
+          'priority list — the tool for "order tags by category" over a '
+          'whole dataset or a filtered subset. Tags named in `priority` '
+          'come first, in that order; every other tag keeps its relative '
+          'position. No tag is ever added, removed or reworded, so you do '
+          'not have to read the captions first and there is nothing to '
+          'get wrong per image. Always prefer this over calling '
+          'reorder_caption in a loop — that one is for touching up a '
+          'single image. Build the priority list from get_tag_stats or '
+          'get_tag_library. Narrow the scope with the same filters as '
+          'list_images. Undoable as one operation.',
+      parametersSchema: {
+        'type': 'object',
+        'properties': {
+          'priority': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description':
+                'tags in the order they should appear; matching ignores '
+                'case and underscore/space differences, and tags no image '
+                'has are simply unused',
+          },
+          'keep_first': {
+            'type': 'integer',
+            'description':
+                'leave this many leading tags of each caption untouched '
+                '(the trigger word); default 0',
+          },
+          'unlisted': {
+            'type': 'string',
+            'description':
+                'where tags missing from priority go: "end" (default) or '
+                '"start"',
+          },
+          'include_tags': {
+            'type': 'array',
+            'items': {'type': 'string'},
+          },
+          'exclude_tags': {
+            'type': 'array',
+            'items': {'type': 'string'},
+          },
+          'untagged_only': {'type': 'boolean'},
+          'name_query': {'type': 'string'},
+        },
+        'required': ['priority'],
+      },
+    ),
+    handler: (args) async {
+      final priority = requireStringList(args, 'priority', maxLength: 500);
+      final keepFirst = optInt(args, 'keep_first', fallback: 0, min: 0);
+      final unlisted = optString(args, 'unlisted')?.toLowerCase();
+      if (unlisted != null && unlisted != 'end' && unlisted != 'start') {
+        return toolError('"unlisted" must be either "end" or "start"');
+      }
+      final files = _filterFiles(
+        deps.dataset,
+        include: optStringList(args, 'include_tags'),
+        exclude: optStringList(args, 'exclude_tags'),
+        untaggedOnly: optBool(args, 'untagged_only'),
+        nameQuery: optString(args, 'name_query')?.toLowerCase(),
+      );
+      return _batchResult(
+        await tagOps.reorderEverywhere(
+          priority,
+          files: files,
+          keepFirst: keepFirst,
+          unlistedFirst: unlisted == 'start',
+          label: 'AI: sort caption tags',
+        ),
+        extra: {'scanned_files': files.length},
+      );
+    },
+  ),
+  AgentTool(
+    isWrite: true,
+    spec: const AgentToolSpec(
       name: 'reorder_caption',
       description:
-          'Reorder one image\'s caption tags — the tool for sorting tags '
-          'by category. The order you give must be a permutation of the '
+          'Reorder ONE image\'s caption tags, for a touch-up that a '
+          'priority list cannot express. To sort more than a couple of '
+          'images use sort_captions_everywhere instead — looping this '
+          'tool over a batch is slow and fails as soon as one tag is '
+          'mistyped. The order you give must be a permutation of the '
           'tags the image already has: nothing may be added, removed or '
           'reworded. A mismatch writes nothing and returns the image\'s '
           'current tags, so reorder from a fresh read_captions rather '
@@ -509,7 +591,10 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
                     '${match.unknown.join(", ")}'}'
           '${match.missing.isEmpty ? '' : '; left out: '
                     '${match.missing.join(", ")}'}'
-          '. Its ${current.length} current tags are: ${current.join(", ")}',
+          '. Its ${current.length} current tags are: ${current.join(", ")}'
+          '. If you are sorting a batch of images, stop looping this tool '
+          'and use sort_captions_everywhere: it takes one priority list '
+          'for all of them and cannot mismatch.',
         );
       }
       final result = await tagOps.rewriteOne(
@@ -639,9 +724,12 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
 /// so the skipped ones must be named here: reporting only `changed_files`
 /// would let a sweep that failed on every file read as "nothing matched".
 /// Nothing written *and* files failed is an error, not a no-op.
-AgentToolResult _batchResult(BatchRewriteResult result) {
+AgentToolResult _batchResult(
+  BatchRewriteResult result, {
+  Map<String, dynamic> extra = const {},
+}) {
   if (result.failures.isEmpty) {
-    return toolOk({'changed_files': result.changed});
+    return toolOk({'changed_files': result.changed, ...extra});
   }
   const sample = 5;
   if (result.changed == 0) {
@@ -660,6 +748,7 @@ AgentToolResult _batchResult(BatchRewriteResult result) {
         {'caption_file': p.basename(f.captionPath), 'error': f.error},
     ],
     'failures_truncated': result.failed > sample,
+    ...extra,
   });
 }
 

@@ -217,6 +217,55 @@ class TagOps extends ChangeNotifier {
     );
   }
 
+  /// Reorders many captions against one [priority] list: tags named there
+  /// come first, in that order; every other tag keeps its relative position
+  /// (at the end, or the front with [unlistedFirst]). [keepFirst] leaves that
+  /// many leading tags where they are — the LoRA trigger word usually has to
+  /// stay first.
+  ///
+  /// The result is a permutation of each file's own tags by construction:
+  /// tags are bucketed, never re-typed, so unlike a per-image rewrite this
+  /// cannot add, drop or reword anything. (Exact duplicates within one file
+  /// still collapse, as they do in every rewrite — [parseTagText] is the
+  /// shared grammar.) Matching folds case and underscore
+  /// style ([tagLookupKey]), so a priority entry of `long hair` also ranks a
+  /// file's `long_hair` — which keeps its own spelling on disk.
+  Future<BatchRewriteResult> reorderEverywhere(
+    List<String> priority, {
+    List<File>? files,
+    int keepFirst = 0,
+    bool unlistedFirst = false,
+    required String label,
+  }) {
+    // First occurrence wins: a duplicated priority entry must not create a
+    // second bucket that silently reorders past the first.
+    final rank = <String, int>{};
+    for (var i = 0; i < priority.length; i++) {
+      rank.putIfAbsent(tagLookupKey(priority[i]), () => i);
+    }
+    if (rank.isEmpty) return Future.value(const BatchRewriteResult.none());
+    return _rewriteAll(label, (tags) {
+      if (tags.length < 2) return null;
+      final head = tags.take(keepFirst.clamp(0, tags.length)).toList();
+      final buckets = List.generate(priority.length, (_) => <String>[]);
+      final unlisted = <String>[];
+      for (final tag in tags.skip(head.length)) {
+        final index = rank[tagLookupKey(tag)];
+        if (index == null) {
+          unlisted.add(tag);
+        } else {
+          buckets[index].add(tag);
+        }
+      }
+      return [
+        ...head,
+        if (unlistedFirst) ...unlisted,
+        for (final bucket in buckets) ...bucket,
+        if (!unlistedFirst) ...unlisted,
+      ];
+    }, files: files);
+  }
+
   /// Rewrites one image's caption file to exactly [text], recording undo.
   /// A missing caption file is created. The result distinguishes a real
   /// write from an identical-content no-op and from an IO failure — see

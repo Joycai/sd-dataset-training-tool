@@ -1926,6 +1926,96 @@ abstract class AppLocalizations {
   /// **'Ask before the assistant modifies caption files; every change stays undoable either way'**
   String get agentConfirmWritesDesc;
 
+  /// No description provided for @promptPresetsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt presets'**
+  String get promptPresetsTitle;
+
+  /// No description provided for @promptPresetsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Save prompts you use often and drop them into the assistant\'s input with one click'**
+  String get promptPresetsDesc;
+
+  /// No description provided for @promptPresetsEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No prompt presets yet'**
+  String get promptPresetsEmpty;
+
+  /// No description provided for @promptPresetsManage.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage presets…'**
+  String get promptPresetsManage;
+
+  /// No description provided for @promptPresetAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add prompt'**
+  String get promptPresetAdd;
+
+  /// No description provided for @promptPresetNewName.
+  ///
+  /// In en, this message translates to:
+  /// **'New prompt'**
+  String get promptPresetNewName;
+
+  /// No description provided for @promptPresetUntitled.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled'**
+  String get promptPresetUntitled;
+
+  /// No description provided for @promptPresetName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get promptPresetName;
+
+  /// No description provided for @promptPresetContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt text'**
+  String get promptPresetContent;
+
+  /// No description provided for @promptPresetContentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The text inserted into the assistant\'s input…'**
+  String get promptPresetContentHint;
+
+  /// No description provided for @promptPresetSelectHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a prompt on the left, or add a new one.'**
+  String get promptPresetSelectHint;
+
+  /// No description provided for @promptPresetMoveUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move up'**
+  String get promptPresetMoveUp;
+
+  /// No description provided for @promptPresetMoveDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Move down'**
+  String get promptPresetMoveDown;
+
+  /// No description provided for @promptPresetDeleteConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete prompt'**
+  String get promptPresetDeleteConfirmTitle;
+
+  /// No description provided for @promptPresetDeleteConfirmContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"? This cannot be undone.'**
+  String promptPresetDeleteConfirmContent(String name);
+
   /// No description provided for @llmSection.
   ///
   /// In en, this message translates to:

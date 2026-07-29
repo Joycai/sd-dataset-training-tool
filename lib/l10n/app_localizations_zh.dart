@@ -1018,6 +1018,53 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentConfirmWritesDesc => '助手修改 caption 文件前先征求确认；无论开关与否，所有改动都可撤销';
 
   @override
+  String get promptPresetsTitle => '预置提示词';
+
+  @override
+  String get promptPresetsDesc => '保存常用的提示词，在助手输入框一键插入';
+
+  @override
+  String get promptPresetsEmpty => '还没有预置提示词';
+
+  @override
+  String get promptPresetsManage => '管理预置提示词…';
+
+  @override
+  String get promptPresetAdd => '添加提示词';
+
+  @override
+  String get promptPresetNewName => '新提示词';
+
+  @override
+  String get promptPresetUntitled => '未命名';
+
+  @override
+  String get promptPresetName => '名称';
+
+  @override
+  String get promptPresetContent => '提示词内容';
+
+  @override
+  String get promptPresetContentHint => '会被插入到助手输入框的文本…';
+
+  @override
+  String get promptPresetSelectHint => '在左侧选择一个提示词，或新增一个。';
+
+  @override
+  String get promptPresetMoveUp => '上移';
+
+  @override
+  String get promptPresetMoveDown => '下移';
+
+  @override
+  String get promptPresetDeleteConfirmTitle => '删除提示词';
+
+  @override
+  String promptPresetDeleteConfirmContent(String name) {
+    return '确定删除“$name”吗？此操作无法撤销。';
+  }
+
+  @override
   String get llmSection => 'AI 助手（LLM）';
 
   @override
