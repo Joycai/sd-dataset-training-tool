@@ -271,7 +271,26 @@ class _CaptionTypeRowState extends State<_CaptionTypeRow> {
                   widget.onChanged(type.copyWith(name: value)),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 4),
+          // Sentence mode: while this type is active, the tag views segment
+          // the caption by , and . instead of treating it as tags.
+          IconButton(
+            icon: const Icon(Icons.subject, size: 16),
+            tooltip: l10n.captionTypeProseTooltip,
+            isSelected: type.prose,
+            color: semantic.muted,
+            selectedIcon: Icon(
+              Icons.subject,
+              size: 16,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+            padding: EdgeInsets.zero,
+            onPressed: () =>
+                widget.onChanged(type.copyWith(prose: !type.prose)),
+          ),
+          const SizedBox(width: 6),
           SizedBox(
             width: 90,
             child: TextField(

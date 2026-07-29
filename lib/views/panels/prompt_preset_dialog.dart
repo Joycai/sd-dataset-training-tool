@@ -56,9 +56,7 @@ class _PromptPresetsDialogState extends State<_PromptPresetsDialog> {
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.promptPresetDeleteConfirmTitle),
         content: Text(
-          l10n.promptPresetDeleteConfirmContent(
-            _labelOf(l10n, preset),
-          ),
+          l10n.promptPresetDeleteConfirmContent(_labelOf(l10n, preset)),
         ),
         actions: [
           TextButton(
@@ -158,9 +156,8 @@ class _PromptPresetsDialogState extends State<_PromptPresetsDialog> {
                               preset: selected,
                               isFirst: presets.first.id == selected.id,
                               isLast: presets.last.id == selected.id,
-                              onChanged: (title, content) => context
-                                  .read<AppState>()
-                                  .updatePromptPreset(
+                              onChanged: (title, content) =>
+                                  context.read<AppState>().updatePromptPreset(
                                     selected.id,
                                     title: title,
                                     content: content,

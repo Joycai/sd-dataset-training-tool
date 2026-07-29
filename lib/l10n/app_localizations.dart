@@ -182,6 +182,12 @@ abstract class AppLocalizations {
   /// **'The default type is always enabled'**
   String get captionTypeDefaultHint;
 
+  /// No description provided for @captionTypeProseTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Sentence mode: while this type is active, the tag view segments the caption by , and . — for natural-language descriptions'**
+  String get captionTypeProseTooltip;
+
   /// No description provided for @captionTypeDuplicate.
   ///
   /// In en, this message translates to:

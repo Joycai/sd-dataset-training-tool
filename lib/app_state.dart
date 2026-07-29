@@ -573,6 +573,10 @@ class AppState extends ChangeNotifier {
   /// Caption file suffix of the active type.
   String get captionExtension => activeCaptionType.extension;
 
+  /// Whether the active type is prose (sentence-segmented) rather than
+  /// comma-separated tags.
+  bool get captionProse => activeCaptionType.prose;
+
   Future<void> updateCaptionTypes(List<CaptionType> types) async {
     _captionTypes = sanitizeCaptionTypes(types);
     notifyListeners();

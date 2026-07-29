@@ -10,6 +10,53 @@ List<String> parseTagText(String text) {
       .toList();
 }
 
+/// Where prose caption text breaks into segments: a run of `,`/`.` followed
+/// by whitespace or the end of the text (so `1.5` and `no.7` stay whole),
+/// or a run of full-width `，`/`。` anywhere (Chinese prose has no spaces).
+final RegExp _sentenceBreak = RegExp(r'[,.]+(?=\s|$)|[，。]+');
+
+/// The prose counterpart of [parseTagText]: splits natural-language caption
+/// text into sentence segments for the tag view. Each segment keeps its
+/// trailing punctuation, which is what lets [joinCaptionText] reassemble the
+/// caption without inventing or dropping delimiters. Exact duplicate
+/// segments collapse, mirroring the tag grammar.
+List<String> parseSentenceText(String text) {
+  final seen = <String>{};
+  final out = <String>[];
+  void add(String raw) {
+    final segment = raw.trim();
+    if (segment.isNotEmpty && seen.add(segment)) out.add(segment);
+  }
+
+  var start = 0;
+  for (final match in _sentenceBreak.allMatches(text)) {
+    add(text.substring(start, match.end));
+    start = match.end;
+  }
+  add(text.substring(start));
+  return out;
+}
+
+/// Parses caption text in the grammar of the active caption type: the tag
+/// grammar, or sentence segments when the type is prose.
+List<String> parseCaptionText(String text, {bool prose = false}) =>
+    prose ? parseSentenceText(text) : parseTagText(text);
+
+/// Joins parsed caption parts back into file text. Tags join with `", "`;
+/// prose segments carry their own punctuation, so they join with a plain
+/// space — omitted after full-width punctuation, which no space follows.
+String joinCaptionText(List<String> parts, {bool prose = false}) {
+  if (!prose) return parts.join(', ');
+  final buffer = StringBuffer();
+  for (var i = 0; i < parts.length; i++) {
+    if (i > 0 && !parts[i - 1].endsWith('，') && !parts[i - 1].endsWith('。')) {
+      buffer.write(' ');
+    }
+    buffer.write(parts[i]);
+  }
+  return buffer.toString();
+}
+
 /// Folds a tag into the form the dictionary matches on: lower case, spaces
 /// instead of underscores, parentheses unescaped, runs of blanks collapsed.
 ///

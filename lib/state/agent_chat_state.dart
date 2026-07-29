@@ -376,7 +376,8 @@ class AgentChatState extends ChangeNotifier {
         captionTypesSummary: multiType
             ? [
                 for (final t in app.enabledCaptionTypes)
-                  '${t.label} (${t.extension})'
+                  '${t.label} (${t.extension}'
+                      '${t.prose ? ', natural-language prose' : ''})'
                       '${t.extension == app.captionExtension ? ', active' : ''}',
               ].join('; ')
             : null,

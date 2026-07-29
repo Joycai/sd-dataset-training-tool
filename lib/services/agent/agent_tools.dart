@@ -37,11 +37,7 @@ AgentToolResult toolOk(
   Map<String, dynamic> json, {
   List<ChatContentPart> extraParts = const [],
   bool pinned = false,
-}) => AgentToolResult(
-  jsonEncode(json),
-  extraParts: extraParts,
-  pinned: pinned,
-);
+}) => AgentToolResult(jsonEncode(json), extraParts: extraParts, pinned: pinned);
 
 AgentToolResult toolError(String message) =>
     AgentToolResult(jsonEncode({'error': message}), isError: true);

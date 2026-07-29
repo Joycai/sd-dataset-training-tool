@@ -52,6 +52,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get captionTypeDefaultHint => 'The default type is always enabled';
 
   @override
+  String get captionTypeProseTooltip =>
+      'Sentence mode: while this type is active, the tag view segments the caption by , and . — for natural-language descriptions';
+
+  @override
   String get captionTypeDuplicate =>
       'This extension is already used by another caption type';
 

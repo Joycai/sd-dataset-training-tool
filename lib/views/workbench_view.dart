@@ -158,7 +158,14 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     if (selected == null) {
       _session.unload();
     } else {
-      _session.load(selected, context.read<AppState>().captionExtension);
+      // The dataset's own extension/grammar, not the app state's: a type
+      // switch mid-flight must not load the editor in a grammar the scan
+      // has not indexed yet ([_rescanIfCaptionTypeChanged] follows up).
+      _session.load(
+        selected,
+        _dataset.captionExtension,
+        prose: _dataset.captionProse,
+      );
     }
   }
 
@@ -193,13 +200,16 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     );
   }
 
-  /// Rescans when the active caption extension no longer matches the one the
-  /// dataset was scanned with. The scan itself updates the dataset's
-  /// extension, so this cannot loop.
+  /// Rescans when the active caption extension or grammar (prose flag) no
+  /// longer matches what the dataset was scanned with. The scan itself
+  /// updates both, so this cannot loop.
   void _rescanIfCaptionTypeChanged() {
     final directory = _appState.browsingDirectory;
     if (directory == null || _dataset.rootPath == null) return;
-    if (_appState.captionExtension == _dataset.captionExtension) return;
+    if (_appState.captionExtension == _dataset.captionExtension &&
+        _appState.captionProse == _dataset.captionProse) {
+      return;
+    }
     _scan(directory);
   }
 
@@ -212,6 +222,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
       directoryPath: directory,
       recursive: appState.includeSubdirectories,
       captionExtension: appState.captionExtension,
+      captionProse: appState.captionProse,
     );
     if (!mounted) return;
     // The selected path usually survives a rescan, so [_onDatasetChanged]
@@ -220,7 +231,11 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     final selected = _dataset.selectedFile;
     if (selected != null) {
       _lastLoadedPath = selected.path;
-      await _session.load(selected, _dataset.captionExtension);
+      await _session.load(
+        selected,
+        _dataset.captionExtension,
+        prose: _dataset.captionProse,
+      );
     }
   }
 
@@ -230,7 +245,11 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     if (!mounted) return;
     final selected = _dataset.selectedFile;
     if (selected == null || !imagePaths.contains(selected.path)) return;
-    _session.load(selected, context.read<AppState>().captionExtension);
+    _session.load(
+      selected,
+      _dataset.captionExtension,
+      prose: _dataset.captionProse,
+    );
   }
 
   Future<void> _openFolder() async {
