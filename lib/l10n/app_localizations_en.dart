@@ -42,8 +42,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resetSettingsConfirmationTitle => 'Confirm Reset';
 
   @override
-  String get resetSettingsConfirmationContent =>
-      'Are you sure you want to reset all settings to their default values? This action cannot be undone.';
+  String get resetSettingsConfirmationContent => 'Are you sure you want to reset all settings to their default values? This action cannot be undone.';
 
   @override
   String get cancel => 'Cancel';
@@ -67,8 +66,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get importTagsTitle => 'Import/Replace Common Tags';
 
   @override
-  String get importTagsContent =>
-      'Paste comma-separated tags here. This will replace all existing common tags.';
+  String get importTagsContent => 'Paste comma-separated tags here. This will replace all existing common tags.';
 
   @override
   String get add => 'Add';
@@ -80,8 +78,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addTagsTitle => 'Add Common Tags';
 
   @override
-  String get addTagsContent =>
-      'Paste comma-separated tags to add to the existing list.';
+  String get addTagsContent => 'Paste comma-separated tags to add to the existing list.';
 
   @override
   String get imageTags => 'Image Tags';
@@ -201,8 +198,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tagSortModeTooltip => 'Sort mode: drag tags to reorder';
 
   @override
-  String get tagAnchorHolderTooltip =>
-      'Set insert anchor: new tags are added after this tag ([ / ] to move, click again to clear)';
+  String get tagAnchorHolderTooltip => 'Set insert anchor: new tags are added after this tag ([ / ] to move, click again to clear)';
 
   @override
   String anchorStatusLabel(String tag) {
@@ -210,8 +206,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get anchorClearTooltip =>
-      'New tags are inserted after this tag; click to clear (back to append at end)';
+  String get anchorClearTooltip => 'New tags are inserted after this tag; click to clear (back to append at end)';
 
   @override
   String get aiInterrogateButton => 'AI tag';
@@ -258,12 +253,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiBadgeUncensored => 'Uncensored';
 
   @override
-  String get aiVramFootnote =>
-      'VRAM figures are estimates; amber means demanding.';
+  String get aiVramFootnote => 'VRAM figures are estimates; amber means demanding.';
 
   @override
-  String get aiThresholdCaptionNote =>
-      'The selected model outputs captions; the threshold has no effect.';
+  String get aiThresholdCaptionNote => 'The selected model outputs captions; the threshold has no effect.';
 
   @override
   String get aiThresholdLabel => 'Threshold';
@@ -278,8 +271,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiIgnoreTagsLabel => 'Ignored tags';
 
   @override
-  String get aiIgnoreTagsDesc =>
-      'Comma-separated. These tags never appear in AI results.';
+  String get aiIgnoreTagsDesc => 'Comma-separated. These tags never appear in AI results.';
 
   @override
   String get aiUnderscoreToSpaces => 'Underscores to spaces';
@@ -358,15 +350,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get compareBadgeReviewed => 'Reviewed';
 
   @override
-  String get aiExitCompareTooltip =>
-      'Exit compare mode (applies to all images)';
+  String get aiExitCompareTooltip => 'Exit compare mode (applies to all images)';
 
   @override
   String get aiNoResultYet => 'No result for this image yet.';
 
   @override
-  String get aiFirstRunHint =>
-      'First use of a model downloads it — this can take a while.';
+  String get aiFirstRunHint => 'First use of a model downloads it — this can take a while.';
 
   @override
   String get aiNoModelSelected => 'No model selected. Check the AI parameters.';
@@ -383,8 +373,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get batchTagTitle => 'Batch AI tagging';
 
   @override
-  String get batchTagParamsHint =>
-      'Threshold, ignored tags and normalization follow the AI parameters.';
+  String get batchTagParamsHint => 'Threshold, ignored tags and normalization follow the AI parameters.';
 
   @override
   String get batchTagOpenParams => 'AI parameters…';
@@ -402,23 +391,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get batchTagModeRecognize => 'Recognize';
 
   @override
-  String get batchTagModeRecognizeDesc =>
-      'Interrogates and caches results without touching caption files; when finished, compare mode opens for per-image review.';
+  String get batchTagModeRecognizeDesc => 'Interrogates and caches results without touching caption files; when finished, compare mode opens for per-image review.';
 
   @override
-  String get batchTagModeAppendDesc =>
-      'New AI tags are appended after each image\'s existing tags; duplicates are never added.';
+  String get batchTagModeAppendDesc => 'New AI tags are appended after each image\'s existing tags; duplicates are never added.';
 
   @override
-  String get batchTagModeOverwriteDesc =>
-      'AI results replace each image\'s existing tags; configure below which existing tags survive.';
+  String get batchTagModeOverwriteDesc => 'AI results replace each image\'s existing tags; configure below which existing tags survive.';
 
   @override
   String get batchTagPreservedLabel => 'Preserved tags';
 
   @override
-  String get batchTagPreservedDesc =>
-      'Comma-separated. These existing tags survive the overwrite.';
+  String get batchTagPreservedDesc => 'Comma-separated. These existing tags survive the overwrite.';
 
   @override
   String get batchTagKeepFirstN => 'Keep first N existing tags';
@@ -427,8 +412,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get batchTagBlacklistLabel => 'Blacklist';
 
   @override
-  String get batchTagBlacklistDesc =>
-      'Comma-separated. These tags are never appended.';
+  String get batchTagBlacklistDesc => 'Comma-separated. These tags are never appended.';
 
   @override
   String batchTagScopeFiltered(Object count) {
@@ -471,17 +455,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String batchTagRecognizeDoneSummary(
-    Object completed,
-    Object changed,
-    Object failed,
-  ) {
+  String batchTagRecognizeDoneSummary(Object completed, Object changed, Object failed) {
     return '$completed images processed: $changed recognized, $failed failed.';
   }
 
   @override
-  String get batchTagRecognizeDoneHint =>
-      'Compare mode is on: switch images to review the AI suggestions.';
+  String get batchTagRecognizeDoneHint => 'Compare mode is on: switch images to review the AI suggestions.';
 
   @override
   String get batchTagUndoHint => 'Use undo in the top bar to revert this run.';
@@ -502,8 +481,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get datasetTagsEmpty => 'No tags in this dataset yet.';
 
   @override
-  String get datasetTagsHint =>
-      'Green = on the current image. Right-click for actions';
+  String get datasetTagsHint => 'Green = on the current image. Right-click for actions';
 
   @override
   String get clearTagFilter => 'Clear tag filter';
@@ -693,8 +671,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get removeFromLibrary => 'Remove from library';
 
   @override
-  String get libraryEmpty =>
-      'The library is empty. Use the plus button to add tags.';
+  String get libraryEmpty => 'The library is empty. Use the plus button to add tags.';
 
   @override
   String get moreActionsTooltip => 'More actions';
@@ -856,8 +833,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fontTitle => 'Font';
 
   @override
-  String get fontDesc =>
-      'UI font. HarmonyOS Sans and MiSans are downloaded on first use';
+  String get fontDesc => 'UI font. HarmonyOS Sans and MiSans are downloaded on first use';
 
   @override
   String get fontSystem => 'System font';
@@ -890,26 +866,22 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get captionExtensionDesc =>
-      'Suffix of the caption file that shares the image\'s name, e.g. .txt or .caption';
+  String get captionExtensionDesc => 'Suffix of the caption file that shares the image\'s name, e.g. .txt or .caption';
 
   @override
   String get includeSubdirsTitle => 'Include subdirectories';
 
   @override
-  String get includeSubdirsDesc =>
-      'Recursively scan all folders inside the opened directory';
+  String get includeSubdirsDesc => 'Recursively scan all folders inside the opened directory';
 
   @override
   String get autoSaveTitle => 'Auto-save';
 
   @override
-  String get autoSaveDesc =>
-      'Write the caption file 0.8 s after you stop editing';
+  String get autoSaveDesc => 'Write the caption file 0.8 s after you stop editing';
 
   @override
-  String get resetDesc =>
-      'Restore defaults and clear the tag library. Images and caption files are not touched.';
+  String get resetDesc => 'Restore defaults and clear the tag library. Images and caption files are not touched.';
 
   @override
   String get resetAction => 'Reset';
@@ -918,8 +890,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get accentTitle => 'Theme Color';
 
   @override
-  String get accentDesc =>
-      'Base color; surfaces, borders and highlights across the UI are tinted from it';
+  String get accentDesc => 'Base color; surfaces, borders and highlights across the UI are tinted from it';
 
   @override
   String get accentTeal => 'Teal';
@@ -979,8 +950,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentInputHint => 'Ask about or edit your dataset…';
 
   @override
-  String get agentNoProfileHint =>
-      'No LLM backend configured yet. Add one in Settings to start using the assistant.';
+  String get agentNoProfileHint => 'No LLM backend configured yet. Add one in Settings to start using the assistant.';
 
   @override
   String get agentOpenSettings => 'Open Settings';
@@ -1035,8 +1005,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentConfirmWritesTitle => 'Confirm writes';
 
   @override
-  String get agentConfirmWritesDesc =>
-      'Ask before the assistant modifies caption files; every change stays undoable either way';
+  String get agentConfirmWritesDesc => 'Ask before the assistant modifies caption files; every change stays undoable either way';
+
+  @override
+  String get promptPresetsTitle => 'Prompt presets';
+
+  @override
+  String get promptPresetsDesc => 'Save prompts you use often and drop them into the assistant\'s input with one click';
+
+  @override
+  String get promptPresetsEmpty => 'No prompt presets yet';
+
+  @override
+  String get promptPresetsManage => 'Manage presets…';
+
+  @override
+  String get promptPresetAdd => 'Add prompt';
+
+  @override
+  String get promptPresetNewName => 'New prompt';
+
+  @override
+  String get promptPresetUntitled => 'Untitled';
+
+  @override
+  String get promptPresetName => 'Name';
+
+  @override
+  String get promptPresetContent => 'Prompt text';
+
+  @override
+  String get promptPresetContentHint => 'The text inserted into the assistant\'s input…';
+
+  @override
+  String get promptPresetSelectHint => 'Select a prompt on the left, or add a new one.';
+
+  @override
+  String get promptPresetMoveUp => 'Move up';
+
+  @override
+  String get promptPresetMoveDown => 'Move down';
+
+  @override
+  String get promptPresetDeleteConfirmTitle => 'Delete prompt';
+
+  @override
+  String promptPresetDeleteConfirmContent(String name) {
+    return 'Delete \"$name\"? This cannot be undone.';
+  }
 
   @override
   String get llmSection => 'AI Assistant (LLM)';
@@ -1045,8 +1061,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get llmActiveProfile => 'Active backend';
 
   @override
-  String get llmActiveProfileDesc =>
-      'Which configured LLM backend the assistant talks to';
+  String get llmActiveProfileDesc => 'Which configured LLM backend the assistant talks to';
 
   @override
   String get llmNoProfiles => 'None configured';
@@ -1055,8 +1070,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get llmManageProfiles => 'Backends';
 
   @override
-  String get llmManageProfilesDesc =>
-      'Add, edit, test and remove LLM backend configurations';
+  String get llmManageProfilesDesc => 'Add, edit, test and remove LLM backend configurations';
 
   @override
   String get llmManageAction => 'Manage';
@@ -1094,8 +1108,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get llmPricingTitle => 'Pricing (per Mtoken)';
 
   @override
-  String get llmPricingNote =>
-      'Used for usage accounting only; never sent with requests.';
+  String get llmPricingNote => 'Used for usage accounting only; never sent with requests.';
 
   @override
   String get llmPriceInput => 'Input';
@@ -1113,8 +1126,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get llmNewProfileName => 'New backend';
 
   @override
-  String get llmSelectProfileHint =>
-      'Select a backend on the left, or add a new one.';
+  String get llmSelectProfileHint => 'Select a backend on the left, or add a new one.';
 
   @override
   String get llmProfileName => 'Name';
@@ -1135,8 +1147,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get llmApiKey => 'API Key';
 
   @override
-  String get llmApiKeyPlaintextNote =>
-      'Stored as plain text in local settings.';
+  String get llmApiKeyPlaintextNote => 'Stored as plain text in local settings.';
 
   @override
   String get llmModel => 'Model';
@@ -1154,8 +1165,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get llmSupportsVision => 'Vision (multimodal)';
 
   @override
-  String get llmSupportsVisionDesc =>
-      'Enable if the model accepts images; unlocks image tools in later phases';
+  String get llmSupportsVisionDesc => 'Enable if the model accepts images; unlocks image tools in later phases';
 
   @override
   String get llmFetchModels => 'Fetch model list';
@@ -1223,8 +1233,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tagDictionaryTitle => 'Tag dictionary';
 
   @override
-  String get tagDictionaryDesc =>
-      'Suggests danbooru tags while you type in the caption editor';
+  String get tagDictionaryDesc => 'Suggests danbooru tags while you type in the caption editor';
 
   @override
   String get tagDictionaryStatusLoading => 'Loading…';
@@ -1243,8 +1252,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tagDictionaryFullTitle => 'Full danbooru dictionary';
 
   @override
-  String get tagDictionaryFullDesc =>
-      'Downloads the top 100k tags with aliases, artists and copyrights (~3.5 MB)';
+  String get tagDictionaryFullDesc => 'Downloads the top 100k tags with aliases, artists and copyrights (~3.5 MB)';
 
   @override
   String get tagDictionaryDownloadAction => 'Download';

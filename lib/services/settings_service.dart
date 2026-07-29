@@ -303,6 +303,17 @@ class SettingsService {
     return prefs.getBool('agentConfirmWrites') ?? true;
   }
 
+  /// 用户自定义的预置提示词（JSON blob, 见 models/prompt_preset.dart）。
+  Future<void> saveAgentPromptPresetsJson(String json) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('agentPromptPresets', json);
+  }
+
+  Future<String?> loadAgentPromptPresetsJson() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('agentPromptPresets');
+  }
+
   /// 单个 agent 会话的累计 token 硬上限。
   Future<void> saveAgentSessionTokenCap(int value) async {
     final prefs = await SharedPreferences.getInstance();
