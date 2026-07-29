@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/merge_rules.dart';
 import '../models/tag_group.dart';
 import '../theme/app_theme.dart';
 
@@ -477,5 +478,32 @@ class SettingsService {
   Future<List<String>> loadBatchTagBlacklist() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getStringList('batchTagBlacklist') ?? [];
+  }
+
+  /// 标准样本模式下选中的规则集 id（规则本体存在 agentMergeRules）。
+  Future<void> saveBatchTagRulesId(String? id) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (id == null) {
+      await prefs.remove('batchTagRulesId');
+    } else {
+      await prefs.setString('batchTagRulesId', id);
+    }
+  }
+
+  Future<String?> loadBatchTagRulesId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('batchTagRulesId');
+  }
+
+  /// 标准样本模式下服装证据的次级阈值（低于打标器主阈值）。
+  Future<void> saveBatchTagEvidenceThreshold(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('batchTagEvidenceThreshold', value);
+  }
+
+  Future<double> loadBatchTagEvidenceThreshold() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble('batchTagEvidenceThreshold') ??
+        kDefaultEvidenceThreshold;
   }
 }

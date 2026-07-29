@@ -2136,6 +2136,72 @@ abstract class AppLocalizations {
   /// **'Delete \"{name}\"? This cannot be undone.'**
   String promptPresetDeleteConfirmContent(String name);
 
+  /// No description provided for @batchTagModeSheet.
+  ///
+  /// In en, this message translates to:
+  /// **'Sheet'**
+  String get batchTagModeSheet;
+
+  /// No description provided for @batchTagModeSheetDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Rebuilds every caption from a saved character sheet: the trigger word and fixed traits always, outfit items only where the tagger saw them, and the tagger\'s expression / background / pose / framing kept as-is.'**
+  String get batchTagModeSheetDesc;
+
+  /// No description provided for @batchTagRulesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Rule set'**
+  String get batchTagRulesLabel;
+
+  /// No description provided for @batchTagRulesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a rule set'**
+  String get batchTagRulesHint;
+
+  /// No description provided for @batchTagRulesUnnamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Unnamed rule set'**
+  String get batchTagRulesUnnamed;
+
+  /// No description provided for @batchTagRulesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No rule sets yet. Run the character sheet skill in the assistant first — it produces the rules this mode applies.'**
+  String get batchTagRulesEmpty;
+
+  /// No description provided for @batchTagRulesSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{identity} fixed traits · {garments} outfit items · {conflicts} always removed'**
+  String batchTagRulesSummary(int identity, int garments, int conflicts);
+
+  /// No description provided for @batchTagEvidenceThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Outfit evidence threshold'**
+  String get batchTagEvidenceThreshold;
+
+  /// No description provided for @batchTagEvidenceThresholdDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Lower than the tagger\'s own threshold on purpose: the sheet already says the character wears these, so a faint sighting is more likely real than invented. Raise it to the tagger\'s threshold to disable the allowance.'**
+  String get batchTagEvidenceThresholdDesc;
+
+  /// No description provided for @batchTagSheetOverwriteWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Captions are rebuilt, not merged — existing tags are replaced. One undo reverts the whole run.'**
+  String get batchTagSheetOverwriteWarning;
+
+  /// No description provided for @mergeRulesApplyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'To apply these across the dataset, open batch tagging and pick the \"Sheet\" mode.'**
+  String get mergeRulesApplyHint;
+
   /// No description provided for @agentSkillsSection.
   ///
   /// In en, this message translates to:

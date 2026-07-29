@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
+import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
+import '../../models/merge_rules.dart';
 import '../../state/ai_tagger_state.dart';
 import '../../state/batch_tag_state.dart';
 import '../../state/dataset_state.dart';
@@ -22,6 +24,7 @@ Future<void> showBatchTagDialog(
   required AiTaggerState ai,
   required BatchTagState batch,
   required DatasetState dataset,
+  required AppState appState,
 }) {
   return showDialog<void>(
     context: context,
@@ -32,10 +35,23 @@ Future<void> showBatchTagDialog(
         ChangeNotifierProvider.value(value: ai),
         ChangeNotifierProvider.value(value: batch),
         ChangeNotifierProvider.value(value: dataset),
+        ChangeNotifierProvider.value(value: appState),
       ],
       child: const _BatchTagDialog(),
     ),
   );
+}
+
+/// Content width of every view in this dialog. Wide enough that the mode
+/// selector fits four segments without clipping their labels.
+const double _dialogWidth = 440;
+
+/// The label a rule set shows in the picker: its character name, else the
+/// trigger word it writes, else a placeholder.
+String mergeRulesLabel(AppLocalizations l10n, CharacterMergeRules rules) {
+  if (rules.character.trim().isNotEmpty) return rules.character.trim();
+  if (rules.triggerWord.trim().isNotEmpty) return rules.triggerWord.trim();
+  return l10n.batchTagRulesUnnamed;
 }
 
 class _BatchTagDialog extends StatefulWidget {
@@ -128,9 +144,14 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
     final dataset = context.watch<DatasetState>();
     final filtered = dataset.visibleFiles.length != dataset.scopedFiles.length;
     final targetCount = _targetFiles(dataset).length;
-    final canStart = ai.modelName != null && targetCount > 0;
     final overwrite = batch.mode == BatchTagMode.overwrite;
     final recognizeOnly = batch.mode == BatchTagMode.recognizeOnly;
+    final characterSheet = batch.mode == BatchTagMode.characterSheet;
+    final ruleSets = context.watch<AppState>().mergeRuleSets;
+    final canStart =
+        ai.modelName != null &&
+        targetCount > 0 &&
+        (!characterSheet || batch.selectedRules != null);
 
     return AlertDialog(
       title: Row(
@@ -146,7 +167,7 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
         ],
       ),
       content: SizedBox(
-        width: 400,
+        width: _dialogWidth,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -227,6 +248,14 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
                         style: const TextStyle(fontSize: 12.5),
                       ),
                     ),
+                    ButtonSegment(
+                      value: BatchTagMode.characterSheet,
+                      icon: const Icon(Icons.rule, size: 15),
+                      label: Text(
+                        l10n.batchTagModeSheet,
+                        style: const TextStyle(fontSize: 12.5),
+                      ),
+                    ),
                   ],
                   selected: {batch.mode},
                   onSelectionChanged: (set) => batch.setMode(set.first),
@@ -238,7 +267,9 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
               ),
               const SizedBox(height: 6),
               Text(
-                recognizeOnly
+                characterSheet
+                    ? l10n.batchTagModeSheetDesc
+                    : recognizeOnly
                     ? l10n.batchTagModeRecognizeDesc
                     : overwrite
                     ? l10n.batchTagModeOverwriteDesc
@@ -246,7 +277,9 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
                 style: TextStyle(fontSize: 11.5, color: semantic.muted),
               ),
               const SizedBox(height: 14),
-              if (recognizeOnly)
+              if (characterSheet)
+                _SheetSection(batch: batch, ruleSets: ruleSets)
+              else if (recognizeOnly)
                 const SizedBox.shrink()
               else if (overwrite) ...[
                 _FieldLabel(text: l10n.batchTagPreservedLabel),
@@ -383,7 +416,7 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
         ],
       ),
       content: SizedBox(
-        width: 400,
+        width: _dialogWidth,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -482,7 +515,7 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
         ],
       ),
       content: SizedBox(
-        width: 400,
+        width: _dialogWidth,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -526,6 +559,115 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(l10n.confirm),
+        ),
+      ],
+    );
+  }
+}
+
+/// Character-sheet mode's own controls: which rule set to apply and how much
+/// benefit of the doubt its outfit items get.
+class _SheetSection extends StatelessWidget {
+  const _SheetSection({required this.batch, required this.ruleSets});
+
+  final BatchTagState batch;
+  final List<CharacterMergeRules> ruleSets;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+
+    if (ruleSets.isEmpty) {
+      return Text(
+        l10n.batchTagRulesEmpty,
+        style: TextStyle(fontSize: 11.5, color: scheme.error),
+      );
+    }
+
+    // A rule set deleted since the last run leaves the stored id dangling;
+    // showing no selection is better than showing someone else's rules.
+    final selected = batch.selectedRules;
+    final percent = (batch.evidenceThreshold * 100).round();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _FieldLabel(text: l10n.batchTagRulesLabel),
+        SizedBox(
+          width: double.infinity,
+          child: DropdownButton<String>(
+            value: selected?.id,
+            isExpanded: true,
+            hint: Text(
+              l10n.batchTagRulesHint,
+              style: TextStyle(fontSize: 13, color: semantic.muted),
+            ),
+            style: TextStyle(fontSize: 13, color: scheme.onSurface),
+            onChanged: (id) => batch.setRulesId(id),
+            items: [
+              for (final r in ruleSets)
+                DropdownMenuItem(
+                  value: r.id,
+                  child: Text(
+                    mergeRulesLabel(l10n, r),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        if (selected != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            l10n.batchTagRulesSummary(
+              selected.identityTags.length,
+              selected.garments.length,
+              selected.conflictTags.length,
+            ),
+            style: TextStyle(fontSize: 11.5, color: semantic.muted),
+          ),
+        ],
+        const SizedBox(height: 12),
+        _FieldLabel(text: l10n.batchTagEvidenceThreshold),
+        Row(
+          children: [
+            Expanded(
+              child: Slider(
+                value: batch.evidenceThreshold,
+                max: 0.6,
+                divisions: 12,
+                onChanged: batch.setEvidenceThreshold,
+              ),
+            ),
+            SizedBox(
+              width: 40,
+              child: Text(
+                '$percent%',
+                textAlign: TextAlign.right,
+                style: monoStyle(context, size: 11.5),
+              ),
+            ),
+          ],
+        ),
+        Text(
+          l10n.batchTagEvidenceThresholdDesc,
+          style: TextStyle(fontSize: 11.5, color: semantic.muted),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.warning_amber, size: 14, color: semantic.warn),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                l10n.batchTagSheetOverwriteWarning,
+                style: TextStyle(fontSize: 11.5, color: semantic.warn),
+              ),
+            ),
+          ],
         ),
       ],
     );

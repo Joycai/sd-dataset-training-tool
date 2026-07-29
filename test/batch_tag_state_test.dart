@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:dataset_training_tool/models/merge_rules.dart';
 import 'package:dataset_training_tool/services/ai_tagger_service.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/ai_tagger_state.dart';
@@ -359,6 +360,210 @@ void main() {
       await ai.setModelName(null);
       expect(await state.run(files: [img], operationLabel: 'batch'), isFalse);
       state.dispose();
+    });
+
+    group('character sheet', () {
+      const rules = CharacterMergeRules(
+        id: 'r1',
+        character: 'Aoi',
+        triggerWord: 'aoichr',
+        identityTags: ['blonde hair', 'twintails'],
+        conflictTags: ['brown hair'],
+        garments: [
+          GarmentRule(tag: 'dress', evidence: ['dress', 'skirt']),
+          GarmentRule(tag: 'gloves', evidence: ['gloves']),
+        ],
+      );
+
+      /// Every threshold the run asked the server for, in call order.
+      late List<double?> requested;
+
+      BatchTagState buildSheetState(
+        Map<String, List<Map<String, dynamic>>?> tagsByFileName, {
+        void Function(TagOperation op)? onOperation,
+        CharacterMergeRules? available = rules,
+      }) {
+        requested = [];
+        final client = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final models = (body['Models'] as List?) ?? const [];
+          for (final m in models.whereType<Map<String, dynamic>>()) {
+            final params =
+                (m['AdditionalParameters'] as List?) ?? const <dynamic>[];
+            requested.add(
+              params
+                  .whereType<Map<String, dynamic>>()
+                  .where((p) => p['Key'] == 'threshold')
+                  .map((p) => double.tryParse('${p['Value']}'))
+                  .firstOrNull,
+            );
+          }
+          final tags = tagsByFileName[body['FileName']];
+          final response = tags == null
+              ? {
+                  'Success': false,
+                  'ErrorMessage': 'boom',
+                  'Result': <dynamic>[],
+                }
+              : {
+                  'Success': true,
+                  'ErrorMessage': '',
+                  'Result': [
+                    {'ModelName': 'm', 'Tags': tags},
+                  ],
+                };
+          return http.Response(
+            jsonEncode(response),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+        final state = BatchTagState(
+          dataset: dataset,
+          ai: ai,
+          settings: SettingsService(),
+          service: AiTaggerService(client: client),
+          onOperation: onOperation,
+        );
+        state.resolveRules = (id) =>
+            available != null && available.id == id ? available : null;
+        return state;
+      }
+
+      test('rebuilds the caption from the rules, replacing what was '
+          'there', () async {
+        final img = await addImage('a', caption: 'old, stale, brown hair');
+        await scan();
+        await ai.setThreshold(0.35);
+        final state = buildSheetState({
+          'a.png': [
+            {'Tag': 'skirt', 'Probability': 0.9},
+            {'Tag': 'brown_hair', 'Probability': 0.85},
+            {'Tag': 'smile', 'Probability': 0.8},
+            {'Tag': 'outdoors', 'Probability': 0.7},
+          ],
+        });
+        await state.setMode(BatchTagMode.characterSheet);
+        await state.setRulesId('r1');
+
+        expect(await state.run(files: [img], operationLabel: 'batch'), isTrue);
+        expect(state.changed, 1);
+        expect(
+          await File('${tempDir.path}/a.txt').readAsString(),
+          // trigger, traits, the skirt promoted to dress, then the tagger's
+          // own words. The gloves never appeared, so they are not written.
+          'aoichr, blonde hair, twintails, dress, smile, outdoors',
+        );
+        state.dispose();
+      });
+
+      test('asks the server below the threshold so faint outfit evidence '
+          'survives', () async {
+        final img = await addImage('a');
+        await scan();
+        await ai.setThreshold(0.35);
+        final state = buildSheetState({
+          'a.png': [
+            {'Tag': 'gloves', 'Probability': 0.24},
+            {'Tag': 'castle', 'Probability': 0.24},
+            {'Tag': 'smile', 'Probability': 0.9},
+          ],
+        });
+        await state.setMode(BatchTagMode.characterSheet);
+        await state.setRulesId('r1');
+        await state.setEvidenceThreshold(0.2);
+
+        await state.run(files: [img], operationLabel: 'batch');
+        // The request had to go below the tagger's own threshold, or the
+        // faint gloves would never have reached us at all.
+        expect(requested, [0.2]);
+        // ...and the low-confidence non-garment tag is still dropped.
+        expect(
+          await File('${tempDir.path}/a.txt').readAsString(),
+          'aoichr, blonde hair, twintails, gloves, smile',
+        );
+        state.dispose();
+      });
+
+      test('the whole run is one undoable operation', () async {
+        final img1 = await addImage('a');
+        final img2 = await addImage('b');
+        await scan();
+        await ai.setThreshold(0.35);
+        final ops = <TagOperation>[];
+        final state = buildSheetState({
+          'a.png': [
+            {'Tag': 'smile', 'Probability': 0.9},
+          ],
+          'b.png': [
+            {'Tag': 'skirt', 'Probability': 0.9},
+          ],
+        }, onOperation: ops.add);
+        await state.setMode(BatchTagMode.characterSheet);
+        await state.setRulesId('r1');
+
+        await state.run(files: [img1, img2], operationLabel: 'sheet run');
+        expect(ops, hasLength(1));
+        expect(ops.single.edits, hasLength(2));
+        state.dispose();
+      });
+
+      test('a run with no rule set chosen is refused', () async {
+        final img = await addImage('a', caption: 'keep me');
+        await scan();
+        final state = buildSheetState({
+          'a.png': [
+            {'Tag': 'smile', 'Probability': 0.9},
+          ],
+        });
+        await state.setMode(BatchTagMode.characterSheet);
+
+        expect(await state.run(files: [img], operationLabel: 'batch'), isFalse);
+        // Nothing was interrogated and nothing was written — the guard has to
+        // fire before the loop, or every caption becomes the empty string.
+        expect(requested, isEmpty);
+        expect(await File('${tempDir.path}/a.txt').readAsString(), 'keep me');
+        state.dispose();
+      });
+
+      test('a rule set deleted since the last run stops resolving', () async {
+        final img = await addImage('a', caption: 'keep me');
+        await scan();
+        final state = buildSheetState({
+          'a.png': [
+            {'Tag': 'smile', 'Probability': 0.9},
+          ],
+        }, available: null);
+        await state.setMode(BatchTagMode.characterSheet);
+        await state.setRulesId('r1');
+
+        expect(state.selectedRules, isNull);
+        expect(await state.run(files: [img], operationLabel: 'batch'), isFalse);
+        expect(await File('${tempDir.path}/a.txt').readAsString(), 'keep me');
+        state.dispose();
+      });
+
+      test('with no user threshold it falls back rather than refusing to '
+          'run', () async {
+        final img = await addImage('a');
+        await scan();
+        await ai.setThreshold(null);
+        final state = buildSheetState({
+          'a.png': [
+            {'Tag': 'smile', 'Probability': 0.9},
+          ],
+        });
+        await state.setMode(BatchTagMode.characterSheet);
+        await state.setRulesId('r1');
+        await state.setEvidenceThreshold(0.2);
+
+        await state.run(files: [img], operationLabel: 'batch');
+        // The params probe fails against this mock, so the run uses the
+        // documented WD default and still asks below it.
+        expect(requested.last, 0.2);
+        expect(state.changed, 1);
+        state.dispose();
+      });
     });
   });
 }
