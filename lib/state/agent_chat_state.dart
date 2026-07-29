@@ -4,11 +4,14 @@ import 'package:flutter/foundation.dart';
 
 import '../app_state.dart';
 import '../models/llm_models.dart';
+import '../models/merge_rules.dart';
 import '../services/agent/agent_session.dart';
 import '../services/agent/agent_tools.dart';
 import '../services/agent/caption_variant_tools.dart';
+import '../services/agent/character_sheet.dart';
 import '../services/agent/dataset_tools.dart';
 import '../services/agent/media_tools.dart';
+import '../services/agent/merge_rule_tools.dart';
 import '../services/llm/anthropic_client.dart';
 import '../services/llm/llm_client.dart';
 import '../services/llm/openai_compat_client.dart';
@@ -16,7 +19,7 @@ import 'ai_tagger_state.dart';
 import 'dataset_state.dart';
 import 'tag_ops.dart';
 
-enum AgentEntryKind { user, assistant, tool, notice }
+enum AgentEntryKind { user, assistant, tool, notice, rules }
 
 /// What a notice row represents; the panel maps these to localized text.
 enum AgentNoticeType { cancelled, error, reset, tokenCap, profileSwitched }
@@ -43,8 +46,17 @@ class AgentChatEntry {
     isError = type == AgentNoticeType.error;
   }
 
+  AgentChatEntry.rules(CharacterMergeRules proposed)
+    : kind = AgentEntryKind.rules {
+    rules = proposed;
+  }
+
   final AgentEntryKind kind;
   AgentNoticeType? noticeType;
+
+  /// Set on [AgentEntryKind.rules] rows only.
+  CharacterMergeRules? rules;
+
   String text = '';
   String toolName = '';
   String toolArgs = '';
@@ -151,7 +163,16 @@ class AgentChatState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> send(String input) async {
+  /// Runs the character-sheet skill: the form's answers become one task
+  /// message, and the transcript shows [summary] in its place — the compiled
+  /// task is several paragraphs of model-facing scaffolding that would bury
+  /// the rest of the conversation.
+  Future<void> startCharacterSheet(
+    CharacterSheetInput input, {
+    required String summary,
+  }) => send(buildCharacterSheetTask(input), display: summary);
+
+  Future<void> send(String input, {String? display}) async {
     final text = input.trim();
     if (text.isEmpty || _busy) return;
     final profile = app.activeLlmProfile;
@@ -165,7 +186,7 @@ class AgentChatState extends ChangeNotifier {
     _session ??= _createSession(profile);
 
     _busy = true;
-    entries.add(AgentChatEntry.user(text));
+    entries.add(AgentChatEntry.user(display ?? text));
     AgentChatEntry? assistant;
     _touch();
     try {
@@ -300,6 +321,16 @@ class AgentChatState extends ChangeNotifier {
     },
   );
 
+  /// Sink for `propose_merge_rules`: persists the proposal and drops a review
+  /// card into the transcript. Unlike the write tools this is not gated by a
+  /// confirmation — it touches no caption, and the card *is* the review.
+  Future<CharacterMergeRules> _saveMergeRules(CharacterMergeRules rules) async {
+    final stored = await app.saveMergeRules(rules);
+    entries.add(AgentChatEntry.rules(stored));
+    _touch();
+    return stored;
+  }
+
   AgentSession _createSession(LlmProviderProfile profile) {
     final deps = DatasetToolsDeps(
       dataset: dataset,
@@ -317,6 +348,7 @@ class AgentChatState extends ChangeNotifier {
       if (multiType) ...buildCaptionVariantTools(deps, tagOps),
       ...buildTaggerTools(deps, aiTagger),
       if (profile.supportsVision) ...buildVisionTools(deps),
+      ...buildMergeRuleTools(_saveMergeRules),
       _buildAskUserTool(),
     ]);
     final root = app.browsingDirectory;

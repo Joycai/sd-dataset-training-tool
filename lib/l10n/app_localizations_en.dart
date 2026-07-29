@@ -1167,6 +1167,108 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get agentSkillsSection => 'Built-in skills';
+
+  @override
+  String get characterSheetSkill => 'Character sheet tagging…';
+
+  @override
+  String get characterSheetTitle => 'Character sheet tagging';
+
+  @override
+  String get characterSheetIntro =>
+      'The assistant samples the dataset with the tagger and works out how your fixed tags combine with what the tagger sees. It produces merge rules for you to review — no caption is written in this step.';
+
+  @override
+  String get characterSheetName => 'Rule set name';
+
+  @override
+  String get characterSheetNameHint => 'e.g. the character\'s name';
+
+  @override
+  String get characterSheetTrigger => 'Trigger word';
+
+  @override
+  String get characterSheetTriggerHint =>
+      'written as the first tag of every caption';
+
+  @override
+  String get characterSheetIdentity => 'Fixed traits';
+
+  @override
+  String get characterSheetIdentityHint =>
+      'hair colour, hairstyle, breast size, eyes… written on every image';
+
+  @override
+  String get characterSheetGarments => 'Outfit';
+
+  @override
+  String get characterSheetGarmentsHint =>
+      'dress, gloves, boots, accessories… written only where the tagger saw them';
+
+  @override
+  String get characterSheetExtra => 'Additional requirements (optional)';
+
+  @override
+  String get characterSheetExtraHint =>
+      'leave empty to go entirely by the tagger\'s output';
+
+  @override
+  String get characterSheetSampleSize => 'Sample size';
+
+  @override
+  String get characterSheetSampleSizeSuffix => 'images';
+
+  @override
+  String get characterSheetStart => 'Start';
+
+  @override
+  String get characterSheetTagsHelp => 'One per line, or comma-separated.';
+
+  @override
+  String get characterSheetSummaryTitle => 'Character sheet tagging (planning)';
+
+  @override
+  String characterSheetSummarySample(int count) {
+    return 'Sampling $count images';
+  }
+
+  @override
+  String get mergeRulesTitle => 'Merge rules';
+
+  @override
+  String mergeRulesSampled(int count) {
+    return 'from $count sampled images';
+  }
+
+  @override
+  String get mergeRulesTrigger => 'Trigger word';
+
+  @override
+  String get mergeRulesIdentity => 'Always written';
+
+  @override
+  String get mergeRulesConflict => 'Always removed';
+
+  @override
+  String get mergeRulesGarments => 'Outfit, gated by the tagger';
+
+  @override
+  String get mergeRulesPassthrough => 'Kept from the tagger';
+
+  @override
+  String get mergeRulesNotes => 'Notes';
+
+  @override
+  String get mergeRulesNeverWritten =>
+      'no evidence in the sample — never written';
+
+  @override
+  String mergeRulesEvidence(String tags) {
+    return 'when the tagger says: $tags';
+  }
+
+  @override
   String get llmSection => 'AI Assistant (LLM)';
 
   @override

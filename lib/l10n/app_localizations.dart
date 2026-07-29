@@ -2136,6 +2136,186 @@ abstract class AppLocalizations {
   /// **'Delete \"{name}\"? This cannot be undone.'**
   String promptPresetDeleteConfirmContent(String name);
 
+  /// No description provided for @agentSkillsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in skills'**
+  String get agentSkillsSection;
+
+  /// No description provided for @characterSheetSkill.
+  ///
+  /// In en, this message translates to:
+  /// **'Character sheet tagging…'**
+  String get characterSheetSkill;
+
+  /// No description provided for @characterSheetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Character sheet tagging'**
+  String get characterSheetTitle;
+
+  /// No description provided for @characterSheetIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant samples the dataset with the tagger and works out how your fixed tags combine with what the tagger sees. It produces merge rules for you to review — no caption is written in this step.'**
+  String get characterSheetIntro;
+
+  /// No description provided for @characterSheetName.
+  ///
+  /// In en, this message translates to:
+  /// **'Rule set name'**
+  String get characterSheetName;
+
+  /// No description provided for @characterSheetNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. the character\'s name'**
+  String get characterSheetNameHint;
+
+  /// No description provided for @characterSheetTrigger.
+  ///
+  /// In en, this message translates to:
+  /// **'Trigger word'**
+  String get characterSheetTrigger;
+
+  /// No description provided for @characterSheetTriggerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'written as the first tag of every caption'**
+  String get characterSheetTriggerHint;
+
+  /// No description provided for @characterSheetIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'Fixed traits'**
+  String get characterSheetIdentity;
+
+  /// No description provided for @characterSheetIdentityHint.
+  ///
+  /// In en, this message translates to:
+  /// **'hair colour, hairstyle, breast size, eyes… written on every image'**
+  String get characterSheetIdentityHint;
+
+  /// No description provided for @characterSheetGarments.
+  ///
+  /// In en, this message translates to:
+  /// **'Outfit'**
+  String get characterSheetGarments;
+
+  /// No description provided for @characterSheetGarmentsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'dress, gloves, boots, accessories… written only where the tagger saw them'**
+  String get characterSheetGarmentsHint;
+
+  /// No description provided for @characterSheetExtra.
+  ///
+  /// In en, this message translates to:
+  /// **'Additional requirements (optional)'**
+  String get characterSheetExtra;
+
+  /// No description provided for @characterSheetExtraHint.
+  ///
+  /// In en, this message translates to:
+  /// **'leave empty to go entirely by the tagger\'s output'**
+  String get characterSheetExtraHint;
+
+  /// No description provided for @characterSheetSampleSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Sample size'**
+  String get characterSheetSampleSize;
+
+  /// No description provided for @characterSheetSampleSizeSuffix.
+  ///
+  /// In en, this message translates to:
+  /// **'images'**
+  String get characterSheetSampleSizeSuffix;
+
+  /// No description provided for @characterSheetStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get characterSheetStart;
+
+  /// No description provided for @characterSheetTagsHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'One per line, or comma-separated.'**
+  String get characterSheetTagsHelp;
+
+  /// No description provided for @characterSheetSummaryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Character sheet tagging (planning)'**
+  String get characterSheetSummaryTitle;
+
+  /// No description provided for @characterSheetSummarySample.
+  ///
+  /// In en, this message translates to:
+  /// **'Sampling {count} images'**
+  String characterSheetSummarySample(int count);
+
+  /// No description provided for @mergeRulesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge rules'**
+  String get mergeRulesTitle;
+
+  /// No description provided for @mergeRulesSampled.
+  ///
+  /// In en, this message translates to:
+  /// **'from {count} sampled images'**
+  String mergeRulesSampled(int count);
+
+  /// No description provided for @mergeRulesTrigger.
+  ///
+  /// In en, this message translates to:
+  /// **'Trigger word'**
+  String get mergeRulesTrigger;
+
+  /// No description provided for @mergeRulesIdentity.
+  ///
+  /// In en, this message translates to:
+  /// **'Always written'**
+  String get mergeRulesIdentity;
+
+  /// No description provided for @mergeRulesConflict.
+  ///
+  /// In en, this message translates to:
+  /// **'Always removed'**
+  String get mergeRulesConflict;
+
+  /// No description provided for @mergeRulesGarments.
+  ///
+  /// In en, this message translates to:
+  /// **'Outfit, gated by the tagger'**
+  String get mergeRulesGarments;
+
+  /// No description provided for @mergeRulesPassthrough.
+  ///
+  /// In en, this message translates to:
+  /// **'Kept from the tagger'**
+  String get mergeRulesPassthrough;
+
+  /// No description provided for @mergeRulesNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Notes'**
+  String get mergeRulesNotes;
+
+  /// No description provided for @mergeRulesNeverWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'no evidence in the sample — never written'**
+  String get mergeRulesNeverWritten;
+
+  /// No description provided for @mergeRulesEvidence.
+  ///
+  /// In en, this message translates to:
+  /// **'when the tagger says: {tags}'**
+  String mergeRulesEvidence(String tags);
+
   /// No description provided for @llmSection.
   ///
   /// In en, this message translates to:

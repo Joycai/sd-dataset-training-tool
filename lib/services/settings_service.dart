@@ -343,6 +343,17 @@ class SettingsService {
     return prefs.getString('agentPromptPresets');
   }
 
+  /// 角色标准样本的合并规则（JSON blob, 见 models/merge_rules.dart）。
+  Future<void> saveAgentMergeRulesJson(String json) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('agentMergeRules', json);
+  }
+
+  Future<String?> loadAgentMergeRulesJson() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('agentMergeRules');
+  }
+
   /// 单个 agent 会话的累计 token 硬上限。
   Future<void> saveAgentSessionTokenCap(int value) async {
     final prefs = await SharedPreferences.getInstance();

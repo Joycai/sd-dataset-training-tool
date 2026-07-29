@@ -7,9 +7,11 @@ import '../settings_view.dart';
 import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/llm_models.dart';
+import '../../models/merge_rules.dart';
 import '../../models/prompt_preset.dart';
 import '../../state/agent_chat_state.dart';
 import '../../theme/app_theme.dart';
+import 'character_sheet_dialog.dart';
 import 'llm_profile_dialog.dart';
 import 'prompt_preset_dialog.dart';
 
@@ -121,6 +123,21 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
     _inputFocus.requestFocus();
   }
 
+  /// The character-sheet skill: collect the sheet, then hand the compiled
+  /// task straight to the session. Unlike a preset this does not stop in the
+  /// input box — the dialog's start button is the confirmation.
+  Future<void> _startCharacterSheet() async {
+    final chat = context.read<AgentChatState>();
+    final l10n = AppLocalizations.of(context)!;
+    final input = await showCharacterSheetDialog(context);
+    if (input == null || !mounted) return;
+    if (chat.busy || !chat.hasProfile) return;
+    chat.startCharacterSheet(
+      input,
+      summary: characterSheetSummary(l10n, input),
+    );
+  }
+
   void _autoScroll(AgentChatState chat) {
     if (chat.revision == _lastRevision) return;
     _lastRevision = chat.revision;
@@ -193,6 +210,7 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
           onSend: () => _send(chat),
           onExpand: _openComposer,
           onPickPreset: _insertPreset,
+          onStartSkill: _startCharacterSheet,
         ),
         if (chat.totalTokens > 0) _UsageFooter(chat: chat),
       ],
@@ -528,6 +546,8 @@ class _EntryRow extends StatelessWidget {
         );
       case AgentEntryKind.tool:
         return _ToolCard(entry: entry);
+      case AgentEntryKind.rules:
+        return _RulesCard(rules: entry.rules!);
       case AgentEntryKind.notice:
         final text = switch (entry.noticeType) {
           AgentNoticeType.cancelled => l10n.agentStoppedNotice,
@@ -662,6 +682,189 @@ class _ToolCardState extends State<_ToolCard> {
   }
 }
 
+/// The merge rules the assistant proposed, laid out for review.
+///
+/// This is the deliverable of the planning phase, so it renders expanded
+/// rather than as another collapsed tool row: the user is meant to read every
+/// garment mapping and catch the wrong ones before anything is applied.
+class _RulesCard extends StatelessWidget {
+  const _RulesCard({required this.rules});
+
+  final CharacterMergeRules rules;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8, right: 12),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      decoration: BoxDecoration(
+        color: scheme.primary.withAlpha(14),
+        border: Border.all(color: scheme.primary.withAlpha(90)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.rule, size: 14, color: scheme.primary),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  rules.character.isEmpty
+                      ? l10n.mergeRulesTitle
+                      : '${l10n.mergeRulesTitle} · ${rules.character}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              if (rules.sampledImages > 0)
+                Text(
+                  l10n.mergeRulesSampled(rules.sampledImages),
+                  style: TextStyle(fontSize: 10.5, color: semantic.muted),
+                ),
+            ],
+          ),
+          if (rules.triggerWord.isNotEmpty)
+            _section(context, l10n.mergeRulesTrigger, [rules.triggerWord]),
+          if (rules.identityTags.isNotEmpty)
+            _section(context, l10n.mergeRulesIdentity, rules.identityTags),
+          if (rules.conflictTags.isNotEmpty)
+            _section(
+              context,
+              l10n.mergeRulesConflict,
+              rules.conflictTags,
+              muted: true,
+            ),
+          if (rules.garments.isNotEmpty) ...[
+            _label(context, l10n.mergeRulesGarments),
+            for (final g in rules.garments) _garment(context, l10n, g),
+          ],
+          if (rules.passthrough.isNotEmpty)
+            _section(
+              context,
+              l10n.mergeRulesPassthrough,
+              rules.passthrough,
+              muted: true,
+            ),
+          if (rules.notes.isNotEmpty) ...[
+            _label(context, l10n.mergeRulesNotes),
+            Text(
+              rules.notes,
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.45,
+                color: semantic.muted,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _label(BuildContext context, String text) => Padding(
+    padding: const EdgeInsets.only(top: 8, bottom: 3),
+    child: Text(
+      text,
+      style: TextStyle(fontSize: 10.5, color: context.semantic.muted),
+    ),
+  );
+
+  Widget _section(
+    BuildContext context,
+    String label,
+    List<String> tags, {
+    bool muted = false,
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _label(context, label),
+      Text(
+        tags.join(', '),
+        style: monoStyle(
+          context,
+          size: 11,
+          color: muted ? context.semantic.muted : null,
+        ),
+      ),
+    ],
+  );
+
+  /// One garment: the tag that gets written, and what makes it fire. A
+  /// garment with no evidence is the interesting failure — the user listed
+  /// it, the sample never showed it — so it says so instead of looking like
+  /// a rule that works.
+  Widget _garment(BuildContext context, AppLocalizations l10n, GarmentRule g) {
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+    final fires = g.evidence.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                fires ? Icons.check : Icons.remove,
+                size: 12,
+                color: fires ? scheme.primary : semantic.muted,
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  g.tag,
+                  style: monoStyle(
+                    context,
+                    size: 11,
+                    color: fires ? null : semantic.muted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 17),
+            child: Text(
+              fires
+                  ? l10n.mergeRulesEvidence(g.evidence.join(', '))
+                  : l10n.mergeRulesNeverWritten,
+              style: TextStyle(
+                fontSize: 10.5,
+                height: 1.4,
+                color: semantic.muted,
+              ),
+            ),
+          ),
+          if (g.note.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 17, top: 1),
+              child: Text(
+                g.note,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  height: 1.4,
+                  fontStyle: FontStyle.italic,
+                  color: semantic.muted,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Confirmation bar for a pending write tool: shows what the assistant wants
 /// to run and lets the user allow it once, allow everything this
 /// conversation, or reject it.
@@ -768,6 +971,7 @@ class _InputRow extends StatelessWidget {
     required this.onSend,
     required this.onExpand,
     required this.onPickPreset,
+    required this.onStartSkill,
   });
 
   final TextEditingController controller;
@@ -776,6 +980,7 @@ class _InputRow extends StatelessWidget {
   final VoidCallback onSend;
   final VoidCallback onExpand;
   final ValueChanged<PromptPreset> onPickPreset;
+  final VoidCallback onStartSkill;
 
   @override
   Widget build(BuildContext context) {
@@ -815,7 +1020,11 @@ class _InputRow extends StatelessWidget {
               ),
             ),
           ),
-          _PresetMenuButton(enabled: enabled, onPick: onPickPreset),
+          _PresetMenuButton(
+            enabled: enabled,
+            onPick: onPickPreset,
+            onStartSkill: onStartSkill,
+          ),
           IconButton(
             icon: const Icon(Icons.open_in_full, size: 15),
             tooltip: l10n.agentExpandInput,
@@ -867,21 +1076,28 @@ class _UsageFooter extends StatelessWidget {
   }
 }
 
-/// Prompt-preset picker next to the input: the saved prompts, plus a way to
-/// manage them. Picking one fills the input; it never sends on its own.
+/// Picker next to the input: the built-in skills, the saved prompts, and a
+/// way to manage the latter. A preset only fills the input; a skill opens its
+/// own dialog and starts from there.
 class _PresetMenuButton extends StatelessWidget {
-  const _PresetMenuButton({required this.enabled, required this.onPick});
+  const _PresetMenuButton({
+    required this.enabled,
+    required this.onPick,
+    required this.onStartSkill,
+  });
 
   /// Mirrors the input field: presets cannot be inserted into a disabled
   /// field, but the manage entry stays reachable either way.
   final bool enabled;
 
   final ValueChanged<PromptPreset> onPick;
+  final VoidCallback onStartSkill;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
     final presets = context.watch<AppState>().promptPresets;
 
     return PopupMenuButton<PromptPreset>(
@@ -894,6 +1110,36 @@ class _PresetMenuButton extends StatelessWidget {
       position: PopupMenuPosition.over,
       onSelected: onPick,
       itemBuilder: (_) => [
+        PopupMenuItem<PromptPreset>(
+          enabled: false,
+          height: 28,
+          child: Text(
+            l10n.agentSkillsSection,
+            style: TextStyle(fontSize: 10.5, color: semantic.muted),
+          ),
+        ),
+        PopupMenuItem<PromptPreset>(
+          enabled: enabled,
+          height: 38,
+          // Like the manage entry: the menu closes before this runs, so the
+          // dialog opens from the panel's context, not the popup route's.
+          onTap: onStartSkill,
+          child: Row(
+            children: [
+              Icon(Icons.auto_awesome, size: 13, color: scheme.primary),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  l10n.characterSheetSkill,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
         if (presets.isEmpty)
           PopupMenuItem<PromptPreset>(
             enabled: false,
