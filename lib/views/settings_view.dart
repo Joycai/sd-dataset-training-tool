@@ -10,6 +10,7 @@ import '../services/tag_dictionary_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/external_links.dart';
 import '../widgets/panel_widgets.dart';
+import 'panels/caption_type_dialog.dart';
 import 'panels/llm_profile_dialog.dart';
 import 'panels/prompt_preset_dialog.dart';
 
@@ -90,37 +91,6 @@ class SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<SettingsView> {
   _SettingsSection _section = _SettingsSection.appearance;
-
-  final TextEditingController _captionController = TextEditingController();
-  final FocusNode _captionFocusNode = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _captionController.text = context.read<AppState>().captionExtension;
-    });
-  }
-
-  @override
-  void dispose() {
-    _captionController.dispose();
-    _captionFocusNode.dispose();
-    super.dispose();
-  }
-
-  void _commitCaptionExtension() {
-    final appState = context.read<AppState>();
-    var value = _captionController.text.trim();
-    if (value.isEmpty) {
-      value = appState.captionExtension;
-    } else if (!value.startsWith('.')) {
-      value = '.$value';
-    }
-    _captionController.text = value;
-    appState.updateCaptionExtension(value);
-  }
 
   String _accentLabel(AppLocalizations l10n, AppAccentChoice choice) =>
       switch (choice) {
@@ -231,9 +201,6 @@ class _SettingsViewState extends State<SettingsView> {
 
     if (confirmed == true && mounted) {
       await context.read<AppState>().resetSettings();
-      if (mounted) {
-        _captionController.text = context.read<AppState>().captionExtension;
-      }
     }
   }
 
@@ -368,23 +335,19 @@ class _SettingsViewState extends State<SettingsView> {
                   _SettingsCard(
                     children: [
                       _SettingsRow(
-                        title: l10n.captionExtension,
-                        description: l10n.captionExtensionDesc,
-                        control: SizedBox(
-                          width: 110,
-                          child: Focus(
-                            focusNode: _captionFocusNode,
-                            onFocusChange: (hasFocus) {
-                              if (!hasFocus) _commitCaptionExtension();
-                            },
-                            child: TextFormField(
-                              controller: _captionController,
-                              textAlign: TextAlign.center,
-                              style: monoStyle(context, size: 12.5),
-                              onFieldSubmitted: (_) =>
-                                  _commitCaptionExtension(),
+                        title: l10n.captionTypesTitle,
+                        description: l10n.captionTypesDesc,
+                        control: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            textStyle: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
+                          onPressed: () => showCaptionTypesDialog(context),
+                          icon: const Icon(Icons.notes_outlined, size: 15),
+                          label: Text(l10n.llmManageAction),
                         ),
                       ),
                       _SettingsRow(

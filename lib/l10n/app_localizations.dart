@@ -146,11 +146,59 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get language;
 
-  /// No description provided for @captionExtension.
+  /// No description provided for @captionTypesTitle.
   ///
   /// In en, this message translates to:
-  /// **'Caption Extension'**
-  String get captionExtension;
+  /// **'Caption Types'**
+  String get captionTypesTitle;
+
+  /// No description provided for @captionTypesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Multiple caption flavors per image (e.g. .txt for WD14 tags, .ntxt for natural language), switchable in the navigator'**
+  String get captionTypesDesc;
+
+  /// No description provided for @captionTypeName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get captionTypeName;
+
+  /// No description provided for @captionTypeAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add type'**
+  String get captionTypeAdd;
+
+  /// No description provided for @captionTypeEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get captionTypeEnabled;
+
+  /// No description provided for @captionTypeDefaultHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The default type is always enabled'**
+  String get captionTypeDefaultHint;
+
+  /// No description provided for @captionTypeDuplicate.
+  ///
+  /// In en, this message translates to:
+  /// **'This extension is already used by another caption type'**
+  String get captionTypeDuplicate;
+
+  /// No description provided for @captionTypeInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Not a usable caption extension'**
+  String get captionTypeInvalid;
+
+  /// No description provided for @captionTypePickerTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch caption type. The editor, batch edits and the AI assistant all read and write this type\'s caption files.'**
+  String get captionTypePickerTooltip;
 
   /// No description provided for @resetSettings.
   ///
@@ -1679,12 +1727,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Font download failed: {error}'**
   String fontDownloadFailed(String error);
-
-  /// No description provided for @captionExtensionDesc.
-  ///
-  /// In en, this message translates to:
-  /// **'Suffix of the caption file that shares the image\'s name, e.g. .txt or .caption'**
-  String get captionExtensionDesc;
 
   /// No description provided for @includeSubdirsTitle.
   ///

@@ -6,6 +6,7 @@ import '../app_state.dart';
 import '../models/llm_models.dart';
 import '../services/agent/agent_session.dart';
 import '../services/agent/agent_tools.dart';
+import '../services/agent/caption_variant_tools.dart';
 import '../services/agent/dataset_tools.dart';
 import '../services/agent/media_tools.dart';
 import '../services/llm/anthropic_client.dart';
@@ -305,10 +306,15 @@ class AgentChatState extends ChangeNotifier {
       rootDir: () => app.browsingDirectory,
       libraryTags: () => app.commonTags,
       tagGroups: () => app.tagGroups,
+      captionTypes: () => app.enabledCaptionTypes,
     );
+    // With a single type the variant tools are pure noise in the prompt;
+    // types enabled mid-conversation arrive with the next session.
+    final multiType = app.enabledCaptionTypes.length > 1;
     final registry = ToolRegistry([
       ...buildReadOnlyTools(deps),
       ...buildWriteTools(deps, tagOps),
+      if (multiType) ...buildCaptionVariantTools(deps, tagOps),
       ...buildTaggerTools(deps, aiTagger),
       if (profile.supportsVision) ...buildVisionTools(deps),
       _buildAskUserTool(),
@@ -335,6 +341,13 @@ class AgentChatState extends ChangeNotifier {
             : 'English',
         datasetSummary: summary,
         captionExtension: app.captionExtension,
+        captionTypesSummary: multiType
+            ? [
+                for (final t in app.enabledCaptionTypes)
+                  '${t.label} (${t.extension})'
+                      '${t.extension == app.captionExtension ? ', active' : ''}',
+              ].join('; ')
+            : null,
         visionEnabled: profile.supportsVision,
       ),
       confirmWrite: _confirmWrite,

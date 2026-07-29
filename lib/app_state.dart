@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'models/caption_type.dart';
 import 'models/llm_models.dart';
 import 'models/prompt_preset.dart';
 import 'models/tag_group.dart';
@@ -417,7 +418,20 @@ class AppState extends ChangeNotifier {
     _thumbnailFill = await _settingsService.loadThumbnailFill();
     _includeSubdirectories = await _settingsService.loadIncludeSubdirectories();
     _browsingDirectory = await _settingsService.loadBrowsingDirectory();
-    _captionExtension = await _settingsService.loadCaptionExtension();
+    final typesJson = await _settingsService.loadCaptionTypesJson();
+    _captionTypes = sanitizeCaptionTypes(
+      typesJson != null
+          ? decodeCaptionTypes(typesJson)
+          // First run on this setting: the legacy single extension becomes
+          // the default type, so an existing `.caption` setup keeps working.
+          : [
+              CaptionType(
+                id: CaptionType.defaultId,
+                extension: await _settingsService.loadCaptionExtension(),
+              ),
+            ],
+    );
+    _activeCaptionTypeId = await _settingsService.loadActiveCaptionTypeId();
     _commonTags = await _settingsService.loadCommonTags();
     _tagGroups = await _settingsService.loadTagGroups();
     _rebuildTagToGroup();
@@ -482,14 +496,53 @@ class AppState extends ChangeNotifier {
     await loadSettings();
   }
 
-  late String _captionExtension;
-  String get captionExtension => _captionExtension;
+  // --- Caption types ---
+  //
+  // A dataset can carry several caption flavors side by side (`.txt` with
+  // WD14 tags, `.ntxt` with prose…). The app operates on exactly one at a
+  // time; [captionExtension] is the single point everything downstream
+  // (scanning, the editor, the agent) reads.
 
-  Future<void> updateCaptionExtension(String extension) async {
-    if (_captionExtension == extension) return;
-    _captionExtension = extension;
+  late List<CaptionType> _captionTypes;
+  String? _activeCaptionTypeId;
+
+  /// Every configured type, default first ([sanitizeCaptionTypes] invariant).
+  List<CaptionType> get captionTypes => _captionTypes;
+
+  /// The types the navigator switcher and the assistant's variant tools see.
+  List<CaptionType> get enabledCaptionTypes =>
+      _captionTypes.where((t) => t.enabled).toList();
+
+  /// The type the whole app currently reads and writes. An id pointing at a
+  /// disabled or deleted type silently falls back to the default type.
+  CaptionType get activeCaptionType {
+    for (final t in _captionTypes) {
+      if (t.id == _activeCaptionTypeId && t.enabled) return t;
+    }
+    return _captionTypes.first;
+  }
+
+  /// Caption file suffix of the active type.
+  String get captionExtension => activeCaptionType.extension;
+
+  Future<void> updateCaptionTypes(List<CaptionType> types) async {
+    _captionTypes = sanitizeCaptionTypes(types);
     notifyListeners();
-    await _settingsService.saveCaptionExtension(extension);
+    await _settingsService.saveCaptionTypesJson(
+      encodeCaptionTypes(_captionTypes),
+    );
+    // Mirror the default type into the legacy key for older builds.
+    await _settingsService.saveCaptionExtension(_captionTypes.first.extension);
+  }
+
+  Future<void> setActiveCaptionType(String id) async {
+    if (_activeCaptionTypeId == id) return;
+    if (!_captionTypes.any((t) => t.id == id && t.enabled)) return;
+    _activeCaptionTypeId = id;
+    notifyListeners();
+    await _settingsService.saveActiveCaptionTypeId(
+      id == CaptionType.defaultId ? null : id,
+    );
   }
 
   late int _crossAxisCount;

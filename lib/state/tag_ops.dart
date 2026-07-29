@@ -444,8 +444,12 @@ class TagOps extends ChangeNotifier {
         } catch (_) {
           continue;
         }
-        applied[edit.imagePath] = text;
-        touched.add(edit.imagePath);
+        // An edit can target a non-active caption type (the assistant's
+        // variant writes); its text must not enter the active caption state.
+        if (edit.captionPath == dataset.captionPathFor(edit.imagePath)) {
+          applied[edit.imagePath] = text;
+          touched.add(edit.imagePath);
+        }
       }
       dataset.updateCaptionTexts(applied);
       to.add(op);

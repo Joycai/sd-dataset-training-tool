@@ -34,6 +34,8 @@ class SettingsService {
     await prefs.clear();
   }
 
+  /// Legacy single-extension setting. Still written (mirroring the default
+  /// caption type) so downgrading to an older build keeps its extension.
   Future<void> saveCaptionExtension(String extension) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('captionExtension', extension);
@@ -42,6 +44,33 @@ class SettingsService {
   Future<String> loadCaptionExtension() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('captionExtension') ?? '.txt';
+  }
+
+  // --- Caption 类型（JSON blob, 见 models/caption_type.dart）---
+
+  Future<void> saveCaptionTypesJson(String json) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('captionTypes', json);
+  }
+
+  Future<String?> loadCaptionTypesJson() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('captionTypes');
+  }
+
+  /// 当前激活的 caption 类型 id；null 表示默认类型。
+  Future<void> saveActiveCaptionTypeId(String? id) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (id == null) {
+      await prefs.remove('activeCaptionTypeId');
+    } else {
+      await prefs.setString('activeCaptionTypeId', id);
+    }
+  }
+
+  Future<String?> loadActiveCaptionTypeId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('activeCaptionTypeId');
   }
 
   Future<void> saveCrossAxisCount(int count) async {

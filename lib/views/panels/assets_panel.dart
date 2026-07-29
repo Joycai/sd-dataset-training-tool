@@ -9,6 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../state/ai_tagger_state.dart';
 import '../../state/dataset_state.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/caption_type_picker.dart';
 import '../../widgets/panel_widgets.dart';
 import '../../widgets/subdirectory_picker.dart';
 
@@ -59,6 +60,13 @@ class AssetsPanel extends StatelessWidget {
               children: [
                 if (dataset.hasSubdirectories) ...[
                   SubdirectoryPicker(dataset: dataset),
+                  const SizedBox(height: 8),
+                ],
+                if (context.select<AppState, int>(
+                      (s) => s.enabledCaptionTypes.length,
+                    ) >
+                    1) ...[
+                  const CaptionTypePicker(),
                   const SizedBox(height: 8),
                 ],
                 PanelSearchField(

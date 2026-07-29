@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../../models/caption_type.dart';
 import '../../models/tag_group.dart';
 import '../../state/dataset_state.dart';
 import '../../state/tag_ops.dart';
@@ -28,7 +29,10 @@ class DatasetToolsDeps {
     required this.rootDir,
     required this.libraryTags,
     required this.tagGroups,
+    this.captionTypes = _noCaptionTypes,
   });
+
+  static List<CaptionType> _noCaptionTypes() => const [];
 
   final DatasetState dataset;
 
@@ -37,6 +41,11 @@ class DatasetToolsDeps {
 
   final List<String> Function() libraryTags;
   final List<TagGroup> Function() tagGroups;
+
+  /// The *enabled* caption types, default first. The active one is whichever
+  /// matches [DatasetState.captionExtension] — the scan is the authority, not
+  /// the settings, which can change mid-conversation.
+  final List<CaptionType> Function() captionTypes;
 }
 
 List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
@@ -70,6 +79,15 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
         'uncaptioned': d.untaggedCount,
         'unique_tags': d.datasetTags.length,
         'caption_extension': d.captionExtension,
+        if (deps.captionTypes().length > 1)
+          'caption_types': [
+            for (final t in deps.captionTypes())
+              {
+                'name': t.label,
+                'extension': t.extension,
+                'active': t.extension == d.captionExtension,
+              },
+          ],
       });
     },
   ),
@@ -312,11 +330,15 @@ List<AgentTool> buildWriteTools(DatasetToolsDeps deps, TagOps tagOps) => [
     AgentTool(
       spec: tool.spec,
       isWrite: tool.isWrite,
-      handler: _guardBusy(tagOps, tool.handler),
+      handler: guardBusy(tagOps, tool.handler),
     ),
 ];
 
-AgentToolHandler _guardBusy(TagOps tagOps, AgentToolHandler inner) =>
+/// Wraps a write handler so it refuses to run while [TagOps] is busy —
+/// without this, [TagOps] would return "0 files changed", which the model
+/// reads as "no image matched" and moves on from a write that never
+/// happened. Shared with the caption-variant write tools.
+AgentToolHandler guardBusy(TagOps tagOps, AgentToolHandler inner) =>
     (args) async {
       if (tagOps.busy) {
         return toolError(
