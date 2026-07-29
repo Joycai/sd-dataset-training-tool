@@ -322,6 +322,12 @@
     }
   },
   "noFilesChanged": "No files needed changes.",
+  "undoFailedRetryHint": "{count} files could not be written — the operation is still on the stack, undo again to retry them",
+  "@undoFailedRetryHint": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "filesFailed": "{count} files could not be written",
   "@filesFailed": {
     "placeholders": {

@@ -1194,6 +1194,12 @@ abstract class AppLocalizations {
   /// **'No files needed changes.'**
   String get noFilesChanged;
 
+  /// No description provided for @undoFailedRetryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} files could not be written — the operation is still on the stack, undo again to retry them'**
+  String undoFailedRetryHint(int count);
+
   /// No description provided for @filesFailed.
   ///
   /// In en, this message translates to:

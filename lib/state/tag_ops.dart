@@ -104,6 +104,30 @@ class BatchRewriteResult {
   int get failed => failures.length;
 }
 
+/// The result of an undo or redo.
+///
+/// A replay writes many files and one of them can fail — a caption open in
+/// another program, a folder gone read-only. Silently restoring the rest
+/// leaves the dataset half-reverted with the operation gone from the stack,
+/// so failures travel back and the operation stays put (see [TagOps.undo]).
+class ReplayResult {
+  const ReplayResult({required this.restored, required this.failures});
+
+  const ReplayResult.none() : restored = 0, failures = const [];
+
+  /// Number of caption files written back.
+  final int restored;
+
+  final List<RewriteFailure> failures;
+
+  int get failed => failures.length;
+
+  /// The operation is still on the stack: replaying again retries exactly
+  /// the files that failed (the ones that succeeded already hold the text
+  /// this replay wanted, so they are no-ops).
+  bool get retryable => failures.isNotEmpty;
+}
+
 /// Dataset-wide caption rewrites — delete / replace / insert next to a tag —
 /// with an undo/redo history. "Dataset-wide" means the dataset's active
 /// subdirectory scope ([DatasetState.scopedFiles]): when the navigator is
@@ -343,9 +367,17 @@ class TagOps extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> undo() => _replay(from: _undoStack, to: _redoStack, undo: true);
+  /// Restores every file of the most recent operation. When some file cannot
+  /// be written the operation is *not* moved to the redo stack: the dataset
+  /// is half-reverted, and leaving it in place lets the next undo retry those
+  /// files rather than step past them. The caller must surface
+  /// [ReplayResult.failed] — a partial undo that reports nothing is exactly
+  /// the silent failure the write tools were fixed for.
+  Future<ReplayResult> undo() =>
+      _replay(from: _undoStack, to: _redoStack, undo: true);
 
-  Future<void> redo() => _replay(from: _redoStack, to: _undoStack, undo: false);
+  Future<ReplayResult> redo() =>
+      _replay(from: _redoStack, to: _undoStack, undo: false);
 
   /// Runs [transform] over every captioned image ([files] defaults to the
   /// dataset's active subdirectory scope); a null return leaves the file
@@ -424,24 +456,32 @@ class TagOps extends ChangeNotifier {
     return BatchRewriteResult(changed: edits.length, failures: failures);
   }
 
-  Future<void> _replay({
+  Future<ReplayResult> _replay({
     required List<TagOperation> from,
     required List<TagOperation> to,
     required bool undo,
   }) async {
-    if (_busy || from.isEmpty) return;
+    if (_busy || from.isEmpty) return const ReplayResult.none();
     _busy = true;
     notifyListeners();
     final touched = <String>{};
+    final failures = <RewriteFailure>[];
+    var restored = 0;
     try {
       await beforeMutate?.call();
-      final op = from.removeLast();
+      // Peeked, not popped: whether the operation leaves this stack depends
+      // on every file being written.
+      final op = from.last;
       final applied = <String, String>{};
       for (final edit in op.edits) {
         final text = undo ? edit.before : edit.after;
         try {
           await File(edit.captionPath).writeAsString(text);
-        } catch (_) {
+          restored++;
+        } catch (e) {
+          failures.add(
+            RewriteFailure(captionPath: edit.captionPath, error: '$e'),
+          );
           continue;
         }
         // An edit can target a non-active caption type (the assistant's
@@ -452,7 +492,10 @@ class TagOps extends ChangeNotifier {
         }
       }
       dataset.updateCaptionTexts(applied);
-      to.add(op);
+      if (failures.isEmpty) {
+        from.removeLast();
+        to.add(op);
+      }
     } finally {
       _busy = false;
       notifyListeners();
@@ -460,5 +503,6 @@ class TagOps extends ChangeNotifier {
     if (touched.isNotEmpty) {
       onCaptionsChanged?.call(touched);
     }
+    return ReplayResult(restored: restored, failures: failures);
   }
 }
