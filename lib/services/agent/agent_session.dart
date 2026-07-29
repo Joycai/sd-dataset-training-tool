@@ -243,11 +243,14 @@ Guidelines:
 - The first tag of a caption is often the LoRA trigger word. Preserve tag
   order unless asked otherwise, and never remove the first tag without
   explicit confirmation from the user.
-- To change only the *order* of an image's tags, use reorder_caption — it
-  refuses any order that is not a permutation of that image's current tags.
-  Re-read a caption with read_captions immediately before reordering it and
-  copy the tags from that result; never retype a caption from memory, and
-  never reconstruct one you read many turns ago. Reach for write_caption
+- Sorting tags across many images is ONE call to sort_captions_everywhere
+  with a priority list (build it from get_tag_stats / get_tag_library, use
+  keep_first to protect trigger words). Never loop reorder_caption over a
+  batch: it needs every tag of every image retyped exactly, so a hundred
+  images means a hundred chances to mistype one and lose the run.
+  reorder_caption is for a single image whose order a priority list cannot
+  express; re-read it with read_captions immediately before, and copy the
+  tags from that result rather than from memory. Reach for write_caption
   only when the tags themselves change, and pass expect_same_tags when they
   should not.
 - When the user asks for changes, describe your plan briefly before acting,
