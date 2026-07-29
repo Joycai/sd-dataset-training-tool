@@ -99,6 +99,9 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     // Library edits are the other half of the local vocabulary; the dataset
     // half rides along on [_onDatasetChanged].
     appState.addListener(_syncLocalTags);
+    // Switching the active caption type (navigator picker or the settings
+    // dialog) changes which files the app reads; the scan must follow.
+    appState.addListener(_rescanIfCaptionTypeChanged);
     _syncLocalTags();
     _aiTagger.loadSettings();
     _batchTag.loadSettings();
@@ -125,6 +128,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   @override
   void dispose() {
     _appState.removeListener(_syncLocalTags);
+    _appState.removeListener(_rescanIfCaptionTypeChanged);
     _dataset.removeListener(_onDatasetChanged);
     _dataset.dispose();
     _session.dispose();
@@ -180,13 +184,35 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     );
   }
 
+  /// Rescans when the active caption extension no longer matches the one the
+  /// dataset was scanned with. The scan itself updates the dataset's
+  /// extension, so this cannot loop.
+  void _rescanIfCaptionTypeChanged() {
+    final directory = _appState.browsingDirectory;
+    if (directory == null || _dataset.rootPath == null) return;
+    if (_appState.captionExtension == _dataset.captionExtension) return;
+    _scan(directory);
+  }
+
   Future<void> _scan(String directory) async {
     final appState = context.read<AppState>();
+    // Pending edits belong to the caption file the editor loaded; write them
+    // out before the scan re-reads the disk (and possibly switches type).
+    await _session.flush();
     await _dataset.scan(
       directoryPath: directory,
       recursive: appState.includeSubdirectories,
       captionExtension: appState.captionExtension,
     );
+    if (!mounted) return;
+    // The selected path usually survives a rescan, so [_onDatasetChanged]
+    // alone would keep showing the previous type's caption; reload
+    // explicitly with the extension the scan just indexed.
+    final selected = _dataset.selectedFile;
+    if (selected != null) {
+      _lastLoadedPath = selected.path;
+      await _session.load(selected, _dataset.captionExtension);
+    }
   }
 
   /// A batch rewrite may have replaced the caption of the open image; reload

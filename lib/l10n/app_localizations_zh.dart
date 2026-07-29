@@ -33,7 +33,33 @@ class AppLocalizationsZh extends AppLocalizations {
   String get language => '语言';
 
   @override
-  String get captionExtension => 'Caption 文件扩展名';
+  String get captionTypesTitle => 'Caption 类型';
+
+  @override
+  String get captionTypesDesc =>
+      '同一张图可维护多套标注文件（如 .txt 放 WD14 标签、.ntxt 放自然语言描述），在左侧图库中切换';
+
+  @override
+  String get captionTypeName => '名称';
+
+  @override
+  String get captionTypeAdd => '添加类型';
+
+  @override
+  String get captionTypeEnabled => '启用';
+
+  @override
+  String get captionTypeDefaultHint => '默认类型始终启用';
+
+  @override
+  String get captionTypeDuplicate => '该扩展名已被其他 Caption 类型使用';
+
+  @override
+  String get captionTypeInvalid => '不是可用的标注文件扩展名';
+
+  @override
+  String get captionTypePickerTooltip =>
+      '切换 Caption 类型。编辑器、批量改标与 AI 助手都将读写该类型的标注文件。';
 
   @override
   String get resetSettings => '重置所有设置';
@@ -891,9 +917,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String fontDownloadFailed(String error) {
     return '字体下载失败：$error';
   }
-
-  @override
-  String get captionExtensionDesc => '与图片同名的标注文件后缀，常见 .txt / .caption';
 
   @override
   String get includeSubdirsTitle => '默认包含子目录';

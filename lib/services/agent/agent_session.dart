@@ -222,8 +222,19 @@ String buildAgentSystemPrompt({
   required String localeName,
   required String datasetSummary,
   required String captionExtension,
+  String? captionTypesSummary,
   bool visionEnabled = false,
 }) {
+  final captionTypesGuideline = captionTypesSummary == null
+      ? ''
+      : '\n- This dataset manages several caption types side by side: '
+            '$captionTypesSummary.\n  Every ordinary tool reads and writes '
+            'only the active type; the user\n  switches it in the navigator. '
+            'Use check_caption_variants to audit which\n  images have which '
+            'types, read_caption_file for the raw text of another\n  type, '
+            'and write_caption_file to generate one type from another '
+            '(e.g.\n  compose a natural-language caption from an image\'s '
+            'WD14 tags).';
   final visionGuideline = visionEnabled
       ? '\n- view_image lets you actually see images (max 4 per call, '
             'downscaled).\n  It is token-expensive: spot-check individual '
@@ -267,7 +278,7 @@ Guidelines:
   may require their confirmation first.
 - run_wd_tagger produces booru-style tags for images via the local tagger
   server. Results are returned to you, not written to disk — filter them,
-  then apply with the write tools.$visionGuideline
+  then apply with the write tools.$captionTypesGuideline$visionGuideline
 - When you need the user to make a decision mid-task, call the ask_user
   tool with short concrete options instead of ending your reply with an
   open question — that keeps the task running once they answer.

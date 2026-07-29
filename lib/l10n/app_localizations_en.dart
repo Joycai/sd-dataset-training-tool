@@ -33,7 +33,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get language => 'Language';
 
   @override
-  String get captionExtension => 'Caption Extension';
+  String get captionTypesTitle => 'Caption Types';
+
+  @override
+  String get captionTypesDesc =>
+      'Multiple caption flavors per image (e.g. .txt for WD14 tags, .ntxt for natural language), switchable in the navigator';
+
+  @override
+  String get captionTypeName => 'Name';
+
+  @override
+  String get captionTypeAdd => 'Add type';
+
+  @override
+  String get captionTypeEnabled => 'Enabled';
+
+  @override
+  String get captionTypeDefaultHint => 'The default type is always enabled';
+
+  @override
+  String get captionTypeDuplicate =>
+      'This extension is already used by another caption type';
+
+  @override
+  String get captionTypeInvalid => 'Not a usable caption extension';
+
+  @override
+  String get captionTypePickerTooltip =>
+      'Switch caption type. The editor, batch edits and the AI assistant all read and write this type\'s caption files.';
 
   @override
   String get resetSettings => 'Reset Settings';
@@ -911,10 +938,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String fontDownloadFailed(String error) {
     return 'Font download failed: $error';
   }
-
-  @override
-  String get captionExtensionDesc =>
-      'Suffix of the caption file that shares the image\'s name, e.g. .txt or .caption';
 
   @override
   String get includeSubdirsTitle => 'Include subdirectories';
