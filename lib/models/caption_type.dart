@@ -17,6 +17,7 @@ class CaptionType {
     this.name = '',
     required this.extension,
     this.enabled = true,
+    this.prose = false,
   });
 
   /// The id of the built-in type. It always exists, is always enabled, and
@@ -36,24 +37,35 @@ class CaptionType {
   /// switcher and the assistant's variant tools.
   final bool enabled;
 
+  /// Sentence mode, for natural-language captions: while this type is
+  /// active, the tag views segment the text by `,` and `.` (plus their
+  /// full-width forms) instead of treating it as comma-separated tags.
+  final bool prose;
+
   bool get isDefault => id == defaultId;
 
   /// What pickers and tool results call this type.
   String get label => name.trim().isEmpty ? extension : name.trim();
 
-  CaptionType copyWith({String? name, String? extension, bool? enabled}) =>
-      CaptionType(
-        id: id,
-        name: name ?? this.name,
-        extension: extension ?? this.extension,
-        enabled: enabled ?? this.enabled,
-      );
+  CaptionType copyWith({
+    String? name,
+    String? extension,
+    bool? enabled,
+    bool? prose,
+  }) => CaptionType(
+    id: id,
+    name: name ?? this.name,
+    extension: extension ?? this.extension,
+    enabled: enabled ?? this.enabled,
+    prose: prose ?? this.prose,
+  );
 
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
     'extension': extension,
     'enabled': enabled,
+    'prose': prose,
   };
 
   factory CaptionType.fromJson(Map<String, dynamic> json) => CaptionType(
@@ -61,6 +73,7 @@ class CaptionType {
     name: (json['name'] as String?) ?? '',
     extension: (json['extension'] as String?) ?? '',
     enabled: (json['enabled'] as bool?) ?? true,
+    prose: (json['prose'] as bool?) ?? false,
   );
 }
 

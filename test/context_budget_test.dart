@@ -94,11 +94,7 @@ void main() {
         ChatMessage.user('question'),
         // The captions the model is rewriting from, read first and needed
         // longest.
-        ChatMessage.toolResult(
-          toolCallId: '1',
-          text: 'c' * 3000,
-          pinned: true,
-        ),
+        ChatMessage.toolResult(toolCallId: '1', text: 'c' * 3000, pinned: true),
         tool('x' * 8000, '2'),
         ChatMessage.assistant('progress'),
         ChatMessage.assistant('final'),

@@ -99,10 +99,7 @@ void main() {
       await tester.pumpWidget(harness());
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('reached its token budget'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('reached its token budget'), findsOneWidget);
       // Not the raw "session token cap (1000000) reached" of the stop reason.
       expect(find.textContaining('session token cap'), findsNothing);
     });

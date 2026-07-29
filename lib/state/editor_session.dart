@@ -34,6 +34,7 @@ class EditorSession extends ChangeNotifier {
   int? _imageBytes;
   Timer? _autoSaveTimer;
   bool _autoSaveEnabled = true;
+  bool _prose = false;
   bool _suppressTextEvents = false;
   String _lastText = '';
   int _loadGeneration = 0;
@@ -60,10 +61,19 @@ class EditorSession extends ChangeNotifier {
     if (!value) _autoSaveTimer?.cancel();
   }
 
-  Future<void> load(File imageFile, String captionExtension) async {
+  /// With [prose], the caption is a natural-language description: the tag
+  /// list becomes sentence segments (split on `,`/`.` and their full-width
+  /// forms, punctuation kept) and edits join back with spaces instead of
+  /// `", "`.
+  Future<void> load(
+    File imageFile,
+    String captionExtension, {
+    bool prose = false,
+  }) async {
     // Flush pending edits of the previous image before switching.
     await flush();
 
+    _prose = prose;
     final generation = ++_loadGeneration;
     final captionPath =
         '${p.withoutExtension(imageFile.path)}$captionExtension';
@@ -274,7 +284,7 @@ class EditorSession extends ChangeNotifier {
   }
 
   void _writeTagsToText() {
-    _setText(_tags.join(', '));
+    _setText(joinCaptionText(_tags, prose: _prose));
     _saveState = SaveState.dirty;
     _autoSaveTimer?.cancel();
     if (_autoSaveEnabled && _image != null) {
@@ -290,7 +300,7 @@ class EditorSession extends ChangeNotifier {
     _lastText = text;
   }
 
-  static List<String> _parseTags(String text) => parseTagText(text);
+  List<String> _parseTags(String text) => parseCaptionText(text, prose: _prose);
 
   @override
   void dispose() {

@@ -5,11 +5,7 @@ import 'dart:convert';
 /// Pure data — persistence is a JSON list handled by [encodePromptPresets] /
 /// [decodePromptPresets], mirroring how tag groups are stored.
 class PromptPreset {
-  const PromptPreset({
-    required this.id,
-    this.title = '',
-    this.content = '',
-  });
+  const PromptPreset({required this.id, this.title = '', this.content = ''});
 
   final String id;
 

@@ -86,6 +86,7 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
                 'name': t.label,
                 'extension': t.extension,
                 'active': t.extension == d.captionExtension,
+                if (t.prose) 'prose': true,
               },
           ],
       });

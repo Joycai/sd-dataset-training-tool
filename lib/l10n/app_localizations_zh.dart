@@ -52,6 +52,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get captionTypeDefaultHint => '默认类型始终启用';
 
   @override
+  String get captionTypeProseTooltip =>
+      '句子模式：该类型激活时，标签视图按 , 和 . 断句展示——适合自然语言描述';
+
+  @override
   String get captionTypeDuplicate => '该扩展名已被其他 Caption 类型使用';
 
   @override

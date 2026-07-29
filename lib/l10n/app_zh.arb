@@ -14,6 +14,7 @@
   "captionTypeAdd": "添加类型",
   "captionTypeEnabled": "启用",
   "captionTypeDefaultHint": "默认类型始终启用",
+  "captionTypeProseTooltip": "句子模式：该类型激活时，标签视图按 , 和 . 断句展示——适合自然语言描述",
   "captionTypeDuplicate": "该扩展名已被其他 Caption 类型使用",
   "captionTypeInvalid": "不是可用的标注文件扩展名",
   "captionTypePickerTooltip": "切换 Caption 类型。编辑器、批量改标与 AI 助手都将读写该类型的标注文件。",

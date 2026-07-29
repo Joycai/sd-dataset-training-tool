@@ -412,19 +412,22 @@ void main() {
       expect(await readCap('001'), 'z, y, smile, 1girl');
     });
 
-    test('sort_captions_everywhere folds spelling but keeps the file\'s', () async {
-      await File(cap('001')).writeAsString('trigger, watermark, long_hair');
-      await dataset.scan(
-        directoryPath: tempDir.path,
-        recursive: false,
-        captionExtension: '.txt',
-      );
-      await call('sort_captions_everywhere', {
-        'priority': ['Long Hair'],
-        'keep_first': 1,
-      });
-      expect(await readCap('001'), 'trigger, long_hair, watermark');
-    });
+    test(
+      'sort_captions_everywhere folds spelling but keeps the file\'s',
+      () async {
+        await File(cap('001')).writeAsString('trigger, watermark, long_hair');
+        await dataset.scan(
+          directoryPath: tempDir.path,
+          recursive: false,
+          captionExtension: '.txt',
+        );
+        await call('sort_captions_everywhere', {
+          'priority': ['Long Hair'],
+          'keep_first': 1,
+        });
+        expect(await readCap('001'), 'trigger, long_hair, watermark');
+      },
+    );
 
     test('sort_captions_everywhere honours the list_images filters', () async {
       await call('sort_captions_everywhere', {

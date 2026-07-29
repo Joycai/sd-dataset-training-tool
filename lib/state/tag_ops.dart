@@ -416,12 +416,12 @@ class TagOps extends ChangeNotifier {
           );
           continue;
         }
-        final tags = parseTagText(before);
+        final tags = parseCaptionText(before, prose: dataset.captionProse);
         final next = transform(tags);
         // No semantic change: don't rewrite the file just to normalize
         // separators.
         if (next == null || listEquals(next, tags)) continue;
-        final after = next.join(', ');
+        final after = joinCaptionText(next, prose: dataset.captionProse);
         try {
           await captionFile.writeAsString(after);
         } catch (e) {

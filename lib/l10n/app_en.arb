@@ -14,6 +14,7 @@
   "captionTypeAdd": "Add type",
   "captionTypeEnabled": "Enabled",
   "captionTypeDefaultHint": "The default type is always enabled",
+  "captionTypeProseTooltip": "Sentence mode: while this type is active, the tag view segments the caption by , and . — for natural-language descriptions",
   "captionTypeDuplicate": "This extension is already used by another caption type",
   "captionTypeInvalid": "Not a usable caption extension",
   "captionTypePickerTooltip": "Switch caption type. The editor, batch edits and the AI assistant all read and write this type's caption files.",
