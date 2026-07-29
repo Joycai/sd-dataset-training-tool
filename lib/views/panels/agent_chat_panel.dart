@@ -4,9 +4,12 @@ import 'package:markdown_widget/markdown_widget.dart';
 import 'package:provider/provider.dart';
 
 import '../settings_view.dart';
+import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
+import '../../models/prompt_preset.dart';
 import '../../state/agent_chat_state.dart';
 import '../../theme/app_theme.dart';
+import 'prompt_preset_dialog.dart';
 
 /// Markdown rendering shared by the user and assistant bubbles: the preset
 /// for the current brightness with the chat's compact font size.
@@ -101,6 +104,21 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
     if (send == true && mounted) _send(chat);
   }
 
+  /// Drops a preset's text into the input rather than sending it: presets are
+  /// starting points, and the user usually has a detail to add before the
+  /// assistant runs off and edits captions.
+  void _insertPreset(PromptPreset preset) {
+    final text = preset.content.trim();
+    if (text.isEmpty) return;
+    final current = _input.text.trimRight();
+    final next = current.isEmpty ? text : '$current\n$text';
+    _input.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: next.length),
+    );
+    _inputFocus.requestFocus();
+  }
+
   void _autoScroll(AgentChatState chat) {
     if (chat.revision == _lastRevision) return;
     _lastRevision = chat.revision;
@@ -172,6 +190,7 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
           enabled: chat.hasProfile && !chat.busy,
           onSend: () => _send(chat),
           onExpand: _openComposer,
+          onPickPreset: _insertPreset,
         ),
         if (chat.totalTokens > 0)
           Padding(
@@ -596,6 +615,7 @@ class _InputRow extends StatelessWidget {
     required this.enabled,
     required this.onSend,
     required this.onExpand,
+    required this.onPickPreset,
   });
 
   final TextEditingController controller;
@@ -603,6 +623,7 @@ class _InputRow extends StatelessWidget {
   final bool enabled;
   final VoidCallback onSend;
   final VoidCallback onExpand;
+  final ValueChanged<PromptPreset> onPickPreset;
 
   @override
   Widget build(BuildContext context) {
@@ -642,6 +663,7 @@ class _InputRow extends StatelessWidget {
               ),
             ),
           ),
+          _PresetMenuButton(enabled: enabled, onPick: onPickPreset),
           IconButton(
             icon: const Icon(Icons.open_in_full, size: 15),
             tooltip: l10n.agentExpandInput,
@@ -658,6 +680,107 @@ class _InputRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Prompt-preset picker next to the input: the saved prompts, plus a way to
+/// manage them. Picking one fills the input; it never sends on its own.
+class _PresetMenuButton extends StatelessWidget {
+  const _PresetMenuButton({required this.enabled, required this.onPick});
+
+  /// Mirrors the input field: presets cannot be inserted into a disabled
+  /// field, but the manage entry stays reachable either way.
+  final bool enabled;
+
+  final ValueChanged<PromptPreset> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final presets = context.watch<AppState>().promptPresets;
+
+    return PopupMenuButton<PromptPreset>(
+      tooltip: l10n.promptPresetsTitle,
+      icon: const Icon(Icons.bookmark_border, size: 15),
+      iconColor: semantic.muted,
+      iconSize: 15,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 220, maxWidth: 320),
+      position: PopupMenuPosition.over,
+      onSelected: onPick,
+      itemBuilder: (_) => [
+        if (presets.isEmpty)
+          PopupMenuItem<PromptPreset>(
+            enabled: false,
+            height: 34,
+            child: Text(
+              l10n.promptPresetsEmpty,
+              style: TextStyle(fontSize: 11.5, color: semantic.muted),
+            ),
+          ),
+        for (final preset in presets)
+          PopupMenuItem<PromptPreset>(
+            value: preset,
+            enabled: enabled,
+            height: 42,
+            child: _PresetMenuEntry(preset: preset),
+          ),
+        const PopupMenuDivider(),
+        PopupMenuItem<PromptPreset>(
+          height: 34,
+          // The menu closes before this runs, so it opens the dialog from
+          // the panel's context rather than the popup route's.
+          onTap: () => showPromptPresetsDialog(context),
+          child: Row(
+            children: [
+              Icon(Icons.tune, size: 13, color: semantic.muted),
+              const SizedBox(width: 7),
+              Text(
+                l10n.promptPresetsManage,
+                style: TextStyle(fontSize: 11.5, color: semantic.muted),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PresetMenuEntry extends StatelessWidget {
+  const _PresetMenuEntry({required this.preset});
+
+  final PromptPreset preset;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final body = preset.content.trim();
+    final title = preset.title.trim().isNotEmpty
+        ? preset.title.trim()
+        : (body.isEmpty ? l10n.promptPresetUntitled : body.split('\n').first);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        ),
+        if (body.isNotEmpty)
+          Text(
+            body,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 10, color: semantic.muted),
+          ),
+      ],
     );
   }
 }

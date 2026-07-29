@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'models/llm_models.dart';
+import 'models/prompt_preset.dart';
 import 'models/tag_group.dart';
 import 'services/font_service.dart';
 import 'services/settings_service.dart';
@@ -317,6 +318,67 @@ class AppState extends ChangeNotifier {
     await _settingsService.saveLlmActiveProfileId(id);
   }
 
+  // --- Prompt presets (assistant input) ---
+
+  List<PromptPreset> _promptPresets = [];
+
+  /// User-defined prompts, in the order the picker lists them.
+  List<PromptPreset> get promptPresets => _promptPresets;
+
+  // Same reason as the tag-group counter: two presets created within one
+  // clock tick would otherwise share an id.
+  static int _presetIdCounter = 0;
+
+  Future<void> _savePromptPresets() async {
+    notifyListeners();
+    await _settingsService.saveAgentPromptPresetsJson(
+      encodePromptPresets(_promptPresets),
+    );
+  }
+
+  Future<PromptPreset> createPromptPreset({
+    String title = '',
+    String content = '',
+  }) async {
+    final preset = PromptPreset(
+      id: '${DateTime.now().microsecondsSinceEpoch}-${_presetIdCounter++}',
+      title: title,
+      content: content,
+    );
+    _promptPresets = [..._promptPresets, preset];
+    await _savePromptPresets();
+    return preset;
+  }
+
+  Future<void> updatePromptPreset(
+    String id, {
+    String? title,
+    String? content,
+  }) async {
+    _promptPresets = [
+      for (final p in _promptPresets)
+        p.id == id ? p.copyWith(title: title, content: content) : p,
+    ];
+    await _savePromptPresets();
+  }
+
+  Future<void> deletePromptPreset(String id) async {
+    _promptPresets = _promptPresets.where((p) => p.id != id).toList();
+    await _savePromptPresets();
+  }
+
+  /// Moves the preset with [id] by [delta] steps, clamped at the ends.
+  Future<void> reorderPromptPreset(String id, int delta) async {
+    final index = _promptPresets.indexWhere((p) => p.id == id);
+    if (index < 0) return;
+    final target = (index + delta).clamp(0, _promptPresets.length - 1);
+    if (target == index) return;
+    final next = [..._promptPresets];
+    next.insert(target, next.removeAt(index));
+    _promptPresets = next;
+    await _savePromptPresets();
+  }
+
   /// Whether agent write tools require user confirmation before running.
   bool _agentConfirmWrites = true;
   bool get agentConfirmWrites => _agentConfirmWrites;
@@ -352,6 +414,9 @@ class AppState extends ChangeNotifier {
     );
     _llmActiveProfileId = await _settingsService.loadLlmActiveProfileId();
     _agentConfirmWrites = await _settingsService.loadAgentConfirmWrites();
+    _promptPresets = decodePromptPresets(
+      await _settingsService.loadAgentPromptPresetsJson() ?? '',
+    );
     final (leftWidth, rightWidth) = await _settingsService.loadPanelWidths();
     _leftPanelWidth = leftWidth;
     _rightPanelWidth = rightWidth;

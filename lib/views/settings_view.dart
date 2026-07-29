@@ -11,6 +11,7 @@ import '../theme/app_theme.dart';
 import '../utils/external_links.dart';
 import '../widgets/panel_widgets.dart';
 import 'panels/llm_profile_dialog.dart';
+import 'panels/prompt_preset_dialog.dart';
 
 /// Opens settings as a fixed-size modal, macOS System Settings style: a
 /// source list on the left, one group of cards at a time on the right.
@@ -472,6 +473,22 @@ class _SettingsViewState extends State<SettingsView> {
                         control: AppSwitch(
                           value: appState.agentConfirmWrites,
                           onChanged: appState.updateAgentConfirmWrites,
+                        ),
+                      ),
+                      _SettingsRow(
+                        title: l10n.promptPresetsTitle,
+                        description: l10n.promptPresetsDesc,
+                        control: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            textStyle: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          onPressed: () => showPromptPresetsDialog(context),
+                          icon: const Icon(Icons.bookmark_border, size: 15),
+                          label: Text(l10n.llmManageAction),
                         ),
                       ),
                       _SettingsRow(

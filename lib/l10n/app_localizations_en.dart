@@ -1039,6 +1039,56 @@ class AppLocalizationsEn extends AppLocalizations {
       'Ask before the assistant modifies caption files; every change stays undoable either way';
 
   @override
+  String get promptPresetsTitle => 'Prompt presets';
+
+  @override
+  String get promptPresetsDesc =>
+      'Save prompts you use often and drop them into the assistant\'s input with one click';
+
+  @override
+  String get promptPresetsEmpty => 'No prompt presets yet';
+
+  @override
+  String get promptPresetsManage => 'Manage presets…';
+
+  @override
+  String get promptPresetAdd => 'Add prompt';
+
+  @override
+  String get promptPresetNewName => 'New prompt';
+
+  @override
+  String get promptPresetUntitled => 'Untitled';
+
+  @override
+  String get promptPresetName => 'Name';
+
+  @override
+  String get promptPresetContent => 'Prompt text';
+
+  @override
+  String get promptPresetContentHint =>
+      'The text inserted into the assistant\'s input…';
+
+  @override
+  String get promptPresetSelectHint =>
+      'Select a prompt on the left, or add a new one.';
+
+  @override
+  String get promptPresetMoveUp => 'Move up';
+
+  @override
+  String get promptPresetMoveDown => 'Move down';
+
+  @override
+  String get promptPresetDeleteConfirmTitle => 'Delete prompt';
+
+  @override
+  String promptPresetDeleteConfirmContent(String name) {
+    return 'Delete \"$name\"? This cannot be undone.';
+  }
+
+  @override
   String get llmSection => 'AI Assistant (LLM)';
 
   @override
