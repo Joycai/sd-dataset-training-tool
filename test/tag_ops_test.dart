@@ -232,6 +232,56 @@ void main() {
       expect(changeReports, isEmpty);
     });
 
+    // Same trick as the write-tool tests: a directory where the caption file
+    // should be makes every write throw, on Windows and POSIX alike, without
+    // touching permission bits.
+    Future<void> blockCaption(String name) => Directory(cap(name)).create();
+
+    test('a partial undo reports the files it could not write', () async {
+      await ops.deleteEverywhere('b', label: 'delete b');
+      expect(await readCap('001'), 'a, c');
+
+      await File(cap('001')).delete();
+      await blockCaption('001');
+      final result = await ops.undo();
+
+      expect(result.failed, 1);
+      expect(result.failures.single.captionPath, cap('001'));
+      // 002 carried "b" too and was restored.
+      expect(result.restored, 1);
+      expect(await readCap('002'), 'b,  c ,d');
+    });
+
+    test('a partial undo keeps the operation on the undo stack', () async {
+      await ops.deleteEverywhere('b', label: 'delete b');
+      await File(cap('001')).delete();
+      await blockCaption('001');
+
+      final result = await ops.undo();
+      expect(result.retryable, isTrue);
+      // Not moved across: undoing again retries, redo cannot skip ahead.
+      expect(ops.undoLabel, 'delete b');
+      expect(ops.canRedo, isFalse);
+
+      // With the path writable again, the retry completes and the operation
+      // finally moves to the redo stack.
+      await Directory(cap('001')).delete();
+      final retry = await ops.undo();
+      expect(retry.failed, 0);
+      expect(await readCap('001'), 'a, b, c');
+      expect(ops.canUndo, isFalse);
+      expect(ops.redoLabel, 'delete b');
+    });
+
+    test('a fully successful replay still moves across the stacks', () async {
+      await ops.deleteEverywhere('b', label: 'delete b');
+      final result = await ops.undo();
+      expect(result.failed, 0);
+      expect(result.restored, 2);
+      expect(ops.canUndo, isFalse);
+      expect(ops.redoLabel, 'delete b');
+    });
+
     test('clearHistory drops both stacks', () async {
       await ops.deleteEverywhere('a', label: 'delete a');
       await ops.undo();

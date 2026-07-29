@@ -21,11 +21,18 @@ class WorkbenchTopBar extends StatelessWidget {
     required this.onOpenFolder,
     required this.agentOpen,
     required this.onToggleAgent,
+    required this.onUndo,
+    required this.onRedo,
   });
 
   final VoidCallback onOpenFolder;
   final bool agentOpen;
   final VoidCallback onToggleAgent;
+
+  /// Routed through the workbench rather than calling [TagOps] directly: a
+  /// replay can fail on some files, and reporting that needs a Scaffold.
+  final VoidCallback onUndo;
+  final VoidCallback onRedo;
 
   IconData _themeIcon(ThemeMode mode) {
     switch (mode) {
@@ -83,13 +90,13 @@ class WorkbenchTopBar extends StatelessWidget {
             icon: Icons.undo,
             tooltip:
                 '${tagOps.undoLabel == null ? l10n.undo : l10n.undoTooltip(tagOps.undoLabel!)} (Ctrl+Z)',
-            onPressed: tagOps.canUndo ? tagOps.undo : null,
+            onPressed: tagOps.canUndo ? onUndo : null,
           ),
           _BarIconButton(
             icon: Icons.redo,
             tooltip:
                 '${tagOps.redoLabel == null ? l10n.redo : l10n.redoTooltip(tagOps.redoLabel!)} (Ctrl+Y)',
-            onPressed: tagOps.canRedo ? tagOps.redo : null,
+            onPressed: tagOps.canRedo ? onRedo : null,
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),

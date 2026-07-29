@@ -631,6 +631,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noFilesChanged => 'No files needed changes.';
 
   @override
+  String undoFailedRetryHint(int count) {
+    return '$count files could not be written — the operation is still on the stack, undo again to retry them';
+  }
+
+  @override
   String filesFailed(int count) {
     return '$count files could not be written';
   }

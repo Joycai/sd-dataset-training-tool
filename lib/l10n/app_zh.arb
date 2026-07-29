@@ -220,6 +220,7 @@
   "apply": "应用",
   "filesUpdated": "已更新 {count} 个文件",
   "noFilesChanged": "没有需要修改的文件。",
+  "undoFailedRetryHint": "{count} 个文件写入失败——该操作仍留在栈中，再撤销一次可重试这些文件",
   "filesFailed": "{count} 个文件写入失败",
   "filterPanelTitle": "画廊过滤",
   "filterStatus": "过滤中 · 匹配 {shown} / {total}",

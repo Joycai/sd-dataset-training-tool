@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../app_state.dart';
+import '../l10n/app_localizations.dart';
 import '../services/preview_window_launcher.dart';
 import '../services/settings_service.dart';
 import '../state/agent_chat_state.dart';
@@ -323,11 +324,22 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   };
 
   void _undo() {
-    if (_tagOps.canUndo) _tagOps.undo();
+    if (_tagOps.canUndo) _replay(_tagOps.undo());
   }
 
   void _redo() {
-    if (_tagOps.canRedo) _tagOps.redo();
+    if (_tagOps.canRedo) _replay(_tagOps.redo());
+  }
+
+  /// Undo/redo write files, and a file that refuses to be written would
+  /// otherwise leave the dataset half-reverted in silence.
+  Future<void> _replay(Future<ReplayResult> pending) async {
+    final result = await pending;
+    if (!mounted || result.failed == 0) return;
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.undoFailedRetryHint(result.failed))),
+    );
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -380,6 +392,8 @@ class _WorkbenchViewState extends State<WorkbenchView> {
               onOpenFolder: _openFolder,
               agentOpen: _agentOpen,
               onToggleAgent: _toggleAgentPanel,
+              onUndo: _undo,
+              onRedo: _redo,
             ),
             Expanded(
               // The assistant floats over this area, so it is a Stack rather

@@ -766,8 +766,19 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
           'refusing to undo it',
         );
       }
-      await tagOps.undo();
-      return toolOk({'undone': label});
+      final result = await tagOps.undo();
+      if (result.failed > 0) {
+        const sample = 5;
+        return toolError(
+          'the undo only restored ${result.restored} file(s): '
+          '${result.failed} could not be written — '
+          '${result.failures.take(sample).join('; ')}'
+          '${result.failed > sample ? '; …' : ''}'
+          '. The operation is still on the undo stack, so the dataset is '
+          'half-reverted; tell the user rather than writing over it.',
+        );
+      }
+      return toolOk({'undone': label, 'restored_files': result.restored});
     },
   ),
 ];

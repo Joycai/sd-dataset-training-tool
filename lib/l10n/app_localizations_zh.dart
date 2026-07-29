@@ -612,6 +612,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noFilesChanged => '没有需要修改的文件。';
 
   @override
+  String undoFailedRetryHint(int count) {
+    return '$count 个文件写入失败——该操作仍留在栈中，再撤销一次可重试这些文件';
+  }
+
+  @override
   String filesFailed(int count) {
     return '$count 个文件写入失败';
   }
