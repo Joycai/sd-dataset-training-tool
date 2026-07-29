@@ -1020,6 +1020,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentSessionResetNotice => 'Dataset changed — conversation reset.';
 
   @override
+  String get agentSwitchProfile => 'Switch backend';
+
+  @override
+  String agentProfileSwitchedNotice(String name) {
+    return 'Switched to \"$name\" — the next message starts a new conversation, without the context above.';
+  }
+
+  @override
   String agentErrorNotice(String message) {
     return 'Error: $message';
   }

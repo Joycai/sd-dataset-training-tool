@@ -995,6 +995,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentSessionResetNotice => '数据集已切换，会话已重置。';
 
   @override
+  String get agentSwitchProfile => '切换后端';
+
+  @override
+  String agentProfileSwitchedNotice(String name) {
+    return '已切换到「$name」，下一条消息将开启新会话，不带上面的上下文。';
+  }
+
+  @override
   String agentErrorNotice(String message) {
     return '出错：$message';
   }

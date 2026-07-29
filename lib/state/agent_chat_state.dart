@@ -18,7 +18,7 @@ import 'tag_ops.dart';
 enum AgentEntryKind { user, assistant, tool, notice }
 
 /// What a notice row represents; the panel maps these to localized text.
-enum AgentNoticeType { cancelled, error, reset, tokenCap }
+enum AgentNoticeType { cancelled, error, reset, tokenCap, profileSwitched }
 
 /// One row in the chat transcript. Mutable: assistant text streams in and
 /// tool entries flip from running to finished.
@@ -116,6 +116,31 @@ class AgentChatState extends ChangeNotifier {
   String? get profileName => app.activeLlmProfile?.name;
 
   bool get hasProfile => app.activeLlmProfile != null;
+
+  /// Switches the backend from the panel itself. A conversation is bound to
+  /// the backend it started on — the history was built for that model's tool
+  /// schema, context window and (non-)vision tool set — so the running
+  /// session is dropped. [send] would drop it anyway; doing it here lets the
+  /// transcript say so instead of the next reply silently forgetting
+  /// everything above it.
+  Future<void> switchProfile(String id) async {
+    if (app.activeLlmProfile?.id == id) return;
+    await app.setActiveLlmProfile(id);
+    if (_session != null) {
+      _session!.stop();
+      _session = null;
+      _allowAllWrites = false;
+      entries.add(
+        AgentChatEntry.notice(
+          AgentNoticeType.profileSwitched,
+          app.activeLlmProfile?.name ?? '',
+        ),
+      );
+    }
+    // The header reads the name off AppState, which this state object does
+    // not listen to; notify either way so it repaints.
+    _touch();
+  }
 
   /// Bumped on every transcript change; the panel uses it to auto-scroll.
   int revision = 0;

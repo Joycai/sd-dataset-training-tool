@@ -355,6 +355,8 @@
   "agentQuestionDismiss": "不回答",
   "agentStoppedNotice": "已停止。",
   "agentSessionResetNotice": "数据集已切换，会话已重置。",
+  "agentSwitchProfile": "切换后端",
+  "agentProfileSwitchedNotice": "已切换到「{name}」，下一条消息将开启新会话，不带上面的上下文。",
   "agentErrorNotice": "出错：{message}",
 
   "agentConfirmTitle": "助手请求修改 caption",
