@@ -8,6 +8,7 @@ import '../../models/llm_models.dart';
 import '../llm/llm_client.dart';
 import 'agent_tools.dart';
 import 'context_budget.dart';
+import 'tag_translation_tools.dart' show maxTranslationEntries;
 
 enum AgentStopReason { completed, cancelled, maxTurns, tokenCap, error }
 
@@ -218,6 +219,10 @@ class AgentSession {
 
 /// The system prompt. English skeleton (models follow it most reliably) with
 /// the user's locale injected so replies come back in their language.
+///
+/// Batch sizes quoted in the guidelines come from the tool definitions rather
+/// than being retyped here: a prompt that promises a limit the tool rejects
+/// costs the model a failed call to discover.
 String buildAgentSystemPrompt({
   required String localeName,
   required String datasetSummary,
@@ -278,7 +283,16 @@ Guidelines:
   may require their confirmation first.
 - run_wd_tagger produces booru-style tags for images via the local tagger
   server. Results are returned to you, not written to disk — filter them,
-  then apply with the write tools.$captionTypesGuideline$visionGuideline
+  then apply with the write tools.
+- The tag glossary is display-only: translations are shown beside tags in
+  the app's UI and never written into a caption. There is one glossary per
+  app language and the tools report which is active, so translate into that
+  language. Find the work with list_tag_translations (dataset tags, busiest
+  first) and write it back in batches of up to $maxTranslationEntries with
+  write_tag_translations — never one call per tag. For characters,
+  copyrights and artists call fetch_danbooru_tag first and take the name
+  from other_names: those are proper names you must not invent. Ordinary
+  descriptive tags need no lookup.$captionTypesGuideline$visionGuideline
 - When you need the user to make a decision mid-task, call the ask_user
   tool with short concrete options instead of ending your reply with an
   open question — that keeps the task running once they answer.

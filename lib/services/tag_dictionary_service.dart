@@ -427,6 +427,17 @@ class TagDictionaryService extends ChangeNotifier {
 
   // --- Lookup ---------------------------------------------------------
 
+  /// Every entry this dictionary can offer, popularity-descending within each
+  /// source and the user's own additions first.
+  ///
+  /// For callers that need to *walk* the vocabulary rather than match against
+  /// it — seeding a glossary from the busiest tags, for instance. The
+  /// completion path never uses this: it asks [search] for matches.
+  Iterable<TagDictionaryEntry> get allEntries => [
+    ..._customEntries,
+    ...?_index?.entries,
+  ];
+
   /// The dictionary entry for [tag], written in any caption style, or null
   /// when the tag is known to neither danbooru nor the user's own additions.
   ///

@@ -12,6 +12,7 @@ import '../services/agent/character_sheet.dart';
 import '../services/agent/dataset_tools.dart';
 import '../services/agent/media_tools.dart';
 import '../services/agent/merge_rule_tools.dart';
+import '../services/agent/tag_translation_tools.dart';
 import '../services/llm/anthropic_client.dart';
 import '../services/llm/llm_client.dart';
 import '../services/llm/openai_compat_client.dart';
@@ -349,6 +350,14 @@ class AgentChatState extends ChangeNotifier {
       ...buildTaggerTools(deps, aiTagger),
       if (profile.supportsVision) ...buildVisionTools(deps),
       ...buildMergeRuleTools(_saveMergeRules),
+      ...buildTagTranslationTools(
+        TagTranslationToolsDeps(
+          glossary: app.tagTranslations,
+          dictionary: app.tagDictionary,
+          dataset: dataset,
+          libraryTags: () => app.commonTags,
+        ),
+      ),
       _buildAskUserTool(),
     ]);
     final root = app.browsingDirectory;
