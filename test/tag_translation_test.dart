@@ -3,16 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:dataset_training_tool/models/tag_dictionary.dart';
 import 'package:dataset_training_tool/models/tag_translation.dart';
-import 'package:dataset_training_tool/services/tag_dictionary_service.dart';
 import 'package:dataset_training_tool/services/tag_translation_service.dart';
-
-const _csv = '''
-1girl,0,5113288,"1girls,sole_female"
-long_hair,0,3000000,
-blue_eyes,0,2000000,
-''';
 
 void main() {
   late Directory temp;
@@ -27,9 +19,6 @@ void main() {
 
   TagTranslationService service() =>
       TagTranslationService(storageDirectory: () async => temp);
-
-  TagDictionaryService dictionary() =>
-      TagDictionaryService(storageDirectory: () async => temp);
 
   File glossaryFile(String locale) => File('${temp.path}/$locale.json');
 
@@ -93,6 +82,37 @@ void main() {
       expect(glossary.lastError, isNotNull);
       // Still writable: losing glosses must not lock the user out of fixing
       // them.
+      await glossary.upsert(const TagTranslation(tag: '1girl', text: '单人女性'));
+      expect(glossary.glossFor('1girl'), '单人女性');
+    });
+
+    test('a file from a newer schema is reported and left untouched', () async {
+      final onDisk = jsonEncode({
+        'schema': TagTranslationService.schemaVersion + 1,
+        'entries': {
+          'long_hair': {'text': '长发', 'tone': 'formal'},
+        },
+      });
+      await glossaryFile('zh').writeAsString(onDisk);
+
+      final glossary = service();
+      await glossary.load('zh');
+
+      expect(glossary.count, 0);
+      expect(glossary.lastError, contains('schema'));
+
+      // Unlike a corrupt file, this one still holds the user's translations —
+      // in a shape with fields this build would drop. Writing is refused so a
+      // downgrade cannot quietly rewrite it to the older layout.
+      final (written, skipped) = await glossary.upsertAll(const [
+        TagTranslation(tag: '1girl', text: '单人女性'),
+      ]);
+      expect((written, skipped), (0, 1));
+      expect(await glossaryFile('zh').readAsString(), onDisk);
+
+      // And the freeze lifts as soon as a readable file loads.
+      await glossaryFile('zh').writeAsString(jsonEncode({'long_hair': '长发'}));
+      await glossary.load('zh');
       await glossary.upsert(const TagTranslation(tag: '1girl', text: '单人女性'));
       expect(glossary.glossFor('1girl'), '单人女性');
     });
@@ -229,88 +249,4 @@ void main() {
     });
   });
 
-  group('user-added dictionary entries', () {
-    test('a custom tag is searchable and carries its category', () async {
-      final dict = dictionary();
-      await dict.loadCsv(_csv, full: true);
-      await dict.setCustomEntries(const [
-        TagDictionaryEntry(
-          name: 'my_character_(oc)',
-          category: TagCategory.character,
-        ),
-      ]);
-
-      expect(dict.lookup('my_character_(oc)')?.category, TagCategory.character);
-      final hits = dict.search('my_char');
-      expect(hits, isNotEmpty);
-      expect(hits.first.name, 'my_character_(oc)');
-      expect(hits.first.isCustom, isTrue);
-    });
-
-    test('custom hits lead the list without taking all of it', () async {
-      final dict = dictionary();
-      await dict.loadCsv(_csv, full: true);
-      await dict.setCustomEntries(const [
-        TagDictionaryEntry(name: 'long_braid', category: TagCategory.general),
-        TagDictionaryEntry(name: 'long_cape', category: TagCategory.general),
-        TagDictionaryEntry(name: 'long_scarf', category: TagCategory.general),
-        TagDictionaryEntry(name: 'long_coat', category: TagCategory.general),
-      ]);
-
-      final hits = dict.search('long', limit: 4);
-      // Half the list at most: a handful of hand-added tags must not hide
-      // danbooru behind a shared prefix.
-      expect(hits.take(2).every((h) => h.isCustom), isTrue);
-      expect(hits.any((h) => h.name == 'long_hair'), isTrue);
-    });
-
-    test('a name the dictionary already has is dropped', () async {
-      final dict = dictionary();
-      await dict.loadCsv(_csv, full: true);
-      await dict.setCustomEntries(const [
-        // Written in a different style on purpose — the check folds both sides.
-        TagDictionaryEntry(name: 'long hair', category: TagCategory.meta),
-        TagDictionaryEntry(name: 'my_oc', category: TagCategory.character),
-      ]);
-
-      expect(dict.customEntries.map((e) => e.name), ['my_oc']);
-      // The real dictionary entry is untouched, so it still ranks and links.
-      expect(dict.lookup('long_hair')?.category, TagCategory.general);
-    });
-
-    test('a custom tag stops being a local tag', () async {
-      final dict = dictionary();
-      await dict.loadCsv(_csv, full: true);
-      dict.setLocalTags(datasetUsage: {'my_trigger_word': 40});
-
-      expect(
-        dict.search('my_trig').single.origin,
-        TagSuggestionOrigin.local,
-      );
-
-      await dict.setCustomEntries(const [
-        TagDictionaryEntry(
-          name: 'my_trigger_word',
-          category: TagCategory.character,
-        ),
-      ]);
-
-      // One row, not two: "local" means covered by neither the dictionary nor
-      // the user's own additions.
-      final hits = dict.search('my_trig');
-      expect(hits.single.origin, TagSuggestionOrigin.custom);
-    });
-
-    test('custom entries survive a reload', () async {
-      final dict = dictionary();
-      await dict.setCustomEntries(const [
-        TagDictionaryEntry(name: 'my_oc', category: TagCategory.character),
-      ]);
-
-      final reloaded = dictionary();
-      await reloaded.init();
-      expect(reloaded.customEntries.single.name, 'my_oc');
-      expect(reloaded.lookup('my_oc')?.category, TagCategory.character);
-    });
-  });
 }

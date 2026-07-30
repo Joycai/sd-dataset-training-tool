@@ -58,17 +58,14 @@ class TagTranslation {
 
   final TagTranslationSource source;
 
-  TagTranslation copyWith({
-    String? tag,
-    String? text,
-    String? note,
-    bool clearNote = false,
-    TagTranslationSource? source,
-  }) => TagTranslation(
+  /// Only the two fields the service normalizes on the way in. Anything else is
+  /// decided when the entry is constructed — the form picks the source, the
+  /// note comes from the same edit as the text — so there is nothing to copy.
+  TagTranslation copyWith({String? tag, String? text}) => TagTranslation(
     tag: tag ?? this.tag,
     text: text ?? this.text,
-    note: clearNote ? null : (note ?? this.note),
-    source: source ?? this.source,
+    note: note,
+    source: source,
   );
 
   Map<String, dynamic> toJson() => {

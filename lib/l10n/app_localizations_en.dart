@@ -1575,6 +1575,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String dictGlossaryError(String message) {
+    return 'Glossary file could not be read: $message';
+  }
+
+  @override
   String get dictSearchHint => 'Search a tag or a translation';
 
   @override

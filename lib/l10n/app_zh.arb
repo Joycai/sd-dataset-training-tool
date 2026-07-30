@@ -582,6 +582,12 @@
       "count": { "type": "int" }
     }
   },
+  "dictGlossaryError": "译文文件读取失败：{message}",
+  "@dictGlossaryError": {
+    "placeholders": {
+      "message": { "type": "String" }
+    }
+  },
   "dictSearchHint": "搜索标签或译文",
   "dictGlossaryEmpty": "还没有任何译文。搜索一个标签就能给它加翻译。",
   "dictNoResults": "没有匹配的标签或译文",

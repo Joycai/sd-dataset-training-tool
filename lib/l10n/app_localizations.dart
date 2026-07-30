@@ -2844,6 +2844,12 @@ abstract class AppLocalizations {
   /// **'{locale} · {count} translated'**
   String dictManagerSubtitle(String locale, int count);
 
+  /// No description provided for @dictGlossaryError.
+  ///
+  /// In en, this message translates to:
+  /// **'Glossary file could not be read: {message}'**
+  String dictGlossaryError(String message);
+
   /// No description provided for @dictSearchHint.
   ///
   /// In en, this message translates to:

@@ -835,6 +835,12 @@
       "count": { "type": "int" }
     }
   },
+  "dictGlossaryError": "Glossary file could not be read: {message}",
+  "@dictGlossaryError": {
+    "placeholders": {
+      "message": { "type": "String" }
+    }
+  },
   "dictSearchHint": "Search a tag or a translation",
   "dictGlossaryEmpty": "Nothing translated yet. Search for a tag to give it a translation.",
   "dictNoResults": "No matching tag or translation",
