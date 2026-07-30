@@ -8,6 +8,7 @@ import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/tag_dictionary.dart';
 import '../../models/tag_translation.dart';
+import '../../services/danbooru_api.dart';
 import '../../services/tag_dictionary_service.dart';
 import '../../services/tag_translation_service.dart';
 import '../../theme/app_theme.dart';
@@ -28,14 +29,17 @@ import '../../widgets/panel_widgets.dart';
 ///    whole reason a Chinese-speaking user keeps a glossary at all.
 /// [initialTag] opens straight onto that tag's editor — the path taken from a
 /// tag's own context menu, where the user has already picked the tag.
+///
+/// [api] is injectable for tests; the default talks to danbooru.
 Future<void> showTagDictionaryDialog(
   BuildContext context, {
   String? initialTag,
+  DanbooruApi? api,
 }) => showDialog(
   context: context,
   builder: (_) => ChangeNotifierProvider.value(
     value: context.read<AppState>(),
-    child: _TagDictionaryDialog(initialTag: initialTag),
+    child: _TagDictionaryDialog(initialTag: initialTag, api: api),
   ),
 );
 
@@ -45,9 +49,10 @@ Future<void> showTagDictionaryDialog(
 const _searchLimit = 80;
 
 class _TagDictionaryDialog extends StatefulWidget {
-  const _TagDictionaryDialog({this.initialTag});
+  const _TagDictionaryDialog({this.initialTag, this.api});
 
   final String? initialTag;
+  final DanbooruApi? api;
 
   @override
   State<_TagDictionaryDialog> createState() => _TagDictionaryDialogState();
@@ -71,6 +76,19 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
     final tag = widget.initialTag?.trim();
     return tag == null || tag.isEmpty ? null : danbooruTagName(tag);
   }
+
+  late final DanbooruApi _api = widget.api ?? DanbooruApi();
+
+  /// What danbooru said about each tag looked up in this session, keyed by
+  /// [tagLookupKey]. Cached for the lifetime of the dialog only: it is a
+  /// reference the user is reading off, not data this app owns, and re-fetching
+  /// on the next open is one request.
+  final Map<String, DanbooruTagInfo> _fetched = {};
+
+  /// The tag a request is in flight for, or null. One at a time by
+  /// construction — danbooru asks callers to go easy, and the user is looking
+  /// at one tag anyway.
+  String? _fetching;
 
   @override
   void dispose() {
@@ -177,7 +195,12 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
     return _dictionary.customEntries.any((e) => tagLookupKey(e.name) == key);
   }
 
-  Future<void> _saveTranslation(String tag, String text, String? note) async {
+  Future<void> _saveTranslation(
+    String tag,
+    String text,
+    String? note,
+    TagTranslationSource source,
+  ) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) {
       // Clearing the field is how a translation is deleted; a separate empty
@@ -190,10 +213,73 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
         tag: tag,
         text: trimmed,
         note: note == null || note.trim().isEmpty ? null : note.trim(),
-        // Anything edited here is the user's word on it, whoever drafted it.
-        source: TagTranslationSource.manual,
+        // The form decides: text taken verbatim from danbooru is recorded as
+        // danbooru's, anything typed over it becomes the user's own.
+        source: source,
       ),
     );
+  }
+
+  // --- Danbooru lookup ---------------------------------------------------
+
+  /// Fetches [query] — a tag name or a pasted danbooru URL — and selects the
+  /// tag it resolves to.
+  ///
+  /// A tag danbooru has never heard of is not treated as a failure: it comes
+  /// back with `knownToDanbooru == false`, and saying so is more useful than an
+  /// error, because "danbooru doesn't have this either" is exactly what
+  /// confirms a typo.
+  Future<void> _lookup(String query) async {
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _fetching = query);
+    try {
+      final info = await _api.fetch(query);
+      if (!mounted) return;
+      setState(() {
+        _fetched[tagLookupKey(info.name)] = info;
+        _selected = info.name;
+        // The list is keyed off the search box, so point it at the tag that
+        // came back — otherwise the editor shows a tag the list beside it does
+        // not contain.
+        _searchController.text = info.name;
+        _query = info.name;
+      });
+      if (!info.knownToDanbooru) _snack(l10n.dictFetchUnknown(info.name));
+    } on DanbooruApiException catch (e) {
+      if (mounted) _snack(l10n.dictFetchFailed(e.message));
+    } finally {
+      if (mounted) setState(() => _fetching = null);
+    }
+  }
+
+  /// Asks for a tag name or URL, then looks it up. The entry point for a tag
+  /// that is in neither the dictionary nor the glossary — which is precisely
+  /// the case a pasted wiki URL solves.
+  Future<void> _promptLookup() async {
+    final query = await showDialog<String>(
+      context: context,
+      builder: (_) => _LookupPromptDialog(initial: _selected ?? ''),
+    );
+    if (query == null || !mounted) return;
+    await _lookup(query);
+  }
+
+  /// Adds a tag danbooru knows but this dictionary does not, with danbooru's
+  /// own category and post count. Turns a lookup into a completable tag.
+  Future<void> _addFromDanbooru(DanbooruTagInfo info) async {
+    final l10n = AppLocalizations.of(context)!;
+    final dictionary = _dictionary;
+    await dictionary.setCustomEntries([
+      ...dictionary.customEntries,
+      TagDictionaryEntry(
+        name: info.name,
+        category: info.category ?? TagCategory.general,
+        postCount: info.postCount,
+      ),
+    ]);
+    if (!mounted) return;
+    setState(() {});
+    _snack(l10n.dictFetchAdded(info.name));
   }
 
   Future<void> _addCustomTag() async {
@@ -353,6 +439,9 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
                                 )
                               : _TranslationForm(
                                   // New controllers when the selection moves.
+                                  // Deliberately *not* keyed on the fetched
+                                  // info: a lookup must not throw away
+                                  // whatever the user was typing.
                                   key: ValueKey(
                                     '$selected/'
                                     '${_glossary.lookup(selected)?.text}',
@@ -361,10 +450,25 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
                                   entry: _glossary.lookup(selected),
                                   dictionaryEntry: _dictionary.lookup(selected),
                                   custom: _isCustom(selected),
-                                  onSave: (text, note) =>
-                                      _saveTranslation(selected, text, note),
+                                  info: _fetched[tagLookupKey(selected)],
+                                  fetching: _fetching != null,
+                                  onSave: (text, note, source) =>
+                                      _saveTranslation(
+                                        selected,
+                                        text,
+                                        note,
+                                        source,
+                                      ),
+                                  onFetch: () => _lookup(selected),
                                   onRemoveCustom: () =>
                                       _removeCustomTag(selected),
+                                  // Only offered when danbooru has the tag and
+                                  // this dictionary does not — otherwise there
+                                  // is nothing to add.
+                                  onAddFromDanbooru:
+                                      _dictionary.lookup(selected) == null
+                                      ? _addFromDanbooru
+                                      : null,
                                 ),
                         ),
                       ],
@@ -415,6 +519,21 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
             ],
           ),
         ),
+        if (_fetching != null)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8),
+            child: SizedBox(
+              width: 13,
+              height: 13,
+              child: CircularProgressIndicator(strokeWidth: 1.5),
+            ),
+          )
+        else
+          PanelIconButton(
+            icon: Icons.cloud_download_outlined,
+            tooltip: l10n.dictFetchPromptTooltip,
+            onPressed: _promptLookup,
+          ),
         PanelIconButton(
           icon: Icons.add,
           tooltip: l10n.dictAddTagAction,
@@ -652,16 +771,34 @@ class _TranslationForm extends StatefulWidget {
     required this.entry,
     required this.dictionaryEntry,
     required this.custom,
+    required this.info,
+    required this.fetching,
     required this.onSave,
+    required this.onFetch,
     required this.onRemoveCustom,
+    required this.onAddFromDanbooru,
   });
 
   final String tag;
   final TagTranslation? entry;
   final TagDictionaryEntry? dictionaryEntry;
   final bool custom;
-  final Future<void> Function(String text, String? note) onSave;
+
+  /// What danbooru said about this tag, once it has been looked up.
+  final DanbooruTagInfo? info;
+
+  final bool fetching;
+  final Future<void> Function(
+    String text,
+    String? note,
+    TagTranslationSource source,
+  )
+  onSave;
+  final Future<void> Function() onFetch;
   final Future<void> Function() onRemoveCustom;
+
+  /// Null when there is nothing to add — the dictionary already has the tag.
+  final Future<void> Function(DanbooruTagInfo info)? onAddFromDanbooru;
 
   @override
   State<_TranslationForm> createState() => _TranslationFormState();
@@ -676,6 +813,12 @@ class _TranslationFormState extends State<_TranslationForm> {
   );
   bool _dirty = false;
 
+  /// Provenance for the next save. Set to [TagTranslationSource.danbooru] only
+  /// while the field holds text taken verbatim from danbooru; typing over it
+  /// makes it the user's own again, so the "clear AI/danbooru translations"
+  /// escape hatch never throws away something hand-edited.
+  TagTranslationSource _source = TagTranslationSource.manual;
+
   @override
   void dispose() {
     _text.dispose();
@@ -684,8 +827,21 @@ class _TranslationFormState extends State<_TranslationForm> {
   }
 
   Future<void> _save() async {
-    await widget.onSave(_text.text, _note.text);
+    await widget.onSave(_text.text, _note.text, _source);
     if (mounted) setState(() => _dirty = false);
+  }
+
+  void _useAsTranslation(String value) {
+    _text.text = value;
+    setState(() {
+      _dirty = true;
+      _source = TagTranslationSource.danbooru;
+    });
+  }
+
+  void _useAsNote(String value) {
+    _note.text = value;
+    setState(() => _dirty = true);
   }
 
   @override
@@ -731,7 +887,14 @@ class _TranslationFormState extends State<_TranslationForm> {
               isDense: true,
             ),
             onChanged: (_) {
-              if (!_dirty) setState(() => _dirty = true);
+              // Typing over danbooru's own wording makes the entry the user's
+              // again, so a later "clear fetched translations" leaves it alone.
+              if (!_dirty || _source != TagTranslationSource.manual) {
+                setState(() {
+                  _dirty = true;
+                  _source = TagTranslationSource.manual;
+                });
+              }
             },
             onSubmitted: (_) => _save(),
           ),
@@ -790,9 +953,27 @@ class _TranslationFormState extends State<_TranslationForm> {
             spacing: 8,
             runSpacing: 6,
             children: [
-              // A hand-added tag has no danbooru page; offering the link would
-              // just send the user to a 404.
-              if (!widget.custom)
+              // A hand-added tag is the user's own invention: danbooru has
+              // neither a wiki page nor a tag record for it, so both the link
+              // and the lookup would come back empty.
+              if (!widget.custom) ...[
+                OutlinedButton.icon(
+                  onPressed: widget.fetching ? null : widget.onFetch,
+                  icon: widget.fetching
+                      ? const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 1.5),
+                        )
+                      : const Icon(Icons.cloud_download_outlined, size: 14),
+                  label: Text(
+                    widget.fetching ? l10n.dictFetching : l10n.dictFetchAction,
+                    style: const TextStyle(fontSize: AppText.secondary),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
                 OutlinedButton.icon(
                   onPressed: () =>
                       openExternalUrl(danbooruWikiUrl(widget.tag)),
@@ -805,6 +986,7 @@ class _TranslationFormState extends State<_TranslationForm> {
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
+              ],
               if (widget.custom)
                 OutlinedButton.icon(
                   onPressed: widget.onRemoveCustom,
@@ -820,6 +1002,130 @@ class _TranslationFormState extends State<_TranslationForm> {
                 ),
             ],
           ),
+          if (widget.info case final info?) ...[
+            const SizedBox(height: 14),
+            _danbooruSection(l10n, semantic, info),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// What the lookup came back with. Everything here is a *candidate* — one
+  /// click to adopt, never written on the user's behalf. Danbooru's
+  /// `other_names` are given translations rather than guesses, but which of
+  /// them is the right gloss (and whether it is in the right language at all)
+  /// is a judgment only the user can make.
+  Widget _danbooruSection(
+    AppLocalizations l10n,
+    AppSemanticColors semantic,
+    DanbooruTagInfo info,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: semantic.raised,
+        border: Border.all(color: semantic.line),
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.cloud_done_outlined, size: 13, color: semantic.muted),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  info.knownToDanbooru
+                      ? l10n.dictFetchedHeader(
+                          _categoryLabel(
+                            l10n,
+                            info.category ?? TagCategory.general,
+                          ),
+                          info.postCount,
+                        )
+                      : l10n.dictFetchUnknown(info.name),
+                  style: TextStyle(
+                    fontSize: AppText.micro,
+                    color: semantic.muted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          // A tag danbooru has but this dictionary does not: adding it is what
+          // turns the lookup into a tag the completion list can offer.
+          if (info.knownToDanbooru && widget.onAddFromDanbooru != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () => widget.onAddFromDanbooru!(info),
+                icon: const Icon(Icons.library_add_outlined, size: 14),
+                label: Text(
+                  l10n.dictFetchAddAction,
+                  style: const TextStyle(fontSize: AppText.secondary),
+                ),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
+          ],
+          if (info.otherNames.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _label(l10n.dictFetchOtherNames, semantic),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final name in info.otherNames)
+                  _CandidateChip(
+                    label: name,
+                    onTap: () => _useAsTranslation(name),
+                  ),
+              ],
+            ),
+          ],
+          if (info.wikiExcerpt case final excerpt?) ...[
+            const SizedBox(height: 10),
+            _label(l10n.dictFetchWikiLabel, semantic),
+            Text(
+              excerpt,
+              style: TextStyle(
+                fontSize: AppText.micro,
+                color: scheme.onSurface,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => _useAsNote(excerpt),
+                icon: const Icon(Icons.subject, size: 14),
+                label: Text(
+                  l10n.dictFetchUseAsNote,
+                  style: const TextStyle(fontSize: AppText.secondary),
+                ),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                ),
+              ),
+            ),
+          ] else if (info.knownToDanbooru) ...[
+            const SizedBox(height: 8),
+            Text(
+              l10n.dictFetchNoWiki,
+              style: TextStyle(
+                fontSize: AppText.micro,
+                color: semantic.muted,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -836,6 +1142,115 @@ class _TranslationFormState extends State<_TranslationForm> {
       ),
     ),
   );
+}
+
+/// A one-click translation candidate from danbooru's `other_names`.
+class _CandidateChip extends StatelessWidget {
+  const _CandidateChip({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: AppLocalizations.of(context)!.dictFetchUseAsTranslation,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+            decoration: BoxDecoration(
+              color: semantic.panel,
+              border: Border.all(color: scheme.primary.withValues(alpha: 0.45)),
+              borderRadius: BorderRadius.circular(AppRadii.pill),
+            ),
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: AppText.secondary),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Asks for a tag name or a pasted danbooru URL. Pops the raw text — parsing
+/// it is [DanbooruApi.parseQuery]'s job, and it is the only thing that knows
+/// which URL shapes are understood.
+class _LookupPromptDialog extends StatefulWidget {
+  const _LookupPromptDialog({required this.initial});
+
+  final String initial;
+
+  @override
+  State<_LookupPromptDialog> createState() => _LookupPromptDialogState();
+}
+
+class _LookupPromptDialogState extends State<_LookupPromptDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initial,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = _controller.text.trim();
+    if (value.isEmpty) return;
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return AlertDialog(
+      title: Text(l10n.dictFetchPromptTitle),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              style: const TextStyle(fontSize: AppText.secondary),
+              decoration: InputDecoration(
+                labelText: l10n.dictFetchPromptLabel,
+                hintText: l10n.dictFetchPromptHint,
+                isDense: true,
+              ),
+              onSubmitted: (_) => _submit(),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              l10n.dictFetchPromptNote,
+              style: TextStyle(
+                fontSize: AppText.micro,
+                color: context.semantic.muted,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancel),
+        ),
+        TextButton(onPressed: _submit, child: Text(l10n.confirm)),
+      ],
+    );
+  }
 }
 
 /// Name + category for a tag danbooru does not have.

@@ -1694,4 +1694,65 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dictFooterHint => 'One glossary per app language';
+
+  @override
+  String get dictFetchAction => 'Fetch from danbooru';
+
+  @override
+  String get dictFetching => 'Fetching…';
+
+  @override
+  String get dictFetchPromptTooltip => 'Look a tag up on danbooru';
+
+  @override
+  String get dictFetchPromptTitle => 'Look up on danbooru';
+
+  @override
+  String get dictFetchPromptLabel => 'Tag name or danbooru URL';
+
+  @override
+  String get dictFetchPromptHint =>
+      'long_hair, or a link you copied from danbooru';
+
+  @override
+  String get dictFetchPromptNote =>
+      'A wiki page, a post search or a tag listing URL all work. Reads danbooru\'s public API — nothing is sent anywhere.';
+
+  @override
+  String dictFetchFailed(String error) {
+    return 'Lookup failed: $error';
+  }
+
+  @override
+  String dictFetchUnknown(String tag) {
+    return 'danbooru has no tag called \"$tag\"';
+  }
+
+  @override
+  String dictFetchedHeader(String category, int count) {
+    return 'danbooru: $category · $count posts';
+  }
+
+  @override
+  String get dictFetchOtherNames => 'Other names on danbooru';
+
+  @override
+  String get dictFetchUseAsTranslation => 'Use as the translation';
+
+  @override
+  String get dictFetchWikiLabel => 'From the wiki';
+
+  @override
+  String get dictFetchUseAsNote => 'Use as the note';
+
+  @override
+  String get dictFetchNoWiki => 'This tag has no wiki page.';
+
+  @override
+  String get dictFetchAddAction => 'Add to the dictionary';
+
+  @override
+  String dictFetchAdded(String tag) {
+    return 'Added to the dictionary: $tag';
+  }
 }

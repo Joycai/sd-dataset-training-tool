@@ -85,6 +85,7 @@ The main interface is a "browse → preview/edit → tag management" three-colum
 - **UI font**: system default / HarmonyOS Sans / MiSans, downloaded on demand.
 - **Tag dictionary**: ~11k danbooru tags ship with the app (offline, and the same vocabulary the WD tagger emits); the full top-100k dictionary — with aliases, artists and copyrights — can be downloaded with one click.
 - **Edit the dictionary**: the manager in settings edits any tag's translation and note, adds tags danbooru does not have (with a category, ranked first in completions), imports and exports glossaries, and clears AI-produced translations in one action while keeping the hand-written ones.
+- **Fetch from danbooru**: paste a danbooru URL (wiki page, post search or tag listing) or just a tag name to read its public API for the category, post count, `other_names` (danbooru's own foreign-language names, usually Japanese) and a wiki excerpt. All of it is offered as *candidates* — one click adopts one into the translation or the note, nothing is written for you. A tag danbooru has but the bundled dictionary lacks can be added with its real category in one action.
 - **AI server URL** and **caption file extension** are configurable.
 - **Persistence**: language, theme, window layout, directories, tag library, etc. are saved automatically; one-click reset available.
 

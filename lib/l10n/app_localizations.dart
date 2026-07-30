@@ -3059,6 +3059,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'One glossary per app language'**
   String get dictFooterHint;
+
+  /// No description provided for @dictFetchAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch from danbooru'**
+  String get dictFetchAction;
+
+  /// No description provided for @dictFetching.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching…'**
+  String get dictFetching;
+
+  /// No description provided for @dictFetchPromptTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Look a tag up on danbooru'**
+  String get dictFetchPromptTooltip;
+
+  /// No description provided for @dictFetchPromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Look up on danbooru'**
+  String get dictFetchPromptTitle;
+
+  /// No description provided for @dictFetchPromptLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag name or danbooru URL'**
+  String get dictFetchPromptLabel;
+
+  /// No description provided for @dictFetchPromptHint.
+  ///
+  /// In en, this message translates to:
+  /// **'long_hair, or a link you copied from danbooru'**
+  String get dictFetchPromptHint;
+
+  /// No description provided for @dictFetchPromptNote.
+  ///
+  /// In en, this message translates to:
+  /// **'A wiki page, a post search or a tag listing URL all work. Reads danbooru\'s public API — nothing is sent anywhere.'**
+  String get dictFetchPromptNote;
+
+  /// No description provided for @dictFetchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Lookup failed: {error}'**
+  String dictFetchFailed(String error);
+
+  /// No description provided for @dictFetchUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'danbooru has no tag called \"{tag}\"'**
+  String dictFetchUnknown(String tag);
+
+  /// No description provided for @dictFetchedHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'danbooru: {category} · {count} posts'**
+  String dictFetchedHeader(String category, int count);
+
+  /// No description provided for @dictFetchOtherNames.
+  ///
+  /// In en, this message translates to:
+  /// **'Other names on danbooru'**
+  String get dictFetchOtherNames;
+
+  /// No description provided for @dictFetchUseAsTranslation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use as the translation'**
+  String get dictFetchUseAsTranslation;
+
+  /// No description provided for @dictFetchWikiLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'From the wiki'**
+  String get dictFetchWikiLabel;
+
+  /// No description provided for @dictFetchUseAsNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Use as the note'**
+  String get dictFetchUseAsNote;
+
+  /// No description provided for @dictFetchNoWiki.
+  ///
+  /// In en, this message translates to:
+  /// **'This tag has no wiki page.'**
+  String get dictFetchNoWiki;
+
+  /// No description provided for @dictFetchAddAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to the dictionary'**
+  String get dictFetchAddAction;
+
+  /// No description provided for @dictFetchAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to the dictionary: {tag}'**
+  String dictFetchAdded(String tag);
 }
 
 class _AppLocalizationsDelegate

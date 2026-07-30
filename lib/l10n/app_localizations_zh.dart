@@ -1643,4 +1643,64 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dictFooterHint => '每种界面语言各有一份译文';
+
+  @override
+  String get dictFetchAction => '从 Danbooru 获取';
+
+  @override
+  String get dictFetching => '获取中…';
+
+  @override
+  String get dictFetchPromptTooltip => '在 Danbooru 上查一个标签';
+
+  @override
+  String get dictFetchPromptTitle => '在 Danbooru 上查询';
+
+  @override
+  String get dictFetchPromptLabel => '标签名或 Danbooru 地址';
+
+  @override
+  String get dictFetchPromptHint => 'long_hair，或从 Danbooru 复制的链接';
+
+  @override
+  String get dictFetchPromptNote =>
+      'wiki 页面、投稿搜索、标签列表的地址都可以。只读取 Danbooru 的公开 API，不会向任何地方发送数据。';
+
+  @override
+  String dictFetchFailed(String error) {
+    return '查询失败：$error';
+  }
+
+  @override
+  String dictFetchUnknown(String tag) {
+    return 'Danbooru 上没有名为「$tag」的标签';
+  }
+
+  @override
+  String dictFetchedHeader(String category, int count) {
+    return 'Danbooru：$category · $count 张投稿';
+  }
+
+  @override
+  String get dictFetchOtherNames => 'Danbooru 上的其他名称';
+
+  @override
+  String get dictFetchUseAsTranslation => '用作译文';
+
+  @override
+  String get dictFetchWikiLabel => 'wiki 摘要';
+
+  @override
+  String get dictFetchUseAsNote => '用作注释';
+
+  @override
+  String get dictFetchNoWiki => '该标签没有 wiki 页面。';
+
+  @override
+  String get dictFetchAddAction => '加入词典';
+
+  @override
+  String dictFetchAdded(String tag) {
+    return '已加入词典：$tag';
+  }
 }
