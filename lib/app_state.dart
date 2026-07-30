@@ -7,9 +7,11 @@ import 'models/llm_models.dart';
 import 'models/merge_rules.dart';
 import 'models/prompt_preset.dart';
 import 'models/tag_group.dart';
+import 'models/tag_translation.dart';
 import 'services/font_service.dart';
 import 'services/settings_service.dart';
 import 'services/tag_dictionary_service.dart';
+import 'services/tag_translation_service.dart';
 import 'theme/app_theme.dart';
 
 class AppState extends ChangeNotifier {
@@ -28,9 +30,25 @@ class AppState extends ChangeNotifier {
   /// Deliberately *not* forwarded through [notifyListeners]: it notifies on
   /// every 256 KB of a download, and the only widgets that care listen to it
   /// directly.
-  final TagDictionaryService tagDictionary = TagDictionaryService();
+  final TagDictionaryService tagDictionary;
 
-  AppState(this._settingsService) {
+  /// UI-only translations for the tags in [tagDictionary], one glossary per
+  /// app language. Held here for the same reason the dictionary is — the
+  /// settings dialog and the dictionary manager both live above the workbench.
+  ///
+  /// Also deliberately not forwarded through [notifyListeners]: a bulk
+  /// translation run notifies per batch, and the widgets that render glosses
+  /// subscribe through [TagGlossScope] instead.
+  final TagTranslationService tagTranslations;
+
+  /// Both tag services are injectable so tests can point them at a temp
+  /// directory instead of the real application support folder.
+  AppState(
+    this._settingsService, {
+    TagDictionaryService? tagDictionary,
+    TagTranslationService? tagTranslations,
+  }) : tagDictionary = tagDictionary ?? TagDictionaryService(),
+       tagTranslations = tagTranslations ?? TagTranslationService() {
     fontService.addListener(_onFontServiceChanged);
   }
 
@@ -46,6 +64,7 @@ class AppState extends ChangeNotifier {
     fontService.removeListener(_onFontServiceChanged);
     fontService.dispose();
     tagDictionary.dispose();
+    tagTranslations.dispose();
     super.dispose();
   }
 
@@ -455,6 +474,9 @@ class AppState extends ChangeNotifier {
     _fontChoice = AppFontChoiceX.fromId(
       await _settingsService.loadFontChoice(),
     );
+    _tagGlossDisplay = TagGlossDisplay.fromId(
+      await _settingsService.loadTagGlossDisplay(),
+    );
     _themeMode = await _settingsService.loadThemeMode();
     _accentChoice = AppAccentChoice.fromId(
       await _settingsService.loadAccentChoice(),
@@ -662,7 +684,24 @@ class AppState extends ChangeNotifier {
     if (_locale == locale) return;
     _locale = locale;
     notifyListeners();
+    // One glossary per language: switching languages switches the whole set
+    // rather than falling back to the previous one. The scope picks the new
+    // one up when the load notifies, so the UI is never blocked on it.
     await _settingsService.saveLocale(locale);
+    await tagTranslations.load(locale.languageCode);
+  }
+
+  /// How much of a tag's translation the chips show.
+  // Not late: read by the gloss scope, which can build before loadSettings
+  // has run on a cold start.
+  TagGlossDisplay _tagGlossDisplay = TagGlossDisplay.inline;
+  TagGlossDisplay get tagGlossDisplay => _tagGlossDisplay;
+
+  Future<void> updateTagGlossDisplay(TagGlossDisplay value) async {
+    if (_tagGlossDisplay == value) return;
+    _tagGlossDisplay = value;
+    notifyListeners();
+    await _settingsService.saveTagGlossDisplay(value.id);
   }
 
   late ThemeMode _themeMode;

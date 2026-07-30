@@ -11,6 +11,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/danbooru_tag_menu.dart';
 import '../../widgets/panel_widgets.dart';
 import '../../widgets/tag_autocomplete_field.dart';
+import '../../widgets/tag_gloss.dart';
 import 'ai_compare_view.dart';
 import 'ai_params_dialog.dart';
 
@@ -136,7 +137,8 @@ class _CaptionPanelState extends State<CaptionPanel> {
       position: globalPosition,
       items: danbooruTagMenuItems(context, tag: tag, dictionary: dictionary),
     );
-    await handleDanbooruTagMenuAction(action, tag);
+    if (!mounted) return;
+    await handleDanbooruTagMenuAction(context, action, tag);
   }
 
   @override
@@ -675,6 +677,9 @@ class _TagChip extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(label, style: const TextStyle(fontSize: AppText.secondary)),
+          // Display only — the gloss is never part of the tag, and everything
+          // that writes a caption reads `label`.
+          TagGlossLabel(label),
           const SizedBox(width: 6),
           if (sortMode)
             Icon(Icons.drag_indicator, size: 12, color: semantic.muted)
@@ -690,13 +695,17 @@ class _TagChip extends StatelessWidget {
 
     return GestureDetector(
       onSecondaryTapUp: (details) => onContextMenu(details.globalPosition),
-      child: sortMode
-          ? MouseRegion(cursor: SystemMouseCursors.grab, child: body)
-          : InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(AppRadii.control),
-              child: body,
-            ),
+      child: withTagGlossTooltip(
+        context: context,
+        tag: label,
+        child: sortMode
+            ? MouseRegion(cursor: SystemMouseCursors.grab, child: body)
+            : InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(AppRadii.control),
+                child: body,
+              ),
+      ),
     );
   }
 }

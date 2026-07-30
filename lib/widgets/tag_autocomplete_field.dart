@@ -7,6 +7,7 @@ import '../services/ai_tagger_service.dart';
 import '../services/tag_dictionary_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/external_links.dart';
+import 'tag_gloss.dart';
 
 /// How a completion is spelled when it lands in the caption.
 ///
@@ -273,8 +274,8 @@ class _TagAutocompleteFieldState extends State<TagAutocompleteField> {
   }
 
   Future<void> _openWiki(TagSuggestion suggestion) async {
-    // A local tag has no danbooru wiki page by definition.
-    if (suggestion.isLocal) return;
+    // A local or hand-added tag has no danbooru wiki page by definition.
+    if (suggestion.isLocal || suggestion.isCustom) return;
     // Canonical name, not the user's spelling: the wiki is keyed by it.
     await openExternalUrl(danbooruWikiUrl(suggestion.name));
   }
@@ -425,6 +426,23 @@ class _SuggestionRow extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onWiki;
 
+  /// The row's second line, or null when this hit has nothing to add: the
+  /// translation, then where the hit came from.
+  String? _secondary(BuildContext context, AppLocalizations l10n) {
+    final parts = <String>[
+      ?listTagGloss(context, suggestion.name),
+      if (suggestion.isCustom)
+        l10n.tagSuggestionCustom
+      else if (suggestion.isLocal)
+        suggestion.count > 0
+            ? l10n.tagSuggestionLocalUsed(suggestion.count)
+            : l10n.tagSuggestionLocalLibrary
+      else if (suggestion.matchedAlias != null)
+        l10n.tagSuggestionAlias(suggestion.matchedAlias!),
+    ];
+    return parts.isEmpty ? null : parts.join('  ·  ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -481,24 +499,15 @@ class _SuggestionRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: AppText.secondary),
                   ),
-                  // Local hits say so on their own line: their count means
-                  // "images in this dataset", not "posts on danbooru", and
-                  // rendering the two the same way would misread badly.
-                  if (suggestion.isLocal)
+                  // One second line, assembled from whatever this hit has to
+                  // say. The translation leads it — finding a tag by its
+                  // meaning is the whole point of having a glossary — and the
+                  // provenance note follows: a local hit's count means "images
+                  // in this dataset", not "posts on danbooru", and rendering
+                  // the two the same way would misread badly.
+                  if (_secondary(context, l10n) case final secondary?)
                     Text(
-                      suggestion.count > 0
-                          ? l10n.tagSuggestionLocalUsed(suggestion.count)
-                          : l10n.tagSuggestionLocalLibrary,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: AppText.micro,
-                        color: semantic.muted,
-                      ),
-                    )
-                  else if (suggestion.matchedAlias != null)
-                    Text(
-                      l10n.tagSuggestionAlias(suggestion.matchedAlias!),
+                      secondary,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -510,8 +519,9 @@ class _SuggestionRow extends StatelessWidget {
               ),
             ),
             // Danbooru's post count and its wiki only mean anything for a tag
-            // danbooru actually has; a local tag would just link to a 404.
-            if (!suggestion.isLocal) ...[
+            // danbooru actually has; a local or hand-added tag would just link
+            // to a 404.
+            if (!suggestion.isLocal && !suggestion.isCustom) ...[
               const SizedBox(width: 6),
               Text(
                 _formatCount(suggestion.count),

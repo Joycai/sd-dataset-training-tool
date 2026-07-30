@@ -207,6 +207,18 @@ class SettingsService {
     return Locale(languageCode ?? 'en');
   }
 
+  /// How much of a tag's translation the chips show; stores TagGlossDisplay's
+  /// stable string id (off/inline/tooltip).
+  Future<void> saveTagGlossDisplay(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('tagGlossDisplay', id);
+  }
+
+  Future<String?> loadTagGlossDisplay() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('tagGlossDisplay');
+  }
+
   // --- AI 打标服务 (AiApiServer) ---
   static const String defaultAiServerUrl = 'http://127.0.0.1:50051';
 

@@ -5,6 +5,7 @@ import '../app_info.dart';
 import '../app_state.dart';
 import '../l10n/app_localizations.dart';
 import '../models/llm_models.dart';
+import '../models/tag_translation.dart';
 import '../services/font_service.dart';
 import '../services/tag_dictionary_service.dart';
 import '../theme/app_theme.dart';
@@ -13,6 +14,7 @@ import '../widgets/panel_widgets.dart';
 import 'panels/caption_type_dialog.dart';
 import 'panels/llm_profile_dialog.dart';
 import 'panels/prompt_preset_dialog.dart';
+import 'panels/tag_dictionary_dialog.dart';
 
 /// Opens settings as a fixed-size modal, macOS System Settings style: a
 /// source list on the left, one group of cards at a time on the right.
@@ -392,6 +394,44 @@ class _SettingsViewState extends State<SettingsView> {
                           ),
                         ),
                       ),
+                      _SettingsRow(
+                        title: l10n.tagGlossTitle,
+                        description: l10n.tagGlossDesc,
+                        control: DropdownButton<TagGlossDisplay>(
+                          value: appState.tagGlossDisplay,
+                          underline: const SizedBox.shrink(),
+                          borderRadius: BorderRadius.circular(7),
+                          items: [
+                            for (final mode in TagGlossDisplay.values)
+                              DropdownMenuItem(
+                                value: mode,
+                                child: Text(
+                                  _glossModeLabel(l10n, mode),
+                                  style: const TextStyle(fontSize: 12.5),
+                                ),
+                              ),
+                          ],
+                          onChanged: (mode) => mode == null
+                              ? null
+                              : appState.updateTagGlossDisplay(mode),
+                        ),
+                      ),
+                      _SettingsRow(
+                        title: l10n.tagDictionaryManageTitle,
+                        description: l10n.tagDictionaryManageDesc,
+                        control: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            textStyle: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          onPressed: () => showTagDictionaryDialog(context),
+                          icon: const Icon(Icons.translate, size: 15),
+                          label: Text(l10n.llmManageAction),
+                        ),
+                      ),
                     ],
                   ),
                 if (_section == _SettingsSection.assistant)
@@ -575,6 +615,13 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 }
+
+String _glossModeLabel(AppLocalizations l10n, TagGlossDisplay mode) =>
+    switch (mode) {
+      TagGlossDisplay.off => l10n.tagGlossModeOff,
+      TagGlossDisplay.inline => l10n.tagGlossModeInline,
+      TagGlossDisplay.tooltip => l10n.tagGlossModeTooltip,
+    };
 
 String _tagDictionaryStatus(
   AppLocalizations l10n,

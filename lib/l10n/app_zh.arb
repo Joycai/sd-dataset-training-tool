@@ -510,6 +510,8 @@
   "tagWikiAction": "Danbooru Wiki",
   "tagPostsAction": "Danbooru 示例图",
   "tagWikiTooltip": "打开 Danbooru wiki（F1）",
+  "tagTranslateAction": "添加译文",
+  "tagEditTranslation": "编辑译文",
   "tagNotInDictionary": "词典中未收录",
   "tagPostCount": "Danbooru 上有 {count} 张图",
   "@tagPostCount": {
@@ -530,6 +532,7 @@
     }
   },
   "tagSuggestionLocalLibrary": "本地标签 · 来自标签库",
+  "tagSuggestionCustom": "手动添加",
   "tagNotInDictionaryUsed": "词典中未收录 · 数据集中 {count} 张图在用",
   "@tagNotInDictionaryUsed": {
     "placeholders": {
@@ -561,5 +564,85 @@
     "placeholders": {
       "error": { "type": "String" }
     }
-  }
+  },
+
+  "tagGlossTitle": "标签翻译",
+  "tagGlossDesc": "在标签旁显示当前界面语言的译文。仅用于显示，不会写入 caption 文件",
+  "tagGlossModeOff": "关闭",
+  "tagGlossModeInline": "显示在标签旁",
+  "tagGlossModeTooltip": "仅悬浮显示",
+  "tagDictionaryManageTitle": "编辑词典",
+  "tagDictionaryManageDesc": "翻译标签、添加 Danbooru 没有的标签、导入或导出译文",
+
+  "dictManagerTitle": "标签词典",
+  "dictManagerSubtitle": "{locale} · 已翻译 {count} 条",
+  "@dictManagerSubtitle": {
+    "placeholders": {
+      "locale": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "dictSearchHint": "搜索标签或译文",
+  "dictGlossaryEmpty": "还没有任何译文。搜索一个标签就能给它加翻译。",
+  "dictNoResults": "没有匹配的标签或译文",
+  "dictSelectHint": "在左侧选一个标签来翻译。",
+  "dictTranslationLabel": "译文",
+  "dictTranslationHint": "界面上显示在标签旁边",
+  "dictNoteLabel": "注释",
+  "dictNoteHint": "译文本身不够清楚时，说明这个标签到底指什么",
+  "dictClearFieldHint": "清空译文输入框即可删除该翻译。",
+  "dictCustomBadge": "自定义",
+  "dictOrphanBadge": "词典无此标签",
+  "dictCategoryAndCount": "{category} · {count} 张投稿",
+  "@dictCategoryAndCount": {
+    "placeholders": {
+      "category": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "dictCategoryGeneral": "通用",
+  "dictCategoryArtist": "画师",
+  "dictCategoryCopyright": "作品",
+  "dictCategoryCharacter": "角色",
+  "dictCategoryMeta": "元信息",
+  "dictSourceManual": "手动填写",
+  "dictSourceLlm": "来自 AI 助手",
+  "dictSourceDanbooru": "来自 Danbooru wiki",
+  "dictRemoveCustomAction": "从词典移除",
+  "dictAddTagAction": "添加标签",
+  "dictAddTagTitle": "添加标签",
+  "dictAddTagNameLabel": "标签名",
+  "dictAddTagNameHint": "用 Danbooru 拼法，例如 my_character_(oc)",
+  "dictAddTagCategoryLabel": "分类",
+  "dictAddTagExists": "词典里已经有「{tag}」了",
+  "@dictAddTagExists": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+  "dictImportAction": "导入",
+  "dictExportAction": "导出",
+  "dictImportSummary": "导入 {written} 条译文，跳过 {skipped} 条",
+  "@dictImportSummary": {
+    "placeholders": {
+      "written": { "type": "int" },
+      "skipped": { "type": "int" }
+    }
+  },
+  "dictClearAiAction": "清除 AI 译文",
+  "dictClearAiTitle": "清除 AI 译文",
+  "dictClearAiConfirm": "删除 AI 助手生成的 {count} 条译文？手动填写的会保留。",
+  "@dictClearAiConfirm": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictClearAiDone": "已删除 {count} 条译文",
+  "@dictClearAiDone": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictClearAiNone": "没有 AI 译文需要清除",
+  "dictFooterHint": "每种界面语言各有一份译文"
 }

@@ -1468,6 +1468,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tagWikiTooltip => 'Open the danbooru wiki (F1)';
 
   @override
+  String get tagTranslateAction => 'Add a translation';
+
+  @override
+  String get tagEditTranslation => 'Edit the translation';
+
+  @override
   String get tagNotInDictionary => 'Not in the tag dictionary';
 
   @override
@@ -1487,6 +1493,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tagSuggestionLocalLibrary => 'your tag · from the tag library';
+
+  @override
+  String get tagSuggestionCustom => 'added by hand';
 
   @override
   String tagNotInDictionaryUsed(int count) {
@@ -1533,4 +1542,156 @@ class AppLocalizationsEn extends AppLocalizations {
   String tagDictionaryDownloadFailed(String error) {
     return 'Download failed: $error';
   }
+
+  @override
+  String get tagGlossTitle => 'Tag translations';
+
+  @override
+  String get tagGlossDesc =>
+      'Shows a translation beside each tag, in the app\'s language. Display only — never written into a caption';
+
+  @override
+  String get tagGlossModeOff => 'Off';
+
+  @override
+  String get tagGlossModeInline => 'Beside the tag';
+
+  @override
+  String get tagGlossModeTooltip => 'On hover only';
+
+  @override
+  String get tagDictionaryManageTitle => 'Edit dictionary';
+
+  @override
+  String get tagDictionaryManageDesc =>
+      'Translate tags, add tags danbooru does not have, import or export a glossary';
+
+  @override
+  String get dictManagerTitle => 'Tag dictionary';
+
+  @override
+  String dictManagerSubtitle(String locale, int count) {
+    return '$locale · $count translated';
+  }
+
+  @override
+  String get dictSearchHint => 'Search a tag or a translation';
+
+  @override
+  String get dictGlossaryEmpty =>
+      'Nothing translated yet. Search for a tag to give it a translation.';
+
+  @override
+  String get dictNoResults => 'No matching tag or translation';
+
+  @override
+  String get dictSelectHint => 'Pick a tag on the left to translate it.';
+
+  @override
+  String get dictTranslationLabel => 'Translation';
+
+  @override
+  String get dictTranslationHint => 'Shown beside the tag in the UI';
+
+  @override
+  String get dictNoteLabel => 'Note';
+
+  @override
+  String get dictNoteHint =>
+      'What the tag actually means, when the translation alone is ambiguous';
+
+  @override
+  String get dictClearFieldHint =>
+      'Emptying the translation field deletes the translation.';
+
+  @override
+  String get dictCustomBadge => 'added';
+
+  @override
+  String get dictOrphanBadge => 'unknown tag';
+
+  @override
+  String dictCategoryAndCount(String category, int count) {
+    return '$category · $count posts';
+  }
+
+  @override
+  String get dictCategoryGeneral => 'General';
+
+  @override
+  String get dictCategoryArtist => 'Artist';
+
+  @override
+  String get dictCategoryCopyright => 'Copyright';
+
+  @override
+  String get dictCategoryCharacter => 'Character';
+
+  @override
+  String get dictCategoryMeta => 'Meta';
+
+  @override
+  String get dictSourceManual => 'Written by hand';
+
+  @override
+  String get dictSourceLlm => 'From the assistant';
+
+  @override
+  String get dictSourceDanbooru => 'From the danbooru wiki';
+
+  @override
+  String get dictRemoveCustomAction => 'Remove from dictionary';
+
+  @override
+  String get dictAddTagAction => 'Add a tag';
+
+  @override
+  String get dictAddTagTitle => 'Add a tag';
+
+  @override
+  String get dictAddTagNameLabel => 'Tag name';
+
+  @override
+  String get dictAddTagNameHint => 'danbooru spelling, e.g. my_character_(oc)';
+
+  @override
+  String get dictAddTagCategoryLabel => 'Category';
+
+  @override
+  String dictAddTagExists(String tag) {
+    return '\"$tag\" is already in the dictionary';
+  }
+
+  @override
+  String get dictImportAction => 'Import';
+
+  @override
+  String get dictExportAction => 'Export';
+
+  @override
+  String dictImportSummary(int written, int skipped) {
+    return 'Imported $written translations, skipped $skipped';
+  }
+
+  @override
+  String get dictClearAiAction => 'Clear AI translations';
+
+  @override
+  String get dictClearAiTitle => 'Clear AI translations';
+
+  @override
+  String dictClearAiConfirm(int count) {
+    return 'Delete $count translations produced by the assistant? Ones you wrote by hand are kept.';
+  }
+
+  @override
+  String dictClearAiDone(int count) {
+    return 'Deleted $count translations';
+  }
+
+  @override
+  String get dictClearAiNone => 'No assistant translations to clear';
+
+  @override
+  String get dictFooterHint => 'One glossary per app language';
 }

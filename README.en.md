@@ -42,6 +42,7 @@ The main interface is a "browse → preview/edit → tag management" three-colum
 - **Tag autocomplete**: typing a tag by hand suggests danbooru tags as you go, ranked by post count and coloured by category. `↑`/`↓` select, `Tab` or `Enter` completes, `F1` opens the tag's wiki. Completions are spelled using the same style settings as the AI tagger, so hand-typed and AI-suggested tags never diverge.
 - **Your own tags**: tags used in the current dataset or held in the tag library that danbooru has never heard of — custom trigger words, your own character names — are suggested too, marked with a hollow dot and "your tag · N images in this dataset". They are guaranteed a slice of the list rather than being pushed out by danbooru tags sharing a prefix, and are inserted exactly as you spell them, with no style conversion. A dataset tag has to appear on at least **5 images** before it is suggested, so your typos don't get fed back to you; tag-library entries are exempt, since putting one there was already a deliberate choice.
 - **Tag lookup**: right-click any tag (in the editor or the library) to see its danbooru post count and jump straight to its wiki or a post search. Tags the dictionary has never heard of report how many images in this dataset use them — forty means it's yours, one usually means a typo.
+- **Tag translations**: give a tag a translation in the app's language, shown beside it (or on hover only, or off entirely). Translations are **display only and never written into a caption file**; one glossary per language, stored separately from the dictionary CSV, importable and exportable. The completion list and the tag menu also search *by* translation, so typing `长发` finds `long_hair`.
 - **AI compare mode**: AI results are shown side by side with the current caption; accept/reject tags one by one or apply all at once. A global exit-compare control lives in the top bar.
 
 ### AI-Assisted Tagging (AiApiServer)
@@ -83,6 +84,7 @@ The main interface is a "browse → preview/edit → tag management" three-colum
 - **Themes**: light / dark / follow system.
 - **UI font**: system default / HarmonyOS Sans / MiSans, downloaded on demand.
 - **Tag dictionary**: ~11k danbooru tags ship with the app (offline, and the same vocabulary the WD tagger emits); the full top-100k dictionary — with aliases, artists and copyrights — can be downloaded with one click.
+- **Edit the dictionary**: the manager in settings edits any tag's translation and note, adds tags danbooru does not have (with a category, ranked first in completions), imports and exports glossaries, and clears AI-produced translations in one action while keeping the hand-written ones.
 - **AI server URL** and **caption file extension** are configurable.
 - **Persistence**: language, theme, window layout, directories, tag library, etc. are saved automatically; one-click reset available.
 

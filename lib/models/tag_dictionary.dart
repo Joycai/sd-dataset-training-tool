@@ -32,7 +32,9 @@ class TagDictionaryEntry {
   const TagDictionaryEntry({
     required this.name,
     required this.category,
-    required this.postCount,
+    // Defaulted for hand-added entries, which have no danbooru presence to
+    // count. Every dictionary source supplies it explicitly.
+    this.postCount = 0,
     this.aliases = const [],
   });
 
@@ -50,6 +52,40 @@ class TagDictionaryEntry {
   /// Deprecated or alternate spellings that resolve to [name]. Only the full
   /// dictionary carries these — the WD label file has no alias column.
   final List<String> aliases;
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'category': category.id,
+    if (postCount != 0) 'count': postCount,
+    if (aliases.isNotEmpty) 'aliases': aliases,
+  };
+
+  /// Reads a user-added entry. Returns null for anything unusable so a
+  /// hand-edited `custom_tags.json` cannot break the dictionary.
+  static TagDictionaryEntry? fromJson(Object? value) {
+    if (value is! Map) return null;
+    final name = (value['name'] as Object?)?.toString().trim() ?? '';
+    if (name.isEmpty) return null;
+    final raw = value['category'];
+    final category =
+        TagCategory.fromId(
+          raw is num ? raw.toInt() : int.tryParse('$raw') ?? -1,
+        ) ??
+        TagCategory.general;
+    final count = value['count'];
+    final aliases = value['aliases'];
+    return TagDictionaryEntry(
+      name: name,
+      category: category,
+      postCount: count is num ? count.toInt() : 0,
+      aliases: aliases is List
+          ? [
+              for (final a in aliases)
+                if ('$a'.trim().isNotEmpty) '$a'.trim(),
+            ]
+          : const [],
+    );
+  }
 }
 
 /// How well a dictionary entry matched the query. Ordered best-first; the
@@ -76,6 +112,10 @@ enum TagMatchKind {
 enum TagSuggestionOrigin {
   /// The danbooru dictionary — bundled or downloaded.
   dictionary,
+
+  /// A tag the user added to the dictionary by hand, with a category of its
+  /// own. Deliberate additions, so they outrank both other sources.
+  custom,
 
   /// The user's own vocabulary: tags in this dataset or in the tag library
   /// that danbooru has never heard of. Trigger words, private character
@@ -105,8 +145,11 @@ class TagSuggestion {
 
   bool get isLocal => origin == TagSuggestionOrigin.local;
 
+  bool get isCustom => origin == TagSuggestionOrigin.custom;
+
   /// For a dictionary hit, danbooru's post count. For a local hit, how many
   /// images in the dataset carry the tag (0 when it only exists in the tag
-  /// library) — a different unit, so the list must not render them alike.
+  /// library) — a different unit, so the list must not render them alike. A
+  /// custom entry's count is whatever the user typed, usually 0.
   int get count => entry.postCount;
 }
