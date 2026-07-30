@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:dataset_training_tool/models/tag_dictionary.dart';
@@ -251,6 +253,104 @@ void main() {
       await fresh.loadCsv(_fullCsv, full: true);
       expect(fresh.search('long').every((h) => !h.isLocal), isTrue);
       expect(fresh.search('myoc').single.isLocal, isTrue);
+    });
+  });
+
+  group('user-added entries', () {
+    // The only group here that touches the disk: setCustomEntries persists, and
+    // "survive a reload" is the whole point of it.
+    late Directory temp;
+    late TagDictionaryService dictionary;
+
+    setUp(() async {
+      temp = await Directory.systemTemp.createTemp('tag_dictionary_custom_');
+      dictionary = TagDictionaryService(storageDirectory: () async => temp);
+    });
+
+    tearDown(() async {
+      if (await temp.exists()) await temp.delete(recursive: true);
+    });
+
+    test('a custom tag is searchable and carries its category', () async {
+      await dictionary.loadCsv(_fullCsv, full: true);
+      await dictionary.setCustomEntries(const [
+        TagDictionaryEntry(
+          name: 'my_character_(oc)',
+          category: TagCategory.character,
+        ),
+      ]);
+
+      expect(
+        dictionary.lookup('my_character_(oc)')?.category,
+        TagCategory.character,
+      );
+      final hits = dictionary.search('my_char');
+      expect(hits, isNotEmpty);
+      expect(hits.first.name, 'my_character_(oc)');
+      expect(hits.first.isCustom, isTrue);
+    });
+
+    test('custom hits lead the list without taking all of it', () async {
+      await dictionary.loadCsv(_fullCsv, full: true);
+      await dictionary.setCustomEntries(const [
+        TagDictionaryEntry(name: 'long_braid', category: TagCategory.general),
+        TagDictionaryEntry(name: 'long_cape', category: TagCategory.general),
+        TagDictionaryEntry(name: 'long_scarf', category: TagCategory.general),
+        TagDictionaryEntry(name: 'long_coat', category: TagCategory.general),
+      ]);
+
+      final hits = dictionary.search('long', limit: 4);
+      // Half the list at most: a handful of hand-added tags must not hide
+      // danbooru behind a shared prefix.
+      expect(hits.take(2).every((h) => h.isCustom), isTrue);
+      expect(hits.any((h) => h.name == 'long_hair'), isTrue);
+    });
+
+    test('a name the dictionary already has is dropped', () async {
+      await dictionary.loadCsv(_fullCsv, full: true);
+      await dictionary.setCustomEntries(const [
+        // Written in a different style on purpose — the check folds both sides.
+        TagDictionaryEntry(name: 'long hair', category: TagCategory.meta),
+        TagDictionaryEntry(name: 'my_oc', category: TagCategory.character),
+      ]);
+
+      expect(dictionary.customEntries.map((e) => e.name), ['my_oc']);
+      // The real dictionary entry is untouched, so it still ranks and links.
+      expect(dictionary.lookup('long_hair')?.category, TagCategory.general);
+    });
+
+    test('a custom tag stops being a local tag', () async {
+      await dictionary.loadCsv(_fullCsv, full: true);
+      dictionary.setLocalTags(datasetUsage: {'my_trigger_word': 40});
+
+      expect(dictionary.search('my_trig').single.origin, TagSuggestionOrigin.local);
+
+      await dictionary.setCustomEntries(const [
+        TagDictionaryEntry(
+          name: 'my_trigger_word',
+          category: TagCategory.character,
+        ),
+      ]);
+
+      // One row, not two: "local" means covered by neither the dictionary nor
+      // the user's own additions.
+      expect(
+        dictionary.search('my_trig').single.origin,
+        TagSuggestionOrigin.custom,
+      );
+    });
+
+    test('custom entries survive a reload', () async {
+      await dictionary.setCustomEntries(const [
+        TagDictionaryEntry(name: 'my_oc', category: TagCategory.character),
+      ]);
+
+      final reloaded = TagDictionaryService(
+        storageDirectory: () async => temp,
+      );
+      await reloaded.init();
+      expect(reloaded.customEntries.single.name, 'my_oc');
+      expect(reloaded.lookup('my_oc')?.category, TagCategory.character);
     });
   });
 

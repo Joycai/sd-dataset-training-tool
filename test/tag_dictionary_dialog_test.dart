@@ -211,6 +211,20 @@ void main() {
     expect(appState.tagTranslations.has('long_hair'), isFalse);
   });
 
+  testWidgets('an unreadable glossary file says so instead of looking empty', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await File('${temp.path}/zh.json').writeAsString('{ not json');
+      await prepare();
+    });
+    await open(tester);
+
+    // Zero translations and a broken file look identical otherwise, which
+    // invites the user to translate the whole dataset a second time.
+    expect(find.textContaining('Glossary file could not be read'), findsOneWidget);
+  });
+
   testWidgets('the list searches by translation, not only by tag', (
     tester,
   ) async {

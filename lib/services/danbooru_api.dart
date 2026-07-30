@@ -46,10 +46,9 @@ class DanbooruTagInfo {
   /// heard of this tag — usually a typo, occasionally a brand-new tag.
   final bool knownToDanbooru;
 
+  /// Whether danbooru has a wiki page at all — distinct from [wikiExcerpt],
+  /// which is also null for a page whose body is empty.
   final bool hasWiki;
-
-  bool get isEmpty =>
-      !knownToDanbooru && !hasWiki && otherNames.isEmpty && wikiExcerpt == null;
 }
 
 /// A failed lookup, with a message fit to show the user.

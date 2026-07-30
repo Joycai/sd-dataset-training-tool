@@ -85,10 +85,10 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
   /// on the next open is one request.
   final Map<String, DanbooruTagInfo> _fetched = {};
 
-  /// The tag a request is in flight for, or null. One at a time by
-  /// construction — danbooru asks callers to go easy, and the user is looking
-  /// at one tag anyway.
-  String? _fetching;
+  /// Whether a lookup is in flight. One at a time by construction — danbooru
+  /// asks callers to go easy, and the user is looking at one tag anyway — so
+  /// which tag it is for is never in question.
+  bool _fetching = false;
 
   @override
   void dispose() {
@@ -113,15 +113,28 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
     final dictionary = _dictionary;
     final query = _query.trim();
 
-    // One pass over the (short) custom list per rebuild instead of a scan per
-    // row: the glossary can hold thousands of entries.
-    final customKeys = {
-      for (final entry in dictionary.customEntries) tagLookupKey(entry.name),
-    };
     // Deduplicates across the two sources below — the same tag can be both a
     // dictionary hit and a glossary hit, and it must occupy one row.
     final seen = <String>{};
     final rows = <_DictRow>[];
+
+    /// A row for a translated tag, however it was reached. [custom] cannot be
+    /// derived here: the two callers know it by different means.
+    _DictRow glossaryRow(TagTranslation entry, {bool custom = false}) {
+      final hit = dictionary.lookup(entry.tag);
+      return _DictRow(
+        tag: entry.tag,
+        category: hit?.category,
+        custom: custom,
+        translation: entry,
+        // Translated, but the dictionary has never heard of it — a tag read
+        // out of a dataset, or one whose spelling has since changed. Flagged
+        // rather than hidden: an unreachable translation is exactly the kind of
+        // thing that needs finding. Only once the dictionary is actually
+        // loaded, or a cold start would brand every entry unknown.
+        orphan: dictionary.isReady && hit == null,
+      );
+    }
 
     if (query.isEmpty) {
       for (final entry in dictionary.customEntries) {
@@ -135,23 +148,11 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
           ),
         );
       }
+      // Custom entries went out above and `seen` skips them, so nothing left
+      // here can be one.
       for (final entry in glossary.entries) {
         if (!seen.add(tagLookupKey(entry.tag))) continue;
-        final hit = dictionary.lookup(entry.tag);
-        rows.add(
-          _DictRow(
-            tag: entry.tag,
-            category: hit?.category,
-            translation: entry,
-            // Translated, but the dictionary has never heard of it — a tag
-            // read out of a dataset, or one whose spelling has since changed.
-            // Flagged rather than hidden: an unreachable translation is
-            // exactly the kind of thing that needs finding. Only once the
-            // dictionary is actually loaded, or a cold start would brand every
-            // entry unknown.
-            orphan: dictionary.isReady && hit == null,
-          ),
-        );
+        rows.add(glossaryRow(entry));
       }
       return rows;
     }
@@ -168,24 +169,22 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
       );
     }
     // Then the glossary, matched on the translation itself — the direction the
-    // dictionary cannot answer, and the reason to keep one.
+    // dictionary cannot answer, and the reason to keep one. A hit found this
+    // way may still be a custom tag whose *name* did not match, so unlike the
+    // empty-query pass this one has to check. One pass over the (short) custom
+    // list rather than a scan per row: the glossary can hold thousands.
+    final customKeys = {
+      for (final entry in dictionary.customEntries) tagLookupKey(entry.name),
+    };
     final needle = query.toLowerCase();
     for (final entry in glossary.entries) {
       if (!entry.text.toLowerCase().contains(needle) &&
           !(entry.note?.toLowerCase().contains(needle) ?? false)) {
         continue;
       }
-      if (!seen.add(tagLookupKey(entry.tag))) continue;
-      final hit = dictionary.lookup(entry.tag);
-      rows.add(
-        _DictRow(
-          tag: entry.tag,
-          category: hit?.category,
-          custom: customKeys.contains(tagLookupKey(entry.tag)),
-          translation: entry,
-          orphan: dictionary.isReady && hit == null,
-        ),
-      );
+      final key = tagLookupKey(entry.tag);
+      if (!seen.add(key)) continue;
+      rows.add(glossaryRow(entry, custom: customKeys.contains(key)));
     }
     return rows;
   }
@@ -231,7 +230,7 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
   /// confirms a typo.
   Future<void> _lookup(String query) async {
     final l10n = AppLocalizations.of(context)!;
-    setState(() => _fetching = query);
+    setState(() => _fetching = true);
     try {
       final info = await _api.fetch(query);
       if (!mounted) return;
@@ -248,7 +247,7 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
     } on DanbooruApiException catch (e) {
       if (mounted) _snack(l10n.dictFetchFailed(e.message));
     } finally {
-      if (mounted) setState(() => _fetching = null);
+      if (mounted) setState(() => _fetching = false);
     }
   }
 
@@ -264,49 +263,48 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
     await _lookup(query);
   }
 
+  /// Appends one entry to the user's dictionary additions. The service takes
+  /// the whole list, so every caller has to hand back what is already there.
+  Future<void> _appendCustom(TagDictionaryEntry entry) {
+    final dictionary = _dictionary;
+    return dictionary.setCustomEntries([...dictionary.customEntries, entry]);
+  }
+
   /// Adds a tag danbooru knows but this dictionary does not, with danbooru's
   /// own category and post count. Turns a lookup into a completable tag.
   Future<void> _addFromDanbooru(DanbooruTagInfo info) async {
     final l10n = AppLocalizations.of(context)!;
-    final dictionary = _dictionary;
-    await dictionary.setCustomEntries([
-      ...dictionary.customEntries,
+    await _appendCustom(
       TagDictionaryEntry(
         name: info.name,
         category: info.category ?? TagCategory.general,
         postCount: info.postCount,
       ),
-    ]);
+    );
     if (!mounted) return;
     setState(() {});
     _snack(l10n.dictFetchAdded(info.name));
   }
 
   Future<void> _addCustomTag() async {
+    // Already canonical and complete — _AddTagDialog normalizes the name it
+    // pops, so there is nothing left to rebuild here.
     final result = await showDialog<TagDictionaryEntry>(
       context: context,
       builder: (_) => const _AddTagDialog(),
     );
     if (result == null || !mounted) return;
     final l10n = AppLocalizations.of(context)!;
-    final dictionary = _dictionary;
-    if (dictionary.lookup(result.name) != null) {
-      _snack(l10n.dictAddTagExists(danbooruTagName(result.name)));
+    if (_dictionary.lookup(result.name) != null) {
+      _snack(l10n.dictAddTagExists(result.name));
       return;
     }
-    await dictionary.setCustomEntries([
-      ...dictionary.customEntries,
-      TagDictionaryEntry(
-        name: danbooruTagName(result.name),
-        category: result.category,
-        postCount: result.postCount,
-      ),
-    ]);
+    await _appendCustom(result);
     if (!mounted) return;
     setState(() {
       _searchController.clear();
       _query = '';
-      _selected = danbooruTagName(result.name);
+      _selected = result.name;
     });
   }
 
@@ -451,7 +449,7 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
                                   dictionaryEntry: _dictionary.lookup(selected),
                                   custom: _isCustom(selected),
                                   info: _fetched[tagLookupKey(selected)],
-                                  fetching: _fetching != null,
+                                  fetching: _fetching,
                                   onSave: (text, note, source) =>
                                       _saveTranslation(
                                         selected,
@@ -516,10 +514,39 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
                   color: semantic.muted,
                 ),
               ),
+              // An unreadable glossary file otherwise looks exactly like an
+              // empty one, which invites the user to translate everything a
+              // second time — and, when the file came from a newer build, this
+              // is also the only sign that their edits are being refused.
+              if (_glossary.lastError case final error?)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_outlined,
+                        size: 12,
+                        color: semantic.warn,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          l10n.dictGlossaryError(error),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: AppText.micro,
+                            color: semantic.warn,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
         ),
-        if (_fetching != null)
+        if (_fetching)
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 8),
             child: SizedBox(
@@ -1275,11 +1302,7 @@ class _AddTagDialogState extends State<_AddTagDialog> {
     final name = _controller.text.trim();
     if (name.isEmpty) return;
     Navigator.of(context).pop(
-      TagDictionaryEntry(
-        name: danbooruTagName(name),
-        category: _category,
-        postCount: 0,
-      ),
+      TagDictionaryEntry(name: danbooruTagName(name), category: _category),
     );
   }
 

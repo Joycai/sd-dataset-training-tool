@@ -1527,6 +1527,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String dictGlossaryError(String message) {
+    return '译文文件读取失败：$message';
+  }
+
+  @override
   String get dictSearchHint => '搜索标签或译文';
 
   @override

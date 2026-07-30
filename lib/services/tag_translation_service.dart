@@ -26,8 +26,8 @@ class TagTranslationService extends ChangeNotifier {
     : _storageDirectory = storageDirectory ?? _defaultDirectory;
 
   /// Bumped only on a breaking layout change. A file from a *newer* schema is
-  /// left alone rather than rewritten, so downgrading the app cannot destroy
-  /// translations it does not understand.
+  /// refused by [_parse] and freezes the service, so downgrading the app cannot
+  /// destroy translations it does not understand.
   static const schemaVersion = 1;
 
   static Future<Directory> _defaultDirectory() async {
@@ -55,20 +55,38 @@ class TagTranslationService extends ChangeNotifier {
   int _revision = 0;
   int get revision => _revision;
 
-  bool _busy = false;
-  bool get busy => _busy;
-
+  /// Why the active glossary could not be read or written, for the manager to
+  /// show. Null once a load or a write succeeds.
   String? _lastError;
   String? get lastError => _lastError;
+
+  /// Set when [load] refused the file because a newer build wrote it.
+  ///
+  /// Refusing to *read* such a file is only half the protection: the other half
+  /// is never writing over it, so while this is set every mutation is a no-op.
+  /// A merely corrupt file does not set it — there the user has nothing left to
+  /// lose, and locking them out of re-importing would be the worse failure.
+  bool _frozen = false;
 
   /// Number of translated tags in the active language.
   int get count => _byTag.length;
 
   bool get isEmpty => _byTag.isEmpty;
 
+  /// [entries]'s sorted view, and the revision it was built for. The manager
+  /// asks for it once per row-pass — on every keystroke — so sorting a glossary
+  /// of thousands per frame is worth avoiding.
+  List<TagTranslation>? _sorted;
+  int _sortedAt = -1;
+
   /// Every entry, sorted by tag name — the order the manager lists them in.
-  List<TagTranslation> get entries =>
-      _byTag.values.toList()..sort((a, b) => a.tag.compareTo(b.tag));
+  List<TagTranslation> get entries {
+    if (_sorted case final cached? when _sortedAt == _revision) return cached;
+    _sortedAt = _revision;
+    return _sorted = List.unmodifiable(
+      _byTag.values.toList()..sort((a, b) => a.tag.compareTo(b.tag)),
+    );
+  }
 
   /// How many entries came from [source]; drives the "clear AI translations"
   /// affordance.
@@ -85,14 +103,19 @@ class TagTranslationService extends ChangeNotifier {
   /// A missing file is the normal case (nothing translated yet) and leaves the
   /// service empty without an error. A corrupt file is reported but still
   /// leaves the service usable — losing glosses must never block the app, and
-  /// the manager surfaces [lastError] so the user can fix or re-import.
+  /// the manager surfaces [lastError] so the user can fix or re-import. A file
+  /// from a newer [schemaVersion] is reported the same way but also freezes
+  /// writes, so this build cannot overwrite what it could not read.
   Future<void> load(String languageCode) async {
-    _busy = true;
-    notifyListeners();
     _languageCode = languageCode;
     _byTag.clear();
     _byKey.clear();
+    _frozen = false;
     _revision++;
+    // Notified after the clear and the revision bump, so glosses from the
+    // previous language stop being painted at once instead of lingering until
+    // the new file lands.
+    notifyListeners();
     try {
       final file = await _file(languageCode);
       if (await file.exists()) {
@@ -104,8 +127,8 @@ class TagTranslationService extends ChangeNotifier {
       _lastError = null;
     } catch (e) {
       _lastError = e.toString();
+      _frozen = e is _FutureSchemaException;
     } finally {
-      _busy = false;
       notifyListeners();
     }
   }
@@ -138,6 +161,9 @@ class TagTranslationService extends ChangeNotifier {
     Iterable<TagTranslation> items, {
     bool overwrite = true,
   }) async {
+    // Everything is skipped rather than half-applied: a frozen glossary must
+    // not diverge from the file on disk that it refused to read.
+    if (_frozen) return (0, items.length);
     var written = 0;
     var skipped = 0;
     for (final item in items) {
@@ -171,6 +197,7 @@ class TagTranslationService extends ChangeNotifier {
 
   /// Deletes the translations for [tags]. Returns how many were removed.
   Future<int> remove(Iterable<String> tags) async {
+    if (_frozen) return 0;
     var removed = 0;
     for (final tag in tags) {
       final entry = _byKey.remove(tagLookupKey(tag));
@@ -214,6 +241,11 @@ class TagTranslationService extends ChangeNotifier {
     if (decoded is! Map<String, dynamic>) {
       throw const FormatException('translation file must be a JSON object');
     }
+    // A file a newer build wrote may hold fields this one would drop on the
+    // next save, so it is refused outright rather than read as far as it parses.
+    if (decoded['schema'] case final num schema when schema > schemaVersion) {
+      throw _FutureSchemaException(schema.toInt());
+    }
     // Either wrapped (`{"schema":1,"entries":{...}}`) or the bare map a human
     // would write. Anything else and there is nothing to read.
     final raw = decoded['entries'] ?? decoded;
@@ -255,4 +287,16 @@ class TagTranslationService extends ChangeNotifier {
       notifyListeners();
     }
   }
+}
+
+/// A glossary this build does not understand, as opposed to one that is merely
+/// broken — the difference decides whether the service stays writable. A
+/// [FormatException] so that [TagTranslationService.importJson]'s contract
+/// still covers it.
+class _FutureSchemaException extends FormatException {
+  _FutureSchemaException(int schema)
+    : super(
+        'translation file uses schema $schema, newer than this app understands '
+        '(${TagTranslationService.schemaVersion}); left untouched',
+      );
 }
