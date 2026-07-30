@@ -3167,6 +3167,214 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Added to the dictionary: {tag}'**
   String dictFetchAdded(String tag);
+
+  /// No description provided for @dataSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Data'**
+  String get dataSection;
+
+  /// No description provided for @dataExportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export data'**
+  String get dataExportTitle;
+
+  /// No description provided for @dataExportDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Save your AI backends, tag library and prompt presets to one file'**
+  String get dataExportDesc;
+
+  /// No description provided for @dataExportAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Export…'**
+  String get dataExportAction;
+
+  /// No description provided for @dataImportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import data'**
+  String get dataImportTitle;
+
+  /// No description provided for @dataImportDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore from an export file; nothing already here is deleted'**
+  String get dataImportDesc;
+
+  /// No description provided for @dataImportAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Import…'**
+  String get dataImportAction;
+
+  /// No description provided for @dataExportDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export data'**
+  String get dataExportDialogTitle;
+
+  /// No description provided for @dataExportPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose what to write to the file.'**
+  String get dataExportPick;
+
+  /// No description provided for @dataExportExcludes.
+  ///
+  /// In en, this message translates to:
+  /// **'The built-in and downloaded danbooru dictionaries are left out — the app can fetch those again.'**
+  String get dataExportExcludes;
+
+  /// No description provided for @dataExportApiKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'Include API keys'**
+  String get dataExportApiKeys;
+
+  /// No description provided for @dataExportApiKeysHint.
+  ///
+  /// In en, this message translates to:
+  /// **'They are written as plain text. Keep the file somewhere private.'**
+  String get dataExportApiKeysHint;
+
+  /// No description provided for @dataExportConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Export'**
+  String get dataExportConfirm;
+
+  /// No description provided for @dataSectionLlm.
+  ///
+  /// In en, this message translates to:
+  /// **'AI backends'**
+  String get dataSectionLlm;
+
+  /// No description provided for @dataSectionLlmSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{providers} backends · {models} models'**
+  String dataSectionLlmSummary(int providers, int models);
+
+  /// No description provided for @dataSectionTagLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag library'**
+  String get dataSectionTagLibrary;
+
+  /// No description provided for @dataSectionTagLibrarySummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{tags} tags · {groups} groups · {custom} custom tags · {translations} translations'**
+  String dataSectionTagLibrarySummary(
+    int tags,
+    int groups,
+    int custom,
+    int translations,
+  );
+
+  /// No description provided for @dataSectionPresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt presets'**
+  String get dataSectionPresets;
+
+  /// No description provided for @dataSectionPresetsSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} presets'**
+  String dataSectionPresetsSummary(int count);
+
+  /// No description provided for @dataSectionMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in this file'**
+  String get dataSectionMissing;
+
+  /// No description provided for @dataImportDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import data'**
+  String get dataImportDialogTitle;
+
+  /// No description provided for @dataImportSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Written by version {version} on {date}'**
+  String dataImportSource(String version, String date);
+
+  /// No description provided for @dataImportNoKeys.
+  ///
+  /// In en, this message translates to:
+  /// **'This export carries no API keys — you will have to enter them again.'**
+  String get dataImportNoKeys;
+
+  /// No description provided for @dataImportMode.
+  ///
+  /// In en, this message translates to:
+  /// **'When something already exists'**
+  String get dataImportMode;
+
+  /// No description provided for @dataImportModeMerge.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep what is here'**
+  String get dataImportModeMerge;
+
+  /// No description provided for @dataImportModeOverwrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the file\'s version'**
+  String get dataImportModeOverwrite;
+
+  /// No description provided for @dataImportModeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Neither choice deletes anything: an import only adds or updates.'**
+  String get dataImportModeHint;
+
+  /// No description provided for @dataImportConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get dataImportConfirm;
+
+  /// No description provided for @dataImportDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import finished'**
+  String get dataImportDoneTitle;
+
+  /// No description provided for @dataImportNothingChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything in the file was already here.'**
+  String get dataImportNothingChanged;
+
+  /// No description provided for @dataImportReportLlm.
+  ///
+  /// In en, this message translates to:
+  /// **'AI backends: {added} added, {updated} updated, {models} models added'**
+  String dataImportReportLlm(int added, int updated, int models);
+
+  /// No description provided for @dataImportReportLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag library: {tags} tags, {groups} groups, {custom} custom tags, {translations} translations'**
+  String dataImportReportLibrary(
+    int tags,
+    int groups,
+    int custom,
+    int translations,
+  );
+
+  /// No description provided for @dataImportReportPresets.
+  ///
+  /// In en, this message translates to:
+  /// **'Prompt presets: {added} added, {updated} updated'**
+  String dataImportReportPresets(int added, int updated);
 }
 
 class _AppLocalizationsDelegate

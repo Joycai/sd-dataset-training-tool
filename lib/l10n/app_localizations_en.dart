@@ -1760,4 +1760,134 @@ class AppLocalizationsEn extends AppLocalizations {
   String dictFetchAdded(String tag) {
     return 'Added to the dictionary: $tag';
   }
+
+  @override
+  String get dataSection => 'Data';
+
+  @override
+  String get dataExportTitle => 'Export data';
+
+  @override
+  String get dataExportDesc =>
+      'Save your AI backends, tag library and prompt presets to one file';
+
+  @override
+  String get dataExportAction => 'Export…';
+
+  @override
+  String get dataImportTitle => 'Import data';
+
+  @override
+  String get dataImportDesc =>
+      'Restore from an export file; nothing already here is deleted';
+
+  @override
+  String get dataImportAction => 'Import…';
+
+  @override
+  String get dataExportDialogTitle => 'Export data';
+
+  @override
+  String get dataExportPick => 'Choose what to write to the file.';
+
+  @override
+  String get dataExportExcludes =>
+      'The built-in and downloaded danbooru dictionaries are left out — the app can fetch those again.';
+
+  @override
+  String get dataExportApiKeys => 'Include API keys';
+
+  @override
+  String get dataExportApiKeysHint =>
+      'They are written as plain text. Keep the file somewhere private.';
+
+  @override
+  String get dataExportConfirm => 'Export';
+
+  @override
+  String get dataSectionLlm => 'AI backends';
+
+  @override
+  String dataSectionLlmSummary(int providers, int models) {
+    return '$providers backends · $models models';
+  }
+
+  @override
+  String get dataSectionTagLibrary => 'Tag library';
+
+  @override
+  String dataSectionTagLibrarySummary(
+    int tags,
+    int groups,
+    int custom,
+    int translations,
+  ) {
+    return '$tags tags · $groups groups · $custom custom tags · $translations translations';
+  }
+
+  @override
+  String get dataSectionPresets => 'Prompt presets';
+
+  @override
+  String dataSectionPresetsSummary(int count) {
+    return '$count presets';
+  }
+
+  @override
+  String get dataSectionMissing => 'Not in this file';
+
+  @override
+  String get dataImportDialogTitle => 'Import data';
+
+  @override
+  String dataImportSource(String version, String date) {
+    return 'Written by version $version on $date';
+  }
+
+  @override
+  String get dataImportNoKeys =>
+      'This export carries no API keys — you will have to enter them again.';
+
+  @override
+  String get dataImportMode => 'When something already exists';
+
+  @override
+  String get dataImportModeMerge => 'Keep what is here';
+
+  @override
+  String get dataImportModeOverwrite => 'Use the file\'s version';
+
+  @override
+  String get dataImportModeHint =>
+      'Neither choice deletes anything: an import only adds or updates.';
+
+  @override
+  String get dataImportConfirm => 'Import';
+
+  @override
+  String get dataImportDoneTitle => 'Import finished';
+
+  @override
+  String get dataImportNothingChanged =>
+      'Everything in the file was already here.';
+
+  @override
+  String dataImportReportLlm(int added, int updated, int models) {
+    return 'AI backends: $added added, $updated updated, $models models added';
+  }
+
+  @override
+  String dataImportReportLibrary(
+    int tags,
+    int groups,
+    int custom,
+    int translations,
+  ) {
+    return 'Tag library: $tags tags, $groups groups, $custom custom tags, $translations translations';
+  }
+
+  @override
+  String dataImportReportPresets(int added, int updated) {
+    return 'Prompt presets: $added added, $updated updated';
+  }
 }

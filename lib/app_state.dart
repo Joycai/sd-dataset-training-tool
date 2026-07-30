@@ -371,6 +371,24 @@ class AppState extends ChangeNotifier {
     return preset;
   }
 
+  /// Appends [presets], assigning each a fresh local id.
+  ///
+  /// One save for the whole batch — the data importer restores them by the
+  /// dozen, and [createPromptPreset] would write the preference once per entry.
+  Future<void> addPromptPresets(Iterable<PromptPreset> presets) async {
+    final added = [
+      for (final preset in presets)
+        PromptPreset(
+          id: '${DateTime.now().microsecondsSinceEpoch}-${_presetIdCounter++}',
+          title: preset.title,
+          content: preset.content,
+        ),
+    ];
+    if (added.isEmpty) return;
+    _promptPresets = [..._promptPresets, ...added];
+    await _savePromptPresets();
+  }
+
   Future<void> updatePromptPreset(
     String id, {
     String? title,
