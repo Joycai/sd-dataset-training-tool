@@ -164,6 +164,28 @@ class TagTranslationService extends ChangeNotifier {
     // Everything is skipped rather than half-applied: a frozen glossary must
     // not diverge from the file on disk that it refused to read.
     if (_frozen) return (0, items.length);
+    final (written, skipped) = _mergeInto(
+      _byTag,
+      _byKey,
+      items,
+      overwrite: overwrite,
+    );
+    if (written > 0) await _persist();
+    return (written, skipped);
+  }
+
+  /// Merges [items] into a `(canonical tag -> entry, lookup key -> entry)`
+  /// pair, returning `(written, skipped)`.
+  ///
+  /// Shared by the active glossary and by [upsertAllFor]'s off-line path, so a
+  /// language the user is not currently viewing is normalized by exactly the
+  /// same rules as the one they are.
+  static (int, int) _mergeInto(
+    Map<String, TagTranslation> byTag,
+    Map<String, TagTranslation> byKey,
+    Iterable<TagTranslation> items, {
+    required bool overwrite,
+  }) {
     var written = 0;
     var skipped = 0;
     for (final item in items) {
@@ -174,21 +196,20 @@ class TagTranslationService extends ChangeNotifier {
         continue;
       }
       final key = tagLookupKey(tag);
-      if (!overwrite && _byKey.containsKey(key)) {
+      if (!overwrite && byKey.containsKey(key)) {
         skipped++;
         continue;
       }
       // Stored under the incoming canonical spelling, and any previous entry
       // that folds to the same key is dropped — otherwise `long hair` and
       // `long_hair` would both sit in the file, fighting over one lookup.
-      final previous = _byKey[key];
-      if (previous != null && previous.tag != tag) _byTag.remove(previous.tag);
+      final previous = byKey[key];
+      if (previous != null && previous.tag != tag) byTag.remove(previous.tag);
       final entry = item.copyWith(tag: tag, text: text);
-      _byTag[tag] = entry;
-      _byKey[key] = entry;
+      byTag[tag] = entry;
+      byKey[key] = entry;
       written++;
     }
-    if (written > 0) await _persist();
     return (written, skipped);
   }
 
@@ -258,11 +279,16 @@ class TagTranslationService extends ChangeNotifier {
     ];
   }
 
-  String _encode() {
-    final sorted = entries;
+  String _encode() => _encodeEntries(_languageCode, entries);
+
+  static String _encodeEntries(
+    String languageCode,
+    Iterable<TagTranslation> entries,
+  ) {
+    final sorted = entries.toList()..sort((a, b) => a.tag.compareTo(b.tag));
     return '${const JsonEncoder.withIndent('  ').convert({
       'schema': schemaVersion,
-      'locale': _languageCode,
+      'locale': languageCode,
       'entries': {for (final e in sorted) e.tag: e.toJson()},
     })}\n';
   }
@@ -273,19 +299,94 @@ class TagTranslationService extends ChangeNotifier {
     _revision++;
     notifyListeners();
     try {
-      final file = await _file(_languageCode);
-      await file.parent.create(recursive: true);
-      // Write-then-rename: a half-written glossary that still parses is worse
-      // than no glossary, because the missing half looks like untranslated
-      // tags and invites a second bulk run over them.
-      final temp = File('${file.path}.part');
-      await temp.writeAsString(_encode());
-      await temp.rename(file.path);
+      await _write(await _file(_languageCode), _encode());
       _lastError = null;
     } catch (e) {
       _lastError = e.toString();
       notifyListeners();
     }
+  }
+
+  /// Write-then-rename: a half-written glossary that still parses is worse
+  /// than no glossary, because the missing half looks like untranslated tags
+  /// and invites a second bulk run over them.
+  static Future<void> _write(File file, String text) async {
+    await file.parent.create(recursive: true);
+    final temp = File('${file.path}.part');
+    await temp.writeAsString(text);
+    await temp.rename(file.path);
+  }
+
+  // --- Every language, not just the active one --------------------------
+  //
+  // The app language is a display choice, so a backup that carried only the
+  // glossary the user happened to be looking at would lose the rest without
+  // saying so. These three are what the data exporter walks.
+
+  /// Language codes with a glossary file on disk, sorted. The active language
+  /// is included even when nothing has been written for it yet only if its
+  /// file exists — an empty glossary has nothing to back up.
+  Future<List<String>> storedLanguages() async {
+    try {
+      final dir = await _storageDirectory();
+      if (!await dir.exists()) return const [];
+      final codes = <String>[];
+      await for (final entity in dir.list()) {
+        if (entity is! File) continue;
+        final name = p.basename(entity.path);
+        if (!name.endsWith('.json')) continue;
+        final code = name.substring(0, name.length - '.json'.length);
+        if (code.isNotEmpty) codes.add(code);
+      }
+      return codes..sort();
+    } catch (e) {
+      _lastError = e.toString();
+      return const [];
+    }
+  }
+
+  /// The glossary stored for [languageCode]. The active language answers from
+  /// memory, which is also the only copy that is guaranteed current — unsaved
+  /// state does not exist, but a pending write might.
+  ///
+  /// Returns empty for a language with no file. Throws [FormatException] on a
+  /// file this build cannot read, so a backup never silently omits it.
+  Future<List<TagTranslation>> entriesFor(String languageCode) async {
+    if (languageCode == _languageCode) return entries;
+    final file = await _file(languageCode);
+    if (!await file.exists()) return const [];
+    return _parse(await file.readAsString());
+  }
+
+  /// [upsertAll] for a language that may not be the active one.
+  ///
+  /// The active language goes through the in-memory path so the glosses on
+  /// screen update with it; any other language is read, merged and written
+  /// straight back. Returns `(written, skipped)`.
+  Future<(int, int)> upsertAllFor(
+    String languageCode,
+    Iterable<TagTranslation> items, {
+    bool overwrite = true,
+  }) async {
+    if (languageCode == _languageCode) {
+      return upsertAll(items, overwrite: overwrite);
+    }
+    final byTag = <String, TagTranslation>{};
+    final byKey = <String, TagTranslation>{};
+    final file = await _file(languageCode);
+    // A file this build cannot read is left strictly alone — the same rule the
+    // active glossary's freeze enforces, applied one language at a time.
+    if (await file.exists()) {
+      for (final entry in _parse(await file.readAsString())) {
+        byTag[entry.tag] = entry;
+        byKey[tagLookupKey(entry.tag)] = entry;
+      }
+    }
+    final result = _mergeInto(byTag, byKey, items, overwrite: overwrite);
+    if (result.$1 > 0) {
+      await _write(file, _encodeEntries(languageCode, byTag.values));
+    }
+    return result;
   }
 }
 

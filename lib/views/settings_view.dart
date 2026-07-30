@@ -12,6 +12,7 @@ import '../theme/app_theme.dart';
 import '../utils/external_links.dart';
 import '../widgets/panel_widgets.dart';
 import 'panels/caption_type_dialog.dart';
+import 'panels/data_transfer_dialog.dart';
 import 'panels/llm_profile_dialog.dart';
 import 'panels/prompt_preset_dialog.dart';
 import 'panels/tag_dictionary_dialog.dart';
@@ -538,6 +539,43 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                     ],
                   ),
+                if (_section == _SettingsSection.data)
+                  _SettingsCard(
+                    children: [
+                      _SettingsRow(
+                        title: l10n.dataExportTitle,
+                        description: l10n.dataExportDesc,
+                        control: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            textStyle: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          onPressed: () => showDataExportDialog(context),
+                          icon: const Icon(Icons.save_alt, size: 15),
+                          label: Text(l10n.dataExportAction),
+                        ),
+                      ),
+                      _SettingsRow(
+                        title: l10n.dataImportTitle,
+                        description: l10n.dataImportDesc,
+                        control: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            textStyle: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          onPressed: () => showDataImportDialog(context),
+                          icon: const Icon(Icons.file_open_outlined, size: 15),
+                          label: Text(l10n.dataImportAction),
+                        ),
+                      ),
+                    ],
+                  ),
                 if (_section == _SettingsSection.about)
                   _SettingsCard(
                     title: l10n.aboutSection,
@@ -708,7 +746,7 @@ String _formatTokenCap(AppLocalizations l10n, int value) {
   return '${millions.toStringAsFixed(value % 1000000 == 0 ? 0 : 1)}M';
 }
 
-enum _SettingsSection { appearance, dataset, assistant, about }
+enum _SettingsSection { appearance, dataset, assistant, data, about }
 
 /// macOS-style source list: one entry per group, version pinned to the foot.
 class _SettingsSidebar extends StatelessWidget {
@@ -730,6 +768,7 @@ class _SettingsSidebar extends StatelessWidget {
       ),
       (_SettingsSection.dataset, Icons.dataset_outlined, l10n.datasetSection),
       (_SettingsSection.assistant, Icons.smart_toy_outlined, l10n.llmSection),
+      (_SettingsSection.data, Icons.import_export, l10n.dataSection),
       (_SettingsSection.about, Icons.info_outline, l10n.aboutSection),
     ];
 

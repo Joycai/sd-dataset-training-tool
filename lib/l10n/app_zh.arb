@@ -689,5 +689,88 @@
     "placeholders": {
       "tag": { "type": "String" }
     }
+  },
+
+  "dataSection": "数据",
+  "dataExportTitle": "导出数据",
+  "dataExportDesc": "把 AI 后端配置、标签库和预置提示词存成一个文件",
+  "dataExportAction": "导出…",
+  "dataImportTitle": "导入数据",
+  "dataImportDesc": "从导出文件恢复；不会删除本机已有的内容",
+  "dataImportAction": "导入…",
+
+  "dataExportDialogTitle": "导出数据",
+  "dataExportPick": "选择要写入文件的内容。",
+  "dataExportExcludes": "不含内置词表和下载的 danbooru 全量词典——这两样随时可以重新获取。",
+  "dataExportApiKeys": "包含 API 密钥",
+  "dataExportApiKeysHint": "密钥会以明文写入文件，请妥善保管。",
+  "dataExportConfirm": "导出",
+
+  "dataSectionLlm": "AI 后端配置",
+  "dataSectionLlmSummary": "{providers} 个后端 · {models} 个模型",
+  "@dataSectionLlmSummary": {
+    "placeholders": {
+      "providers": { "type": "int" },
+      "models": { "type": "int" }
+    }
+  },
+  "dataSectionTagLibrary": "自定义标签库",
+  "dataSectionTagLibrarySummary": "{tags} 个标签 · {groups} 个分组 · {custom} 个自定义标签 · {translations} 条译文",
+  "@dataSectionTagLibrarySummary": {
+    "placeholders": {
+      "tags": { "type": "int" },
+      "groups": { "type": "int" },
+      "custom": { "type": "int" },
+      "translations": { "type": "int" }
+    }
+  },
+  "dataSectionPresets": "预置提示词",
+  "dataSectionPresetsSummary": "{count} 条预置",
+  "@dataSectionPresetsSummary": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dataSectionMissing": "文件中没有",
+
+  "dataImportDialogTitle": "导入数据",
+  "dataImportSource": "由 {version} 版于 {date} 导出",
+  "@dataImportSource": {
+    "placeholders": {
+      "version": { "type": "String" },
+      "date": { "type": "String" }
+    }
+  },
+  "dataImportNoKeys": "这个文件不含 API 密钥，导入后需要重新填写。",
+  "dataImportMode": "遇到已存在的内容时",
+  "dataImportModeMerge": "保留本机已有",
+  "dataImportModeOverwrite": "以文件为准",
+  "dataImportModeHint": "两种方式都不会删除任何内容：导入只会新增或更新。",
+  "dataImportConfirm": "导入",
+  "dataImportDoneTitle": "导入完成",
+  "dataImportNothingChanged": "文件里的内容本机都已存在。",
+  "dataImportReportLlm": "AI 后端配置：新增 {added} 个，更新 {updated} 个，新增 {models} 个模型",
+  "@dataImportReportLlm": {
+    "placeholders": {
+      "added": { "type": "int" },
+      "updated": { "type": "int" },
+      "models": { "type": "int" }
+    }
+  },
+  "dataImportReportLibrary": "标签库：{tags} 个标签，{groups} 个分组，{custom} 个自定义标签，{translations} 条译文",
+  "@dataImportReportLibrary": {
+    "placeholders": {
+      "tags": { "type": "int" },
+      "groups": { "type": "int" },
+      "custom": { "type": "int" },
+      "translations": { "type": "int" }
+    }
+  },
+  "dataImportReportPresets": "预置提示词：新增 {added} 条，更新 {updated} 条",
+  "@dataImportReportPresets": {
+    "placeholders": {
+      "added": { "type": "int" },
+      "updated": { "type": "int" }
+    }
   }
 }

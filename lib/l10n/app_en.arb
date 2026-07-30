@@ -942,5 +942,88 @@
     "placeholders": {
       "tag": { "type": "String" }
     }
+  },
+
+  "dataSection": "Data",
+  "dataExportTitle": "Export data",
+  "dataExportDesc": "Save your AI backends, tag library and prompt presets to one file",
+  "dataExportAction": "Export…",
+  "dataImportTitle": "Import data",
+  "dataImportDesc": "Restore from an export file; nothing already here is deleted",
+  "dataImportAction": "Import…",
+
+  "dataExportDialogTitle": "Export data",
+  "dataExportPick": "Choose what to write to the file.",
+  "dataExportExcludes": "The built-in and downloaded danbooru dictionaries are left out — the app can fetch those again.",
+  "dataExportApiKeys": "Include API keys",
+  "dataExportApiKeysHint": "They are written as plain text. Keep the file somewhere private.",
+  "dataExportConfirm": "Export",
+
+  "dataSectionLlm": "AI backends",
+  "dataSectionLlmSummary": "{providers} backends · {models} models",
+  "@dataSectionLlmSummary": {
+    "placeholders": {
+      "providers": { "type": "int" },
+      "models": { "type": "int" }
+    }
+  },
+  "dataSectionTagLibrary": "Tag library",
+  "dataSectionTagLibrarySummary": "{tags} tags · {groups} groups · {custom} custom tags · {translations} translations",
+  "@dataSectionTagLibrarySummary": {
+    "placeholders": {
+      "tags": { "type": "int" },
+      "groups": { "type": "int" },
+      "custom": { "type": "int" },
+      "translations": { "type": "int" }
+    }
+  },
+  "dataSectionPresets": "Prompt presets",
+  "dataSectionPresetsSummary": "{count} presets",
+  "@dataSectionPresetsSummary": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dataSectionMissing": "Not in this file",
+
+  "dataImportDialogTitle": "Import data",
+  "dataImportSource": "Written by version {version} on {date}",
+  "@dataImportSource": {
+    "placeholders": {
+      "version": { "type": "String" },
+      "date": { "type": "String" }
+    }
+  },
+  "dataImportNoKeys": "This export carries no API keys — you will have to enter them again.",
+  "dataImportMode": "When something already exists",
+  "dataImportModeMerge": "Keep what is here",
+  "dataImportModeOverwrite": "Use the file's version",
+  "dataImportModeHint": "Neither choice deletes anything: an import only adds or updates.",
+  "dataImportConfirm": "Import",
+  "dataImportDoneTitle": "Import finished",
+  "dataImportNothingChanged": "Everything in the file was already here.",
+  "dataImportReportLlm": "AI backends: {added} added, {updated} updated, {models} models added",
+  "@dataImportReportLlm": {
+    "placeholders": {
+      "added": { "type": "int" },
+      "updated": { "type": "int" },
+      "models": { "type": "int" }
+    }
+  },
+  "dataImportReportLibrary": "Tag library: {tags} tags, {groups} groups, {custom} custom tags, {translations} translations",
+  "@dataImportReportLibrary": {
+    "placeholders": {
+      "tags": { "type": "int" },
+      "groups": { "type": "int" },
+      "custom": { "type": "int" },
+      "translations": { "type": "int" }
+    }
+  },
+  "dataImportReportPresets": "Prompt presets: {added} added, {updated} updated",
+  "@dataImportReportPresets": {
+    "placeholders": {
+      "added": { "type": "int" },
+      "updated": { "type": "int" }
+    }
   }
 }

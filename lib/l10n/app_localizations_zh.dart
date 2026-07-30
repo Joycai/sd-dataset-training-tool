@@ -1708,4 +1708,127 @@ class AppLocalizationsZh extends AppLocalizations {
   String dictFetchAdded(String tag) {
     return '已加入词典：$tag';
   }
+
+  @override
+  String get dataSection => '数据';
+
+  @override
+  String get dataExportTitle => '导出数据';
+
+  @override
+  String get dataExportDesc => '把 AI 后端配置、标签库和预置提示词存成一个文件';
+
+  @override
+  String get dataExportAction => '导出…';
+
+  @override
+  String get dataImportTitle => '导入数据';
+
+  @override
+  String get dataImportDesc => '从导出文件恢复；不会删除本机已有的内容';
+
+  @override
+  String get dataImportAction => '导入…';
+
+  @override
+  String get dataExportDialogTitle => '导出数据';
+
+  @override
+  String get dataExportPick => '选择要写入文件的内容。';
+
+  @override
+  String get dataExportExcludes => '不含内置词表和下载的 danbooru 全量词典——这两样随时可以重新获取。';
+
+  @override
+  String get dataExportApiKeys => '包含 API 密钥';
+
+  @override
+  String get dataExportApiKeysHint => '密钥会以明文写入文件，请妥善保管。';
+
+  @override
+  String get dataExportConfirm => '导出';
+
+  @override
+  String get dataSectionLlm => 'AI 后端配置';
+
+  @override
+  String dataSectionLlmSummary(int providers, int models) {
+    return '$providers 个后端 · $models 个模型';
+  }
+
+  @override
+  String get dataSectionTagLibrary => '自定义标签库';
+
+  @override
+  String dataSectionTagLibrarySummary(
+    int tags,
+    int groups,
+    int custom,
+    int translations,
+  ) {
+    return '$tags 个标签 · $groups 个分组 · $custom 个自定义标签 · $translations 条译文';
+  }
+
+  @override
+  String get dataSectionPresets => '预置提示词';
+
+  @override
+  String dataSectionPresetsSummary(int count) {
+    return '$count 条预置';
+  }
+
+  @override
+  String get dataSectionMissing => '文件中没有';
+
+  @override
+  String get dataImportDialogTitle => '导入数据';
+
+  @override
+  String dataImportSource(String version, String date) {
+    return '由 $version 版于 $date 导出';
+  }
+
+  @override
+  String get dataImportNoKeys => '这个文件不含 API 密钥，导入后需要重新填写。';
+
+  @override
+  String get dataImportMode => '遇到已存在的内容时';
+
+  @override
+  String get dataImportModeMerge => '保留本机已有';
+
+  @override
+  String get dataImportModeOverwrite => '以文件为准';
+
+  @override
+  String get dataImportModeHint => '两种方式都不会删除任何内容：导入只会新增或更新。';
+
+  @override
+  String get dataImportConfirm => '导入';
+
+  @override
+  String get dataImportDoneTitle => '导入完成';
+
+  @override
+  String get dataImportNothingChanged => '文件里的内容本机都已存在。';
+
+  @override
+  String dataImportReportLlm(int added, int updated, int models) {
+    return 'AI 后端配置：新增 $added 个，更新 $updated 个，新增 $models 个模型';
+  }
+
+  @override
+  String dataImportReportLibrary(
+    int tags,
+    int groups,
+    int custom,
+    int translations,
+  ) {
+    return '标签库：$tags 个标签，$groups 个分组，$custom 个自定义标签，$translations 条译文';
+  }
+
+  @override
+  String dataImportReportPresets(int added, int updated) {
+    return '预置提示词：新增 $added 条，更新 $updated 条';
+  }
 }
