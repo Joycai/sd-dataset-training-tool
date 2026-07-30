@@ -4,12 +4,15 @@ import '../l10n/app_localizations.dart';
 import '../services/tag_dictionary_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/external_links.dart';
+import '../views/panels/tag_dictionary_dialog.dart';
 import 'panel_widgets.dart';
+import 'tag_gloss.dart';
 
 /// Menu values reserved by [danbooruTagMenuItems]. Hosts route them through
 /// [handleDanbooruTagMenuAction] and keep their own values distinct.
 const danbooruWikiMenuValue = 'danbooru.wiki';
 const danbooruPostsMenuValue = 'danbooru.posts';
+const danbooruTranslateMenuValue = 'danbooru.translate';
 
 /// "What is this tag?" entries for any tag context menu.
 ///
@@ -30,7 +33,17 @@ List<PopupMenuEntry<String>> danbooruTagMenuItems(
   // heard of *and* that nothing else in the dataset uses is almost always a
   // typo, while the same tag on forty images is somebody's trigger word.
   final localUses = entry == null ? dictionary?.localUsage(tag) : null;
+  // The translation gets its own header line above the count, in body ink:
+  // it is the answer to "what is this tag", which is what the menu is for,
+  // while the count is provenance.
+  final gloss = listTagGloss(context, tag);
   return [
+    if (gloss != null)
+      PopupMenuItem<String>(
+        enabled: false,
+        height: 26,
+        child: Text(gloss, style: const TextStyle(fontSize: AppText.secondary)),
+      ),
     if (dictionary != null && dictionary.isReady)
       PopupMenuItem<String>(
         enabled: false,
@@ -56,18 +69,34 @@ List<PopupMenuEntry<String>> danbooruTagMenuItems(
       icon: Icons.image_search,
       label: l10n.tagPostsAction,
     ),
+    // The manager is also in settings, but this is where the question actually
+    // comes up: the moment a tag's meaning is unclear is the moment the user is
+    // looking at it.
+    panelMenuItem(
+      context: context,
+      value: danbooruTranslateMenuValue,
+      icon: Icons.translate,
+      label: gloss == null ? l10n.tagTranslateAction : l10n.tagEditTranslation,
+    ),
   ];
 }
 
-/// Opens the browser when [action] is one of this menu's own values. Returns
-/// whether the action belonged to it, so hosts can fall through to their own.
-Future<bool> handleDanbooruTagMenuAction(String? action, String tag) async {
+/// Handles [action] when it is one of this menu's own values. Returns whether
+/// the action belonged to it, so hosts can fall through to their own.
+Future<bool> handleDanbooruTagMenuAction(
+  BuildContext context,
+  String? action,
+  String tag,
+) async {
   switch (action) {
     case danbooruWikiMenuValue:
       await openExternalUrl(danbooruWikiUrl(tag));
       return true;
     case danbooruPostsMenuValue:
       await openExternalUrl(danbooruPostsUrl(tag));
+      return true;
+    case danbooruTranslateMenuValue:
+      await showTagDictionaryDialog(context, initialTag: tag);
       return true;
   }
   return false;

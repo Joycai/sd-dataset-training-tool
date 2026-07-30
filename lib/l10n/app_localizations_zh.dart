@@ -1424,6 +1424,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagWikiTooltip => '打开 Danbooru wiki（F1）';
 
   @override
+  String get tagTranslateAction => '添加译文';
+
+  @override
+  String get tagEditTranslation => '编辑译文';
+
+  @override
   String get tagNotInDictionary => '词典中未收录';
 
   @override
@@ -1443,6 +1449,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tagSuggestionLocalLibrary => '本地标签 · 来自标签库';
+
+  @override
+  String get tagSuggestionCustom => '手动添加';
 
   @override
   String tagNotInDictionaryUsed(int count) {
@@ -1487,4 +1496,151 @@ class AppLocalizationsZh extends AppLocalizations {
   String tagDictionaryDownloadFailed(String error) {
     return '下载失败：$error';
   }
+
+  @override
+  String get tagGlossTitle => '标签翻译';
+
+  @override
+  String get tagGlossDesc => '在标签旁显示当前界面语言的译文。仅用于显示，不会写入 caption 文件';
+
+  @override
+  String get tagGlossModeOff => '关闭';
+
+  @override
+  String get tagGlossModeInline => '显示在标签旁';
+
+  @override
+  String get tagGlossModeTooltip => '仅悬浮显示';
+
+  @override
+  String get tagDictionaryManageTitle => '编辑词典';
+
+  @override
+  String get tagDictionaryManageDesc => '翻译标签、添加 Danbooru 没有的标签、导入或导出译文';
+
+  @override
+  String get dictManagerTitle => '标签词典';
+
+  @override
+  String dictManagerSubtitle(String locale, int count) {
+    return '$locale · 已翻译 $count 条';
+  }
+
+  @override
+  String get dictSearchHint => '搜索标签或译文';
+
+  @override
+  String get dictGlossaryEmpty => '还没有任何译文。搜索一个标签就能给它加翻译。';
+
+  @override
+  String get dictNoResults => '没有匹配的标签或译文';
+
+  @override
+  String get dictSelectHint => '在左侧选一个标签来翻译。';
+
+  @override
+  String get dictTranslationLabel => '译文';
+
+  @override
+  String get dictTranslationHint => '界面上显示在标签旁边';
+
+  @override
+  String get dictNoteLabel => '注释';
+
+  @override
+  String get dictNoteHint => '译文本身不够清楚时，说明这个标签到底指什么';
+
+  @override
+  String get dictClearFieldHint => '清空译文输入框即可删除该翻译。';
+
+  @override
+  String get dictCustomBadge => '自定义';
+
+  @override
+  String get dictOrphanBadge => '词典无此标签';
+
+  @override
+  String dictCategoryAndCount(String category, int count) {
+    return '$category · $count 张投稿';
+  }
+
+  @override
+  String get dictCategoryGeneral => '通用';
+
+  @override
+  String get dictCategoryArtist => '画师';
+
+  @override
+  String get dictCategoryCopyright => '作品';
+
+  @override
+  String get dictCategoryCharacter => '角色';
+
+  @override
+  String get dictCategoryMeta => '元信息';
+
+  @override
+  String get dictSourceManual => '手动填写';
+
+  @override
+  String get dictSourceLlm => '来自 AI 助手';
+
+  @override
+  String get dictSourceDanbooru => '来自 Danbooru wiki';
+
+  @override
+  String get dictRemoveCustomAction => '从词典移除';
+
+  @override
+  String get dictAddTagAction => '添加标签';
+
+  @override
+  String get dictAddTagTitle => '添加标签';
+
+  @override
+  String get dictAddTagNameLabel => '标签名';
+
+  @override
+  String get dictAddTagNameHint => '用 Danbooru 拼法，例如 my_character_(oc)';
+
+  @override
+  String get dictAddTagCategoryLabel => '分类';
+
+  @override
+  String dictAddTagExists(String tag) {
+    return '词典里已经有「$tag」了';
+  }
+
+  @override
+  String get dictImportAction => '导入';
+
+  @override
+  String get dictExportAction => '导出';
+
+  @override
+  String dictImportSummary(int written, int skipped) {
+    return '导入 $written 条译文，跳过 $skipped 条';
+  }
+
+  @override
+  String get dictClearAiAction => '清除 AI 译文';
+
+  @override
+  String get dictClearAiTitle => '清除 AI 译文';
+
+  @override
+  String dictClearAiConfirm(int count) {
+    return '删除 AI 助手生成的 $count 条译文？手动填写的会保留。';
+  }
+
+  @override
+  String dictClearAiDone(int count) {
+    return '已删除 $count 条译文';
+  }
+
+  @override
+  String get dictClearAiNone => '没有 AI 译文需要清除';
+
+  @override
+  String get dictFooterHint => '每种界面语言各有一份译文';
 }

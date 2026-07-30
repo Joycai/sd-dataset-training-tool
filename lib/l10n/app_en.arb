@@ -763,6 +763,8 @@
   "tagWikiAction": "Danbooru wiki",
   "tagPostsAction": "Danbooru posts",
   "tagWikiTooltip": "Open the danbooru wiki (F1)",
+  "tagTranslateAction": "Add a translation",
+  "tagEditTranslation": "Edit the translation",
   "tagNotInDictionary": "Not in the tag dictionary",
   "tagPostCount": "{count} posts on danbooru",
   "@tagPostCount": {
@@ -783,6 +785,7 @@
     }
   },
   "tagSuggestionLocalLibrary": "your tag · from the tag library",
+  "tagSuggestionCustom": "added by hand",
   "tagNotInDictionaryUsed": "Not in the tag dictionary · {count} images in this dataset",
   "@tagNotInDictionaryUsed": {
     "placeholders": {
@@ -814,5 +817,85 @@
     "placeholders": {
       "error": { "type": "String" }
     }
-  }
+  },
+
+  "tagGlossTitle": "Tag translations",
+  "tagGlossDesc": "Shows a translation beside each tag, in the app's language. Display only — never written into a caption",
+  "tagGlossModeOff": "Off",
+  "tagGlossModeInline": "Beside the tag",
+  "tagGlossModeTooltip": "On hover only",
+  "tagDictionaryManageTitle": "Edit dictionary",
+  "tagDictionaryManageDesc": "Translate tags, add tags danbooru does not have, import or export a glossary",
+
+  "dictManagerTitle": "Tag dictionary",
+  "dictManagerSubtitle": "{locale} · {count} translated",
+  "@dictManagerSubtitle": {
+    "placeholders": {
+      "locale": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "dictSearchHint": "Search a tag or a translation",
+  "dictGlossaryEmpty": "Nothing translated yet. Search for a tag to give it a translation.",
+  "dictNoResults": "No matching tag or translation",
+  "dictSelectHint": "Pick a tag on the left to translate it.",
+  "dictTranslationLabel": "Translation",
+  "dictTranslationHint": "Shown beside the tag in the UI",
+  "dictNoteLabel": "Note",
+  "dictNoteHint": "What the tag actually means, when the translation alone is ambiguous",
+  "dictClearFieldHint": "Emptying the translation field deletes the translation.",
+  "dictCustomBadge": "added",
+  "dictOrphanBadge": "unknown tag",
+  "dictCategoryAndCount": "{category} · {count} posts",
+  "@dictCategoryAndCount": {
+    "placeholders": {
+      "category": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "dictCategoryGeneral": "General",
+  "dictCategoryArtist": "Artist",
+  "dictCategoryCopyright": "Copyright",
+  "dictCategoryCharacter": "Character",
+  "dictCategoryMeta": "Meta",
+  "dictSourceManual": "Written by hand",
+  "dictSourceLlm": "From the assistant",
+  "dictSourceDanbooru": "From the danbooru wiki",
+  "dictRemoveCustomAction": "Remove from dictionary",
+  "dictAddTagAction": "Add a tag",
+  "dictAddTagTitle": "Add a tag",
+  "dictAddTagNameLabel": "Tag name",
+  "dictAddTagNameHint": "danbooru spelling, e.g. my_character_(oc)",
+  "dictAddTagCategoryLabel": "Category",
+  "dictAddTagExists": "\"{tag}\" is already in the dictionary",
+  "@dictAddTagExists": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+  "dictImportAction": "Import",
+  "dictExportAction": "Export",
+  "dictImportSummary": "Imported {written} translations, skipped {skipped}",
+  "@dictImportSummary": {
+    "placeholders": {
+      "written": { "type": "int" },
+      "skipped": { "type": "int" }
+    }
+  },
+  "dictClearAiAction": "Clear AI translations",
+  "dictClearAiTitle": "Clear AI translations",
+  "dictClearAiConfirm": "Delete {count} translations produced by the assistant? Ones you wrote by hand are kept.",
+  "@dictClearAiConfirm": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictClearAiDone": "Deleted {count} translations",
+  "@dictClearAiDone": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictClearAiNone": "No assistant translations to clear",
+  "dictFooterHint": "One glossary per app language"
 }

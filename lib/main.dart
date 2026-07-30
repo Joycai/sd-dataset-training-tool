@@ -11,6 +11,7 @@ import 'services/settings_service.dart';
 import 'theme/app_theme.dart';
 import 'views/image_preview_window.dart';
 import 'views/workbench_view.dart';
+import 'widgets/tag_gloss.dart';
 
 bool get _isDesktop =>
     !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
@@ -57,6 +58,9 @@ void main(List<String> args) async {
   // caption editor is perfectly usable in the fraction of a second before
   // autocomplete comes online — the field listens and picks it up.
   unawaited(appState.tagDictionary.init());
+  // Same bargain for the glossary: tags render untranslated for a moment and
+  // the gloss scope repaints them once it lands.
+  unawaited(appState.tagTranslations.load(appState.currentLocale.languageCode));
 
   runApp(
     _withoutSemantics(
@@ -96,23 +100,34 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
 
-    return MaterialApp(
-      onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      locale: appState.currentLocale,
-      theme: buildAppTheme(
-        Brightness.light,
-        fontFamily: appState.uiFontFamily,
-        accent: appState.accentChoice,
+    // Above MaterialApp, so dialog routes — the dictionary manager included —
+    // inherit the glossary along with the workbench. The ListenableBuilder is
+    // what turns the service's own notifications into a scope update; only the
+    // widgets that actually asked for a gloss rebuild from there.
+    return ListenableBuilder(
+      listenable: appState.tagTranslations,
+      builder: (context, _) => TagGlossScope(
+        glosses: appState.tagTranslations,
+        display: appState.tagGlossDisplay,
+        child: MaterialApp(
+          onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: appState.currentLocale,
+          theme: buildAppTheme(
+            Brightness.light,
+            fontFamily: appState.uiFontFamily,
+            accent: appState.accentChoice,
+          ),
+          darkTheme: buildAppTheme(
+            Brightness.dark,
+            fontFamily: appState.uiFontFamily,
+            accent: appState.accentChoice,
+          ),
+          themeMode: appState.currentThemeMode,
+          home: const MyHomePage(),
+        ),
       ),
-      darkTheme: buildAppTheme(
-        Brightness.dark,
-        fontFamily: appState.uiFontFamily,
-        accent: appState.accentChoice,
-      ),
-      themeMode: appState.currentThemeMode,
-      home: const MyHomePage(),
     );
   }
 }

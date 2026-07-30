@@ -9,6 +9,7 @@ import '../../state/tag_ops.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
 import '../../widgets/subdirectory_picker.dart';
+import '../../widgets/tag_gloss.dart';
 
 enum _TagMenuAction {
   filterInclude,
@@ -936,6 +937,7 @@ class _DatasetTagChip extends StatelessWidget {
               color: tinted ? scheme.onSurface : semantic.muted,
             ),
           ),
+          TagGlossLabel(entry.tag),
           const SizedBox(width: 5),
           Text(
             '${entry.count}',
@@ -955,9 +957,15 @@ class _DatasetTagChip extends StatelessWidget {
         onTap: enabled ? onTap : null,
         onSecondaryTapDown: (details) => onContextMenu(details.globalPosition),
         onLongPressStart: (details) => onContextMenu(details.globalPosition),
-        child: MouseRegion(
-          cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-          child: chip,
+        child: withTagGlossTooltip(
+          context: context,
+          tag: entry.tag,
+          child: MouseRegion(
+            cursor: enabled
+                ? SystemMouseCursors.click
+                : SystemMouseCursors.basic,
+            child: chip,
+          ),
         ),
       ),
     );

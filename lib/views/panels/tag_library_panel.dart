@@ -13,6 +13,7 @@ import '../../state/workbench_layout.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/danbooru_tag_menu.dart';
 import '../../widgets/panel_widgets.dart';
+import '../../widgets/tag_gloss.dart';
 import 'dataset_tags_view.dart';
 import 'tag_group_dialog.dart';
 
@@ -225,7 +226,8 @@ class _LibraryViewState extends State<_LibraryView> {
         ),
       ],
     );
-    if (await handleDanbooruTagMenuAction(action, tag)) return;
+    if (!context.mounted) return;
+    if (await handleDanbooruTagMenuAction(context, action, tag)) return;
     if (action == 'remove') {
       await appState.removeCommonTags([tag]);
     }
@@ -1145,6 +1147,7 @@ class _LibraryTagChip extends StatelessWidget {
             label,
             style: TextStyle(fontSize: AppText.small, color: textColor),
           ),
+          TagGlossLabel(label),
         ],
       ),
     );
@@ -1155,9 +1158,15 @@ class _LibraryTagChip extends StatelessWidget {
         onTap: enabled ? onTap : null,
         onSecondaryTapDown: (details) => onContextMenu(details.globalPosition),
         onLongPressStart: (details) => onContextMenu(details.globalPosition),
-        child: MouseRegion(
-          cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-          child: chip,
+        child: withTagGlossTooltip(
+          context: context,
+          tag: label,
+          child: MouseRegion(
+            cursor: enabled
+                ? SystemMouseCursors.click
+                : SystemMouseCursors.basic,
+            child: chip,
+          ),
         ),
       ),
     );

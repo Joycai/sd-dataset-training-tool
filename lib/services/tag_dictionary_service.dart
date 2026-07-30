@@ -40,8 +40,16 @@ enum TagDictionarySource {
 /// Entries are stored in danbooru's own spelling; converting to the user's
 /// caption style happens at insertion time, not here.
 class TagDictionaryService extends ChangeNotifier {
-  TagDictionaryService({http.Client Function()? clientFactory})
-    : _clientFactory = clientFactory ?? http.Client.new;
+  TagDictionaryService({
+    http.Client Function()? clientFactory,
+    Future<Directory> Function()? storageDirectory,
+  }) : _clientFactory = clientFactory ?? http.Client.new,
+       _storageDirectory = storageDirectory ?? _defaultDirectory;
+
+  static Future<Directory> _defaultDirectory() async {
+    final support = await getApplicationSupportDirectory();
+    return Directory(p.join(support.path, 'tags'));
+  }
 
   static const bundledAsset = 'assets/tags/wd_tags.csv';
 
@@ -57,7 +65,13 @@ class TagDictionaryService extends ChangeNotifier {
 
   static const _fullFileName = 'danbooru.csv';
 
+  /// User-added tags, kept in their own file rather than merged into the
+  /// downloaded CSV: that file is replaced wholesale on every refresh, so an
+  /// edit written into it would silently disappear.
+  static const _customFileName = 'custom_tags.json';
+
   final http.Client Function() _clientFactory;
+  final Future<Directory> Function() _storageDirectory;
 
   _TagIndex? _index;
   TagDictionarySource _source = TagDictionarySource.none;
@@ -85,15 +99,18 @@ class TagDictionaryService extends ChangeNotifier {
   bool _fullOnDisk = false;
   bool get hasFullDictionary => _fullOnDisk;
 
-  Future<File> _fullFile() async {
-    final support = await getApplicationSupportDirectory();
-    return File(p.join(support.path, 'tags', _fullFileName));
-  }
+  Future<File> _fullFile() => _supportFile(_fullFileName);
+
+  Future<File> _supportFile(String name) async =>
+      File(p.join((await _storageDirectory()).path, name));
 
   /// Loads the best dictionary available on this machine. Safe to call on a
   /// cold start: a missing or corrupt download silently falls back to the
   /// bundled file, because losing autocomplete is not worth blocking startup.
   Future<void> init() async {
+    // Before the dictionary, so the first index build already knows which keys
+    // the user's own entries cover.
+    await _loadCustomEntries();
     try {
       final file = await _fullFile();
       if (await file.exists()) {
@@ -252,6 +269,75 @@ class TagDictionaryService extends ChangeNotifier {
     }
   }
 
+  // --- User-added dictionary entries -----------------------------------
+
+  List<TagDictionaryEntry> _customEntries = const [];
+  _TagIndex? _customIndex;
+
+  /// Tags the user added to the dictionary by hand, in the order they were
+  /// added. Unlike the local vocabulary these are not derived from anything —
+  /// they persist across datasets and carry a category of their own.
+  List<TagDictionaryEntry> get customEntries => _customEntries;
+
+  Future<void> _loadCustomEntries() async {
+    try {
+      final file = await _supportFile(_customFileName);
+      if (!await file.exists()) return;
+      final decoded = jsonDecode(await file.readAsString());
+      final raw = decoded is Map ? decoded['entries'] : decoded;
+      if (raw is! List) return;
+      _customEntries = [for (final e in raw) ?TagDictionaryEntry.fromJson(e)];
+      _customIndex = null;
+      _localIndex = null;
+    } catch (e) {
+      // A broken overlay must not cost the user their dictionary.
+      _lastError = e.toString();
+    }
+  }
+
+  /// Replaces the user's dictionary additions and persists them.
+  ///
+  /// Entries whose name the dictionary already covers are dropped: the point
+  /// of this list is vocabulary danbooru does not have, and keeping a shadow
+  /// copy of a real tag would give it two rows in every suggestion list.
+  Future<void> setCustomEntries(List<TagDictionaryEntry> entries) async {
+    final dictionary = _index;
+    final seen = <String>{};
+    _customEntries = [
+      for (final entry in entries)
+        if (entry.name.trim().isNotEmpty &&
+            seen.add(tagLookupKey(entry.name)) &&
+            (dictionary == null ||
+                !dictionary.byKey.containsKey(tagLookupKey(entry.name))))
+          entry,
+    ];
+    _customIndex = null;
+    // "Local" means "covered by neither the dictionary nor this list".
+    _localIndex = null;
+    notifyListeners();
+    try {
+      final file = await _supportFile(_customFileName);
+      await file.parent.create(recursive: true);
+      await file.writeAsString(
+        '${const JsonEncoder.withIndent('  ').convert({
+          'entries': [for (final e in _customEntries) e.toJson()],
+        })}\n',
+      );
+      _lastError = null;
+    } catch (e) {
+      _lastError = e.toString();
+      notifyListeners();
+    }
+  }
+
+  _TagIndex? get _customIndexOrBuild {
+    if (_customIndex != null) return _customIndex;
+    if (_customEntries.isEmpty) return null;
+    final sorted = [..._customEntries]
+      ..sort((a, b) => b.postCount.compareTo(a.postCount));
+    return _customIndex = _indexTagEntries(sorted);
+  }
+
   // --- The user's own vocabulary ---------------------------------------
 
   /// How many images a dataset tag has to appear on before it is offered as a
@@ -320,11 +406,14 @@ class TagDictionaryService extends ChangeNotifier {
         if (entry.value >= minDatasetUsage) entry.key: entry.value,
     };
 
+    final custom = _customIndexOrBuild;
     final entries = <TagDictionaryEntry>[
       for (final entry in weights.entries)
         if (entry.key.trim().isNotEmpty &&
             (dictionary == null ||
-                !dictionary.byKey.containsKey(tagLookupKey(entry.key))))
+                !dictionary.byKey.containsKey(tagLookupKey(entry.key))) &&
+            (custom == null ||
+                !custom.byKey.containsKey(tagLookupKey(entry.key))))
           TagDictionaryEntry(
             name: entry.key,
             category: TagCategory.general,
@@ -339,11 +428,22 @@ class TagDictionaryService extends ChangeNotifier {
   // --- Lookup ---------------------------------------------------------
 
   /// The dictionary entry for [tag], written in any caption style, or null
-  /// when the tag is not a known danbooru tag.
+  /// when the tag is known to neither danbooru nor the user's own additions.
+  ///
+  /// User additions are consulted first: [setCustomEntries] already refuses
+  /// names the dictionary covers, so the two can only disagree when a
+  /// dictionary download has since added the tag — and until the user prunes
+  /// their list, the category they chose is the more specific answer.
   TagDictionaryEntry? lookup(String tag) {
+    final key = tagLookupKey(tag);
+    final custom = _customIndexOrBuild;
+    if (custom != null) {
+      final at = custom.byKey[key];
+      if (at != null) return custom.entries[at];
+    }
     final index = _index;
     if (index == null) return null;
-    final at = index.byKey[tagLookupKey(tag)];
+    final at = index.byKey[key];
     return at == null ? null : index.entries[at];
   }
 
@@ -352,31 +452,40 @@ class TagDictionaryService extends ChangeNotifier {
   /// [query] may be written in any caption style — it is folded through
   /// [tagLookupKey] just like the index was.
   ///
-  /// Dictionary hits come first, but local tags are guaranteed a slice of the
-  /// list: a project's own trigger word must not be pushed out by eight
-  /// danbooru tags that merely share a prefix.
+  /// The user's own dictionary additions lead, then dictionary hits, but local
+  /// tags are guaranteed a slice of the list: a project's own trigger word
+  /// must not be pushed out by eight danbooru tags that merely share a prefix.
   List<TagSuggestion> search(String query, {int limit = 8}) {
     final key = tagLookupKey(query);
     if (key.isEmpty || limit <= 0) return const [];
 
+    // Hand-added entries go first — adding one is a deliberate act, so it
+    // outranks popularity — but never take more than half the list, or a
+    // handful of them would hide danbooru entirely behind a shared prefix.
+    final custom = _matches(
+      _customIndexOrBuild,
+      key,
+      (limit / 2).ceil(),
+      TagSuggestionOrigin.custom,
+    );
+    final room = limit - custom.length;
     final local = _matches(
       _localIndexOrBuild,
       key,
-      limit,
+      room,
       TagSuggestionOrigin.local,
     );
     final reserved = local.isEmpty
         ? 0
-        : (local.length < (limit / 3).ceil()
-              ? local.length
-              : (limit / 3).ceil());
-    final dictionary = _matches(
-      _index,
-      key,
-      limit - reserved,
-      TagSuggestionOrigin.dictionary,
-    );
-    return [...dictionary, ...local.take(limit - dictionary.length)];
+        : (local.length < (room / 3).ceil() ? local.length : (room / 3).ceil());
+    final customKeys = {for (final hit in custom) tagLookupKey(hit.name)};
+    // Only bites when a dictionary download has since added a tag the user had
+    // already entered by hand; the addition wins until they prune it.
+    final dictionary =
+        _matches(_index, key, room - reserved, TagSuggestionOrigin.dictionary)
+            .where((hit) => !customKeys.contains(tagLookupKey(hit.name)))
+            .toList();
+    return [...custom, ...dictionary, ...local.take(room - dictionary.length)];
   }
 
   List<TagSuggestion> _matches(
