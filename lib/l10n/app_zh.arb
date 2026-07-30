@@ -644,5 +644,44 @@
     }
   },
   "dictClearAiNone": "没有 AI 译文需要清除",
-  "dictFooterHint": "每种界面语言各有一份译文"
+  "dictFooterHint": "每种界面语言各有一份译文",
+
+  "dictFetchAction": "从 Danbooru 获取",
+  "dictFetching": "获取中…",
+  "dictFetchPromptTooltip": "在 Danbooru 上查一个标签",
+  "dictFetchPromptTitle": "在 Danbooru 上查询",
+  "dictFetchPromptLabel": "标签名或 Danbooru 地址",
+  "dictFetchPromptHint": "long_hair，或从 Danbooru 复制的链接",
+  "dictFetchPromptNote": "wiki 页面、投稿搜索、标签列表的地址都可以。只读取 Danbooru 的公开 API，不会向任何地方发送数据。",
+  "dictFetchFailed": "查询失败：{error}",
+  "@dictFetchFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "dictFetchUnknown": "Danbooru 上没有名为「{tag}」的标签",
+  "@dictFetchUnknown": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+  "dictFetchedHeader": "Danbooru：{category} · {count} 张投稿",
+  "@dictFetchedHeader": {
+    "placeholders": {
+      "category": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "dictFetchOtherNames": "Danbooru 上的其他名称",
+  "dictFetchUseAsTranslation": "用作译文",
+  "dictFetchWikiLabel": "wiki 摘要",
+  "dictFetchUseAsNote": "用作注释",
+  "dictFetchNoWiki": "该标签没有 wiki 页面。",
+  "dictFetchAddAction": "加入词典",
+  "dictFetchAdded": "已加入词典：{tag}",
+  "@dictFetchAdded": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  }
 }

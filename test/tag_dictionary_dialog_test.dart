@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,6 +12,7 @@ import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/models/tag_dictionary.dart';
 import 'package:dataset_training_tool/models/tag_translation.dart';
+import 'package:dataset_training_tool/services/danbooru_api.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/services/tag_dictionary_service.dart';
 import 'package:dataset_training_tool/services/tag_translation_service.dart';
@@ -21,6 +25,39 @@ const _csv = '''
 long_hair,0,3000000,
 blue_eyes,0,2000000,
 ''';
+
+/// A danbooru that knows every tag it is asked about, echoing the name back.
+///
+/// Echoing matters: the dialog re-selects whatever the lookup resolved to, so a
+/// fake that always answered with the same tag would silently move the
+/// selection and make the "already in the dictionary" cases untestable.
+DanbooruApi _fakeApi() => DanbooruApi(
+  clientFactory: () => MockClient((request) async {
+    if (request.url.path == '/tags.json') {
+      return http.Response(
+        jsonEncode([
+          {
+            'name': request.url.queryParameters['search[name]'],
+            'category': 4,
+            'post_count': 200000,
+          },
+        ]),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      );
+    }
+    return http.Response.bytes(
+      utf8.encode(
+        jsonEncode({
+          'other_names': ['初音ミク'],
+          'body': 'The most famous [[vocaloid]].',
+        }),
+      ),
+      200,
+      headers: {'content-type': 'application/json; charset=utf-8'},
+    );
+  }),
+);
 
 void main() {
   late Directory temp;
@@ -76,8 +113,11 @@ void main() {
             builder: (context) => Scaffold(
               body: Center(
                 child: TextButton(
-                  onPressed: () =>
-                      showTagDictionaryDialog(context, initialTag: openWith),
+                  onPressed: () => showTagDictionaryDialog(
+                    context,
+                    initialTag: openWith,
+                    api: _fakeApi(),
+                  ),
                   child: const Text('open'),
                 ),
               ),
@@ -92,6 +132,32 @@ void main() {
     openWith = initialTag;
     await tester.pumpWidget(harness());
     await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+  }
+
+  /// Taps the fetch button and lets the request finish.
+  ///
+  /// The whole round trip has to complete inside [WidgetTester.runAsync]: the
+  /// lookup renders a progress indicator while in flight, and `pumpAndSettle`
+  /// can never settle against a spinning one — it would sit there until its own
+  /// ten-minute timeout.
+  Future<void> fetch(WidgetTester tester) async {
+    await tester.runAsync(() async {
+      await tester.tap(
+        find.widgetWithText(OutlinedButton, 'Fetch from danbooru'),
+      );
+      await tester.pump();
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+    });
+    await tester.pumpAndSettle();
+  }
+
+  /// The fetched-info panel sits at the bottom of a scrolling form, so on the
+  /// 580px-tall dialog it starts below the fold.
+  Future<void> tapInForm(WidgetTester tester, Finder finder) async {
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    await tester.tap(finder);
     await tester.pumpAndSettle();
   }
 
@@ -183,6 +249,109 @@ void main() {
     expect(find.text('long_hair'), findsOneWidget);
     // Untranslated dictionary tags are not inventory to scroll through.
     expect(find.text('1girl'), findsNothing);
+  });
+
+  group('danbooru lookup', () {
+    testWidgets('a fetch offers other_names and the wiki as candidates', (
+      tester,
+    ) async {
+      await tester.runAsync(() => prepare());
+      await open(tester, initialTag: 'hatsune_miku');
+
+      await fetch(tester);
+
+      // Facts danbooru returned, none of them written on the user's behalf.
+      expect(find.text('danbooru: Character · 200000 posts'), findsOneWidget);
+      expect(find.text('初音ミク'), findsOneWidget);
+      expect(find.text('The most famous vocaloid.'), findsOneWidget);
+      expect(appState.tagTranslations.has('hatsune_miku'), isFalse);
+    });
+
+    testWidgets('an other_name becomes the translation in one tap', (
+      tester,
+    ) async {
+      await tester.runAsync(() => prepare());
+      await open(tester, initialTag: 'hatsune_miku');
+      await fetch(tester);
+
+      await tapInForm(tester, find.text('初音ミク'));
+      await tapInForm(tester, find.widgetWithText(FilledButton, 'Save'));
+
+      final entry = appState.tagTranslations.lookup('hatsune_miku');
+      expect(entry?.text, '初音ミク');
+      // Provenance is recorded, so a later bulk cleanup can tell danbooru's
+      // wording apart from the user's own.
+      expect(entry?.source, TagTranslationSource.danbooru);
+    });
+
+    testWidgets('typing over a fetched name makes it the user\'s own', (
+      tester,
+    ) async {
+      await tester.runAsync(() => prepare());
+      await open(tester, initialTag: 'hatsune_miku');
+      await fetch(tester);
+
+      await tapInForm(tester, find.text('初音ミク'));
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Shown beside the tag in the UI'),
+        '初音未来',
+      );
+      await tester.pump();
+      await tapInForm(tester, find.widgetWithText(FilledButton, 'Save'));
+
+      final entry = appState.tagTranslations.lookup('hatsune_miku');
+      expect(entry?.text, '初音未来');
+      expect(entry?.source, TagTranslationSource.manual);
+    });
+
+    testWidgets('a fetched tag can be added to the dictionary', (tester) async {
+      await tester.runAsync(() => prepare());
+      await open(tester, initialTag: 'hatsune_miku');
+      await fetch(tester);
+
+      await tapInForm(
+        tester,
+        find.widgetWithText(OutlinedButton, 'Add to the dictionary'),
+      );
+
+      // With danbooru's own category and count, so it ranks and colours like
+      // the real tag it is.
+      final added = appState.tagDictionary.lookup('hatsune_miku');
+      expect(added?.category, TagCategory.character);
+      expect(added?.postCount, 200000);
+    });
+
+    testWidgets('a tag the dictionary already has offers no add action', (
+      tester,
+    ) async {
+      await tester.runAsync(() => prepare());
+      await open(tester, initialTag: 'long_hair');
+      await fetch(tester);
+
+      expect(
+        find.widgetWithText(OutlinedButton, 'Add to the dictionary'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a hand-added tag offers no lookup at all', (tester) async {
+      await tester.runAsync(
+        () => prepare(
+          custom: const [
+            TagDictionaryEntry(name: 'my_oc', category: TagCategory.character),
+          ],
+        ),
+      );
+      await open(tester, initialTag: 'my_oc');
+
+      // danbooru has neither a record nor a wiki page for the user's own
+      // invention, so both the lookup and the wiki link would come back empty.
+      expect(
+        find.widgetWithText(OutlinedButton, 'Fetch from danbooru'),
+        findsNothing,
+      );
+      expect(find.widgetWithText(OutlinedButton, 'Danbooru wiki'), findsNothing);
+    });
   });
 
   testWidgets('a custom tag can be removed from the dictionary', (

@@ -897,5 +897,44 @@
     }
   },
   "dictClearAiNone": "No assistant translations to clear",
-  "dictFooterHint": "One glossary per app language"
+  "dictFooterHint": "One glossary per app language",
+
+  "dictFetchAction": "Fetch from danbooru",
+  "dictFetching": "Fetching…",
+  "dictFetchPromptTooltip": "Look a tag up on danbooru",
+  "dictFetchPromptTitle": "Look up on danbooru",
+  "dictFetchPromptLabel": "Tag name or danbooru URL",
+  "dictFetchPromptHint": "long_hair, or a link you copied from danbooru",
+  "dictFetchPromptNote": "A wiki page, a post search or a tag listing URL all work. Reads danbooru's public API — nothing is sent anywhere.",
+  "dictFetchFailed": "Lookup failed: {error}",
+  "@dictFetchFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "dictFetchUnknown": "danbooru has no tag called \"{tag}\"",
+  "@dictFetchUnknown": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+  "dictFetchedHeader": "danbooru: {category} · {count} posts",
+  "@dictFetchedHeader": {
+    "placeholders": {
+      "category": { "type": "String" },
+      "count": { "type": "int" }
+    }
+  },
+  "dictFetchOtherNames": "Other names on danbooru",
+  "dictFetchUseAsTranslation": "Use as the translation",
+  "dictFetchWikiLabel": "From the wiki",
+  "dictFetchUseAsNote": "Use as the note",
+  "dictFetchNoWiki": "This tag has no wiki page.",
+  "dictFetchAddAction": "Add to the dictionary",
+  "dictFetchAdded": "Added to the dictionary: {tag}",
+  "@dictFetchAdded": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  }
 }
