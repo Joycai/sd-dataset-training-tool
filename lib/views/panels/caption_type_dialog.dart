@@ -291,6 +291,7 @@ class _CaptionTypeRowState extends State<_CaptionTypeRow> {
                   value: type.format,
                   isExpanded: true,
                   isDense: true,
+                  borderRadius: BorderRadius.circular(AppRadii.control),
                   icon: Icon(
                     Icons.expand_more,
                     size: 14,
