@@ -66,16 +66,37 @@ List<String> parseJsonCaptionTags(String text) {
     return const [];
   }
   final seen = <String>{};
+  return [
+    for (final tag in jsonCaptionTags(decoded))
+      if (seen.add(tag)) tag,
+  ];
+}
+
+/// The tags of an already-decoded JSON caption, in document order and
+/// **with duplicates kept** — the multiset a lossless restructure has to
+/// preserve. String leaves are split by the tag grammar (so `["a", "b"]`
+/// and `"a, b"` count their tags alike), subtrees under [ignoreKeys] are
+/// skipped, and non-string leaves carry none.
+///
+/// This is the single definition of "the tags of a JSON caption". The tag
+/// index and the caption views dedupe it ([parseJsonCaptionTags]) because
+/// the same tag listed under two fields is still one tag on the image; the
+/// assistant's lossless guards compare it as-is, because a restructure that
+/// merged two occurrences into one *did* change the document.
+List<String> jsonCaptionTags(
+  dynamic decoded, {
+  Set<String> ignoreKeys = const {},
+}) {
   final out = <String>[];
   void walk(dynamic node) {
     if (node is String) {
-      for (final tag in parseTagText(node)) {
-        if (seen.add(tag)) out.add(tag);
-      }
+      out.addAll(parseTagText(node));
     } else if (node is List) {
       node.forEach(walk);
     } else if (node is Map) {
-      node.values.forEach(walk);
+      node.forEach((key, value) {
+        if (!ignoreKeys.contains(key)) walk(value);
+      });
     }
   }
 

@@ -361,11 +361,28 @@ class TagOps extends ChangeNotifier {
 
   /// Records an operation whose file rewrites already happened elsewhere
   /// (e.g. a batch AI tagging run) so it participates in undo/redo.
-  void pushOperation(TagOperation op) {
+  ///
+  /// With [syncActiveCaptions] the edits that landed on the *active* caption
+  /// type are also folded into the dataset's caption state and announced
+  /// through [onCaptionsChanged] — what a caller that wrote those files
+  /// itself needs, or the gallery, the tag index and the open editor keep
+  /// showing the pre-write text. Callers that already applied the text
+  /// themselves (the batch tagger) leave it off; edits on another caption
+  /// type never enter the active state either way, mirroring the guard in
+  /// the undo replay.
+  void pushOperation(TagOperation op, {bool syncActiveCaptions = false}) {
     if (op.edits.isEmpty) return;
     _undoStack.add(op);
     _redoStack.clear();
+    final applied = <String, String>{
+      if (syncActiveCaptions)
+        for (final e in op.edits)
+          if (e.captionPath == dataset.captionPathFor(e.imagePath))
+            e.imagePath: e.after,
+    };
+    if (applied.isNotEmpty) dataset.updateCaptionTexts(applied);
     notifyListeners();
+    if (applied.isNotEmpty) onCaptionsChanged?.call(applied.keys.toSet());
   }
 
   /// Restores every file of the most recent operation. When some file cannot

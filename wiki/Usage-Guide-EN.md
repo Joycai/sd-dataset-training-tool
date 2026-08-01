@@ -34,7 +34,11 @@ The heart of the center column is the **tag view**, which powers the whole tag m
 
 An image can carry several caption files side by side with different extensions (e.g. a tag-style `.txt` next to a natural-language `.ntxt`), configured under **Caption Type Management** in Settings — where you enable, name, and set the extension for each. The rest of the app (gallery, editor, batch tools) always works against whichever type is currently **active**.
 
-Flagging a type as **prose (sentence mode)** makes the tag view segment its text by comma/period (including full-width punctuation) into phrases, instead of treating it as comma-separated danbooru tags — a better fit for natural-language descriptions.
+Every type also declares a **content format**, which is what decides how the whole app parses and rewrites its files — the format, never the file extension:
+
+- **Tags**: comma-separated danbooru-style tags. The default.
+- **Prose (sentence mode)**: the tag view segments the text by comma/period (including full-width punctuation) into phrases instead of treating it as tags — a better fit for natural-language descriptions.
+- **JSON**: one JSON document per caption. The tag views give way to a read-only highlighted JSON view and tag-level rewrites are refused — a flat list of tags cannot be assembled back into a document. These captions are edited as text, or through the assistant's JSON tools (below).
 
 ### Tag Comparison System
 
@@ -104,7 +108,14 @@ Write tools (confirmed one at a time by default, or you can allow all writes for
 - **Re-sort every caption's tag order in one pass** against a priority list — much faster than adjusting images one at a time.
 - Overwrite a single image's caption.
 
-With more than one caption type enabled, a few extra tools appear: auditing which type each image has (and which are missing it), and reading/writing a specific type's raw text (e.g. "write a natural-language sentence from this image's WD14 tags").
+With more than one caption type enabled (or a single type that isn't tag-format), a few extra tools appear: auditing which type each image has (and which are missing it), and reading/writing a specific type's raw text (e.g. "write a natural-language sentence from this image's WD14 tags").
+
+When a JSON-format type is configured, two more tools show up:
+
+- **Inspect the structure**: sweeps that type's JSON across the dataset and reports which keys the documents carry, how many images have each, whether it holds a string or an array, how many tags live under it with a few examples, which top-level key orders occur, and which files don't parse at all. A restructure is planned from this rather than guessed at from batches of raw reads.
+- **Restructure in bulk**: rewrites the whole dataset's (or a filtered subset's) JSON captions into a new shape — **renaming fields, changing their order, moving tags between them**. You describe the target shape once (the ordered fields, where each one's tags come from, and a catch-all for the rest) and the tool assembles every document itself, so the output is always valid JSON, always in the field order you declared, and carries exactly the tags the file already had — nothing reworded, dropped or invented. If a rebuilt document wouldn't come out with the same tags, that image is skipped and reported instead of written. Content that isn't tags (a natural-language description) goes into a "preserve" field, whose old value is carried over untouched. The whole batch undoes as one operation.
+
+For a single-image touch-up there's a guarded write: the new text is rejected unless it carries exactly the tags the file currently holds.
 
 With a vision-capable model configured, the assistant can look at a handful of images directly for a spot check — this is fairly token-expensive, so it's meant for spot checks rather than sweeping the whole dataset.
 

@@ -12,6 +12,7 @@
 /// one folder.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -625,6 +626,18 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
     handler: (args) async {
       final root = deps.rootDir();
       if (root == null) return toolError('no dataset directory is open');
+      // A JSON caption's tags are its string leaves; writing them back as a
+      // comma-joined list would replace the whole document with a tag line.
+      // Reordering a JSON caption is a restructure, not a permutation.
+      if (deps.dataset.captionFormat == CaptionFormat.json) {
+        return toolError(
+          'nothing was written: the active caption type '
+          '("${deps.dataset.captionExtension}") is JSON, whose tags live '
+          'inside a document this tool cannot rebuild. Use '
+          'restructure_json_captions to change a JSON caption\'s field '
+          'order or layout.',
+        );
+      }
       final rel = requireString(args, 'path');
       final order = requireStringList(args, 'order');
       final key = resolveImageKey(deps.dataset, root, rel);
@@ -674,7 +687,10 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
           '(comma-separated tags). For changing *which* tags an image '
           'carries; to change only their order use reorder_caption, and '
           'for dataset-wide changes prefer the batch tools. The result '
-          'reports which tags this write added and removed. Undoable.',
+          'reports which tags this write added and removed. If the active '
+          'caption type is JSON the text must be a whole JSON document — '
+          'to change many JSON captions\' layout use '
+          'restructure_json_captions instead. Undoable.',
       parametersSchema: {
         'type': 'object',
         'properties': {
@@ -707,8 +723,26 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
         return toolError('image ${notFoundMessage(deps.dataset, rel)}');
       }
 
+      // The active type decides the grammar. A JSON caption must stay a
+      // parseable document, and its "tags" are its string leaves — reading
+      // the new text with the tag grammar instead would make the
+      // expect_same_tags guard below compare nonsense and let a write that
+      // flattens the document pass as unchanged.
+      final format = deps.dataset.captionFormat;
+      if (format == CaptionFormat.json) {
+        try {
+          jsonDecode(caption);
+        } on FormatException catch (e) {
+          return toolError(
+            'nothing was written for $rel: the active caption type '
+            '("${deps.dataset.captionExtension}") is JSON but this text does '
+            'not parse — ${e.message}'
+            '${e.offset == null ? '' : ' (offset ${e.offset})'}',
+          );
+        }
+      }
       final before = deps.dataset.tagsOf(key);
-      final after = parseTagText(caption);
+      final after = parseCaptionText(caption, format: format);
       final beforeSet = before.toSet();
       final afterSet = after.toSet();
       final added = [
