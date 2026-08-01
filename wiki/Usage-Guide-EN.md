@@ -125,8 +125,9 @@ The assistant can bulk-fill translations for the dataset's untranslated tags: it
 
 ### Prompt Presets & Built-in Skills
 
-The bookmark-icon menu next to the input field has two sections:
+The bookmark-icon menu next to the input field has three sections:
 - A **skills** section at the top (currently just the Character Sheet skill, below).
+- **Built-in prompts** in the middle: ready-made starting points shipped with the app, currently two aimed at the Anima model's JSON captions — "WD14 tags to Anima JSON" (converts the tag captions produced by WD14 tagging into Anima's simplified JSON caption format in one pass; requires a JSON-format caption type configured in the caption type settings) and "Reorder Anima JSON fields" (restructures existing JSON captions into the standard quality → count → character → series → artist → appearance → tags → environment → nl field order). Like any preset they only fill the input, so you can add fixed values (quality, artist, character name) before sending.
 - Your saved **prompt presets** below it — clicking one just fills the text into the input (appended after whatever you've already typed), it never auto-sends, so you can add a detail before running it.
 - The same menu has a "manage prompt presets" entry, which you can open and edit any time, even while the assistant is mid-run.
 

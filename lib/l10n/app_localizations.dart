@@ -2178,6 +2178,36 @@ abstract class AppLocalizations {
   /// **'Delete \"{name}\"? This cannot be undone.'**
   String promptPresetDeleteConfirmContent(String name);
 
+  /// No description provided for @builtinPresetsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Built-in prompts'**
+  String get builtinPresetsSection;
+
+  /// No description provided for @animaJsonGeneratePresetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'WD14 tags to Anima JSON'**
+  String get animaJsonGeneratePresetTitle;
+
+  /// No description provided for @animaJsonGeneratePresetBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Convert this dataset\'s WD14 tag captions into Anima JSON captions (the AnimaLoraToolkit simplified format).\n\nTarget fields, in order: quality (fixed value), count (people count), character, series, artist (fixed value), appearance (array: hair, eyes, body, clothing, accessories), tags (array: actions, expressions, composition, viewpoint and everything else — the catch-all), environment (array: indoors/outdoors, sky, lighting, scenery), nl (natural-language description, empty string for now).\n\nSteps:\n1. Confirm with get_dataset_overview that a JSON-format caption type is configured; if not, stop and tell me to add one in the caption type settings first.\n2. Get every tag with get_tag_stats and sort each one into the fields above to build the assign map; leave any tag you are unsure about out of assign so it falls into the tags catch-all.\n3. Run convert_captions_to_json once: source is the tag-format type carrying the WD14 tags, target is the JSON type, unassigned_field is tags, and quality, artist and nl are constants (empty strings unless I gave values below). Declare count, character and series as string normally, but as array if one image can carry several such tags at once (say 1girl plus 1boy), so no image gets skipped. Images that already have a non-empty target file are skipped unless you set overwrite.\n4. Afterwards report the tags that fell into the catch-all (unassigned_tags_seen); if any clearly belong in appearance or environment, fix them with a follow-up restructure_json_captions assign pass.\n\nDo not loop write_caption_file to write JSON image by image.'**
+  String get animaJsonGeneratePresetBody;
+
+  /// No description provided for @animaJsonReorderPresetTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reorder Anima JSON fields'**
+  String get animaJsonReorderPresetTitle;
+
+  /// No description provided for @animaJsonReorderPresetBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Reorder this dataset\'s Anima JSON captions into the standard field order: quality, count, character, series, artist, appearance, tags, environment, nl (the render order — nl always last).\n\nSteps:\n1. Run inspect_json_captions on the JSON caption type to see which keys actually exist, how many tags each holds and which key orders occur; plan from that result, never from memory.\n2. Run restructure_json_captions once: declare fields in the order above; same-named keys route automatically, use from to rename or merge; declare nl as preserve so it is copied verbatim; use tags as unassigned_field. Any extra keys the dataset carries either merge into a matching field via from, or keep their name placed after environment and before nl. Declare a field as string only when inspect shows at most one tag per image under it — otherwise use array.\n3. Keep drop_empty false so every image keeps the same shape; use tag_priority if some tags should come first inside a field.\n4. Afterwards report written/unchanged/failed counts plus anything in unrouted_keys_seen and unassigned_tags_seen.\n\nDo not rewrite images one by one with write_caption_file.'**
+  String get animaJsonReorderPresetBody;
+
   /// No description provided for @batchTagModeSheet.
   ///
   /// In en, this message translates to:

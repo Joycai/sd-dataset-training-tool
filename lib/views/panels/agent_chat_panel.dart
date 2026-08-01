@@ -1089,9 +1089,26 @@ class _UsageFooter extends StatelessWidget {
   }
 }
 
-/// Picker next to the input: the built-in skills, the saved prompts, and a
-/// way to manage the latter. A preset only fills the input; a skill opens its
-/// own dialog and starts from there.
+/// The prompts shipped with the app: ready-made starting points for the
+/// Anima JSON caption workflow. Built from l10n on each open so they follow
+/// the UI language; the ids are stable but never persisted — picking one
+/// only fills the input, exactly like a saved preset.
+List<PromptPreset> builtinPromptPresets(AppLocalizations l10n) => [
+  PromptPreset(
+    id: 'builtin-anima-json-generate',
+    title: l10n.animaJsonGeneratePresetTitle,
+    content: l10n.animaJsonGeneratePresetBody,
+  ),
+  PromptPreset(
+    id: 'builtin-anima-json-reorder',
+    title: l10n.animaJsonReorderPresetTitle,
+    content: l10n.animaJsonReorderPresetBody,
+  ),
+];
+
+/// Picker next to the input: the built-in skills, the built-in prompts, the
+/// saved prompts, and a way to manage the latter. A preset only fills the
+/// input; a skill opens its own dialog and starts from there.
 class _PresetMenuButton extends StatelessWidget {
   const _PresetMenuButton({
     required this.enabled,
@@ -1152,6 +1169,22 @@ class _PresetMenuButton extends StatelessWidget {
             ],
           ),
         ),
+        const PopupMenuDivider(),
+        PopupMenuItem<PromptPreset>(
+          enabled: false,
+          height: 28,
+          child: Text(
+            l10n.builtinPresetsSection,
+            style: TextStyle(fontSize: 10.5, color: semantic.muted),
+          ),
+        ),
+        for (final preset in builtinPromptPresets(l10n))
+          PopupMenuItem<PromptPreset>(
+            value: preset,
+            enabled: enabled,
+            height: 42,
+            child: _PresetMenuEntry(preset: preset),
+          ),
         const PopupMenuDivider(),
         if (presets.isEmpty)
           PopupMenuItem<PromptPreset>(
