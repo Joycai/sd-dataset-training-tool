@@ -245,7 +245,13 @@ String buildAgentSystemPrompt({
             'expect_tags_from with the source extension — the write is\n  '
             'then rejected unless its tags match the source caption\'s, '
             'with any\n  natural-language JSON fields excluded via '
-            'ignore_keys.';
+            'ignore_keys.\n  To convert a whole dataset into a JSON caption '
+            'type use\n  convert_captions_to_json: define the field layout '
+            'and a tag→field\n  assignment once and the tool assembles every '
+            'image\'s JSON itself —\n  never loop write_caption_file over a '
+            'dataset. JSON values carry plain\n  parentheses; caption-style '
+            '\\( escaping never belongs in them (the\n  converter strips it '
+            'automatically).';
   final visionGuideline = visionEnabled
       ? '\n- view_image lets you actually see images (max 4 per call, '
             'downscaled).\n  It is token-expensive: spot-check individual '

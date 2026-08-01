@@ -491,7 +491,7 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
       final index = args['index'] == null
           ? null
           : optInt(args, 'index', fallback: 0, min: 0);
-      final files = _filterFiles(
+      final files = filterDatasetFiles(
         deps.dataset,
         include: optStringList(args, 'include_tags'),
         exclude: optStringList(args, 'exclude_tags'),
@@ -569,7 +569,7 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
       if (unlisted != null && unlisted != 'end' && unlisted != 'start') {
         return toolError('"unlisted" must be either "end" or "start"');
       }
-      final files = _filterFiles(
+      final files = filterDatasetFiles(
         deps.dataset,
         include: optStringList(args, 'include_tags'),
         exclude: optStringList(args, 'exclude_tags'),
@@ -841,7 +841,9 @@ String scopeLabel(DatasetState dataset) {
   return 'subdirectory "${scope.isEmpty ? '.' : scope}" only';
 }
 
-List<File> _filterFiles(
+/// The images of the active scope that pass the shared list_images-style
+/// filters — the file list every batch write sweeps.
+List<File> filterDatasetFiles(
   DatasetState dataset, {
   required List<String> include,
   required List<String> exclude,

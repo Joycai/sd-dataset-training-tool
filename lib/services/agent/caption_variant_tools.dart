@@ -222,7 +222,9 @@ List<AgentTool> buildCaptionVariantTools(
           'with exactly the given text — how a caption generated from '
           'another type gets written. The text is stored verbatim (prose '
           'stays prose), except that writing a ".json" type rejects text '
-          'that does not parse as JSON. When restructuring tags into '
+          'that does not parse as JSON. JSON string values carry plain '
+          'parentheses — never a caption\'s backslash-escaped \\( style. '
+          'When restructuring tags into '
           'another format must not lose or invent any, set '
           'expect_tags_from: the write is then rejected unless its tags '
           'exactly match the source caption\'s. Writing the *active* type '
@@ -379,6 +381,384 @@ List<AgentTool> buildCaptionVariantTools(
         'written': true,
         'unchanged': false,
         'tags_verified': ?verifiedTags,
+      });
+    }),
+  ),
+  AgentTool(
+    isWrite: true,
+    spec: const AgentToolSpec(
+      name: 'convert_captions_to_json',
+      description:
+          'Convert MANY tag captions into a structured JSON caption type '
+          'in one call — always prefer this over looping '
+          'write_caption_file. You describe the JSON shape once (the '
+          'ordered fields, fixed values, and a tag→field assignment) and '
+          'the tool assembles each image\'s JSON itself, so the output is '
+          'always valid JSON, keeps the field order, and can neither lose '
+          'nor invent a tag. Caption-style backslash escapes (\\( \\)) '
+          'are stripped from tag values — JSON carries plain parentheses. '
+          'Tags not named in assign go to unassigned_field, and the '
+          'result lists the distinct tags that took that route so you can '
+          'audit the assignment. Images that already have a non-empty '
+          'target file are skipped unless overwrite is set. Undoable as '
+          'one operation.',
+      parametersSchema: {
+        'type': 'object',
+        'properties': {
+          'source_extension': {
+            'type': 'string',
+            'description':
+                'the tag-style caption type to read (e.g. ".txt")',
+          },
+          'target_extension': {
+            'type': 'string',
+            'description':
+                'the configured caption type to write (e.g. ".json"); '
+                'must be neither the source nor the active type',
+          },
+          'fields': {
+            'type': 'array',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string'},
+                'kind': {
+                  'type': 'string',
+                  'enum': ['string', 'array'],
+                },
+              },
+              'required': ['name', 'kind'],
+            },
+            'description':
+                'the JSON fields in output order; a "string" field takes '
+                'at most one tag per image (empty string when none), an '
+                '"array" field any number',
+          },
+          'constants': {
+            'type': 'object',
+            'description':
+                'field name → fixed JSON value written verbatim for '
+                'every image (e.g. {"quality": [""], "artist": "", '
+                '"nl": ""}); such a field takes no tags',
+          },
+          'assign': {
+            'type': 'object',
+            'description':
+                'tag → field name; matching folds case and '
+                'underscore/space style. Build it from get_tag_stats so '
+                'every tag of the dataset is considered.',
+          },
+          'unassigned_field': {
+            'type': 'string',
+            'description':
+                'the array field that receives tags not named in assign '
+                '(the catch-all, e.g. "tags")',
+          },
+          'include_tags': {
+            'type': 'array',
+            'items': {'type': 'string'},
+          },
+          'exclude_tags': {
+            'type': 'array',
+            'items': {'type': 'string'},
+          },
+          'name_query': {'type': 'string'},
+          'overwrite': {
+            'type': 'boolean',
+            'description':
+                'false (default): skip images that already have a '
+                'non-empty target file; true: rebuild them too',
+          },
+        },
+        'required': [
+          'source_extension',
+          'target_extension',
+          'fields',
+          'unassigned_field',
+        ],
+      },
+    ),
+    handler: guardBusy(tagOps, (args) async {
+      final root = deps.rootDir();
+      if (root == null) return toolError('no dataset directory is open');
+      final types = deps.captionTypes();
+      final d = deps.dataset;
+
+      final source = _findType(types, requireString(args, 'source_extension'));
+      if (source == null) {
+        return toolError(
+          _unknownType(requireString(args, 'source_extension'), types),
+        );
+      }
+      if (source.prose) {
+        return toolError(
+          'the source must be a tag-style caption type; '
+          '"${source.extension}" is prose',
+        );
+      }
+      final target = _findType(types, requireString(args, 'target_extension'));
+      if (target == null) {
+        return toolError(
+          _unknownType(requireString(args, 'target_extension'), types),
+        );
+      }
+      if (target.extension == source.extension) {
+        return toolError('the source and target are the same caption type');
+      }
+      if (target.extension == d.captionExtension) {
+        return toolError(
+          'the target is the active caption type; this converter only '
+          'writes non-active types so the tag index stays a tag index — '
+          'the user would have to switch the active type first',
+        );
+      }
+
+      // The JSON shape: field order, kinds, fixed values, tag routing. All
+      // of it is validated up front — a bad shape must fail the whole call,
+      // never image #57 of a sweep.
+      final rawFields = args['fields'];
+      if (rawFields is! List || rawFields.isEmpty) {
+        return toolError('missing required array parameter "fields"');
+      }
+      final fieldKinds = <String, String>{};
+      for (final f in rawFields) {
+        if (f is! Map) {
+          return toolError(
+            'every "fields" entry must be an object with "name" and "kind"',
+          );
+        }
+        final name = f['name'];
+        final kind = f['kind'];
+        if (name is! String || name.trim().isEmpty) {
+          return toolError('every "fields" entry needs a non-empty "name"');
+        }
+        if (kind != 'string' && kind != 'array') {
+          return toolError(
+            'field "$name": "kind" must be "string" or "array"',
+          );
+        }
+        if (fieldKinds.containsKey(name)) {
+          return toolError('duplicate field "$name"');
+        }
+        fieldKinds[name] = kind;
+      }
+
+      final rawConstants = args['constants'] ?? const <String, dynamic>{};
+      if (rawConstants is! Map) {
+        return toolError(
+          '"constants" must be an object mapping field names to values',
+        );
+      }
+      final constants = <String, dynamic>{};
+      for (final entry in rawConstants.entries) {
+        final name = entry.key;
+        if (name is! String || !fieldKinds.containsKey(name)) {
+          return toolError('constant "$name" is not a declared field');
+        }
+        constants[name] = entry.value;
+      }
+
+      final unassignedField = requireString(args, 'unassigned_field');
+      if (!fieldKinds.containsKey(unassignedField)) {
+        return toolError(
+          'unassigned_field "$unassignedField" is not a declared field',
+        );
+      }
+      if (fieldKinds[unassignedField] != 'array') {
+        return toolError(
+          'unassigned_field "$unassignedField" must be an "array" field',
+        );
+      }
+      if (constants.containsKey(unassignedField)) {
+        return toolError(
+          'unassigned_field "$unassignedField" cannot also be a constant',
+        );
+      }
+
+      final rawAssign = args['assign'] ?? const <String, dynamic>{};
+      if (rawAssign is! Map) {
+        return toolError(
+          '"assign" must be an object mapping tags to field names',
+        );
+      }
+      final assign = <String, String>{};
+      for (final entry in rawAssign.entries) {
+        final tag = entry.key;
+        final field = entry.value;
+        if (tag is! String || field is! String) {
+          return toolError(
+            '"assign" must map tag strings to field-name strings',
+          );
+        }
+        if (!fieldKinds.containsKey(field)) {
+          return toolError(
+            'assign: "$tag" → "$field", which is not a declared field',
+          );
+        }
+        if (constants.containsKey(field)) {
+          return toolError(
+            'assign: "$tag" → "$field", which already has a constant value',
+          );
+        }
+        final folded = tagLookupKey(tag);
+        final previous = assign[folded];
+        if (previous != null && previous != field) {
+          return toolError(
+            'assign: "$tag" is assigned to both "$previous" and "$field"',
+          );
+        }
+        assign[folded] = field;
+      }
+
+      final files = filterDatasetFiles(
+        d,
+        include: optStringList(args, 'include_tags'),
+        exclude: optStringList(args, 'exclude_tags'),
+        untaggedOnly: false,
+        nameQuery: optString(args, 'name_query')?.toLowerCase(),
+      );
+      final overwrite = optBool(args, 'overwrite');
+
+      const encoder = JsonEncoder.withIndent('  ');
+      var written = 0;
+      var unchanged = 0;
+      var skippedExisting = 0;
+      var skippedUncaptioned = 0;
+      final failures = <({String path, String error})>[];
+      final unassignedSeen = <String>{};
+      final edits = <CaptionEdit>[];
+
+      for (final f in files) {
+        final rel = p.relative(f.path, from: root);
+
+        List<String> tags;
+        if (source.extension == d.captionExtension) {
+          tags = d.tagsOf(f.path);
+        } else {
+          try {
+            final sourceFile = File(_variantPath(f.path, source));
+            tags = await sourceFile.exists()
+                ? parseTagText(await sourceFile.readAsString())
+                : const [];
+          } catch (e) {
+            failures.add((path: rel, error: 'cannot read source: $e'));
+            continue;
+          }
+        }
+        if (tags.isEmpty) {
+          skippedUncaptioned++;
+          continue;
+        }
+
+        final targetFile = File(_variantPath(f.path, target));
+        var before = '';
+        try {
+          if (await targetFile.exists()) {
+            before = await targetFile.readAsString();
+            if (!overwrite && before.trim().isNotEmpty) {
+              skippedExisting++;
+              continue;
+            }
+          }
+        } catch (e) {
+          failures.add((path: rel, error: 'cannot read target: $e'));
+          continue;
+        }
+
+        final buckets = <String, List<String>>{};
+        for (final tag in tags) {
+          final field = assign[tagLookupKey(tag)];
+          if (field == null) unassignedSeen.add(tag);
+          (buckets[field ?? unassignedField] ??= []).add(
+            unescapeTagParens(tag),
+          );
+        }
+        String? collision;
+        for (final bucket in buckets.entries) {
+          if (fieldKinds[bucket.key] == 'string' && bucket.value.length > 1) {
+            collision =
+                'string field "${bucket.key}" got ${bucket.value.length} '
+                'tags: ${bucket.value.join(", ")}';
+            break;
+          }
+        }
+        if (collision != null) {
+          failures.add((path: rel, error: collision));
+          continue;
+        }
+
+        final out = <String, dynamic>{};
+        for (final field in fieldKinds.entries) {
+          if (constants.containsKey(field.key)) {
+            out[field.key] = constants[field.key];
+            continue;
+          }
+          final bucket = buckets[field.key] ?? const <String>[];
+          out[field.key] = field.value == 'string'
+              ? (bucket.isEmpty ? '' : bucket.first)
+              : bucket;
+        }
+        final text = encoder.convert(out);
+        if (text == before) {
+          unchanged++;
+          continue;
+        }
+        try {
+          await targetFile.writeAsString(text);
+        } catch (e) {
+          failures.add((path: rel, error: 'cannot write: $e'));
+          continue;
+        }
+        written++;
+        edits.add(
+          CaptionEdit(
+            imagePath: f.path,
+            captionPath: targetFile.path,
+            before: before,
+            after: text,
+          ),
+        );
+      }
+
+      if (edits.isNotEmpty) {
+        tagOps.pushOperation(
+          TagOperation(
+            label:
+                'AI: convert ${edits.length} captions to ${target.extension}',
+            edits: edits,
+          ),
+        );
+      }
+
+      const sample = 5;
+      if (written == 0 && failures.isNotEmpty) {
+        return toolError(
+          'nothing was written: ${failures.length} image(s) failed — '
+          '${failures.take(sample).map((f) => '${f.path}: ${f.error}').join('; ')}'
+          '${failures.length > sample ? '; …' : ''}',
+        );
+      }
+      const unassignedSample = 100;
+      final unassignedList = unassignedSeen.toList();
+      return toolOk({
+        'scope': scopeLabel(d),
+        'source_extension': source.extension,
+        'target_extension': target.extension,
+        'written': written,
+        'unchanged': unchanged,
+        'skipped_existing': skippedExisting,
+        'skipped_uncaptioned': skippedUncaptioned,
+        if (failures.isNotEmpty) ...{
+          'failed_images': failures.length,
+          'failures': [
+            for (final f in failures.take(sample))
+              {'path': f.path, 'error': f.error},
+          ],
+          'failures_truncated': failures.length > sample,
+        },
+        'unassigned_tags_seen': unassignedList.take(unassignedSample).toList(),
+        if (unassignedList.length > unassignedSample)
+          'unassigned_tags_truncated': true,
       });
     }),
   ),

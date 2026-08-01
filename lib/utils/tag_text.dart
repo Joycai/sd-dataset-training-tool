@@ -72,6 +72,13 @@ String tagLookupKey(String tag) => tag
     .replaceAll(RegExp(r'\s+'), ' ')
     .toLowerCase();
 
+/// Removes caption-style backslash escaping from a tag
+/// (`smile \(expression\)` → `smile (expression)`). The escaping exists for
+/// prompt attention syntax in plain-text captions; structured formats like
+/// JSON captions carry the plain spelling.
+String unescapeTagParens(String tag) =>
+    tag.replaceAll(r'\(', '(').replaceAll(r'\)', ')');
+
 /// Rewrites a tag into danbooru's own spelling: underscored and unescaped.
 /// Used for wiki/post links and for looking a caption tag up in the
 /// dictionary, both of which key on the canonical name.
