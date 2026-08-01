@@ -188,6 +188,33 @@ void main() {
       expect(find.text('first\nsecond'), findsOneWidget);
     });
 
+    testWidgets('built-in Anima presets fill the input without sending', (
+      tester,
+    ) async {
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Prompt presets'));
+      await tester.pumpAndSettle();
+      expect(find.text('Built-in prompts'), findsOneWidget);
+      expect(find.text('Reorder Anima JSON fields'), findsOneWidget);
+
+      await tester.tap(find.text('WD14 tags to Anima JSON'));
+      await tester.pumpAndSettle();
+
+      final field = tester.widget<TextField>(
+        find.byWidgetPredicate(
+          (w) =>
+              w is TextField &&
+              (w.controller?.text.contains('convert_captions_to_json') ??
+                  false),
+        ),
+      );
+      expect(field.controller!.text, contains('unassigned_field'));
+      // Filled the input only: nothing went to the session.
+      expect(chat.entries, isEmpty);
+    });
+
     testWidgets('with no presets the menu says so', (tester) async {
       await tester.pumpWidget(harness());
       await tester.pumpAndSettle();

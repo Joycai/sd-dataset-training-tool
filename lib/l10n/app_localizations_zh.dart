@@ -1160,6 +1160,23 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get builtinPresetsSection => '内置提示词';
+
+  @override
+  String get animaJsonGeneratePresetTitle => 'WD14 标签转 Anima JSON';
+
+  @override
+  String get animaJsonGeneratePresetBody =>
+      '把当前数据集的 WD14 标签 caption 转换成 Anima 的 JSON caption（AnimaLoraToolkit 简化格式）。\n\n目标字段及顺序：quality（固定值）、count（人数）、character（角色名）、series（作品名）、artist（固定值）、appearance（数组：发型发色、瞳色、体型、服装、饰品等外貌特征）、tags（数组：动作、表情、构图、视角等其余标签，兜底字段）、environment（数组：室内外、天空、光照、场景物件等环境背景）、nl（自然语言描述，先留空字符串）。\n\n步骤：\n1. 用 get_dataset_overview 确认已配置 JSON 格式的 caption 类型；如果没有，停下来提醒我先在 caption 类型设置里添加一个格式为 JSON 的类型，不要继续。\n2. 用 get_tag_stats 拿到全部标签，逐个归类到上述字段，构建 assign 映射；拿不准的不要放进 assign，让它落入 tags 兜底。\n3. 用 convert_captions_to_json 一次完成转换：source 是 WD14 标签所在的 tag 类型，target 是 JSON 类型，unassigned_field 用 tags，quality、artist、nl 用 constants 写固定值（我没在下面给值就用空字符串）。count、character、series 一般声明为 string；若同一张图可能同时出现多个该类标签（比如 1girl 和 1boy 并存），就把该字段声明为 array，避免整图被跳过。已有非空目标文件的图默认跳过，需要重建时加 overwrite。\n4. 完成后报告落入兜底的标签（unassigned_tags_seen），其中明显属于 appearance 或 environment 的，用 restructure_json_captions 补一轮 assign 修正。\n\n不要用 write_caption_file 循环逐图写 JSON。';
+
+  @override
+  String get animaJsonReorderPresetTitle => '重排 Anima JSON 字段';
+
+  @override
+  String get animaJsonReorderPresetBody =>
+      '把当前数据集的 Anima JSON caption 重排成标准字段顺序：quality、count、character、series、artist、appearance、tags、environment、nl（即渲染顺序，nl 恒在最后）。\n\n步骤：\n1. 用 inspect_json_captions 查看该 JSON caption 类型实际有哪些键、每个键的标签量和现有键序，以结果为准，不要凭记忆。\n2. 用 restructure_json_captions 一次完成重排：fields 按上面的顺序声明；同名键自动对应，改名或合并用 from；nl 声明为 preserve 原样保留；unassigned_field 用 tags。数据集里另有的键要么用 from 并入对应字段，要么按原名保留、排在 environment 之后 nl 之前。仅当 inspect 显示某键每图至多一个标签时才声明为 string，否则用 array。\n3. 保持 drop_empty 为 false，让所有图的形状一致；需要把某些标签固定在字段内最前时用 tag_priority。\n4. 完成后报告写入/未变/失败数量，以及 unrouted_keys_seen 和 unassigned_tags_seen 的内容。\n\n不要用 write_caption_file 逐图重写。';
+
+  @override
   String get batchTagModeSheet => '标准样本';
 
   @override
