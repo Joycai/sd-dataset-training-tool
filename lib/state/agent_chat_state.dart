@@ -11,6 +11,7 @@ import '../services/agent/agent_tools.dart';
 import '../services/agent/caption_variant_tools.dart';
 import '../services/agent/character_sheet.dart';
 import '../services/agent/dataset_tools.dart';
+import '../services/agent/json_caption_tools.dart';
 import '../services/agent/media_tools.dart';
 import '../services/agent/merge_rule_tools.dart';
 import '../services/agent/tag_translation_tools.dart';
@@ -341,13 +342,24 @@ class AgentChatState extends ChangeNotifier {
       tagGroups: () => app.tagGroups,
       captionTypes: () => app.enabledCaptionTypes,
     );
-    // With a single type the variant tools are pure noise in the prompt;
-    // types enabled mid-conversation arrive with the next session.
+    // With a single tag-format type the variant tools are pure noise in the
+    // prompt. A lone JSON or prose type is a different story: the tag tools
+    // cannot rewrite those files at all, so the raw read/write tools are the
+    // only ones that work. Types enabled mid-conversation arrive with the
+    // next session.
     final multiType = app.enabledCaptionTypes.length > 1;
+    final structuredTypes = app.enabledCaptionTypes.any(
+      (t) => t.format != CaptionFormat.tags,
+    );
+    final jsonTypes = app.enabledCaptionTypes.any(
+      (t) => t.format == CaptionFormat.json,
+    );
     final registry = ToolRegistry([
       ...buildReadOnlyTools(deps),
       ...buildWriteTools(deps, tagOps),
-      if (multiType) ...buildCaptionVariantTools(deps, tagOps),
+      if (multiType || structuredTypes)
+        ...buildCaptionVariantTools(deps, tagOps),
+      if (jsonTypes) ...buildJsonCaptionTools(deps, tagOps),
       ...buildTaggerTools(deps, aiTagger),
       if (profile.supportsVision) ...buildVisionTools(deps),
       ...buildMergeRuleTools(_saveMergeRules),
@@ -383,7 +395,7 @@ class AgentChatState extends ChangeNotifier {
             : 'English',
         datasetSummary: summary,
         captionExtension: app.captionExtension,
-        captionTypesSummary: multiType
+        captionTypesSummary: multiType || structuredTypes
             ? [
                 for (final t in app.enabledCaptionTypes)
                   '${t.label} (${t.extension}'
@@ -395,6 +407,7 @@ class AgentChatState extends ChangeNotifier {
                       '${t.extension == app.captionExtension ? ', active' : ''}',
               ].join('; ')
             : null,
+        jsonToolsEnabled: jsonTypes,
         visionEnabled: profile.supportsVision,
       ),
       confirmWrite: _confirmWrite,

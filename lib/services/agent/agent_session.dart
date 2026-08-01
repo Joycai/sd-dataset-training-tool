@@ -228,6 +228,7 @@ String buildAgentSystemPrompt({
   required String datasetSummary,
   required String captionExtension,
   String? captionTypesSummary,
+  bool jsonToolsEnabled = false,
   bool visionEnabled = false,
 }) {
   final captionTypesGuideline = captionTypesSummary == null
@@ -254,6 +255,23 @@ String buildAgentSystemPrompt({
             '(the\n  converter strips it automatically). Whether a type '
             'holds tags, JSON or\n  natural language is its configured '
             'format (shown in the overview), not\n  its file extension.';
+  final jsonGuideline = jsonToolsEnabled
+      ? '\n- Reshaping the JSON captions this dataset already has — renaming '
+            'fields,\n  changing their order, moving tags between them — is '
+            'what\n  inspect_json_captions and restructure_json_captions are '
+            'for. Survey the\n  shape first, then declare the target shape '
+            'once (the ordered fields, where\n  each one\'s tags come from, '
+            'and a catch-all array field for the rest) and\n  the tool '
+            'rebuilds every document itself: the field order is yours and the\n'
+            '  tags are the file\'s own, never reworded, dropped or invented. '
+            'Content that\n  is not tags — a natural-language description — '
+            'goes in a "preserve" field,\n  which carries the old value over '
+            'untouched. Never loop write_caption_file\n  to reshape a '
+            'dataset; for a single image, write_caption_file with\n  '
+            'expect_same_tags is the guarded way. reorder_caption and the tag '
+            'sweeps\n  cannot touch a JSON caption at all — they have no '
+            'document to write back.'
+      : '';
   final visionGuideline = visionEnabled
       ? '\n- view_image lets you actually see images (max 4 per call, '
             'downscaled).\n  It is token-expensive: spot-check individual '
@@ -306,7 +324,7 @@ Guidelines:
   write_tag_translations — never one call per tag. For characters,
   copyrights and artists call fetch_danbooru_tag first and take the name
   from other_names: those are proper names you must not invent. Ordinary
-  descriptive tags need no lookup.$captionTypesGuideline$visionGuideline
+  descriptive tags need no lookup.$captionTypesGuideline$jsonGuideline$visionGuideline
 - When you need the user to make a decision mid-task, call the ask_user
   tool with short concrete options instead of ending your reply with an
   open question — that keeps the task running once they answer.

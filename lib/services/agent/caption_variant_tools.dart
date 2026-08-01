@@ -71,9 +71,6 @@ List<AgentTool> buildCaptionVariantTools(
       final root = deps.rootDir();
       if (root == null) return toolError('no dataset directory is open');
       final types = deps.captionTypes();
-      if (types.length < 2) {
-        return toolError('only one caption type is configured');
-      }
       final d = deps.dataset;
 
       final paths = optStringList(args, 'paths', maxLength: 50);
@@ -100,9 +97,9 @@ List<AgentTool> buildCaptionVariantTools(
       CaptionType? missingType;
       final missingExt = optString(args, 'missing_extension');
       if (missingExt != null) {
-        missingType = _findType(types, missingExt);
+        missingType = findCaptionType(types, missingExt);
         if (missingType == null) {
-          return toolError(_unknownType(missingExt, types));
+          return toolError(unknownCaptionType(missingExt, types));
         }
       }
       final limit = optInt(args, 'limit', fallback: 100, min: 1, max: 500);
@@ -171,9 +168,11 @@ List<AgentTool> buildCaptionVariantTools(
       final root = deps.rootDir();
       if (root == null) return toolError('no dataset directory is open');
       final types = deps.captionTypes();
-      final type = _findType(types, requireString(args, 'extension'));
+      final type = findCaptionType(types, requireString(args, 'extension'));
       if (type == null) {
-        return toolError(_unknownType(requireString(args, 'extension'), types));
+        return toolError(
+          unknownCaptionType(requireString(args, 'extension'), types),
+        );
       }
       final paths = requireStringList(args, 'paths', maxLength: 20);
       final d = deps.dataset;
@@ -186,7 +185,7 @@ List<AgentTool> buildCaptionVariantTools(
           out.add({'path': rel, 'error': notFoundMessage(d, rel)});
           continue;
         }
-        final file = File(_variantPath(key, type));
+        final file = File(captionVariantPath(key, type));
         try {
           if (!await file.exists()) {
             out.add({'path': rel, 'exists': false, 'text': ''});
@@ -227,8 +226,12 @@ List<AgentTool> buildCaptionVariantTools(
           'style. When restructuring tags into '
           'another format must not lose or invent any, set '
           'expect_tags_from: the write is then rejected unless its tags '
-          'exactly match the source caption\'s. Writing the *active* type '
-          'behaves exactly like write_caption. Undoable.',
+          'exactly match the source caption\'s; to reshape a caption into '
+          'itself, set expect_same_tags and it is checked against the '
+          'file\'s own current content. Writing the *active* type '
+          'behaves exactly like write_caption. To reshape many JSON '
+          'captions use restructure_json_captions — never loop this tool '
+          'over a dataset. Undoable.',
       parametersSchema: {
         'type': 'object',
         'properties': {
@@ -251,13 +254,23 @@ List<AgentTool> buildCaptionVariantTools(
                 'source caption\'s tags. Set it whenever converting one '
                 'type into another must not lose or invent tags.',
           },
+          'expect_same_tags': {
+            'type': 'boolean',
+            'description':
+                'reject the write unless the new text carries exactly the '
+                'tags this caption file already has — the guard for '
+                'reshaping a caption in place (reordering JSON fields, '
+                'moving tags between them). Cannot be combined with '
+                'expect_tags_from.',
+          },
           'ignore_keys': {
             'type': 'array',
             'items': {'type': 'string'},
             'description':
-                'for a JSON-format target with expect_tags_from: keys '
-                'whose values are not tags (e.g. a natural-language '
-                'field) and are excluded from the comparison',
+                'for a JSON-format target with expect_tags_from or '
+                'expect_same_tags: keys whose values are not tags (e.g. a '
+                'natural-language field) and are excluded from the '
+                'comparison',
           },
         },
         'required': ['path', 'extension', 'text'],
@@ -267,9 +280,11 @@ List<AgentTool> buildCaptionVariantTools(
       final root = deps.rootDir();
       if (root == null) return toolError('no dataset directory is open');
       final types = deps.captionTypes();
-      final type = _findType(types, requireString(args, 'extension'));
+      final type = findCaptionType(types, requireString(args, 'extension'));
       if (type == null) {
-        return toolError(_unknownType(requireString(args, 'extension'), types));
+        return toolError(
+          unknownCaptionType(requireString(args, 'extension'), types),
+        );
       }
       final rel = requireString(args, 'path');
       final text = args['text'];
@@ -299,7 +314,28 @@ List<AgentTool> buildCaptionVariantTools(
       }
 
       int? verifiedTags;
+      final ignoreKeys = optStringList(args, 'ignore_keys').toSet();
       final expectFrom = optString(args, 'expect_tags_from');
+      final expectSame = optBool(args, 'expect_same_tags');
+      if (expectSame && expectFrom != null) {
+        return toolError(
+          'nothing was written: expect_same_tags and expect_tags_from '
+          'compare against different sources — set only one',
+        );
+      }
+      if (expectSame) {
+        final guard = await _checkUnchangedTags(
+          target: type,
+          key: key,
+          rel: rel,
+          decoded: decoded,
+          isJson: isJson,
+          text: text,
+          ignoreKeys: ignoreKeys,
+        );
+        if (guard.error != null) return guard.error!;
+        verifiedTags = guard.verified;
+      }
       if (expectFrom != null) {
         final guard = await _checkLossless(
           deps: deps,
@@ -311,7 +347,7 @@ List<AgentTool> buildCaptionVariantTools(
           text: text,
           decoded: decoded,
           isJson: isJson,
-          ignoreKeys: optStringList(args, 'ignore_keys').toSet(),
+          ignoreKeys: ignoreKeys,
         );
         if (guard.error != null) return guard.error!;
         verifiedTags = guard.verified;
@@ -337,7 +373,7 @@ List<AgentTool> buildCaptionVariantTools(
         });
       }
 
-      final captionPath = _variantPath(key, type);
+      final captionPath = captionVariantPath(key, type);
       final file = File(captionPath);
       var before = '';
       try {
@@ -408,8 +444,7 @@ List<AgentTool> buildCaptionVariantTools(
         'properties': {
           'source_extension': {
             'type': 'string',
-            'description':
-                'the tag-style caption type to read (e.g. ".txt")',
+            'description': 'the tag-style caption type to read (e.g. ".txt")',
           },
           'target_extension': {
             'type': 'string',
@@ -485,10 +520,13 @@ List<AgentTool> buildCaptionVariantTools(
       final types = deps.captionTypes();
       final d = deps.dataset;
 
-      final source = _findType(types, requireString(args, 'source_extension'));
+      final source = findCaptionType(
+        types,
+        requireString(args, 'source_extension'),
+      );
       if (source == null) {
         return toolError(
-          _unknownType(requireString(args, 'source_extension'), types),
+          unknownCaptionType(requireString(args, 'source_extension'), types),
         );
       }
       if (source.format != CaptionFormat.tags) {
@@ -497,10 +535,13 @@ List<AgentTool> buildCaptionVariantTools(
           '"${source.extension}" is ${source.format.name}',
         );
       }
-      final target = _findType(types, requireString(args, 'target_extension'));
+      final target = findCaptionType(
+        types,
+        requireString(args, 'target_extension'),
+      );
       if (target == null) {
         return toolError(
-          _unknownType(requireString(args, 'target_extension'), types),
+          unknownCaptionType(requireString(args, 'target_extension'), types),
         );
       }
       if (target.format != CaptionFormat.json) {
@@ -538,9 +579,7 @@ List<AgentTool> buildCaptionVariantTools(
           return toolError('every "fields" entry needs a non-empty "name"');
         }
         if (kind != 'string' && kind != 'array') {
-          return toolError(
-            'field "$name": "kind" must be "string" or "array"',
-          );
+          return toolError('field "$name": "kind" must be "string" or "array"');
         }
         if (fieldKinds.containsKey(name)) {
           return toolError('duplicate field "$name"');
@@ -641,7 +680,7 @@ List<AgentTool> buildCaptionVariantTools(
           tags = d.tagsOf(f.path);
         } else {
           try {
-            final sourceFile = File(_variantPath(f.path, source));
+            final sourceFile = File(captionVariantPath(f.path, source));
             tags = await sourceFile.exists()
                 ? parseTagText(await sourceFile.readAsString())
                 : const [];
@@ -655,7 +694,7 @@ List<AgentTool> buildCaptionVariantTools(
           continue;
         }
 
-        final targetFile = File(_variantPath(f.path, target));
+        final targetFile = File(captionVariantPath(f.path, target));
         var before = '';
         try {
           if (await targetFile.exists()) {
@@ -769,9 +808,87 @@ List<AgentTool> buildCaptionVariantTools(
   ),
 ];
 
-/// The outcome of the expect_tags_from guard: an error to return verbatim,
-/// or the number of source tags the new text was verified against.
+/// The outcome of a lossless guard (expect_tags_from / expect_same_tags):
+/// an error to return verbatim, or the number of source tags the new text
+/// was verified against.
 typedef _LosslessCheck = ({AgentToolResult? error, int verified});
+
+/// Verifies that the caption text about to be written carries exactly the
+/// tags the file *already* holds — the guarantee behind reshaping a caption
+/// into itself (reordering a JSON document's fields, moving tags between
+/// them) rather than converting one type into another.
+///
+/// Both sides are read with the same grammar, which for JSON is the raw
+/// multiset of string leaves: a restructure that quietly merged a tag
+/// appearing under two fields into one did change the document, and must be
+/// caught here rather than pass as "same tags". A missing or empty file has
+/// no tags, so any non-empty write is rejected — creating a caption is not
+/// reshaping one.
+Future<_LosslessCheck> _checkUnchangedTags({
+  required CaptionType target,
+  required String key,
+  required String rel,
+  required String text,
+  required dynamic decoded,
+  required bool isJson,
+  required Set<String> ignoreKeys,
+}) async {
+  final path = captionVariantPath(key, target);
+  String current;
+  try {
+    final file = File(path);
+    current = await file.exists() ? await file.readAsString() : '';
+  } catch (e) {
+    return (
+      error: toolError(
+        'nothing was written for $rel: cannot read "$path" to compare '
+        'against: $e',
+      ),
+      verified: 0,
+    );
+  }
+
+  List<String> currentTags;
+  List<String> writtenTags;
+  if (isJson) {
+    dynamic before;
+    try {
+      before = current.trim().isEmpty ? null : jsonDecode(current);
+    } on FormatException catch (e) {
+      return (
+        error: toolError(
+          'nothing was written for $rel: its current ${target.extension} '
+          'caption is not valid JSON (${e.message}), so there is no tag set '
+          'to compare against — drop expect_same_tags to overwrite it',
+        ),
+        verified: 0,
+      );
+    }
+    currentTags = jsonCaptionTags(before, ignoreKeys: ignoreKeys);
+    writtenTags = jsonCaptionTags(decoded, ignoreKeys: ignoreKeys);
+  } else {
+    currentTags = parseCaptionText(current, format: target.format);
+    writtenTags = parseCaptionText(text, format: target.format);
+  }
+
+  final match = matchPermutation(currentTags, writtenTags);
+  if (match.unknown.isNotEmpty || match.missing.isNotEmpty) {
+    return (
+      error: toolError(
+        'nothing was written: expect_same_tags was set but the new '
+        '${target.extension} caption of $rel does not carry the same tags '
+        'as the one on disk'
+        '${match.missing.isEmpty ? '' : '; lost: ${match.missing.join(", ")}'}'
+        '${match.unknown.isEmpty ? '' : '; invented or duplicated: '
+                  '${match.unknown.join(", ")}'}'
+        '. Its ${currentTags.length} current tags are: '
+        '${currentTags.join(", ")}',
+      ),
+      verified: 0,
+    );
+  }
+  return (error: null, verified: currentTags.length);
+}
 
 /// Verifies that the caption text about to be written carries exactly the
 /// tags of the image's [sourceExtension] caption — the machine guarantee
@@ -792,9 +909,12 @@ Future<_LosslessCheck> _checkLossless({
   required bool isJson,
   required Set<String> ignoreKeys,
 }) async {
-  final source = _findType(types, sourceExtension);
+  final source = findCaptionType(types, sourceExtension);
   if (source == null) {
-    return (error: toolError(_unknownType(sourceExtension, types)), verified: 0);
+    return (
+      error: toolError(unknownCaptionType(sourceExtension, types)),
+      verified: 0,
+    );
   }
   // Only the tag format has a tag grammar to read the source with.
   if (source.format != CaptionFormat.tags) {
@@ -823,7 +943,7 @@ Future<_LosslessCheck> _checkLossless({
     sourceTags = d.tagsOf(key);
   } else {
     try {
-      final file = File(_variantPath(key, source));
+      final file = File(captionVariantPath(key, source));
       sourceTags = await file.exists()
           ? parseTagText(await file.readAsString())
           : const [];
@@ -839,7 +959,7 @@ Future<_LosslessCheck> _checkLossless({
   }
 
   final writtenTags = isJson
-      ? _jsonTags(decoded, ignoreKeys)
+      ? jsonCaptionTags(decoded, ignoreKeys: ignoreKeys)
       : parseTagText(text);
   final match = matchPermutation(sourceTags, writtenTags);
   if (match.unknown.isNotEmpty || match.missing.isNotEmpty) {
@@ -859,29 +979,7 @@ Future<_LosslessCheck> _checkLossless({
   return (error: null, verified: sourceTags.length);
 }
 
-/// Every tag carried by a decoded JSON caption: string leaves are split by
-/// the tag grammar (so both `["a", "b"]` and `"a, b"` styles count their
-/// tags), subtrees under [ignoreKeys] are skipped, and non-string leaves
-/// carry none.
-List<String> _jsonTags(dynamic node, Set<String> ignoreKeys) {
-  final out = <String>[];
-  void walk(dynamic n) {
-    if (n is String) {
-      out.addAll(parseTagText(n));
-    } else if (n is List) {
-      n.forEach(walk);
-    } else if (n is Map) {
-      n.forEach((k, v) {
-        if (!ignoreKeys.contains(k)) walk(v);
-      });
-    }
-  }
-
-  walk(node);
-  return out;
-}
-
-String _variantPath(String imagePath, CaptionType type) =>
+String captionVariantPath(String imagePath, CaptionType type) =>
     '${p.withoutExtension(imagePath)}${type.extension}';
 
 /// Whether the image has a non-empty caption file of this type. The active
@@ -895,7 +993,7 @@ Future<bool> _hasVariant(
   if (type.extension == dataset.captionExtension) {
     return dataset.hasCaption(imagePath);
   }
-  final file = File(_variantPath(imagePath, type));
+  final file = File(captionVariantPath(imagePath, type));
   try {
     return await file.exists() && await file.length() > 0;
   } catch (_) {
@@ -905,7 +1003,7 @@ Future<bool> _hasVariant(
 
 /// Resolves a model-supplied extension (with or without the dot, any case)
 /// against the enabled types.
-CaptionType? _findType(List<CaptionType> types, String extension) {
+CaptionType? findCaptionType(List<CaptionType> types, String extension) {
   var normalized = extension.trim().toLowerCase();
   if (!normalized.startsWith('.')) normalized = '.$normalized';
   for (final t in types) {
@@ -914,6 +1012,6 @@ CaptionType? _findType(List<CaptionType> types, String extension) {
   return null;
 }
 
-String _unknownType(String extension, List<CaptionType> types) =>
+String unknownCaptionType(String extension, List<CaptionType> types) =>
     '"$extension" is not a configured caption type; available: '
     '${types.map((t) => '${t.extension} (${t.label})').join(', ')}';
