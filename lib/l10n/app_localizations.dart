@@ -155,7 +155,7 @@ abstract class AppLocalizations {
   /// No description provided for @captionTypesDesc.
   ///
   /// In en, this message translates to:
-  /// **'Multiple caption flavors per image (e.g. .txt for WD14 tags, .ntxt for natural language), switchable in the navigator'**
+  /// **'Keep several caption files per image; enabled types appear in the navigator\'s and the editor\'s switcher'**
   String get captionTypesDesc;
 
   /// No description provided for @captionTypeName.
@@ -163,6 +163,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Name'**
   String get captionTypeName;
+
+  /// No description provided for @captionTypeNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled type'**
+  String get captionTypeNameHint;
+
+  /// No description provided for @captionTypeFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Format'**
+  String get captionTypeFormat;
+
+  /// No description provided for @captionTypeExtension.
+  ///
+  /// In en, this message translates to:
+  /// **'Extension'**
+  String get captionTypeExtension;
 
   /// No description provided for @captionTypeAdd.
   ///
@@ -176,11 +194,23 @@ abstract class AppLocalizations {
   /// **'Enabled'**
   String get captionTypeEnabled;
 
+  /// No description provided for @captionTypeDefaultBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get captionTypeDefaultBadge;
+
   /// No description provided for @captionTypeDefaultHint.
   ///
   /// In en, this message translates to:
   /// **'The default type is always enabled'**
   String get captionTypeDefaultHint;
+
+  /// No description provided for @captionTypeRules.
+  ///
+  /// In en, this message translates to:
+  /// **'Extensions must be unique · the default type cannot be disabled or deleted'**
+  String get captionTypeRules;
 
   /// No description provided for @captionTypeFormatTooltip.
   ///
@@ -191,20 +221,38 @@ abstract class AppLocalizations {
   /// No description provided for @captionTypeFormatTags.
   ///
   /// In en, this message translates to:
-  /// **'Tags'**
+  /// **'WD14 tags'**
   String get captionTypeFormatTags;
+
+  /// No description provided for @captionTypeFormatTagsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Comma-separated · editable tag chips'**
+  String get captionTypeFormatTagsDesc;
 
   /// No description provided for @captionTypeFormatJson.
   ///
   /// In en, this message translates to:
-  /// **'JSON'**
+  /// **'Anima JSON'**
   String get captionTypeFormatJson;
+
+  /// No description provided for @captionTypeFormatJsonDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Structured document · read-only tag view'**
+  String get captionTypeFormatJsonDesc;
 
   /// No description provided for @captionTypeFormatNl.
   ///
   /// In en, this message translates to:
   /// **'Natural language'**
   String get captionTypeFormatNl;
+
+  /// No description provided for @captionTypeFormatNlDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Full text · split into sentences'**
+  String get captionTypeFormatNlDesc;
 
   /// No description provided for @captionTypeDuplicate.
   ///
@@ -247,6 +295,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancel'**
   String get cancel;
+
+  /// No description provided for @done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get done;
 
   /// No description provided for @confirm.
   ///

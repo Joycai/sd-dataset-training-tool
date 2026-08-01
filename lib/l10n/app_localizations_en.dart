@@ -37,10 +37,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get captionTypesDesc =>
-      'Multiple caption flavors per image (e.g. .txt for WD14 tags, .ntxt for natural language), switchable in the navigator';
+      'Keep several caption files per image; enabled types appear in the navigator\'s and the editor\'s switcher';
 
   @override
   String get captionTypeName => 'Name';
+
+  @override
+  String get captionTypeNameHint => 'Untitled type';
+
+  @override
+  String get captionTypeFormat => 'Format';
+
+  @override
+  String get captionTypeExtension => 'Extension';
 
   @override
   String get captionTypeAdd => 'Add type';
@@ -49,20 +58,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get captionTypeEnabled => 'Enabled';
 
   @override
+  String get captionTypeDefaultBadge => 'Default';
+
+  @override
   String get captionTypeDefaultHint => 'The default type is always enabled';
+
+  @override
+  String get captionTypeRules =>
+      'Extensions must be unique · the default type cannot be disabled or deleted';
 
   @override
   String get captionTypeFormatTooltip =>
       'Format: how this type\'s caption files are parsed — comma-separated tags, a JSON document, or natural-language sentences';
 
   @override
-  String get captionTypeFormatTags => 'Tags';
+  String get captionTypeFormatTags => 'WD14 tags';
 
   @override
-  String get captionTypeFormatJson => 'JSON';
+  String get captionTypeFormatTagsDesc =>
+      'Comma-separated · editable tag chips';
+
+  @override
+  String get captionTypeFormatJson => 'Anima JSON';
+
+  @override
+  String get captionTypeFormatJsonDesc =>
+      'Structured document · read-only tag view';
 
   @override
   String get captionTypeFormatNl => 'Natural language';
+
+  @override
+  String get captionTypeFormatNlDesc => 'Full text · split into sentences';
 
   @override
   String get captionTypeDuplicate =>
@@ -87,6 +114,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cancel => 'Cancel';
+
+  @override
+  String get done => 'Done';
 
   @override
   String get confirm => 'Confirm';

@@ -25,8 +25,11 @@ Click the **settings icon** in the top-right corner of the main interface to acc
 
 - **Caption Type Management**
   - An image can carry several caption files side by side with different extensions (e.g. a tag-style `.txt` next to a natural-language `.ntxt`).
-  - Add, name, and set the extension for each caption type here, and enable or disable it.
-  - Flag any type as **prose (sentence mode)**: the tag view segments its text by comma/period into phrases instead of treating it as comma-separated danbooru tags.
+  - Add, name, and set the extension for each caption type here, and enable or disable it. Edits stay in the dialog until you press **Done** (cancelling or closing it discards everything); the default type cannot be disabled or deleted, and extensions must be unique.
+  - Every type picks a **format**, which decides how the whole app parses that type's caption files:
+    - **WD14 tags**: comma-separated, editable tag by tag in the tag view.
+    - **Anima JSON**: a structured document; the tag view is read-only, edit it from the text tab or with the assistant's JSON tools.
+    - **Natural language**: full text; the tag view segments it by comma/period into phrases instead of treating it as comma-separated danbooru tags.
   - Enabling more than one type unlocks a few extra AI Assistant tools for auditing coverage and reading/writing a specific type's files.
 
 - **Tag Dictionary**
