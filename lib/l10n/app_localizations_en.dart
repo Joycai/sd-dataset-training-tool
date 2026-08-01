@@ -52,8 +52,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get captionTypeDefaultHint => 'The default type is always enabled';
 
   @override
-  String get captionTypeProseTooltip =>
-      'Sentence mode: while this type is active, the tag view segments the caption by , and . — for natural-language descriptions';
+  String get captionTypeFormatTooltip =>
+      'Format: how this type\'s caption files are parsed — comma-separated tags, a JSON document, or natural-language sentences';
+
+  @override
+  String get captionTypeFormatTags => 'Tags';
+
+  @override
+  String get captionTypeFormatJson => 'JSON';
+
+  @override
+  String get captionTypeFormatNl => 'Natural language';
 
   @override
   String get captionTypeDuplicate =>
@@ -214,6 +223,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tagsTab => 'Tags';
+
+  @override
+  String get jsonTab => 'JSON';
+
+  @override
+  String get captionJsonEmpty => 'No caption yet.';
+
+  @override
+  String captionJsonInvalid(String error) {
+    return 'Invalid JSON — $error';
+  }
 
   @override
   String tagCount(int count) {

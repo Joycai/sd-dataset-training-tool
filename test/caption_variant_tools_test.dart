@@ -23,7 +23,18 @@ const _pngBytes = [
 
 const _types = [
   CaptionType(id: CaptionType.defaultId, name: 'WD14', extension: '.txt'),
-  CaptionType(id: 'nlp', name: 'NLP', extension: '.ntxt'),
+  CaptionType(
+    id: 'nlp',
+    name: 'NLP',
+    extension: '.ntxt',
+    format: CaptionFormat.prose,
+  ),
+  CaptionType(
+    id: 'anima',
+    name: 'anima',
+    extension: '.json',
+    format: CaptionFormat.json,
+  ),
 ];
 
 void main() {
@@ -83,11 +94,13 @@ void main() {
     test('lists the configured caption types', () async {
       final out = await call('get_dataset_overview');
       final types = (out['caption_types'] as List).cast<Map>();
-      expect(types, hasLength(2));
+      expect(types, hasLength(3));
       expect(types[0]['extension'], '.txt');
       expect(types[0]['active'], isTrue);
       expect(types[1]['extension'], '.ntxt');
       expect(types[1]['active'], isFalse);
+      expect(types[2]['extension'], '.json');
+      expect(types[2]['active'], isFalse);
     });
   });
 
@@ -118,15 +131,23 @@ void main() {
         'paths': ['001.png', '003.png', 'nope.png'],
       });
       final images = (out['images'] as List).cast<Map>();
-      expect(images[0]['captions'], {'.txt': true, '.ntxt': true});
-      expect(images[1]['captions'], {'.txt': false, '.ntxt': false});
+      expect(images[0]['captions'], {
+        '.txt': true,
+        '.ntxt': true,
+        '.json': false,
+      });
+      expect(images[1]['captions'], {
+        '.txt': false,
+        '.ntxt': false,
+        '.json': false,
+      });
       expect(images[2]['error'], contains('not found'));
     });
 
     test('rejects an unconfigured extension', () async {
       final result = await registry.dispatch(
         'check_caption_variants',
-        jsonEncode({'missing_extension': '.json'}),
+        jsonEncode({'missing_extension': '.foo'}),
       );
       expect(result.isError, isTrue);
       expect(result.text, contains('.ntxt'));
@@ -202,9 +223,354 @@ void main() {
     test('rejects an unconfigured extension', () async {
       final result = await registry.dispatch(
         'write_caption_file',
-        jsonEncode({'path': '001.png', 'extension': '.json', 'text': '{}'}),
+        jsonEncode({'path': '001.png', 'extension': '.foo', 'text': 'x'}),
       );
       expect(result.isError, isTrue);
+      expect(File(cap('001', '.foo')).existsSync(), isFalse);
+    });
+  });
+
+  group('write_caption_file JSON validation', () {
+    test('rejects text that does not parse as JSON', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.json',
+          'text': '{"tags": [,]}',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('not valid JSON'));
+      expect(File(cap('001', '.json')).existsSync(), isFalse);
+    });
+
+    test('valid JSON is stored verbatim', () async {
+      const text = '{"tags": ["smile"]}';
+      final out = await call('write_caption_file', {
+        'path': '001.png',
+        'extension': '.json',
+        'text': text,
+      });
+      expect(out['written'], isTrue);
+      expect(await File(cap('001', '.json')).readAsString(), text);
+    });
+  });
+
+  group('write_caption_file expect_tags_from', () {
+    // 001.txt is 'trigger, 1girl, smile'.
+    const animaJson =
+        '{"quality": [""], "count": "1girl", "character": "trigger", '
+        '"series": [], "artist": "", "appearance": [], "tags": ["smile"], '
+        '"environment": [], "nl": "a girl smiling"}';
+
+    test('a lossless JSON conversion passes and reports the tag count',
+        () async {
+      final out = await call('write_caption_file', {
+        'path': '001.png',
+        'extension': '.json',
+        'text': animaJson,
+        'expect_tags_from': '.txt',
+        'ignore_keys': ['nl'],
+      });
+      expect(out['written'], isTrue);
+      expect(out['tags_verified'], 3);
+      expect(await File(cap('001', '.json')).readAsString(), animaJson);
+    });
+
+    test('matching folds case and underscore style', () async {
+      final out = await call('write_caption_file', {
+        'path': '001.png',
+        'extension': '.json',
+        'text': '{"count": "1GIRL", "tags": ["trigger", "smile"]}',
+        'expect_tags_from': '.txt',
+      });
+      expect(out['written'], isTrue);
+      expect(out['tags_verified'], 3);
+    });
+
+    test('a lost tag rejects the write', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.json',
+          'text': '{"count": "1girl", "tags": ["trigger"]}',
+          'expect_tags_from': '.txt',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('lost: smile'));
+      expect(result.text, contains('trigger, 1girl, smile'));
+      expect(File(cap('001', '.json')).existsSync(), isFalse);
+    });
+
+    test('an invented or duplicated tag rejects the write', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.json',
+          'text':
+              '{"count": "1girl", "appearance": ["smile"], '
+              '"tags": ["trigger", "smile"]}',
+          'expect_tags_from': '.txt',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('invented or duplicated: smile'));
+      expect(File(cap('001', '.json')).existsSync(), isFalse);
+    });
+
+    test('nl text only escapes the comparison via ignore_keys', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.json',
+          'text':
+              '{"tags": ["trigger", "1girl", "smile"], '
+              '"nl": "a girl smiling"}',
+          'expect_tags_from': '.txt',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('invented or duplicated'));
+    });
+
+    test('guards a tag-style non-JSON target too', () async {
+      final out = await call('write_caption_file', {
+        'path': '001.png',
+        'extension': '.txt',
+        'text': 'smile, trigger, 1girl',
+        'expect_tags_from': '.txt',
+      });
+      expect(out['written'], isTrue);
+      expect(out['tags_verified'], 3);
+      expect(dataset.tagsOf(img('001')), ['smile', 'trigger', '1girl']);
+    });
+
+    test('rejects a prose source type', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.json',
+          'text': '{}',
+          'expect_tags_from': '.ntxt',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('prose'));
+    });
+
+    test('rejects a prose target', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.ntxt',
+          'text': 'A girl.',
+          'expect_tags_from': '.txt',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('prose target'));
+    });
+
+    test('rejects an unconfigured source extension', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.json',
+          'text': '{}',
+          'expect_tags_from': '.foo',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('not a configured caption type'));
+    });
+
+    test('an uncaptioned source rejects any tags in the new text', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '003.png',
+          'extension': '.json',
+          'text': '{"tags": ["solo"]}',
+          'expect_tags_from': '.txt',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('invented or duplicated: solo'));
+    });
+  });
+
+  group('convert_captions_to_json', () {
+    // The anima-style shape used throughout: 001.txt is
+    // 'trigger, 1girl, smile', 002.txt is 'trigger, 1boy'.
+    const animaArgs = {
+      'source_extension': '.txt',
+      'target_extension': '.json',
+      'fields': [
+        {'name': 'quality', 'kind': 'array'},
+        {'name': 'count', 'kind': 'string'},
+        {'name': 'character', 'kind': 'string'},
+        {'name': 'artist', 'kind': 'string'},
+        {'name': 'appearance', 'kind': 'array'},
+        {'name': 'tags', 'kind': 'array'},
+        {'name': 'nl', 'kind': 'string'},
+      ],
+      'constants': {
+        'quality': [''],
+        'artist': '',
+        'nl': '',
+      },
+      'assign': {
+        '1girl': 'count',
+        '1boy': 'count',
+        'trigger': 'character',
+        'smile': 'appearance',
+      },
+      'unassigned_field': 'tags',
+    };
+
+    test('assembles ordered JSON for every captioned image as one undoable '
+        'operation', () async {
+      final out = await call('convert_captions_to_json', animaArgs);
+      expect(out['written'], 2);
+      expect(out['skipped_uncaptioned'], 1);
+      expect(out['unassigned_tags_seen'], isEmpty);
+
+      final text = await File(cap('001', '.json')).readAsString();
+      final decoded = jsonDecode(text) as Map<String, dynamic>;
+      expect(decoded.keys.toList(), [
+        'quality',
+        'count',
+        'character',
+        'artist',
+        'appearance',
+        'tags',
+        'nl',
+      ]);
+      expect(decoded['quality'], ['']);
+      expect(decoded['count'], '1girl');
+      expect(decoded['character'], 'trigger');
+      expect(decoded['appearance'], ['smile']);
+      expect(decoded['tags'], isEmpty);
+      expect(decoded['nl'], '');
+      final two = jsonDecode(await File(cap('002', '.json')).readAsString());
+      expect(two['count'], '1boy');
+      expect(two['appearance'], isEmpty);
+
+      expect(tagOps.undoLabel, 'AI: convert 2 captions to .json');
+      await tagOps.undo();
+      expect(await File(cap('001', '.json')).readAsString(), isEmpty);
+      expect(dataset.tagsOf(img('001')), ['trigger', '1girl', 'smile']);
+    });
+
+    test('strips caption-style escaping and reports unassigned tags',
+        () async {
+      await File(img('004')).writeAsBytes(_pngBytes);
+      await File(
+        cap('004', '.txt'),
+      ).writeAsString(r'trigger, smile \(happy\)');
+      await dataset.scan(
+        directoryPath: tempDir.path,
+        recursive: false,
+        captionExtension: '.txt',
+      );
+
+      final out = await call('convert_captions_to_json', {
+        ...animaArgs,
+        'name_query': '004',
+      });
+      expect(out['written'], 1);
+      final decoded = jsonDecode(await File(cap('004', '.json')).readAsString());
+      expect(decoded['tags'], ['smile (happy)']);
+      expect(out['unassigned_tags_seen'], [r'smile \(happy\)']);
+    });
+
+    test('existing target files are skipped unless overwrite', () async {
+      await call('convert_captions_to_json', animaArgs);
+      final again = await call('convert_captions_to_json', animaArgs);
+      expect(again['written'], 0);
+      expect(again['skipped_existing'], 2);
+
+      final rebuilt = await call('convert_captions_to_json', {
+        ...animaArgs,
+        'overwrite': true,
+      });
+      expect(rebuilt['written'], 0);
+      expect(rebuilt['unchanged'], 2);
+    });
+
+    test('two tags landing in one string field fails that image only',
+        () async {
+      final out = await call('convert_captions_to_json', {
+        ...animaArgs,
+        'assign': {
+          '1girl': 'count',
+          '1boy': 'count',
+          'smile': 'count',
+          'trigger': 'character',
+        },
+      });
+      // 001 puts both 1girl and smile into "count"; 002 is fine.
+      expect(out['written'], 1);
+      expect(out['failed_images'], 1);
+      final failure = (out['failures'] as List).single as Map;
+      expect(failure['path'], '001.png');
+      expect(failure['error'], contains('"count"'));
+      expect(File(cap('001', '.json')).existsSync(), isFalse);
+      expect(File(cap('002', '.json')).existsSync(), isTrue);
+    });
+
+    test('source and target are validated by configured format', () async {
+      final source = await registry.dispatch(
+        'convert_captions_to_json',
+        jsonEncode({...animaArgs, 'source_extension': '.json'}),
+      );
+      expect(source.isError, isTrue);
+      expect(source.text, contains('tag-format'));
+
+      final target = await registry.dispatch(
+        'convert_captions_to_json',
+        jsonEncode({...animaArgs, 'target_extension': '.ntxt'}),
+      );
+      expect(target.isError, isTrue);
+      expect(target.text, contains('prose, not'));
+    });
+
+    test('rejects a bad shape before touching any file', () async {
+      final undeclared = await registry.dispatch(
+        'convert_captions_to_json',
+        jsonEncode({
+          ...animaArgs,
+          'assign': {'1girl': 'nope'},
+        }),
+      );
+      expect(undeclared.isError, isTrue);
+      expect(undeclared.text, contains('not a declared field'));
+
+      final notArray = await registry.dispatch(
+        'convert_captions_to_json',
+        jsonEncode({...animaArgs, 'unassigned_field': 'count'}),
+      );
+      expect(notArray.isError, isTrue);
+      expect(notArray.text, contains('unassigned_field'));
+      expect(notArray.text, contains('array'));
+
+      final constantTarget = await registry.dispatch(
+        'convert_captions_to_json',
+        jsonEncode({
+          ...animaArgs,
+          'assign': {'1girl': 'artist'},
+        }),
+      );
+      expect(constantTarget.isError, isTrue);
+      expect(constantTarget.text, contains('constant'));
       expect(File(cap('001', '.json')).existsSync(), isFalse);
     });
   });

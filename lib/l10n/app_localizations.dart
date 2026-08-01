@@ -182,11 +182,29 @@ abstract class AppLocalizations {
   /// **'The default type is always enabled'**
   String get captionTypeDefaultHint;
 
-  /// No description provided for @captionTypeProseTooltip.
+  /// No description provided for @captionTypeFormatTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Sentence mode: while this type is active, the tag view segments the caption by , and . — for natural-language descriptions'**
-  String get captionTypeProseTooltip;
+  /// **'Format: how this type\'s caption files are parsed — comma-separated tags, a JSON document, or natural-language sentences'**
+  String get captionTypeFormatTooltip;
+
+  /// No description provided for @captionTypeFormatTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get captionTypeFormatTags;
+
+  /// No description provided for @captionTypeFormatJson.
+  ///
+  /// In en, this message translates to:
+  /// **'JSON'**
+  String get captionTypeFormatJson;
+
+  /// No description provided for @captionTypeFormatNl.
+  ///
+  /// In en, this message translates to:
+  /// **'Natural language'**
+  String get captionTypeFormatNl;
 
   /// No description provided for @captionTypeDuplicate.
   ///
@@ -475,6 +493,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tags'**
   String get tagsTab;
+
+  /// No description provided for @jsonTab.
+  ///
+  /// In en, this message translates to:
+  /// **'JSON'**
+  String get jsonTab;
+
+  /// No description provided for @captionJsonEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No caption yet.'**
+  String get captionJsonEmpty;
+
+  /// No description provided for @captionJsonInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid JSON — {error}'**
+  String captionJsonInvalid(String error);
 
   /// No description provided for @tagCount.
   ///

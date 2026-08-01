@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import '../models/caption_type.dart';
+
 /// Splits comma-separated caption text into trimmed, de-duplicated tags.
 /// The single tag grammar shared by the editor, the dataset index and the
 /// batch rewrite operations — they must all agree on what a "tag" is.
@@ -37,16 +41,58 @@ List<String> parseSentenceText(String text) {
   return out;
 }
 
-/// Parses caption text in the grammar of the active caption type: the tag
-/// grammar, or sentence segments when the type is prose.
-List<String> parseCaptionText(String text, {bool prose = false}) =>
-    prose ? parseSentenceText(text) : parseTagText(text);
+/// Parses caption text in the grammar of the active caption type's format:
+/// the tag grammar, sentence segments for prose, or the string leaves of a
+/// JSON document.
+List<String> parseCaptionText(
+  String text, {
+  CaptionFormat format = CaptionFormat.tags,
+}) => switch (format) {
+  CaptionFormat.tags => parseTagText(text),
+  CaptionFormat.prose => parseSentenceText(text),
+  CaptionFormat.json => parseJsonCaptionTags(text),
+};
+
+/// The tags carried by a JSON caption, for display, statistics and the
+/// assistant's reads: every string leaf in document order, each split by the
+/// tag grammar, de-duplicated. Unparseable JSON yields no tags — the image
+/// still counts as captioned, it just contributes nothing to the tag index.
+List<String> parseJsonCaptionTags(String text) {
+  if (text.trim().isEmpty) return const [];
+  dynamic decoded;
+  try {
+    decoded = jsonDecode(text);
+  } on FormatException {
+    return const [];
+  }
+  final seen = <String>{};
+  final out = <String>[];
+  void walk(dynamic node) {
+    if (node is String) {
+      for (final tag in parseTagText(node)) {
+        if (seen.add(tag)) out.add(tag);
+      }
+    } else if (node is List) {
+      node.forEach(walk);
+    } else if (node is Map) {
+      node.values.forEach(walk);
+    }
+  }
+
+  walk(decoded);
+  return out;
+}
 
 /// Joins parsed caption parts back into file text. Tags join with `", "`;
 /// prose segments carry their own punctuation, so they join with a plain
 /// space — omitted after full-width punctuation, which no space follows.
-String joinCaptionText(List<String> parts, {bool prose = false}) {
-  if (!prose) return parts.join(', ');
+/// JSON captions cannot be reassembled from a flat tag list, so every
+/// tag-level rewrite path refuses to run on them before ever joining.
+String joinCaptionText(
+  List<String> parts, {
+  CaptionFormat format = CaptionFormat.tags,
+}) {
+  if (format != CaptionFormat.prose) return parts.join(', ');
   final buffer = StringBuffer();
   for (var i = 0; i < parts.length; i++) {
     if (i > 0 && !parts[i - 1].endsWith('，') && !parts[i - 1].endsWith('。')) {
@@ -71,6 +117,13 @@ String tagLookupKey(String tag) => tag
     .trim()
     .replaceAll(RegExp(r'\s+'), ' ')
     .toLowerCase();
+
+/// Removes caption-style backslash escaping from a tag
+/// (`smile \(expression\)` → `smile (expression)`). The escaping exists for
+/// prompt attention syntax in plain-text captions; structured formats like
+/// JSON captions carry the plain spelling.
+String unescapeTagParens(String tag) =>
+    tag.replaceAll(r'\(', '(').replaceAll(r'\)', ')');
 
 /// Rewrites a tag into danbooru's own spelling: underscored and unescaped.
 /// Used for wiki/post links and for looking a caption tag up in the

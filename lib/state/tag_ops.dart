@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../models/caption_type.dart';
 import '../utils/tag_text.dart';
 import 'dataset_state.dart';
 
@@ -394,6 +395,23 @@ class TagOps extends ChangeNotifier {
     bool createMissing = false,
   }) async {
     if (_busy) return const BatchRewriteResult.none();
+    // A flat tag list cannot be joined back into a JSON document, so a
+    // tag-level rewrite would replace every JSON caption with comma text.
+    // Refusing up front (as failures, so callers report it) is the only
+    // non-destructive answer.
+    if (dataset.captionFormat == CaptionFormat.json) {
+      return BatchRewriteResult(
+        changed: 0,
+        failures: [
+          RewriteFailure(
+            captionPath: dataset.captionExtension,
+            error:
+                'the active caption type is JSON; tag operations need a '
+                'tag-style caption type',
+          ),
+        ],
+      );
+    }
     _busy = true;
     notifyListeners();
     final edits = <CaptionEdit>[];
@@ -416,12 +434,12 @@ class TagOps extends ChangeNotifier {
           );
           continue;
         }
-        final tags = parseCaptionText(before, prose: dataset.captionProse);
+        final tags = parseCaptionText(before, format: dataset.captionFormat);
         final next = transform(tags);
         // No semantic change: don't rewrite the file just to normalize
         // separators.
         if (next == null || listEquals(next, tags)) continue;
-        final after = joinCaptionText(next, prose: dataset.captionProse);
+        final after = joinCaptionText(next, format: dataset.captionFormat);
         try {
           await captionFile.writeAsString(after);
         } catch (e) {
