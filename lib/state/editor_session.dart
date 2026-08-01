@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
 
+import '../models/caption_type.dart';
 import '../utils/tag_text.dart';
 
 enum SaveState { clean, dirty, saving, saved, error }
@@ -34,7 +35,7 @@ class EditorSession extends ChangeNotifier {
   int? _imageBytes;
   Timer? _autoSaveTimer;
   bool _autoSaveEnabled = true;
-  bool _prose = false;
+  CaptionFormat _format = CaptionFormat.tags;
   bool _suppressTextEvents = false;
   String _lastText = '';
   int _loadGeneration = 0;
@@ -55,25 +56,30 @@ class EditorSession extends ChangeNotifier {
   int? get imageBytes => _imageBytes;
   bool get hasImage => _image != null;
 
+  /// The caption format of the loaded image's active type. The caption panel
+  /// keys its tabs on this; the tag mutators below no-op for JSON, whose
+  /// documents cannot be rebuilt from a flat tag list.
+  CaptionFormat get format => _format;
+
   // ignore: avoid_setters_without_getters
   set autoSaveEnabled(bool value) {
     _autoSaveEnabled = value;
     if (!value) _autoSaveTimer?.cancel();
   }
 
-  /// With [prose], the caption is a natural-language description: the tag
-  /// list becomes sentence segments (split on `,`/`.` and their full-width
-  /// forms, punctuation kept) and edits join back with spaces instead of
-  /// `", "`.
+  /// [format] is the active caption type's format: prose parses the caption
+  /// into sentence segments (split on `,`/`.` and their full-width forms,
+  /// punctuation kept, joined back with spaces), JSON parses the string
+  /// leaves for display and disables tag-level editing.
   Future<void> load(
     File imageFile,
     String captionExtension, {
-    bool prose = false,
+    CaptionFormat format = CaptionFormat.tags,
   }) async {
     // Flush pending edits of the previous image before switching.
     await flush();
 
-    _prose = prose;
+    _format = format;
     final generation = ++_loadGeneration;
     final captionPath =
         '${p.withoutExtension(imageFile.path)}$captionExtension';
@@ -176,7 +182,13 @@ class EditorSession extends ChangeNotifier {
     _insertTags([tag]);
   }
 
+  /// Whether tag-level edits apply to this caption. JSON captions are
+  /// edited as text (or via the assistant); a flat tag list cannot be
+  /// serialized back into their document, so every mutator below bails.
+  bool get tagsEditable => _format != CaptionFormat.json;
+
   void removeTag(String tag) {
+    if (!tagsEditable) return;
     if (!_tags.contains(tag)) return;
     // The anchor memory intentionally survives: this image just falls back
     // to appending, and the next image containing the tag re-activates it.
@@ -191,7 +203,7 @@ class EditorSession extends ChangeNotifier {
   }
 
   void _insertTags(List<String> parts) {
-    if (parts.isEmpty) return;
+    if (!tagsEditable || parts.isEmpty) return;
     final anchor = anchorTag;
     final at = anchor == null ? _tags.length : _tags.indexOf(anchor) + 1;
     _tags = [..._tags]..insertAll(at, parts);
@@ -204,7 +216,7 @@ class EditorSession extends ChangeNotifier {
   }
 
   void reorderTag(int oldIndex, int newIndex) {
-    if (oldIndex == newIndex) return;
+    if (!tagsEditable || oldIndex == newIndex) return;
     final next = [..._tags];
     final tag = next.removeAt(oldIndex);
     next.insert(newIndex, tag);
@@ -215,6 +227,7 @@ class EditorSession extends ChangeNotifier {
 
   /// Replaces the tag at [index] with the (comma-splittable) replacement.
   void replaceTagAt(int index, String replacement) {
+    if (!tagsEditable) return;
     final replaced = _tags[index];
     final parts = _parseTags(replacement);
     final next = [..._tags];
@@ -284,7 +297,7 @@ class EditorSession extends ChangeNotifier {
   }
 
   void _writeTagsToText() {
-    _setText(joinCaptionText(_tags, prose: _prose));
+    _setText(joinCaptionText(_tags, format: _format));
     _saveState = SaveState.dirty;
     _autoSaveTimer?.cancel();
     if (_autoSaveEnabled && _image != null) {
@@ -300,7 +313,8 @@ class EditorSession extends ChangeNotifier {
     _lastText = text;
   }
 
-  List<String> _parseTags(String text) => parseCaptionText(text, prose: _prose);
+  List<String> _parseTags(String text) =>
+      parseCaptionText(text, format: _format);
 
   @override
   void dispose() {

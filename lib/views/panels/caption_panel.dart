@@ -4,11 +4,13 @@ import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
 import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
+import '../../models/caption_type.dart';
 import '../../state/ai_tagger_state.dart';
 import '../../state/editor_session.dart';
 import '../../state/shortcut_relay.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/danbooru_tag_menu.dart';
+import '../../widgets/json_caption_view.dart';
 import '../../widgets/panel_widgets.dart';
 import '../../widgets/tag_autocomplete_field.dart';
 import '../../widgets/tag_gloss.dart';
@@ -62,6 +64,9 @@ class _CaptionPanelState extends State<CaptionPanel> {
     final session = context.read<EditorSession>();
     final image = session.image;
     if (image == null || ai.running) return;
+    // JSON captions have no tag grid for the compare view to land in, and
+    // adopting suggestions could not be serialized back anyway.
+    if (session.format == CaptionFormat.json) return;
 
     if (ai.modelName == null) {
       await ai.refreshModels();
@@ -147,6 +152,9 @@ class _CaptionPanelState extends State<CaptionPanel> {
     final semantic = context.semantic;
     final session = context.watch<EditorSession>();
     final ai = context.watch<AiTaggerState>();
+    // A JSON-format caption swaps the tag grid for a read-only highlighted
+    // JSON view; the text tab remains the way to edit it.
+    final isJson = session.format == CaptionFormat.json;
 
     // The editor is a panel under the canvas, not a floating card: one
     // hairline separates them and the fill runs to the window edges.
@@ -203,7 +211,10 @@ class _CaptionPanelState extends State<CaptionPanel> {
                   onChanged: (value) => setState(() => _tab = value),
                   fontSize: AppText.secondary,
                   segments: [
-                    SegmentedOption(value: _tabTags, label: l10n.tagsTab),
+                    SegmentedOption(
+                      value: _tabTags,
+                      label: isJson ? l10n.jsonTab : l10n.tagsTab,
+                    ),
                     SegmentedOption(value: _tabText, label: l10n.textTab),
                   ],
                 );
@@ -286,7 +297,7 @@ class _CaptionPanelState extends State<CaptionPanel> {
                     ],
                     _AiRunButton(
                       ai: ai,
-                      enabled: session.hasImage && !ai.running,
+                      enabled: session.hasImage && !ai.running && !isJson,
                       compact: compact,
                       onPressed: _runAi,
                       l10n: l10n,
@@ -316,14 +327,18 @@ class _CaptionPanelState extends State<CaptionPanel> {
                     sizing: StackFit.expand,
                     children: [
                       _buildTextView(session, l10n),
-                      // Compare mode is a global flag, but it only makes sense
-                      // for images that actually have (or are getting) a
-                      // result — other images keep the normal tags view.
-                      ai.compareMode &&
-                              (ai.running ||
-                                  ai.hasResultFor(session.image!.path))
-                          ? AiCompareView(onRunAi: _runAi)
-                          : _buildTagsView(session, ai, l10n, semantic),
+                      if (isJson)
+                        JsonCaptionView(text: session.captionController.text)
+                      else
+                        // Compare mode is a global flag, but it only makes
+                        // sense for images that actually have (or are
+                        // getting) a result — other images keep the normal
+                        // tags view.
+                        ai.compareMode &&
+                                (ai.running ||
+                                    ai.hasResultFor(session.image!.path))
+                            ? AiCompareView(onRunAi: _runAi)
+                            : _buildTagsView(session, ai, l10n, semantic),
                     ],
                   ),
           ),

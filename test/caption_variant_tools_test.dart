@@ -23,8 +23,18 @@ const _pngBytes = [
 
 const _types = [
   CaptionType(id: CaptionType.defaultId, name: 'WD14', extension: '.txt'),
-  CaptionType(id: 'nlp', name: 'NLP', extension: '.ntxt', prose: true),
-  CaptionType(id: 'anima', name: 'anima', extension: '.json'),
+  CaptionType(
+    id: 'nlp',
+    name: 'NLP',
+    extension: '.ntxt',
+    format: CaptionFormat.prose,
+  ),
+  CaptionType(
+    id: 'anima',
+    name: 'anima',
+    extension: '.json',
+    format: CaptionFormat.json,
+  ),
 ];
 
 void main() {
@@ -517,24 +527,20 @@ void main() {
       expect(File(cap('002', '.json')).existsSync(), isTrue);
     });
 
-    test('rejects a target that is the active or the source type', () async {
-      final active = await registry.dispatch(
+    test('source and target are validated by configured format', () async {
+      final source = await registry.dispatch(
         'convert_captions_to_json',
-        jsonEncode({
-          ...animaArgs,
-          'source_extension': '.json',
-          'target_extension': '.txt',
-        }),
+        jsonEncode({...animaArgs, 'source_extension': '.json'}),
       );
-      expect(active.isError, isTrue);
-      expect(active.text, contains('active caption type'));
+      expect(source.isError, isTrue);
+      expect(source.text, contains('tag-format'));
 
-      final same = await registry.dispatch(
+      final target = await registry.dispatch(
         'convert_captions_to_json',
-        jsonEncode({...animaArgs, 'target_extension': '.txt'}),
+        jsonEncode({...animaArgs, 'target_extension': '.ntxt'}),
       );
-      expect(same.isError, isTrue);
-      expect(same.text, contains('same caption type'));
+      expect(target.isError, isTrue);
+      expect(target.text, contains('prose, not'));
     });
 
     test('rejects a bad shape before touching any file', () async {

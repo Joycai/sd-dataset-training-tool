@@ -164,6 +164,13 @@ class _CaptionTypesDialogState extends State<_CaptionTypesDialog> {
   }
 }
 
+String _formatLabel(AppLocalizations l10n, CaptionFormat format) =>
+    switch (format) {
+      CaptionFormat.tags => l10n.captionTypeFormatTags,
+      CaptionFormat.json => l10n.captionTypeFormatJson,
+      CaptionFormat.prose => l10n.captionTypeFormatNl,
+    };
+
 class _CaptionTypeRow extends StatefulWidget {
   const _CaptionTypeRow({
     super.key,
@@ -272,23 +279,42 @@ class _CaptionTypeRowState extends State<_CaptionTypeRow> {
             ),
           ),
           const SizedBox(width: 4),
-          // Sentence mode: while this type is active, the tag views segment
-          // the caption by , and . instead of treating it as tags.
-          IconButton(
-            icon: const Icon(Icons.subject, size: 16),
-            tooltip: l10n.captionTypeProseTooltip,
-            isSelected: type.prose,
-            color: semantic.muted,
-            selectedIcon: Icon(
-              Icons.subject,
-              size: 16,
-              color: Theme.of(context).colorScheme.primary,
+          // The format decides how the entire app — editor, statistics,
+          // batch edits, assistant — parses this type's caption files.
+          Tooltip(
+            message: l10n.captionTypeFormatTooltip,
+            waitDuration: const Duration(milliseconds: 600),
+            child: SizedBox(
+              width: 96,
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<CaptionFormat>(
+                  value: type.format,
+                  isExpanded: true,
+                  isDense: true,
+                  icon: Icon(
+                    Icons.expand_more,
+                    size: 14,
+                    color: semantic.muted,
+                  ),
+                  style: TextStyle(
+                    fontSize: AppText.secondary,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  items: [
+                    for (final format in CaptionFormat.values)
+                      DropdownMenuItem(
+                        value: format,
+                        child: Text(_formatLabel(l10n, format)),
+                      ),
+                  ],
+                  onChanged: (format) {
+                    if (format != null) {
+                      widget.onChanged(type.copyWith(format: format));
+                    }
+                  },
+                ),
+              ),
             ),
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
-            padding: EdgeInsets.zero,
-            onPressed: () =>
-                widget.onChanged(type.copyWith(prose: !type.prose)),
           ),
           const SizedBox(width: 6),
           SizedBox(

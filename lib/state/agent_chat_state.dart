@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../app_state.dart';
+import '../models/caption_type.dart';
 import '../models/llm_models.dart';
 import '../models/merge_rules.dart';
 import '../services/agent/agent_session.dart';
@@ -386,7 +387,11 @@ class AgentChatState extends ChangeNotifier {
             ? [
                 for (final t in app.enabledCaptionTypes)
                   '${t.label} (${t.extension}'
-                      '${t.prose ? ', natural-language prose' : ''})'
+                      '${switch (t.format) {
+                        CaptionFormat.tags => '',
+                        CaptionFormat.json => ', json format',
+                        CaptionFormat.prose => ', natural-language prose',
+                      }})'
                       '${t.extension == app.captionExtension ? ', active' : ''}',
               ].join('; ')
             : null,

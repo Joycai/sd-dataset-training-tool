@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
+import '../models/caption_type.dart';
 import '../models/tag_filter.dart';
 import '../utils/tag_text.dart';
 
@@ -60,7 +61,7 @@ class DatasetState extends ChangeNotifier {
   List<File>? _visibleCache;
   int? _taggedCountCache;
   String _captionExtension = '.txt';
-  bool _captionProse = false;
+  CaptionFormat _captionFormat = CaptionFormat.tags;
   bool _isLoading = false;
   String? _error;
   String _query = '';
@@ -178,11 +179,11 @@ class DatasetState extends ChangeNotifier {
   /// Caption extension of the last scan (defaults to `.txt`).
   String get captionExtension => _captionExtension;
 
-  /// Whether the last scan parsed captions as prose (sentence segments)
-  /// rather than comma-separated tags. Set alongside [captionExtension] —
-  /// the rewrite operations must join caption parts back in the same
-  /// grammar the scan split them with.
-  bool get captionProse => _captionProse;
+  /// The caption format the last scan parsed with. Set alongside
+  /// [captionExtension] — the rewrite operations must join caption parts
+  /// back in the same grammar the scan split them with (and refuse to when
+  /// the format has no tag grammar to join back into, i.e. JSON).
+  CaptionFormat get captionFormat => _captionFormat;
 
   /// Caption file path for an image, using the extension of the last scan.
   String captionPathFor(String imagePath) =>
@@ -331,7 +332,7 @@ class DatasetState extends ChangeNotifier {
   }
 
   bool _applyCaptionText(String imagePath, String text) {
-    final tags = parseCaptionText(text, prose: _captionProse);
+    final tags = parseCaptionText(text, format: _captionFormat);
     final captioned = text.trim().isNotEmpty;
     if (_hasCaption[imagePath] == captioned &&
         listEquals(_tagsByPath[imagePath], tags)) {
@@ -347,7 +348,7 @@ class DatasetState extends ChangeNotifier {
     required String directoryPath,
     required bool recursive,
     required String captionExtension,
-    bool captionProse = false,
+    CaptionFormat captionFormat = CaptionFormat.tags,
   }) async {
     final generation = ++_scanGeneration;
     _isLoading = true;
@@ -384,7 +385,7 @@ class DatasetState extends ChangeNotifier {
         captioned[entity.path] = content.trim().isNotEmpty;
         tagsByPath[entity.path] = parseCaptionText(
           content,
-          prose: captionProse,
+          format: captionFormat,
         );
       }
     } catch (e) {
@@ -420,7 +421,7 @@ class DatasetState extends ChangeNotifier {
     _tagCountsCache = null;
     _invalidateDerived();
     _captionExtension = captionExtension;
-    _captionProse = captionProse;
+    _captionFormat = captionFormat;
     _isLoading = false;
     _error = error;
     if (_selectedPath != null &&

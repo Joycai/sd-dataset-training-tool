@@ -53,12 +53,18 @@ void main() {
   group('joinCaptionText', () {
     test('prose join round-trips a parsed caption', () {
       const text = 'A girl smiling. She has long hair, and a hat.';
-      expect(joinCaptionText(parseSentenceText(text), prose: true), text);
+      expect(
+        joinCaptionText(parseSentenceText(text), format: CaptionFormat.prose),
+        text,
+      );
     });
 
     test('no space is inserted after full-width punctuation', () {
       const text = '她是女孩，戴着帽子。在雨中。';
-      expect(joinCaptionText(parseSentenceText(text), prose: true), text);
+      expect(
+        joinCaptionText(parseSentenceText(text), format: CaptionFormat.prose),
+        text,
+      );
     });
 
     test('tag mode keeps the comma join', () {
@@ -66,15 +72,28 @@ void main() {
     });
   });
 
-  test('CaptionType.prose survives the JSON round trip and sanitize', () {
+  test('CaptionType.format survives the JSON round trip and sanitize', () {
     final decoded = decodeCaptionTypes(
       encodeCaptionTypes([
-        const CaptionType(id: 'nlp', extension: '.ntxt', prose: true),
+        const CaptionType(
+          id: 'nlp',
+          extension: '.ntxt',
+          format: CaptionFormat.prose,
+        ),
       ]),
     );
-    expect(decoded.single.prose, isTrue);
+    expect(decoded.single.format, CaptionFormat.prose);
     final sanitized = sanitizeCaptionTypes(decoded);
-    expect(sanitized.last.prose, isTrue);
+    expect(sanitized.last.format, CaptionFormat.prose);
+  });
+
+  test('legacy prose flag decodes into the format enum', () {
+    final decoded = decodeCaptionTypes(
+      '[{"id": "nlp", "extension": ".ntxt", "prose": true}, '
+      '{"id": "wd", "extension": ".txt", "prose": false}]',
+    );
+    expect(decoded.first.format, CaptionFormat.prose);
+    expect(decoded.last.format, CaptionFormat.tags);
   });
 
   group('prose mode end to end', () {
@@ -97,9 +116,9 @@ void main() {
         directoryPath: tempDir.path,
         recursive: false,
         captionExtension: '.ntxt',
-        captionProse: true,
+        captionFormat: CaptionFormat.prose,
       );
-      expect(dataset.captionProse, isTrue);
+      expect(dataset.captionFormat, CaptionFormat.prose);
       expect(dataset.tagsOf(p.join(tempDir.path, '001.png')), [
         'A girl smiling.',
         'She wears a red hat,',
@@ -114,7 +133,7 @@ void main() {
       await session.load(
         File(p.join(tempDir.path, '001.png')),
         '.ntxt',
-        prose: true,
+        format: CaptionFormat.prose,
       );
       expect(session.tags, [
         'A girl smiling.',

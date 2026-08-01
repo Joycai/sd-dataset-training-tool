@@ -2,6 +2,30 @@ import 'dart:convert';
 
 import '../state/dataset_state.dart';
 
+/// How a caption type's file content is structured. The format — not the
+/// file extension — is what decides how the app parses, displays and
+/// rewrites a caption: `.json` is only a convention, and nothing stops a
+/// user from keeping JSON captions in `.anima` files.
+enum CaptionFormat {
+  /// Comma-separated danbooru-style tags (WD14).
+  tags,
+
+  /// One JSON document per caption. The tag views give way to a read-only
+  /// highlighted JSON view, and tag-level rewrites are refused — structured
+  /// captions are edited as text or through the assistant's JSON tools.
+  json,
+
+  /// Natural-language prose: the tag views segment the text by `,` and `.`
+  /// (plus their full-width forms) instead of treating it as tags.
+  prose;
+
+  static CaptionFormat fromName(String? name) => switch (name) {
+    'json' => CaptionFormat.json,
+    'prose' => CaptionFormat.prose,
+    _ => CaptionFormat.tags,
+  };
+}
+
 /// One flavor of caption file a dataset can carry — e.g. `.txt` holding
 /// WD14-style tags next to `.ntxt` holding a natural-language description.
 ///
@@ -17,7 +41,7 @@ class CaptionType {
     this.name = '',
     required this.extension,
     this.enabled = true,
-    this.prose = false,
+    this.format = CaptionFormat.tags,
   });
 
   /// The id of the built-in type. It always exists, is always enabled, and
@@ -37,10 +61,10 @@ class CaptionType {
   /// switcher and the assistant's variant tools.
   final bool enabled;
 
-  /// Sentence mode, for natural-language captions: while this type is
-  /// active, the tag views segment the text by `,` and `.` (plus their
-  /// full-width forms) instead of treating it as comma-separated tags.
-  final bool prose;
+  /// The content structure of this type's caption files. See
+  /// [CaptionFormat] — everything that parses or rewrites a caption keys on
+  /// this, never on the extension.
+  final CaptionFormat format;
 
   bool get isDefault => id == defaultId;
 
@@ -51,13 +75,13 @@ class CaptionType {
     String? name,
     String? extension,
     bool? enabled,
-    bool? prose,
+    CaptionFormat? format,
   }) => CaptionType(
     id: id,
     name: name ?? this.name,
     extension: extension ?? this.extension,
     enabled: enabled ?? this.enabled,
-    prose: prose ?? this.prose,
+    format: format ?? this.format,
   );
 
   Map<String, dynamic> toJson() => {
@@ -65,7 +89,7 @@ class CaptionType {
     'name': name,
     'extension': extension,
     'enabled': enabled,
-    'prose': prose,
+    'format': format.name,
   };
 
   factory CaptionType.fromJson(Map<String, dynamic> json) => CaptionType(
@@ -73,7 +97,10 @@ class CaptionType {
     name: (json['name'] as String?) ?? '',
     extension: (json['extension'] as String?) ?? '',
     enabled: (json['enabled'] as bool?) ?? true,
-    prose: (json['prose'] as bool?) ?? false,
+    // Prefs written before formats existed carry `prose: true/false`.
+    format: json['format'] is String
+        ? CaptionFormat.fromName(json['format'] as String)
+        : (json['prose'] == true ? CaptionFormat.prose : CaptionFormat.tags),
   );
 }
 

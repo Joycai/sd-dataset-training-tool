@@ -164,7 +164,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
       _session.load(
         selected,
         _dataset.captionExtension,
-        prose: _dataset.captionProse,
+        format: _dataset.captionFormat,
       );
     }
   }
@@ -200,14 +200,14 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     );
   }
 
-  /// Rescans when the active caption extension or grammar (prose flag) no
-  /// longer matches what the dataset was scanned with. The scan itself
-  /// updates both, so this cannot loop.
+  /// Rescans when the active caption extension or format no longer matches
+  /// what the dataset was scanned with. The scan itself updates both, so
+  /// this cannot loop.
   void _rescanIfCaptionTypeChanged() {
     final directory = _appState.browsingDirectory;
     if (directory == null || _dataset.rootPath == null) return;
     if (_appState.captionExtension == _dataset.captionExtension &&
-        _appState.captionProse == _dataset.captionProse) {
+        _appState.captionFormat == _dataset.captionFormat) {
       return;
     }
     _scan(directory);
@@ -222,7 +222,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
       directoryPath: directory,
       recursive: appState.includeSubdirectories,
       captionExtension: appState.captionExtension,
-      captionProse: appState.captionProse,
+      captionFormat: appState.captionFormat,
     );
     if (!mounted) return;
     // The selected path usually survives a rescan, so [_onDatasetChanged]
@@ -234,7 +234,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
       await _session.load(
         selected,
         _dataset.captionExtension,
-        prose: _dataset.captionProse,
+        format: _dataset.captionFormat,
       );
     }
   }
@@ -248,7 +248,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     _session.load(
       selected,
       _dataset.captionExtension,
-      prose: _dataset.captionProse,
+      format: _dataset.captionFormat,
     );
   }
 

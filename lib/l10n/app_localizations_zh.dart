@@ -52,8 +52,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get captionTypeDefaultHint => '默认类型始终启用';
 
   @override
-  String get captionTypeProseTooltip =>
-      '句子模式：该类型激活时，标签视图按 , 和 . 断句展示——适合自然语言描述';
+  String get captionTypeFormatTooltip =>
+      '格式：决定该类型标注文件的解析方式——逗号分隔标签、JSON 文档或自然语言句子';
+
+  @override
+  String get captionTypeFormatTags => '标签';
+
+  @override
+  String get captionTypeFormatJson => 'JSON';
+
+  @override
+  String get captionTypeFormatNl => '自然语言';
 
   @override
   String get captionTypeDuplicate => '该扩展名已被其他 Caption 类型使用';
@@ -209,6 +218,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get tagsTab => '标签';
+
+  @override
+  String get jsonTab => 'JSON';
+
+  @override
+  String get captionJsonEmpty => '还没有 caption。';
+
+  @override
+  String captionJsonInvalid(String error) {
+    return 'JSON 无法解析——$error';
+  }
 
   @override
   String tagCount(int count) {

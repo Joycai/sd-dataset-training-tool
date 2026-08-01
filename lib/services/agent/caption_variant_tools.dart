@@ -221,10 +221,10 @@ List<AgentTool> buildCaptionVariantTools(
           'Overwrite one image\'s caption file of a specific caption type '
           'with exactly the given text — how a caption generated from '
           'another type gets written. The text is stored verbatim (prose '
-          'stays prose), except that writing a ".json" type rejects text '
-          'that does not parse as JSON. JSON string values carry plain '
-          'parentheses — never a caption\'s backslash-escaped \\( style. '
-          'When restructuring tags into '
+          'stays prose), except that writing a JSON-format type rejects '
+          'text that does not parse as JSON. JSON string values carry '
+          'plain parentheses — never a caption\'s backslash-escaped \\( '
+          'style. When restructuring tags into '
           'another format must not lose or invent any, set '
           'expect_tags_from: the write is then rejected unless its tags '
           'exactly match the source caption\'s. Writing the *active* type '
@@ -246,18 +246,18 @@ List<AgentTool> buildCaptionVariantTools(
             'description':
                 'a configured caption extension (e.g. ".txt"): reject the '
                 'write unless the tags found in the new text — every JSON '
-                'string value for a ".json" target, the comma-separated '
-                'tags otherwise — exactly match that source caption\'s '
-                'tags. Set it whenever converting one type into another '
-                'must not lose or invent tags.',
+                'string value for a JSON-format target, the '
+                'comma-separated tags otherwise — exactly match that '
+                'source caption\'s tags. Set it whenever converting one '
+                'type into another must not lose or invent tags.',
           },
           'ignore_keys': {
             'type': 'array',
             'items': {'type': 'string'},
             'description':
-                'for a ".json" target with expect_tags_from: keys whose '
-                'values are not tags (e.g. a natural-language field) and '
-                'are excluded from the comparison',
+                'for a JSON-format target with expect_tags_from: keys '
+                'whose values are not tags (e.g. a natural-language '
+                'field) and are excluded from the comparison',
           },
         },
         'required': ['path', 'extension', 'text'],
@@ -282,10 +282,11 @@ List<AgentTool> buildCaptionVariantTools(
         return toolError('image ${notFoundMessage(d, rel)}');
       }
 
-      // A .json caption that does not parse would poison whatever consumes
+      // A JSON caption that does not parse would poison whatever consumes
       // it downstream, so it is rejected before anything touches the disk.
+      // The type's configured format decides, not its extension.
       dynamic decoded;
-      final isJson = type.extension == '.json';
+      final isJson = type.format == CaptionFormat.json;
       if (isJson) {
         try {
           decoded = jsonDecode(text);
@@ -413,8 +414,8 @@ List<AgentTool> buildCaptionVariantTools(
           'target_extension': {
             'type': 'string',
             'description':
-                'the configured caption type to write (e.g. ".json"); '
-                'must be neither the source nor the active type',
+                'a configured caption type whose format is JSON (e.g. '
+                '".json"); must not be the active type',
           },
           'fields': {
             'type': 'array',
@@ -490,10 +491,10 @@ List<AgentTool> buildCaptionVariantTools(
           _unknownType(requireString(args, 'source_extension'), types),
         );
       }
-      if (source.prose) {
+      if (source.format != CaptionFormat.tags) {
         return toolError(
-          'the source must be a tag-style caption type; '
-          '"${source.extension}" is prose',
+          'the source must be a tag-format caption type; '
+          '"${source.extension}" is ${source.format.name}',
         );
       }
       final target = _findType(types, requireString(args, 'target_extension'));
@@ -502,14 +503,18 @@ List<AgentTool> buildCaptionVariantTools(
           _unknownType(requireString(args, 'target_extension'), types),
         );
       }
-      if (target.extension == source.extension) {
-        return toolError('the source and target are the same caption type');
+      if (target.format != CaptionFormat.json) {
+        return toolError(
+          'the target\'s configured format is ${target.format.name}, not '
+          'JSON — the user sets a caption type\'s format in the caption '
+          'type settings',
+        );
       }
       if (target.extension == d.captionExtension) {
         return toolError(
           'the target is the active caption type; this converter only '
-          'writes non-active types so the tag index stays a tag index — '
-          'the user would have to switch the active type first',
+          'writes non-active types — the user would have to switch the '
+          'active type first',
         );
       }
 
@@ -791,21 +796,22 @@ Future<_LosslessCheck> _checkLossless({
   if (source == null) {
     return (error: toolError(_unknownType(sourceExtension, types)), verified: 0);
   }
-  // Prose has no tag grammar on either side of the comparison.
-  if (source.prose) {
+  // Only the tag format has a tag grammar to read the source with.
+  if (source.format != CaptionFormat.tags) {
     return (
       error: toolError(
-        'expect_tags_from needs a tag-style caption type; '
-        '"${source.extension}" is prose',
+        'expect_tags_from needs a tag-format caption type; '
+        '"${source.extension}" is ${source.format.name}',
       ),
       verified: 0,
     );
   }
-  if (!isJson && target.prose) {
+  if (!isJson && target.format != CaptionFormat.tags) {
     return (
       error: toolError(
-        'expect_tags_from cannot verify a prose target '
-        '("${target.extension}"); it works for ".json" and tag-style types',
+        'expect_tags_from cannot verify a ${target.format.name} target '
+        '("${target.extension}"); it works for JSON-format and tag-format '
+        'types',
       ),
       verified: 0,
     );
