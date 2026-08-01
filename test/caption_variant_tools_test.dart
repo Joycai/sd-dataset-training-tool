@@ -23,7 +23,8 @@ const _pngBytes = [
 
 const _types = [
   CaptionType(id: CaptionType.defaultId, name: 'WD14', extension: '.txt'),
-  CaptionType(id: 'nlp', name: 'NLP', extension: '.ntxt'),
+  CaptionType(id: 'nlp', name: 'NLP', extension: '.ntxt', prose: true),
+  CaptionType(id: 'anima', name: 'anima', extension: '.json'),
 ];
 
 void main() {
@@ -83,11 +84,13 @@ void main() {
     test('lists the configured caption types', () async {
       final out = await call('get_dataset_overview');
       final types = (out['caption_types'] as List).cast<Map>();
-      expect(types, hasLength(2));
+      expect(types, hasLength(3));
       expect(types[0]['extension'], '.txt');
       expect(types[0]['active'], isTrue);
       expect(types[1]['extension'], '.ntxt');
       expect(types[1]['active'], isFalse);
+      expect(types[2]['extension'], '.json');
+      expect(types[2]['active'], isFalse);
     });
   });
 
@@ -118,15 +121,23 @@ void main() {
         'paths': ['001.png', '003.png', 'nope.png'],
       });
       final images = (out['images'] as List).cast<Map>();
-      expect(images[0]['captions'], {'.txt': true, '.ntxt': true});
-      expect(images[1]['captions'], {'.txt': false, '.ntxt': false});
+      expect(images[0]['captions'], {
+        '.txt': true,
+        '.ntxt': true,
+        '.json': false,
+      });
+      expect(images[1]['captions'], {
+        '.txt': false,
+        '.ntxt': false,
+        '.json': false,
+      });
       expect(images[2]['error'], contains('not found'));
     });
 
     test('rejects an unconfigured extension', () async {
       final result = await registry.dispatch(
         'check_caption_variants',
-        jsonEncode({'missing_extension': '.json'}),
+        jsonEncode({'missing_extension': '.foo'}),
       );
       expect(result.isError, isTrue);
       expect(result.text, contains('.ntxt'));
@@ -202,10 +213,187 @@ void main() {
     test('rejects an unconfigured extension', () async {
       final result = await registry.dispatch(
         'write_caption_file',
-        jsonEncode({'path': '001.png', 'extension': '.json', 'text': '{}'}),
+        jsonEncode({'path': '001.png', 'extension': '.foo', 'text': 'x'}),
       );
       expect(result.isError, isTrue);
+      expect(File(cap('001', '.foo')).existsSync(), isFalse);
+    });
+  });
+
+  group('write_caption_file JSON validation', () {
+    test('rejects text that does not parse as JSON', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.json',
+          'text': '{"tags": [,]}',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('not valid JSON'));
       expect(File(cap('001', '.json')).existsSync(), isFalse);
+    });
+
+    test('valid JSON is stored verbatim', () async {
+      const text = '{"tags": ["smile"]}';
+      final out = await call('write_caption_file', {
+        'path': '001.png',
+        'extension': '.json',
+        'text': text,
+      });
+      expect(out['written'], isTrue);
+      expect(await File(cap('001', '.json')).readAsString(), text);
+    });
+  });
+
+  group('write_caption_file expect_tags_from', () {
+    // 001.txt is 'trigger, 1girl, smile'.
+    const animaJson =
+        '{"quality": [""], "count": "1girl", "character": "trigger", '
+        '"series": [], "artist": "", "appearance": [], "tags": ["smile"], '
+        '"environment": [], "nl": "a girl smiling"}';
+
+    test('a lossless JSON conversion passes and reports the tag count',
+        () async {
+      final out = await call('write_caption_file', {
+        'path': '001.png',
+        'extension': '.json',
+        'text': animaJson,
+        'expect_tags_from': '.txt',
+        'ignore_keys': ['nl'],
+      });
+      expect(out['written'], isTrue);
+      expect(out['tags_verified'], 3);
+      expect(await File(cap('001', '.json')).readAsString(), animaJson);
+    });
+
+    test('matching folds case and underscore style', () async {
+      final out = await call('write_caption_file', {
+        'path': '001.png',
+        'extension': '.json',
+        'text': '{"count": "1GIRL", "tags": ["trigger", "smile"]}',
+        'expect_tags_from': '.txt',
+      });
+      expect(out['written'], isTrue);
+      expect(out['tags_verified'], 3);
+    });
+
+    test('a lost tag rejects the write', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.json',
+          'text': '{"count": "1girl", "tags": ["trigger"]}',
+          'expect_tags_from': '.txt',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('lost: smile'));
+      expect(result.text, contains('trigger, 1girl, smile'));
+      expect(File(cap('001', '.json')).existsSync(), isFalse);
+    });
+
+    test('an invented or duplicated tag rejects the write', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.json',
+          'text':
+              '{"count": "1girl", "appearance": ["smile"], '
+              '"tags": ["trigger", "smile"]}',
+          'expect_tags_from': '.txt',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('invented or duplicated: smile'));
+      expect(File(cap('001', '.json')).existsSync(), isFalse);
+    });
+
+    test('nl text only escapes the comparison via ignore_keys', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.json',
+          'text':
+              '{"tags": ["trigger", "1girl", "smile"], '
+              '"nl": "a girl smiling"}',
+          'expect_tags_from': '.txt',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('invented or duplicated'));
+    });
+
+    test('guards a tag-style non-JSON target too', () async {
+      final out = await call('write_caption_file', {
+        'path': '001.png',
+        'extension': '.txt',
+        'text': 'smile, trigger, 1girl',
+        'expect_tags_from': '.txt',
+      });
+      expect(out['written'], isTrue);
+      expect(out['tags_verified'], 3);
+      expect(dataset.tagsOf(img('001')), ['smile', 'trigger', '1girl']);
+    });
+
+    test('rejects a prose source type', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.json',
+          'text': '{}',
+          'expect_tags_from': '.ntxt',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('prose'));
+    });
+
+    test('rejects a prose target', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.ntxt',
+          'text': 'A girl.',
+          'expect_tags_from': '.txt',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('prose target'));
+    });
+
+    test('rejects an unconfigured source extension', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '001.png',
+          'extension': '.json',
+          'text': '{}',
+          'expect_tags_from': '.foo',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('not a configured caption type'));
+    });
+
+    test('an uncaptioned source rejects any tags in the new text', () async {
+      final result = await registry.dispatch(
+        'write_caption_file',
+        jsonEncode({
+          'path': '003.png',
+          'extension': '.json',
+          'text': '{"tags": ["solo"]}',
+          'expect_tags_from': '.txt',
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(result.text, contains('invented or duplicated: solo'));
     });
   });
 }

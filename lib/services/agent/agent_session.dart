@@ -239,7 +239,13 @@ String buildAgentSystemPrompt({
             'types, read_caption_file for the raw text of another\n  type, '
             'and write_caption_file to generate one type from another '
             '(e.g.\n  compose a natural-language caption from an image\'s '
-            'WD14 tags).';
+            'WD14 tags).\n  Writing a ".json" type rejects text that does '
+            'not parse as JSON. When a\n  conversion must keep the tag set '
+            'intact (e.g. regrouping tags into JSON\n  fields), pass '
+            'expect_tags_from with the source extension — the write is\n  '
+            'then rejected unless its tags match the source caption\'s, '
+            'with any\n  natural-language JSON fields excluded via '
+            'ignore_keys.';
   final visionGuideline = visionEnabled
       ? '\n- view_image lets you actually see images (max 4 per call, '
             'downscaled).\n  It is token-expensive: spot-check individual '

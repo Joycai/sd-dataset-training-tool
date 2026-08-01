@@ -13,6 +13,7 @@
 /// caption state (see the guard in [TagOps]'s replay).
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -20,6 +21,7 @@ import 'package:path/path.dart' as p;
 import '../../models/caption_type.dart';
 import '../../state/dataset_state.dart';
 import '../../state/tag_ops.dart';
+import '../../utils/tag_text.dart';
 import 'agent_tools.dart';
 import 'dataset_tools.dart';
 
@@ -219,8 +221,12 @@ List<AgentTool> buildCaptionVariantTools(
           'Overwrite one image\'s caption file of a specific caption type '
           'with exactly the given text — how a caption generated from '
           'another type gets written. The text is stored verbatim (prose '
-          'stays prose). Writing the *active* type behaves exactly like '
-          'write_caption. Undoable.',
+          'stays prose), except that writing a ".json" type rejects text '
+          'that does not parse as JSON. When restructuring tags into '
+          'another format must not lose or invent any, set '
+          'expect_tags_from: the write is then rejected unless its tags '
+          'exactly match the source caption\'s. Writing the *active* type '
+          'behaves exactly like write_caption. Undoable.',
       parametersSchema: {
         'type': 'object',
         'properties': {
@@ -233,6 +239,24 @@ List<AgentTool> buildCaptionVariantTools(
             'description': 'a configured caption extension (e.g. ".ntxt")',
           },
           'text': {'type': 'string'},
+          'expect_tags_from': {
+            'type': 'string',
+            'description':
+                'a configured caption extension (e.g. ".txt"): reject the '
+                'write unless the tags found in the new text — every JSON '
+                'string value for a ".json" target, the comma-separated '
+                'tags otherwise — exactly match that source caption\'s '
+                'tags. Set it whenever converting one type into another '
+                'must not lose or invent tags.',
+          },
+          'ignore_keys': {
+            'type': 'array',
+            'items': {'type': 'string'},
+            'description':
+                'for a ".json" target with expect_tags_from: keys whose '
+                'values are not tags (e.g. a natural-language field) and '
+                'are excluded from the comparison',
+          },
         },
         'required': ['path', 'extension', 'text'],
       },
@@ -256,6 +280,40 @@ List<AgentTool> buildCaptionVariantTools(
         return toolError('image ${notFoundMessage(d, rel)}');
       }
 
+      // A .json caption that does not parse would poison whatever consumes
+      // it downstream, so it is rejected before anything touches the disk.
+      dynamic decoded;
+      final isJson = type.extension == '.json';
+      if (isJson) {
+        try {
+          decoded = jsonDecode(text);
+        } on FormatException catch (e) {
+          return toolError(
+            'nothing was written for $rel: the text is not valid JSON — '
+            '${e.message}${e.offset == null ? '' : ' (offset ${e.offset})'}',
+          );
+        }
+      }
+
+      int? verifiedTags;
+      final expectFrom = optString(args, 'expect_tags_from');
+      if (expectFrom != null) {
+        final guard = await _checkLossless(
+          deps: deps,
+          types: types,
+          target: type,
+          sourceExtension: expectFrom,
+          key: key,
+          rel: rel,
+          text: text,
+          decoded: decoded,
+          isJson: isJson,
+          ignoreKeys: optStringList(args, 'ignore_keys').toSet(),
+        );
+        if (guard.error != null) return guard.error!;
+        verifiedTags = guard.verified;
+      }
+
       // The active type's file is what the dataset state, the editor and the
       // undo replay all track; route through the same path as write_caption
       // so none of them fall out of sync.
@@ -272,6 +330,7 @@ List<AgentTool> buildCaptionVariantTools(
           'extension': type.extension,
           'written': result.written,
           'unchanged': result.unchanged,
+          'tags_verified': ?verifiedTags,
         });
       }
 
@@ -292,6 +351,7 @@ List<AgentTool> buildCaptionVariantTools(
           'extension': type.extension,
           'written': false,
           'unchanged': true,
+          'tags_verified': ?verifiedTags,
         });
       }
       try {
@@ -318,10 +378,122 @@ List<AgentTool> buildCaptionVariantTools(
         'extension': type.extension,
         'written': true,
         'unchanged': false,
+        'tags_verified': ?verifiedTags,
       });
     }),
   ),
 ];
+
+/// The outcome of the expect_tags_from guard: an error to return verbatim,
+/// or the number of source tags the new text was verified against.
+typedef _LosslessCheck = ({AgentToolResult? error, int verified});
+
+/// Verifies that the caption text about to be written carries exactly the
+/// tags of the image's [sourceExtension] caption — the machine guarantee
+/// behind "convert without losing or inventing tags".
+///
+/// Matching folds case and underscore style (via [matchPermutation]), so a
+/// restyled spelling still counts as the same tag. Order is deliberately not
+/// checked: a conversion regroups tags by design.
+Future<_LosslessCheck> _checkLossless({
+  required DatasetToolsDeps deps,
+  required List<CaptionType> types,
+  required CaptionType target,
+  required String sourceExtension,
+  required String key,
+  required String rel,
+  required String text,
+  required dynamic decoded,
+  required bool isJson,
+  required Set<String> ignoreKeys,
+}) async {
+  final source = _findType(types, sourceExtension);
+  if (source == null) {
+    return (error: toolError(_unknownType(sourceExtension, types)), verified: 0);
+  }
+  // Prose has no tag grammar on either side of the comparison.
+  if (source.prose) {
+    return (
+      error: toolError(
+        'expect_tags_from needs a tag-style caption type; '
+        '"${source.extension}" is prose',
+      ),
+      verified: 0,
+    );
+  }
+  if (!isJson && target.prose) {
+    return (
+      error: toolError(
+        'expect_tags_from cannot verify a prose target '
+        '("${target.extension}"); it works for ".json" and tag-style types',
+      ),
+      verified: 0,
+    );
+  }
+
+  final d = deps.dataset;
+  List<String> sourceTags;
+  if (source.extension == d.captionExtension) {
+    sourceTags = d.tagsOf(key);
+  } else {
+    try {
+      final file = File(_variantPath(key, source));
+      sourceTags = await file.exists()
+          ? parseTagText(await file.readAsString())
+          : const [];
+    } catch (e) {
+      return (
+        error: toolError(
+          'nothing was written for $rel: cannot read its '
+          '${source.extension} caption: $e',
+        ),
+        verified: 0,
+      );
+    }
+  }
+
+  final writtenTags = isJson
+      ? _jsonTags(decoded, ignoreKeys)
+      : parseTagText(text);
+  final match = matchPermutation(sourceTags, writtenTags);
+  if (match.unknown.isNotEmpty || match.missing.isNotEmpty) {
+    return (
+      error: toolError(
+        'nothing was written: the new ${target.extension} caption does not '
+        'carry the same tags as $rel\'s ${source.extension} caption'
+        '${match.missing.isEmpty ? '' : '; lost: ${match.missing.join(", ")}'}'
+        '${match.unknown.isEmpty ? '' : '; invented or duplicated: '
+                  '${match.unknown.join(", ")}'}'
+        '. The source\'s ${sourceTags.length} tags are: '
+        '${sourceTags.join(", ")}',
+      ),
+      verified: 0,
+    );
+  }
+  return (error: null, verified: sourceTags.length);
+}
+
+/// Every tag carried by a decoded JSON caption: string leaves are split by
+/// the tag grammar (so both `["a", "b"]` and `"a, b"` styles count their
+/// tags), subtrees under [ignoreKeys] are skipped, and non-string leaves
+/// carry none.
+List<String> _jsonTags(dynamic node, Set<String> ignoreKeys) {
+  final out = <String>[];
+  void walk(dynamic n) {
+    if (n is String) {
+      out.addAll(parseTagText(n));
+    } else if (n is List) {
+      n.forEach(walk);
+    } else if (n is Map) {
+      n.forEach((k, v) {
+        if (!ignoreKeys.contains(k)) walk(v);
+      });
+    }
+  }
+
+  walk(node);
+  return out;
+}
 
 String _variantPath(String imagePath, CaptionType type) =>
     '${p.withoutExtension(imagePath)}${type.extension}';
