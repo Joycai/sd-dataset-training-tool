@@ -36,11 +36,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get captionTypesTitle => 'Caption 类型';
 
   @override
-  String get captionTypesDesc =>
-      '同一张图可维护多套标注文件（如 .txt 放 WD14 标签、.ntxt 放自然语言描述），在左侧图库中切换';
+  String get captionTypesDesc => '同一张图可维护多套标注文件，启用的类型会出现在图库与编辑器的切换栏';
 
   @override
   String get captionTypeName => '名称';
+
+  @override
+  String get captionTypeNameHint => '未命名类型';
+
+  @override
+  String get captionTypeFormat => '格式';
+
+  @override
+  String get captionTypeExtension => '扩展名';
 
   @override
   String get captionTypeAdd => '添加类型';
@@ -49,20 +57,35 @@ class AppLocalizationsZh extends AppLocalizations {
   String get captionTypeEnabled => '启用';
 
   @override
+  String get captionTypeDefaultBadge => '默认';
+
+  @override
   String get captionTypeDefaultHint => '默认类型始终启用';
+
+  @override
+  String get captionTypeRules => '扩展名需唯一 · 默认类型不可停用或删除';
 
   @override
   String get captionTypeFormatTooltip =>
       '格式：决定该类型标注文件的解析方式——逗号分隔标签、JSON 文档或自然语言句子';
 
   @override
-  String get captionTypeFormatTags => '标签';
+  String get captionTypeFormatTags => 'WD14 标签';
 
   @override
-  String get captionTypeFormatJson => 'JSON';
+  String get captionTypeFormatTagsDesc => '逗号分隔 · 可编辑标签卡片';
+
+  @override
+  String get captionTypeFormatJson => 'Anima JSON';
+
+  @override
+  String get captionTypeFormatJsonDesc => '结构化文档 · 标签视图只读';
 
   @override
   String get captionTypeFormatNl => '自然语言';
+
+  @override
+  String get captionTypeFormatNlDesc => '整段文本 · 按句断词';
 
   @override
   String get captionTypeDuplicate => '该扩展名已被其他 Caption 类型使用';
@@ -85,6 +108,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cancel => '取消';
+
+  @override
+  String get done => '完成';
 
   @override
   String get confirm => '确认';
