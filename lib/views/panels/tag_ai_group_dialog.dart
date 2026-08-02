@@ -54,6 +54,14 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
   int _done = 0;
   int _applied = 0;
 
+  /// Batches whose answer could not be read, by kind. What separates "the
+  /// model declined" from "the model's answer never arrived" — the second is
+  /// a setup problem the user can fix, and saying nothing about it is what
+  /// made this feature look inert.
+  int _emptyBatches = 0;
+  int _unreadableBatches = 0;
+  int _totalBatches = 0;
+
   /// Guards the accept buttons while a group is being created and written.
   bool _applying = false;
 
@@ -74,6 +82,9 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
       _suggestions = null;
       _error = null;
       _done = 0;
+      _emptyBatches = 0;
+      _unreadableBatches = 0;
+      _totalBatches = 0;
     });
     try {
       final result = await suggestTagGroupsWithLlm(
@@ -88,12 +99,56 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
         onProgress: (done, _) {
           if (mounted) setState(() => _done = done);
         },
+        onBatchProblem: (problem, _) {
+          switch (problem) {
+            case TagGroupBatchProblem.emptyReply:
+              _emptyBatches++;
+            case TagGroupBatchProblem.unparseable:
+              _unreadableBatches++;
+          }
+        },
       );
       if (!mounted) return;
-      setState(() => _suggestions = result);
+      setState(() {
+        _suggestions = result;
+        _totalBatches = (widget.tags.length / tagGroupBatchSize).ceil();
+      });
     } on LlmException catch (e) {
       if (mounted) setState(() => _error = e.message);
+    } catch (e) {
+      // Anything the transport did not wrap still has to reach the user:
+      // an unhandled throw here leaves the dialog spinning forever, which is
+      // indistinguishable from the feature doing nothing.
+      if (mounted) setState(() => _error = '$e');
     }
+  }
+
+  int get _failedBatches => _emptyBatches + _unreadableBatches;
+
+  /// The message for a run that produced no suggestions, naming the reason
+  /// when there was one.
+  String _emptyMessage(AppLocalizations l10n) {
+    final failed = _failedBatches;
+    if (failed == 0) return l10n.aiGroupEmpty;
+    final total = _totalBatches < failed ? failed : _totalBatches;
+    return _emptyBatches >= _unreadableBatches
+        ? l10n.aiGroupNoReply(failed, total)
+        : l10n.aiGroupUnreadable(failed, total);
+  }
+
+  /// The group [name] refers to, or null when it is a new one.
+  ///
+  /// Folded, not exact: a model that answers "服装 " or "Clothing" for a
+  /// library that already has "服装"/"clothing" must land in the group the
+  /// user has, not in a second one beside it.
+  static TagGroup? _groupNamed(AppState appState, String name) {
+    final groups = appState.tagGroups;
+    final exact = groups.where((g) => g.name == name).firstOrNull;
+    if (exact != null) return exact;
+    final folded = name.trim().toLowerCase();
+    return groups
+        .where((g) => g.name.trim().toLowerCase() == folded)
+        .firstOrNull;
   }
 
   /// Files one tag, creating the target group when the model named a new one.
@@ -102,9 +157,7 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
     setState(() => _applying = true);
     final appState = context.read<AppState>();
     try {
-      var group = appState.tagGroups
-          .where((g) => g.name == suggestion.group)
-          .firstOrNull;
+      var group = _groupNamed(appState, suggestion.group);
       group ??= await appState.createTagGroup(
         suggestion.group,
         // Cycle the presets so a batch of new groups is visually separable
@@ -150,7 +203,6 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
     final scheme = Theme.of(context).colorScheme;
     final appState = context.watch<AppState>();
     final suggestions = _suggestions;
-    final existingNames = {for (final g in appState.tagGroups) g.name};
 
     final Widget body;
     if (_error != null) {
@@ -179,8 +231,9 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
     } else if (suggestions.isEmpty) {
       body = Text(
         // After a run that filed everything the list is empty for a happy
-        // reason; before one it means the model had nothing to say.
-        _applied > 0 ? l10n.aiGroupApplied(_applied) : l10n.aiGroupEmpty,
+        // reason; before one it means the model had nothing usable to say —
+        // and [_emptyMessage] says which kind of nothing that was.
+        _applied > 0 ? l10n.aiGroupApplied(_applied) : _emptyMessage(l10n),
         style: TextStyle(fontSize: AppText.secondary, color: semantic.muted),
       );
     } else {
@@ -199,7 +252,7 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
             _SuggestionRow(
               suggestion: suggestion,
               gloss: appState.tagTranslations.glossFor(suggestion.tag),
-              isNewGroup: !existingNames.contains(suggestion.group),
+              isNewGroup: _groupNamed(appState, suggestion.group) == null,
               newBadge: l10n.aiGroupNewGroupBadge,
               acceptTooltip: l10n.confirm,
               rejectTooltip: l10n.cancel,
@@ -242,11 +295,20 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
             onPressed: _applying ? null : _acceptAll,
             child: Text(l10n.aiGroupAcceptAll(suggestions.length)),
           ),
-        ] else
+        ] else ...[
           TextButton(
             onPressed: () => Navigator.of(context).pop(_applied),
             child: Text(l10n.close),
           ),
+          // A run that failed is worth one click to redo — the model is
+          // non-deterministic and a truncated answer often is not the second
+          // time. Offered only when there is something to redo.
+          if (_error != null ||
+              (suggestions != null && _applied == 0 && _failedBatches > 0)) ...[
+            const SizedBox(width: 6),
+            FilledButton(onPressed: _run, child: Text(l10n.aiGroupRetry)),
+          ],
+        ],
       ],
     );
   }

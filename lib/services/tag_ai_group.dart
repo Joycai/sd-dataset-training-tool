@@ -11,6 +11,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:math' as math;
 
 import '../models/llm_models.dart';
 import '../utils/tag_text.dart';
@@ -30,10 +31,35 @@ class TagGroupSuggestion {
   final String group;
 }
 
+/// Why a batch produced nothing, so the caller can say so.
+///
+/// "The model had no suggestion" and "the model's answer was unreadable" look
+/// identical from the outside — both leave an empty list — and telling the
+/// user the first when the second happened is how this feature came to look
+/// like it silently did nothing.
+enum TagGroupBatchProblem {
+  /// The stream carried no text at all. Almost always the output budget:
+  /// a reasoning model spends `max_tokens` on thinking and never reaches the
+  /// answer.
+  emptyReply,
+
+  /// Text came back but no JSON could be recovered from it.
+  unparseable,
+}
+
 /// A model asked to file two hundred tags in one answer runs out of output
 /// tokens halfway through and the whole reply is lost. Batching costs a few
 /// more requests and makes a partial failure cost one batch.
-const int _defaultBatchSize = 60;
+const int tagGroupBatchSize = 40;
+
+/// Output-token floor for this call.
+///
+/// The profile's own budget is tuned for chat turns and defaults to 4096,
+/// which a reasoning model can spend entirely on thinking — leaving an empty
+/// answer that used to be reported as "no suggestions". A JSON array for one
+/// batch needs about a thousand tokens, so the floor is headroom for the
+/// thinking, not for the answer.
+const int _minOutputTokens = 8192;
 
 /// Asks [profile]'s model where each of [tags] belongs.
 ///
@@ -46,16 +72,18 @@ const int _defaultBatchSize = 60;
 /// model skipped or answered with an empty group simply do not appear.
 /// [onProgress] reports completed batches. Throws [LlmException] on transport
 /// failure; a batch that comes back unparseable is skipped, not fatal, so one
-/// bad answer does not discard the rest.
+/// bad answer does not discard the rest — but it is reported through
+/// [onBatchProblem] so an empty result can say why it is empty.
 Future<List<TagGroupSuggestion>> suggestTagGroupsWithLlm({
   required LlmProviderProfile profile,
   required List<String> tags,
   required List<String> existingGroups,
   Map<String, String> glosses = const {},
   String languageCode = 'en',
-  int batchSize = _defaultBatchSize,
+  int batchSize = tagGroupBatchSize,
   LlmClient? client,
   void Function(int done, int total)? onProgress,
+  void Function(TagGroupBatchProblem problem, String reply)? onBatchProblem,
 }) async {
   if (tags.isEmpty) return const [];
   final llm =
@@ -63,6 +91,9 @@ Future<List<TagGroupSuggestion>> suggestTagGroupsWithLlm({
       (profile.kind == LlmApiKind.anthropic
           ? AnthropicClient()
           : OpenAiCompatClient());
+  final budgeted = profile.copyWith(
+    maxOutputTokens: math.max(profile.maxOutputTokens, _minOutputTokens),
+  );
   final out = <TagGroupSuggestion>[];
   try {
     for (var start = 0; start < tags.length; start += batchSize) {
@@ -72,13 +103,23 @@ Future<List<TagGroupSuggestion>> suggestTagGroupsWithLlm({
       );
       final answer = await _ask(
         llm: llm,
-        profile: profile,
+        profile: budgeted,
         batch: batch,
         existingGroups: existingGroups,
         glosses: glosses,
         languageCode: languageCode,
       );
-      out.addAll(_parse(answer, batch));
+      final decoded = _decodeItems(answer);
+      if (decoded == null) {
+        onBatchProblem?.call(
+          answer.trim().isEmpty
+              ? TagGroupBatchProblem.emptyReply
+              : TagGroupBatchProblem.unparseable,
+          answer,
+        );
+      } else {
+        out.addAll(_parse(decoded, batch));
+      }
       onProgress?.call(
         (start + batch.length).clamp(0, tags.length),
         tags.length,
@@ -132,14 +173,11 @@ Future<String> _ask({
   return buffer.toString();
 }
 
-/// Reads the model's answer back into suggestions, restricted to [batch].
+/// Reads decoded items back into suggestions, restricted to [batch].
 ///
-/// Lenient on the envelope (a fenced block, a leading sentence, an object
-/// wrapping the array) and strict on the content: a tag that was not asked
-/// about is dropped rather than added to the library through the back door.
-List<TagGroupSuggestion> _parse(String answer, List<String> batch) {
-  final decoded = _decodeArray(answer);
-  if (decoded == null) return const [];
+/// Strict on the content: a tag that was not asked about is dropped rather
+/// than added to the library through the back door.
+List<TagGroupSuggestion> _parse(List<dynamic> decoded, List<String> batch) {
   // Folded lookup: models routinely answer `long hair` for `long_hair`.
   final byKey = {for (final tag in batch) tagLookupKey(tag): tag};
   final seen = <String>{};
@@ -160,14 +198,78 @@ List<TagGroupSuggestion> _parse(String answer, List<String> batch) {
   return out;
 }
 
-List<dynamic>? _decodeArray(String answer) {
-  final start = answer.indexOf('[');
-  final end = answer.lastIndexOf(']');
-  if (start < 0 || end <= start) return null;
-  try {
-    final decoded = jsonDecode(answer.substring(start, end + 1));
-    return decoded is List ? decoded : null;
-  } on FormatException {
-    return null;
+/// Recovers the answer's list of `{tag, group}` objects, or null when nothing
+/// JSON-shaped is in there at all.
+///
+/// Lenient on the envelope, because the envelope is where this fails in the
+/// wild. `indexOf('[') … lastIndexOf(']')` — the obvious version — breaks on
+/// both of the two things models actually do: a prose lead-in that happens to
+/// contain a bracket ("here are the categories [see below]:") swallows the
+/// real array into an unparseable slice, and an answer cut off by the output
+/// limit has no closing bracket to find. Neither is rare, and both used to
+/// come back as a silent "the model had no suggestions".
+///
+/// So: try every balanced array in the text, and if none of them decodes,
+/// fall back to harvesting the individual objects — which is what is left of
+/// a truncated array, and is still most of the answer.
+List<dynamic>? _decodeItems(String answer) {
+  for (final slice in _balancedSlices(answer, '[', ']')) {
+    try {
+      final decoded = jsonDecode(slice);
+      if (decoded is List) return decoded;
+    } on FormatException {
+      continue;
+    }
+  }
+  final salvaged = <dynamic>[];
+  for (final slice in _balancedSlices(answer, '{', '}')) {
+    try {
+      final decoded = jsonDecode(slice);
+      // Only the leaf objects: the outer `{"suggestions": [...]}` wrapper
+      // decodes too, and would double-count everything inside it.
+      if (decoded is Map && decoded['tag'] != null) salvaged.add(decoded);
+    } on FormatException {
+      continue;
+    }
+  }
+  return salvaged.isEmpty ? null : salvaged;
+}
+
+/// Every `[open … close]` run in [text] whose brackets balance, outermost
+/// first, ignoring brackets inside JSON strings.
+///
+/// A run that never closes (the truncated case) is yielded to the end of the
+/// text: it will not decode, but the object-level salvage runs over the same
+/// text and does not need it to.
+Iterable<String> _balancedSlices(String text, String open, String close) sync* {
+  for (var i = 0; i < text.length; i++) {
+    if (text[i] != open) continue;
+    var depth = 0;
+    var inString = false;
+    var escaped = false;
+    for (var j = i; j < text.length; j++) {
+      final c = text[j];
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (c == r'\') {
+          escaped = true;
+        } else if (c == '"') {
+          inString = false;
+        }
+        continue;
+      }
+      if (c == '"') {
+        inString = true;
+      } else if (c == open) {
+        depth++;
+      } else if (c == close) {
+        depth--;
+        if (depth == 0) {
+          yield text.substring(i, j + 1);
+          break;
+        }
+      }
+    }
   }
 }

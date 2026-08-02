@@ -1908,6 +1908,24 @@ abstract class AppLocalizations {
   /// **'The model had no usable suggestion for these tags.'**
   String get aiGroupEmpty;
 
+  /// No description provided for @aiGroupNoReply.
+  ///
+  /// In en, this message translates to:
+  /// **'The model returned nothing for {failed} of {total} batches. Its output-length limit is probably too low — raise \"max output tokens\" for this model in settings, then try again.'**
+  String aiGroupNoReply(int failed, int total);
+
+  /// No description provided for @aiGroupUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'The model\'s answer could not be read for {failed} of {total} batches. Try again, or pick a different model.'**
+  String aiGroupUnreadable(int failed, int total);
+
+  /// No description provided for @aiGroupRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get aiGroupRetry;
+
   /// No description provided for @aiGroupFailed.
   ///
   /// In en, this message translates to:

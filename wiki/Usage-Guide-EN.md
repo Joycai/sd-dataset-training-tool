@@ -159,6 +159,14 @@ For a single-image touch-up there's a guarded write: the new text is rejected un
 
 With a vision-capable model configured, the assistant can look at a handful of images directly for a spot check — this is fairly token-expensive, so it's meant for spot checks rather than sweeping the whole dataset.
 
+### Tag Library Tools
+
+The assistant can also tidy the **tag library** itself — the curated set in the right panel, not the dataset. Ask it to categorize the library and it reads the current groups, then files the tags in a single pass: existing groups are reused, new ones are created (with an automatic color) only when a batch really needs them, and membership stays exclusive. It can also add tags to the library (optionally straight into a group), rename a group, remove tags, and delete a group (whose tags fall back to Ungrouped).
+
+Removing tags and deleting groups ask for confirmation, because neither is covered by undo. Nothing here touches a caption file: the images keep every tag they have, whatever the library says.
+
+The difference from **AI grouping** on the Ungrouped header: that button is a one-shot pass over ungrouped tags with a row-by-row review. The assistant is the conversational version — you can tell it what the groups should be, have it reorganize existing groups, or fix one thing at a time.
+
 ### Tag Translation Tools
 
 The assistant can bulk-fill translations for the dataset's untranslated tags: it lists them busiest-first, looks characters/copyrights/artists up on danbooru's `other_names` rather than inventing a name, doesn't overwrite existing translations by default, and writes at most 200 entries per call, with a per-conversation cap on how many times it can query danbooru. None of this touches a caption file.

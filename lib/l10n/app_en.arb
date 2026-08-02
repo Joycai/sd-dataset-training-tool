@@ -600,6 +600,21 @@
   "aiGroupIgnoreAll": "Ignore all",
   "aiGroupNewGroupBadge": "new",
   "aiGroupEmpty": "The model had no usable suggestion for these tags.",
+  "aiGroupNoReply": "The model returned nothing for {failed} of {total} batches. Its output-length limit is probably too low — raise \"max output tokens\" for this model in settings, then try again.",
+  "@aiGroupNoReply": {
+    "placeholders": {
+      "failed": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "aiGroupUnreadable": "The model's answer could not be read for {failed} of {total} batches. Try again, or pick a different model.",
+  "@aiGroupUnreadable": {
+    "placeholders": {
+      "failed": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+  "aiGroupRetry": "Try again",
   "aiGroupFailed": "AI grouping failed: {error}",
   "@aiGroupFailed": {
     "placeholders": {

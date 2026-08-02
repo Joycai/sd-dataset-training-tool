@@ -1035,6 +1035,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiGroupEmpty => '模型没有给出可用的归组建议。';
 
   @override
+  String aiGroupNoReply(int failed, int total) {
+    return '有 $failed/$total 批模型没有返回任何内容，多半是该模型的最大输出长度太小（思考模型尤其容易占满）。请在设置里调大后重试。';
+  }
+
+  @override
+  String aiGroupUnreadable(int failed, int total) {
+    return '有 $failed/$total 批模型的回复无法解析。可以重试，或换一个模型。';
+  }
+
+  @override
+  String get aiGroupRetry => '重试';
+
+  @override
   String aiGroupFailed(String error) {
     return 'AI 归组失败：$error';
   }

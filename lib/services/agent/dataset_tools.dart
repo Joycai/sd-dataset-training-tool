@@ -295,7 +295,9 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
       description:
           'The user\'s curated tag library (their standard tag set), '
           'with its named groups. Useful as the normalization target '
-          'when cleaning dataset tags.',
+          'when cleaning dataset tags, and as the starting point for '
+          'tidying the library itself — organize_tag_library files these '
+          'tags into groups, add_library_tags extends it.',
       parametersSchema: {'type': 'object', 'properties': {}},
     ),
     handler: (args) async {

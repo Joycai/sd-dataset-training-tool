@@ -11,6 +11,7 @@ class _FakeLlm implements LlmClient {
 
   final List<String> replies;
   final List<List<ChatMessage>> sent = [];
+  final List<LlmProviderProfile> profiles = [];
   bool disposed = false;
 
   @override
@@ -22,9 +23,10 @@ class _FakeLlm implements LlmClient {
   }) async* {
     final reply = replies[sent.length.clamp(0, replies.length - 1)];
     sent.add(messages);
+    profiles.add(profile);
     final cut = reply.length ~/ 2;
-    yield TextDelta(reply.substring(0, cut));
-    yield TextDelta(reply.substring(cut));
+    if (cut > 0) yield TextDelta(reply.substring(0, cut));
+    if (reply.length > cut) yield TextDelta(reply.substring(cut));
     yield StreamDone();
   }
 
@@ -48,6 +50,7 @@ Future<List<TagGroupSuggestion>> ask(
   Map<String, String> glosses = const {},
   int batchSize = 60,
   void Function(int, int)? onProgress,
+  void Function(TagGroupBatchProblem, String)? onBatchProblem,
 }) => suggestTagGroupsWithLlm(
   profile: _profile,
   tags: tags,
@@ -56,6 +59,7 @@ Future<List<TagGroupSuggestion>> ask(
   batchSize: batchSize,
   client: llm,
   onProgress: onProgress,
+  onBatchProblem: onBatchProblem,
 );
 
 void main() {
@@ -116,9 +120,76 @@ void main() {
       'I cannot help with that.',
       '[{"tag":"c","group":"G"}]',
     ]);
-    final out = await ask(llm, tags: ['a', 'b', 'c', 'd'], batchSize: 2);
+    final problems = <TagGroupBatchProblem>[];
+    final out = await ask(
+      llm,
+      tags: ['a', 'b', 'c', 'd'],
+      batchSize: 2,
+      onBatchProblem: (p, _) => problems.add(p),
+    );
     expect(out.map((s) => s.tag), ['c']);
+    // Skipped, but reported: an empty result that cannot say why is the bug
+    // this callback exists for.
+    expect(problems, [TagGroupBatchProblem.unparseable]);
   });
+
+  test('a reply with no text at all is reported as such', () async {
+    // What a reasoning model does when max_tokens runs out during thinking.
+    final llm = _FakeLlm(['']);
+    final problems = <TagGroupBatchProblem>[];
+    final out = await ask(
+      llm,
+      tags: ['a'],
+      onBatchProblem: (p, _) => problems.add(p),
+    );
+    expect(out, isEmpty);
+    expect(problems, [TagGroupBatchProblem.emptyReply]);
+  });
+
+  test('a bracket in the lead-in does not swallow the array', () async {
+    // `indexOf('[') … lastIndexOf(']')` used to slice from "[the ones" here
+    // and fail to decode, losing the whole batch.
+    final llm = _FakeLlm([
+      'I grouped [the ones I recognised] as follows:\n'
+          '[{"tag":"boots","group":"鞋靴"}]',
+    ]);
+    final out = await ask(llm, tags: ['boots']);
+    expect(out.single.group, '鞋靴');
+  });
+
+  test('an answer cut off mid-array keeps what did arrive', () async {
+    // Truncation by the output limit: no closing bracket exists, so the
+    // objects themselves are all there is to salvage.
+    final llm = _FakeLlm([
+      '[{"tag":"boots","group":"鞋靴"},{"tag":"gloves","group":"服装"},'
+          '{"tag":"sm',
+    ]);
+    final out = await ask(llm, tags: ['boots', 'gloves', 'smile']);
+    expect(out.map((s) => s.tag), ['boots', 'gloves']);
+  });
+
+  test('a bracket inside a group name does not break the scan', () async {
+    final llm = _FakeLlm(['[{"tag":"boots","group":"鞋靴 [靴]"}]']);
+    final out = await ask(llm, tags: ['boots']);
+    expect(out.single.group, '鞋靴 [靴]');
+  });
+
+  test('an object-wrapped array is unwrapped', () async {
+    final llm = _FakeLlm(['{"suggestions":[{"tag":"boots","group":"鞋靴"}]}']);
+    final out = await ask(llm, tags: ['boots']);
+    expect(out.single.group, '鞋靴');
+  });
+
+  test(
+    'the request gets output headroom the chat profile may not have',
+    () async {
+      // A 4096-token budget is enough for the answer but not for a reasoning
+      // model's thinking, which is how this call came back empty.
+      final llm = _FakeLlm(['[]']);
+      await ask(llm, tags: ['boots']);
+      expect(llm.profiles.single.maxOutputTokens, greaterThanOrEqualTo(8192));
+    },
+  );
 
   test('long tag lists are batched and reported', () async {
     final llm = _FakeLlm(['[]']);
