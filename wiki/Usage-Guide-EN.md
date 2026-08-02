@@ -37,7 +37,8 @@ An image can carry several caption files side by side with different extensions 
 Every type also declares a **content format**, which is what decides how the whole app parses and rewrites its files — the format, never the file extension:
 
 - **Tags**: comma-separated danbooru-style tags. The default.
-- **Prose (sentence mode)**: the tag view segments the text by comma/period (including full-width punctuation) into phrases instead of treating it as tags — a better fit for natural-language descriptions.
+- **Anima Tag**: the tag grammar with a natural-language description appended — `tag, tag, tag. A sentence about the image.` The description gets its own field under the tag grid rather than a chip among the tags, because it is not a tag: it is never split on its own commas, never counted in the tag total, and always written last. Every tag-level operation (drag-to-sort, batch sort/replace/add, the assistant's tag tools) works on the tags and leaves the sentence exactly where it is.
+- **Prose (sentence mode)**: the second tab becomes a **Sentences** list — one row per segment, split by comma/period (including full-width punctuation), each editable in place, reorderable by its drag handle and removable. The text tab still edits the whole caption as one block.
 - **JSON**: one JSON document per caption. The tag views give way to a read-only highlighted JSON view and tag-level rewrites are refused — a flat list of tags cannot be assembled back into a document. These captions are edited as text, or through the assistant's JSON tools (below).
 
 ### Tag Comparison System
@@ -148,7 +149,9 @@ Write tools (confirmed one at a time by default, or you can allow all writes for
 - **Re-sort every caption's tag order in one pass** against a priority list — much faster than adjusting images one at a time.
 - Overwrite a single image's caption.
 
-With more than one caption type enabled (or a single type that isn't tag-format), a few extra tools appear: auditing which type each image has (and which are missing it), and reading/writing a specific type's raw text (e.g. "write a natural-language sentence from this image's WD14 tags").
+With more than one caption type enabled (or a single type that isn't tag-format), a few extra tools appear: auditing which type each image has (and which are missing it), reading/writing a specific type's raw text (e.g. "write a natural-language sentence from this image's WD14 tags"), and:
+
+- **Convert one tag-list type into another in bulk** (WD14 tags ⇄ Anima Tag). The rules are given once for the whole dataset — tags to drop, tags to rename, one spelling style (underscores or spaces), whether parentheses are escaped, a priority order, and a trigger word to put first — and the tool rewrites every caption itself. Nothing is invented: every output tag comes from the source or from the trigger word. An Anima Tag description is carried over when the target is Anima Tag too, and dropped **and counted** when the target is plain tags. The result lists each dropped and renamed tag with how many captions it came out of, so the whole conversion can be checked from one answer — and a drop rule that matched nothing is visible by its absence rather than passing as "there were none". The whole batch undoes as one operation.
 
 When a JSON-format type is configured, two more tools show up:
 
@@ -180,7 +183,7 @@ The assistant can bulk-fill translations for the dataset's untranslated tags: it
 
 The bookmark-icon menu next to the input field has three sections:
 - A **skills** section at the top (currently just the Character Sheet skill, below).
-- **Built-in prompts** in the middle: ready-made starting points shipped with the app, currently two aimed at the Anima model's JSON captions — "WD14 tags to Anima JSON" (converts the tag captions produced by WD14 tagging into Anima's simplified JSON caption format in one pass; requires a JSON-format caption type configured in the caption type settings) and "Reorder Anima JSON fields" (restructures existing JSON captions into the standard quality → count → character → series → artist → appearance → tags → environment → nl field order). Like any preset they only fill the input, so you can add fixed values (quality, artist, character name) before sending.
+- **Built-in prompts** in the middle: ready-made starting points shipped with the app, currently four aimed at the Anima model's caption formats — "WD14 tags to Anima Tag" (rewrites the tag captions produced by WD14 tagging into the Anima Tag order — quality → count → character → series → artist → appearance → tags → environment, then a period and a natural-language sentence — giving artist tags their `@` prefix on the way; requires an Anima Tag–format caption type configured in the caption type settings), "Anima Tag to WD14 tags" (the reverse, for training a LoRA on a dataset you captioned for Anima: drops the trailing sentence, strips the `@` off artist tags, escapes parentheses in tag names, and prunes the quality/rating/year and meta vocabulary that should not be baked into a LoRA), "WD14 tags to Anima JSON" (converts the tag captions produced by WD14 tagging into Anima's simplified JSON caption format in one pass; requires a JSON-format caption type configured in the caption type settings) and "Reorder Anima JSON fields" (restructures existing JSON captions into the standard quality → count → character → series → artist → appearance → tags → environment → nl field order). Like any preset they only fill the input, so you can add fixed values (quality, artist, character name) before sending.
 - Your saved **prompt presets** below it — clicking one just fills the text into the input (appended after whatever you've already typed), it never auto-sends, so you can add a detail before running it.
 - The same menu has a "manage prompt presets" entry, which you can open and edit any time, even while the assistant is mid-run.
 

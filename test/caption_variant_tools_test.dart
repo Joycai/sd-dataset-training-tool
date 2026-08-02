@@ -533,7 +533,7 @@ void main() {
         jsonEncode({...animaArgs, 'source_extension': '.json'}),
       );
       expect(source.isError, isTrue);
-      expect(source.text, contains('tag-format'));
+      expect(source.text, contains('tag-list'));
 
       final target = await registry.dispatch(
         'convert_captions_to_json',

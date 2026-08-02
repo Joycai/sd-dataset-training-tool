@@ -398,13 +398,19 @@ class AgentChatState extends ChangeNotifier {
       tagGroups: () => app.tagGroups,
       captionTypes: () => app.enabledCaptionTypes,
     );
-    // With a single tag-format type the variant tools are pure noise in the
+    // With a single tag-list type the variant tools are pure noise in the
     // prompt. A lone JSON or prose type is a different story: the tag tools
     // cannot rewrite those files at all, so the raw read/write tools are the
     // only ones that work. Types enabled mid-conversation arrive with the
     // next session.
     final multiType = app.enabledCaptionTypes.length > 1;
     final structuredTypes = app.enabledCaptionTypes.any(
+      (t) => !t.format.isTagList,
+    );
+    // Any non-default format has to reach the prompt even when it is the only
+    // type: an Anima Tag caption written with the plain tag grammar loses its
+    // natural-language tail, and the model can only know that from here.
+    final specialFormats = app.enabledCaptionTypes.any(
       (t) => t.format != CaptionFormat.tags,
     );
     final jsonTypes = app.enabledCaptionTypes.any(
@@ -464,12 +470,17 @@ class AgentChatState extends ChangeNotifier {
             : 'English',
         datasetSummary: summary,
         captionExtension: app.captionExtension,
-        captionTypesSummary: multiType || structuredTypes
+        captionTypesSummary: multiType || specialFormats
             ? [
                 for (final t in app.enabledCaptionTypes)
                   '${t.label} (${t.extension}'
                       '${switch (t.format) {
                         CaptionFormat.tags => '',
+                        CaptionFormat.animaTag =>
+                          ', anima tag format: comma-separated tags, then a '
+                              'period, then one natural-language sentence '
+                              '("1girl, smile. A girl smiles.") — the '
+                              'sentence is never a tag and always last',
                         CaptionFormat.json => ', json format',
                         CaptionFormat.prose => ', natural-language prose',
                       }})'

@@ -10,6 +10,13 @@ enum CaptionFormat {
   /// Comma-separated danbooru-style tags (WD14).
   tags,
 
+  /// Anima Tag: the tag grammar plus a trailing natural-language sentence,
+  /// `tag, tag, tag. A description.`. Everything after the period that closes
+  /// the tag list is one segment that never gets comma-split, never reorders
+  /// out of last place and is never touched by a tag-level rewrite. The
+  /// grammar lives in `parseAnimaTagText`.
+  animaTag,
+
   /// One JSON document per caption. The tag views give way to a read-only
   /// highlighted JSON view, and tag-level rewrites are refused — structured
   /// captions are edited as text or through the assistant's JSON tools.
@@ -20,10 +27,18 @@ enum CaptionFormat {
   prose;
 
   static CaptionFormat fromName(String? name) => switch (name) {
+    'animaTag' => CaptionFormat.animaTag,
     'json' => CaptionFormat.json,
     'prose' => CaptionFormat.prose,
     _ => CaptionFormat.tags,
   };
+
+  /// Whether captions of this format are a comma-separated tag list that
+  /// tag-level rewrites (sort, replace, insert…) can rebuild. Anima Tag
+  /// counts: its natural-language tail is held aside by the rewrite paths
+  /// rather than treated as a tag.
+  bool get isTagList =>
+      this == CaptionFormat.tags || this == CaptionFormat.animaTag;
 }
 
 /// One flavor of caption file a dataset can carry — e.g. `.txt` holding

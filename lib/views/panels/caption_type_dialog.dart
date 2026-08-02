@@ -330,6 +330,7 @@ class _CaptionTypesDialogState extends State<_CaptionTypesDialog> {
 String _formatLabel(AppLocalizations l10n, CaptionFormat format) =>
     switch (format) {
       CaptionFormat.tags => l10n.captionTypeFormatTags,
+      CaptionFormat.animaTag => l10n.captionTypeFormatAnimaTag,
       CaptionFormat.json => l10n.captionTypeFormatJson,
       CaptionFormat.prose => l10n.captionTypeFormatNl,
     };
@@ -337,6 +338,7 @@ String _formatLabel(AppLocalizations l10n, CaptionFormat format) =>
 String _formatSummary(AppLocalizations l10n, CaptionFormat format) =>
     switch (format) {
       CaptionFormat.tags => l10n.captionTypeFormatTagsDesc,
+      CaptionFormat.animaTag => l10n.captionTypeFormatAnimaTagDesc,
       CaptionFormat.json => l10n.captionTypeFormatJsonDesc,
       CaptionFormat.prose => l10n.captionTypeFormatNlDesc,
     };

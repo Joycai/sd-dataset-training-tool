@@ -436,21 +436,34 @@ List<AgentTool> buildCaptionVariantTools(
           'are stripped from tag values — JSON carries plain parentheses. '
           'Tags not named in assign go to unassigned_field, and the '
           'result lists the distinct tags that took that route so you can '
-          'audit the assignment. Images that already have a non-empty '
-          'target file are skipped unless overwrite is set. Undoable as '
-          'one operation.',
+          'audit the assignment. An Anima Tag source works too: set '
+          'nl_field to carry each caption\'s trailing sentence into that '
+          'JSON field, or leave it unset and the result reports how many '
+          'descriptions were dropped. Images that already have a '
+          'non-empty target file are skipped unless overwrite is set. '
+          'Undoable as one operation.',
       parametersSchema: {
         'type': 'object',
         'properties': {
           'source_extension': {
             'type': 'string',
-            'description': 'the tag-style caption type to read (e.g. ".txt")',
+            'description':
+                'the tag-list caption type to read — WD14 tags or Anima '
+                'Tag (e.g. ".txt")',
           },
           'target_extension': {
             'type': 'string',
             'description':
                 'a configured caption type whose format is JSON (e.g. '
                 '".json"); must not be the active type',
+          },
+          'nl_field': {
+            'type': 'string',
+            'description':
+                'Anima Tag sources only: the declared "string" field that '
+                'receives each caption\'s trailing natural-language '
+                'sentence (e.g. "nl"). Images without one get "". Leave '
+                'it unset to drop the descriptions instead.',
           },
           'fields': {
             'type': 'array',
@@ -529,10 +542,10 @@ List<AgentTool> buildCaptionVariantTools(
           unknownCaptionType(requireString(args, 'source_extension'), types),
         );
       }
-      if (source.format != CaptionFormat.tags) {
+      if (!source.format.isTagList) {
         return toolError(
-          'the source must be a tag-format caption type; '
-          '"${source.extension}" is ${source.format.name}',
+          'the source must be a tag-list caption type (WD14 tags or Anima '
+          'Tag); "${source.extension}" is ${source.format.name}',
         );
       }
       final target = findCaptionType(
@@ -619,6 +632,40 @@ List<AgentTool> buildCaptionVariantTools(
         );
       }
 
+      // The Anima Tag tail is per-image prose, so it can only travel into a
+      // string field of its own — not a constant (which is one value for the
+      // whole dataset) and not the tag catch-all.
+      final nlField = optString(args, 'nl_field');
+      if (nlField != null) {
+        if (source.format != CaptionFormat.animaTag) {
+          return toolError(
+            'nl_field only applies to an Anima Tag source; '
+            '"${source.extension}" is ${source.format.name} and carries no '
+            'natural-language part',
+          );
+        }
+        if (!fieldKinds.containsKey(nlField)) {
+          return toolError('nl_field "$nlField" is not a declared field');
+        }
+        if (fieldKinds[nlField] != 'string') {
+          return toolError(
+            'nl_field "$nlField" must be a "string" field — a description '
+            'is one sentence, not a tag list',
+          );
+        }
+        if (constants.containsKey(nlField)) {
+          return toolError(
+            'nl_field "$nlField" cannot also be a constant: it takes a '
+            'different value per image',
+          );
+        }
+        if (nlField == unassignedField) {
+          return toolError(
+            'nl_field "$nlField" cannot also be unassigned_field',
+          );
+        }
+      }
+
       final rawAssign = args['assign'] ?? const <String, dynamic>{};
       if (rawAssign is! Map) {
         return toolError(
@@ -668,6 +715,11 @@ List<AgentTool> buildCaptionVariantTools(
       var unchanged = 0;
       var skippedExisting = 0;
       var skippedUncaptioned = 0;
+      // Reported either way: carrying descriptions across is the point of
+      // nl_field, and dropping them silently is the failure mode it exists
+      // to make visible.
+      var carriedDescriptions = 0;
+      var droppedDescriptions = 0;
       final failures = <({String path, String error})>[];
       final unassignedSeen = <String>{};
       final edits = <CaptionEdit>[];
@@ -675,24 +727,36 @@ List<AgentTool> buildCaptionVariantTools(
       for (final f in files) {
         final rel = p.relative(f.path, from: root);
 
-        List<String> tags;
+        List<String> parts;
         if (source.extension == d.captionExtension) {
-          tags = d.tagsOf(f.path);
+          parts = d.tagsOf(f.path);
         } else {
           try {
             final sourceFile = File(captionVariantPath(f.path, source));
-            tags = await sourceFile.exists()
-                ? parseTagText(await sourceFile.readAsString())
+            parts = await sourceFile.exists()
+                ? parseCaptionText(
+                    await sourceFile.readAsString(),
+                    format: source.format,
+                  )
                 : const [];
           } catch (e) {
             failures.add((path: rel, error: 'cannot read source: $e'));
             continue;
           }
         }
-        if (tags.isEmpty) {
+        // An Anima Tag caption's trailing sentence is not a tag: it never
+        // enters the buckets, and it only reaches the document through
+        // nl_field.
+        final split = source.format == CaptionFormat.animaTag
+            ? splitAnimaParts(parts)
+            : (tags: parts, nl: null);
+        final tags = split.tags;
+        final sourceNl = split.nl;
+        if (tags.isEmpty && sourceNl == null) {
           skippedUncaptioned++;
           continue;
         }
+        if (sourceNl != null && nlField == null) droppedDescriptions++;
 
         final targetFile = File(captionVariantPath(f.path, target));
         var before = '';
@@ -733,6 +797,11 @@ List<AgentTool> buildCaptionVariantTools(
 
         final out = <String, dynamic>{};
         for (final field in fieldKinds.entries) {
+          if (field.key == nlField) {
+            out[field.key] = sourceNl ?? '';
+            if (sourceNl != null) carriedDescriptions++;
+            continue;
+          }
           if (constants.containsKey(field.key)) {
             out[field.key] = constants[field.key];
             continue;
@@ -792,6 +861,9 @@ List<AgentTool> buildCaptionVariantTools(
         'unchanged': unchanged,
         'skipped_existing': skippedExisting,
         'skipped_uncaptioned': skippedUncaptioned,
+        if (nlField != null) 'descriptions_carried': carriedDescriptions,
+        if (droppedDescriptions > 0)
+          'descriptions_dropped': droppedDescriptions,
         if (failures.isNotEmpty) ...{
           'failed_images': failures.length,
           'failures': [
@@ -806,7 +878,424 @@ List<AgentTool> buildCaptionVariantTools(
       });
     }),
   ),
+  _convertCaptionsToTags(deps, tagOps),
 ];
+
+/// Batch converter between the two tag-list formats — WD14 tags and Anima
+/// Tag — in either direction and in one call.
+///
+/// The tag-level batch tools ([TagOps]) can only ever touch the *active*
+/// caption type, so generating one type from another used to mean looping
+/// write_caption_file once per image. Every rule such a conversion applies
+/// (drop these tags, strip an `@`, escape parentheses, put the trigger word
+/// first) is a dataset-wide rule, not a per-image judgement, which made that
+/// loop pure waste: the model decided the rules once and then paid an LLM
+/// round trip per image to apply them.
+AgentTool _convertCaptionsToTags(
+  DatasetToolsDeps deps,
+  TagOps tagOps,
+) => AgentTool(
+  isWrite: true,
+  spec: const AgentToolSpec(
+    name: 'convert_captions_to_tags',
+    description:
+        'Convert MANY captions from one tag-list caption type into '
+        'another (WD14 tags ⇄ Anima Tag) in one call — always prefer '
+        'this over looping write_caption_file, which costs a round '
+        'trip per image to apply rules you already decided once. You '
+        'give the rules once: drop tags, rename tags, normalise '
+        'spelling, order by priority, prepend a trigger word. Nothing '
+        'is invented — every output tag comes from the source or from '
+        'prepend. An Anima Tag source\'s trailing sentence is carried '
+        'over when the target is Anima Tag too, and dropped (and '
+        'counted in the result) when the target is plain tags. The '
+        'result reports each dropped and renamed tag with how many '
+        'captions it came out of, so the whole conversion can be '
+        'audited from one answer. The target may be the active type. '
+        'Images that already have a non-empty target file are skipped '
+        'unless overwrite is set. Undoable as one operation.',
+    parametersSchema: {
+      'type': 'object',
+      'properties': {
+        'source_extension': {
+          'type': 'string',
+          'description': 'the tag-list caption type to read (e.g. ".atxt")',
+        },
+        'target_extension': {
+          'type': 'string',
+          'description':
+              'the tag-list caption type to write (e.g. ".txt"); may '
+              'be the active type, but not the source',
+        },
+        'drop': {
+          'type': 'array',
+          'items': {'type': 'string'},
+          'description':
+              'tags to remove entirely (quality, rating, year, meta…); '
+              'matching folds case and underscore/space style',
+        },
+        'rename': {
+          'type': 'object',
+          'description':
+              'tag → replacement tag, e.g. mapping "@wlop" to "wlop". '
+              'Matching folds case and underscore/space style. Use '
+              'drop to remove a tag, not a rename to an empty string.',
+        },
+        'spacing': {
+          'type': 'string',
+          'description':
+              '"spaces" rewrites long_hair to "long hair", '
+              '"underscores" the other way; omit to keep each tag\'s '
+              'own spelling. One style for the whole dataset is what '
+              'training scripts expect.',
+        },
+        'parentheses': {
+          'type': 'string',
+          'description':
+              '"escape" writes danbooru variants as '
+              'hatsune miku \\(racing\\) — required for plain-text '
+              'captions, where bare parentheses are prompt attention '
+              'syntax; "plain" strips the backslashes; omit to leave '
+              'them as they are',
+        },
+        'priority': {
+          'type': 'array',
+          'items': {'type': 'string'},
+          'description':
+              'tags in the order they should appear; every tag not '
+              'named keeps its relative position after them. Same '
+              'semantics as sort_captions_everywhere.',
+        },
+        'prepend': {
+          'type': 'array',
+          'items': {'type': 'string'},
+          'description':
+              'tags to put at the very front of every caption, in this '
+              'order — the LoRA trigger word. A caption that already '
+              'has one gets it moved, not duplicated.',
+        },
+        'include_tags': {
+          'type': 'array',
+          'items': {'type': 'string'},
+        },
+        'exclude_tags': {
+          'type': 'array',
+          'items': {'type': 'string'},
+        },
+        'name_query': {'type': 'string'},
+        'overwrite': {
+          'type': 'boolean',
+          'description':
+              'false (default): skip images that already have a '
+              'non-empty target file; true: rebuild them too',
+        },
+      },
+      'required': ['source_extension', 'target_extension'],
+    },
+  ),
+  handler: guardBusy(tagOps, (args) async {
+    final root = deps.rootDir();
+    if (root == null) return toolError('no dataset directory is open');
+    final types = deps.captionTypes();
+    final d = deps.dataset;
+
+    final source = findCaptionType(
+      types,
+      requireString(args, 'source_extension'),
+    );
+    if (source == null) {
+      return toolError(
+        unknownCaptionType(requireString(args, 'source_extension'), types),
+      );
+    }
+    final target = findCaptionType(
+      types,
+      requireString(args, 'target_extension'),
+    );
+    if (target == null) {
+      return toolError(
+        unknownCaptionType(requireString(args, 'target_extension'), types),
+      );
+    }
+    for (final type in [source, target]) {
+      if (!type.format.isTagList) {
+        return toolError(
+          'both types must be tag-list caption types (WD14 tags or '
+          'Anima Tag); "${type.extension}" is ${type.format.name}'
+          '${type.format == CaptionFormat.json ? ' — use convert_captions_to_json or '
+                    'restructure_json_captions for JSON' : ''}',
+        );
+      }
+    }
+    if (source.extension == target.extension) {
+      return toolError(
+        'source and target are the same caption type '
+        '("${source.extension}"); to rewrite a type in place use the '
+        'tag tools on the active type instead',
+      );
+    }
+
+    // Every rule is validated before a single file is touched: a bad
+    // rule must fail the whole call, never image #57 of a sweep.
+    final spacing = optString(args, 'spacing')?.toLowerCase();
+    if (spacing != null && spacing != 'spaces' && spacing != 'underscores') {
+      return toolError('"spacing" must be "spaces" or "underscores"');
+    }
+    final parens = optString(args, 'parentheses')?.toLowerCase();
+    if (parens != null && parens != 'escape' && parens != 'plain') {
+      return toolError('"parentheses" must be "escape" or "plain"');
+    }
+
+    final drop = {
+      for (final tag in optStringList(args, 'drop', maxLength: 500))
+        tagLookupKey(tag),
+    };
+    final rawRename = args['rename'] ?? const <String, dynamic>{};
+    if (rawRename is! Map) {
+      return toolError(
+        '"rename" must be an object mapping tags to replacement tags',
+      );
+    }
+    final rename = <String, String>{};
+    for (final entry in rawRename.entries) {
+      final from = entry.key;
+      final to = entry.value;
+      if (from is! String || to is! String) {
+        return toolError('"rename" must map tag strings to tag strings');
+      }
+      if (to.trim().isEmpty) {
+        return toolError('rename: "$from" → "" — use drop to remove a tag');
+      }
+      rename[tagLookupKey(from)] = to.trim();
+    }
+    final priority = <String, int>{};
+    for (final (i, tag) in optStringList(
+      args,
+      'priority',
+      maxLength: 500,
+    ).indexed) {
+      priority.putIfAbsent(tagLookupKey(tag), () => i);
+    }
+    final prepend = optStringList(args, 'prepend', maxLength: 20);
+
+    /// The whole per-tag rewrite, in the one order that composes: undo
+    /// any existing escaping first so spacing sees plain text, then the
+    /// spelling style, then escaping last so nothing re-escapes a
+    /// backslash it just wrote.
+    String respell(String tag) {
+      var out = unescapeTagParens(tag);
+      if (spacing == 'spaces') out = out.replaceAll('_', ' ');
+      if (spacing == 'underscores') {
+        out = out.trim().replaceAll(RegExp(r'\s+'), '_');
+      }
+      if (parens == 'escape') {
+        out = out.replaceAll('(', r'\(').replaceAll(')', r'\)');
+      }
+      return out;
+    }
+
+    final files = filterDatasetFiles(
+      d,
+      include: optStringList(args, 'include_tags'),
+      exclude: optStringList(args, 'exclude_tags'),
+      untaggedOnly: false,
+      nameQuery: optString(args, 'name_query')?.toLowerCase(),
+    );
+    final overwrite = optBool(args, 'overwrite');
+    final activeTarget = target.extension == d.captionExtension;
+    // The editor's pending edits would otherwise be written over this
+    // sweep's result a moment later — the same flush every TagOps
+    // mutation does.
+    if (activeTarget) await tagOps.beforeMutate?.call();
+
+    var written = 0;
+    var unchanged = 0;
+    var skippedExisting = 0;
+    var skippedUncaptioned = 0;
+    var droppedDescriptions = 0;
+    var carriedDescriptions = 0;
+    final dropped = <String, int>{};
+    final renamed = <String, int>{};
+    final failures = <({String path, String error})>[];
+    final edits = <CaptionEdit>[];
+
+    for (final f in files) {
+      final rel = p.relative(f.path, from: root);
+
+      List<String> parts;
+      if (source.extension == d.captionExtension) {
+        parts = d.tagsOf(f.path);
+      } else {
+        try {
+          final sourceFile = File(captionVariantPath(f.path, source));
+          parts = await sourceFile.exists()
+              ? parseCaptionText(
+                  await sourceFile.readAsString(),
+                  format: source.format,
+                )
+              : const [];
+        } catch (e) {
+          failures.add((path: rel, error: 'cannot read source: $e'));
+          continue;
+        }
+      }
+      final split = source.format == CaptionFormat.animaTag
+          ? splitAnimaParts(parts)
+          : (tags: parts, nl: null);
+      if (split.tags.isEmpty && split.nl == null) {
+        skippedUncaptioned++;
+        continue;
+      }
+      // A description only survives into a format that has somewhere to
+      // put it. Losing it is legitimate here — it is what "convert to
+      // WD14" means — but it is never silent.
+      final nl = target.format == CaptionFormat.animaTag ? split.nl : null;
+      if (split.nl != null) {
+        nl == null ? droppedDescriptions++ : carriedDescriptions++;
+      }
+
+      final kept = <String>[];
+      for (final tag in split.tags) {
+        final key = tagLookupKey(tag);
+        if (drop.contains(key)) {
+          dropped[tag] = (dropped[tag] ?? 0) + 1;
+          continue;
+        }
+        final replacement = rename[key];
+        if (replacement != null) renamed[tag] = (renamed[tag] ?? 0) + 1;
+        kept.add(respell(replacement ?? tag));
+      }
+
+      // Sort, then hoist the trigger words — a prepended tag that the
+      // caption already carried must end up in front exactly once, not
+      // once in its priority bucket and once at the head.
+      final ordered = priority.isEmpty ? kept : _byPriority(kept, priority);
+      final head = [for (final tag in prepend) respell(tag)];
+      final headKeys = {for (final tag in head) tagLookupKey(tag)};
+      final seen = <String>{};
+      final finalTags = [
+        for (final tag in [
+          ...head,
+          ...ordered.where((t) => !headKeys.contains(tagLookupKey(t))),
+        ])
+          if (seen.add(tagLookupKey(tag))) tag,
+      ];
+
+      final text = joinCaptionText([
+        ...finalTags,
+        if (nl != null) '$animaNlPrefix$nl',
+      ], format: target.format);
+
+      final targetFile = File(captionVariantPath(f.path, target));
+      var before = '';
+      try {
+        if (await targetFile.exists()) {
+          before = await targetFile.readAsString();
+          if (!overwrite && before.trim().isNotEmpty) {
+            skippedExisting++;
+            continue;
+          }
+        }
+      } catch (e) {
+        failures.add((path: rel, error: 'cannot read target: $e'));
+        continue;
+      }
+      if (text == before) {
+        unchanged++;
+        continue;
+      }
+      try {
+        await targetFile.writeAsString(text);
+      } catch (e) {
+        failures.add((path: rel, error: 'cannot write: $e'));
+        continue;
+      }
+      written++;
+      edits.add(
+        CaptionEdit(
+          imagePath: f.path,
+          captionPath: targetFile.path,
+          before: before,
+          after: text,
+        ),
+      );
+    }
+
+    if (edits.isNotEmpty) {
+      tagOps.pushOperation(
+        TagOperation(
+          label: 'AI: convert ${edits.length} captions to ${target.extension}',
+          edits: edits,
+        ),
+        // Writing the active type behind the dataset's back would leave
+        // the gallery, the tag index and the open editor showing the
+        // pre-conversion text.
+        syncActiveCaptions: activeTarget,
+      );
+    }
+
+    const sample = 5;
+    if (written == 0 && failures.isNotEmpty) {
+      return toolError(
+        'nothing was written: ${failures.length} image(s) failed — '
+        '${failures.take(sample).map((f) => '${f.path}: ${f.error}').join('; ')}'
+        '${failures.length > sample ? '; …' : ''}',
+      );
+    }
+    return toolOk({
+      'scope': scopeLabel(d),
+      'source_extension': source.extension,
+      'target_extension': target.extension,
+      'written': written,
+      'unchanged': unchanged,
+      'skipped_existing': skippedExisting,
+      'skipped_uncaptioned': skippedUncaptioned,
+      if (carriedDescriptions > 0) 'descriptions_carried': carriedDescriptions,
+      if (droppedDescriptions > 0) 'descriptions_dropped': droppedDescriptions,
+      // Keyed by the tag as it was spelled in the source, so an entry
+      // that never fired is visible by its absence — a drop rule with no
+      // count matched nothing and probably names a tag that is not there.
+      'dropped_tags': _topCounts(dropped),
+      'renamed_tags': _topCounts(renamed),
+      if (failures.isNotEmpty) ...{
+        'failed_images': failures.length,
+        'failures': [
+          for (final f in failures.take(sample))
+            {'path': f.path, 'error': f.error},
+        ],
+        'failures_truncated': failures.length > sample,
+      },
+    });
+  }),
+);
+
+/// Buckets [tags] by [priority] (folded key → rank), leaving tags it does not
+/// name in their relative order at the end. The same rule
+/// `sort_captions_everywhere` applies, so a priority list means one thing
+/// across the app.
+List<String> _byPriority(List<String> tags, Map<String, int> priority) {
+  final buckets = <int, List<String>>{};
+  final rest = <String>[];
+  for (final tag in tags) {
+    final rank = priority[tagLookupKey(tag)];
+    if (rank == null) {
+      rest.add(tag);
+    } else {
+      (buckets[rank] ??= []).add(tag);
+    }
+  }
+  final ranks = buckets.keys.toList()..sort();
+  return [for (final rank in ranks) ...buckets[rank]!, ...rest];
+}
+
+/// Counts as a plain map, biggest first and capped — a dataset can carry
+/// hundreds of distinct dropped tags and the whole list would crowd out the
+/// rest of the answer.
+Map<String, int> _topCounts(Map<String, int> counts, {int limit = 60}) {
+  final entries = counts.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  return {for (final e in entries.take(limit)) e.key: e.value};
+}
 
 /// The outcome of a lossless guard (expect_tags_from / expect_same_tags):
 /// an error to return verbatim, or the number of source tags the new text
@@ -916,21 +1405,21 @@ Future<_LosslessCheck> _checkLossless({
       verified: 0,
     );
   }
-  // Only the tag format has a tag grammar to read the source with.
-  if (source.format != CaptionFormat.tags) {
+  // Only the tag-list formats have a tag grammar to read the source with.
+  if (!source.format.isTagList) {
     return (
       error: toolError(
-        'expect_tags_from needs a tag-format caption type; '
+        'expect_tags_from needs a tag-list caption type; '
         '"${source.extension}" is ${source.format.name}',
       ),
       verified: 0,
     );
   }
-  if (!isJson && target.format != CaptionFormat.tags) {
+  if (!isJson && !target.format.isTagList) {
     return (
       error: toolError(
         'expect_tags_from cannot verify a ${target.format.name} target '
-        '("${target.extension}"); it works for JSON-format and tag-format '
+        '("${target.extension}"); it works for JSON-format and tag-list '
         'types',
       ),
       verified: 0,
@@ -945,7 +1434,7 @@ Future<_LosslessCheck> _checkLossless({
     try {
       final file = File(captionVariantPath(key, source));
       sourceTags = await file.exists()
-          ? parseTagText(await file.readAsString())
+          ? parseCaptionText(await file.readAsString(), format: source.format)
           : const [];
     } catch (e) {
       return (
@@ -957,9 +1446,20 @@ Future<_LosslessCheck> _checkLossless({
       );
     }
   }
+  // Same reasoning as for the target below: an Anima Tag source's tail is a
+  // sentence, not a tag the conversion has to carry across.
+  if (source.format == CaptionFormat.animaTag) {
+    sourceTags = splitAnimaParts(sourceTags).tags;
+  }
 
+  // An Anima Tag target's natural-language tail is new writing, not a tag the
+  // source had to carry, so it is excluded from the comparison — the guard is
+  // about tags surviving the conversion, and requiring the tail to match a
+  // source tag would make the format impossible to write.
   final writtenTags = isJson
       ? jsonCaptionTags(decoded, ignoreKeys: ignoreKeys)
+      : target.format == CaptionFormat.animaTag
+      ? splitAnimaParts(parseAnimaTagText(text)).tags
       : parseTagText(text);
   final match = matchPermutation(sourceTags, writtenTags);
   if (match.unknown.isNotEmpty || match.missing.isNotEmpty) {
