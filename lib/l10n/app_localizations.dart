@@ -2124,6 +2124,12 @@ abstract class AppLocalizations {
   /// **'Expand input'**
   String get agentExpandInput;
 
+  /// No description provided for @agentKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter to send · Shift+Enter for a new line'**
+  String get agentKeyHint;
+
   /// No description provided for @agentComposerTitle.
   ///
   /// In en, this message translates to:

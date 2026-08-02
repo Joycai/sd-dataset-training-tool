@@ -1131,6 +1131,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentExpandInput => '放大输入框';
 
   @override
+  String get agentKeyHint => 'Enter 发送 · Shift+Enter 换行';
+
+  @override
   String get agentComposerTitle => '编辑消息';
 
   @override

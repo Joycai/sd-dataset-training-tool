@@ -128,8 +128,10 @@ class AgentChatState extends ChangeNotifier {
   /// session that is actually enforcing it. 0 = uncapped.
   int get tokenCap => _session?.sessionTokenCap ?? app.agentSessionTokenCap;
 
-  /// Name of the profile the current/next session uses, for the header.
-  String? get profileName => app.activeLlmProfile?.name;
+  /// Backend the current/next session uses, split for the header: the
+  /// provider reads as a label, the model as a code chip.
+  String? get providerName => app.activeLlmPair?.$1.name;
+  String? get modelLabel => app.activeLlmPair?.$2.label;
 
   bool get hasProfile => app.activeLlmProfile != null;
 

@@ -69,7 +69,7 @@ void main() {
   );
 
   Future<void> openSkillDialog(WidgetTester tester) async {
-    await tester.tap(find.byIcon(Icons.bookmark_border));
+    await tester.tap(find.byTooltip('Prompt presets'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Character sheet tagging…'));
     await tester.pumpAndSettle();
@@ -79,7 +79,7 @@ void main() {
     await tester.pumpWidget(harness());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.bookmark_border));
+    await tester.tap(find.byTooltip('Prompt presets'));
     await tester.pumpAndSettle();
     expect(find.text('Built-in skills'), findsOneWidget);
     expect(find.text('Character sheet tagging…'), findsOneWidget);

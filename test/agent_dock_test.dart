@@ -133,6 +133,54 @@ void main() {
     expect(parked.top, greaterThanOrEqualTo(stack.top - 0.01));
   });
 
+  testWidgets('the bottom-right grip grows the panel, top-left stays put', (
+    tester,
+  ) async {
+    const area = Size(1000, 700);
+    useSurface(tester, area);
+    await tester.pumpWidget(harness(area));
+    await tester.pumpAndSettle();
+
+    // The panel parks flush against the bottom-right, where the grip has
+    // nowhere to grow; move it out of the corner first.
+    await tester.drag(
+      find.byType(AgentPanelHeader),
+      const Offset(-200, -150),
+      touchSlopX: 0,
+      touchSlopY: 0,
+    );
+    await tester.pumpAndSettle();
+
+    final before = dockRect(tester);
+    await tester.drag(
+      find.byIcon(Icons.south_east),
+      const Offset(60, 40),
+      touchSlopX: 0,
+      touchSlopY: 0,
+    );
+    await tester.pumpAndSettle();
+
+    final after = dockRect(tester);
+    expect(after.left, closeTo(before.left, 0.01));
+    expect(after.top, closeTo(before.top, 0.01));
+    expect(after.width, closeTo(before.width + 60, 0.01));
+    expect(after.height, closeTo(before.height + 40, 0.01));
+
+    // And it stops at the window edge rather than growing past it.
+    await tester.drag(
+      find.byIcon(Icons.south_east),
+      const Offset(5000, 5000),
+      touchSlopX: 0,
+      touchSlopY: 0,
+    );
+    await tester.pumpAndSettle();
+
+    final stack = areaRect(tester);
+    final grown = dockRect(tester);
+    expect(grown.right, lessThanOrEqualTo(stack.right + 0.01));
+    expect(grown.bottom, lessThanOrEqualTo(stack.bottom + 0.01));
+  });
+
   testWidgets('minimizing leaves only the title bar', (tester) async {
     const area = Size(1000, 700);
     useSurface(tester, area);
@@ -144,8 +192,8 @@ void main() {
     await tester.tap(find.byTooltip('Collapse panel'));
     await tester.pumpAndSettle();
 
-    // 40px title bar + the glass surface's 1px border on each side.
-    expect(dockRect(tester).height, closeTo(42, 0.01));
+    // The title bar + the glass surface's 1px border on each side.
+    expect(dockRect(tester).height, closeTo(AgentPanelHeader.height + 2, 0.01));
     // And it is still pinned to the same corner.
     final stack = areaRect(tester);
     expect(stack.bottom - dockRect(tester).bottom, closeTo(16, 0.01));
@@ -178,8 +226,10 @@ void main() {
     await tester.pumpWidget(harness(area));
     await tester.pumpAndSettle();
 
-    // No stored choice: the first pair is the active one.
-    expect(find.text('Alpha'), findsOneWidget);
+    // No stored choice: the first pair is the active one. The header splits
+    // the backend in two — provider as a label, model as a code chip.
+    expect(find.text('Alpha ·'), findsOneWidget);
+    expect(find.text('alpha-mini'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Switch backend'));
     await tester.pumpAndSettle();
@@ -189,7 +239,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(appState.activeLlmProfile?.id, 'p2/m2');
-    expect(find.text('Beta · beta-pro'), findsOneWidget);
+    expect(find.text('Beta ·'), findsOneWidget);
+    expect(find.text('beta-pro'), findsOneWidget);
   });
 
   testWidgets('a window smaller than the panel minimum still lays out', (
