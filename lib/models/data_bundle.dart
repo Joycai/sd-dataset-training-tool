@@ -61,6 +61,7 @@ class TagLibraryBundle {
     this.ungrouped = const [],
     this.customTags = const [],
     this.translations = const {},
+    this.danbooruMeta = const {},
   });
 
   /// Groups with the tags they hold. Ids are local handles and are not
@@ -79,11 +80,18 @@ class TagLibraryBundle {
   /// and losing the other languages on a restore would be silent data loss.
   final Map<String, List<TagTranslation>> translations;
 
+  /// What danbooru answered about each looked-up tag (`danbooru_meta.json`),
+  /// carried verbatim in that file's own `entries` layout — including the
+  /// "not on danbooru" marks a batch update skips by. Kept raw here so the
+  /// layout stays owned by the meta service, which validates it on both ends.
+  final Map<String, dynamic> danbooruMeta;
+
   bool get isEmpty =>
       groups.isEmpty &&
       ungrouped.isEmpty &&
       customTags.isEmpty &&
-      translations.isEmpty;
+      translations.isEmpty &&
+      danbooruMeta.isEmpty;
 
   /// Every library tag, grouped or not.
   int get tagCount =>
@@ -91,6 +99,8 @@ class TagLibraryBundle {
 
   int get translationCount =>
       translations.values.fold(0, (sum, list) => sum + list.length);
+
+  int get danbooruMetaCount => danbooruMeta.length;
 
   Map<String, dynamic> toJson() => {
     'groups': [
@@ -102,6 +112,7 @@ class TagLibraryBundle {
       for (final entry in translations.entries)
         entry.key: {for (final t in entry.value) t.tag: t.toJson()},
     },
+    if (danbooruMeta.isNotEmpty) 'danbooruMeta': danbooruMeta,
   };
 
   /// Tolerant by design: a bundle with one unreadable part should still
@@ -132,6 +143,10 @@ class TagLibraryBundle {
                 for (final e in (entry.value as Map).entries)
                   ?TagTranslation.fromJson('${e.key}', e.value),
               ],
+      },
+      danbooruMeta: switch (json['danbooruMeta']) {
+        final Map raw => raw.cast<String, dynamic>(),
+        _ => const {},
       },
     );
   }
@@ -270,6 +285,7 @@ class DataImportReport {
     this.groupsCreated = 0,
     this.customTagsAdded = 0,
     this.translationsWritten = 0,
+    this.danbooruRecordsWritten = 0,
     this.presetsAdded = 0,
     this.presetsUpdated = 0,
   });
@@ -281,6 +297,7 @@ class DataImportReport {
   final int groupsCreated;
   final int customTagsAdded;
   final int translationsWritten;
+  final int danbooruRecordsWritten;
   final int presetsAdded;
   final int presetsUpdated;
 
@@ -292,6 +309,7 @@ class DataImportReport {
       groupsCreated +
       customTagsAdded +
       translationsWritten +
+      danbooruRecordsWritten +
       presetsAdded +
       presetsUpdated;
 

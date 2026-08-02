@@ -10,6 +10,7 @@ import '../../models/llm_models.dart';
 import '../../models/tag_dictionary.dart';
 import '../../models/tag_translation.dart';
 import '../../services/danbooru_api.dart';
+import '../../services/danbooru_meta_service.dart';
 import '../../services/llm/llm_client.dart';
 import '../../services/tag_ai_translate.dart';
 import '../../services/tag_dictionary_service.dart';
@@ -98,7 +99,8 @@ TagDictionaryScope _scopeOf(BuildContext context) =>
 /// shortcut, whose `State.context` sits *above* the providers it installs in
 /// its own `build`.
 ///
-/// [api] is injectable for tests; the default talks to danbooru.
+/// [api] is injectable for tests; the default talks to danbooru. [batchDelay]
+/// overrides the pause between batch-update requests, for tests only.
 Future<void> showTagDictionaryDialog(
   BuildContext context, {
   String? initialTag,
@@ -106,6 +108,7 @@ Future<void> showTagDictionaryDialog(
   DanbooruApi? api,
   bool fetchOnOpen = false,
   TagDictionaryScope? scope,
+  Duration? batchDelay,
 }) {
   final resolved = scope ?? _scopeOf(context);
   return showDialog(
@@ -118,6 +121,7 @@ Future<void> showTagDictionaryDialog(
         api: api,
         fetchOnOpen: fetchOnOpen,
         scope: resolved,
+        batchDelay: batchDelay,
       ),
     ),
   );
@@ -136,10 +140,10 @@ const _missingChipLimit = 18;
 /// Which view of the candidate set the left column is showing.
 enum _DictFilter { all, untranslated, custom }
 
-/// What the right column is showing. The two forms replace what used to be
+/// What the right column is showing. The forms replace what used to be
 /// nested dialogs: a modal on top of a modal hides the very list the user is
 /// working against.
-enum _DictPane { detail, newTag, fetch }
+enum _DictPane { detail, newTag, fetch, batch }
 
 class _TagDictionaryDialog extends StatefulWidget {
   const _TagDictionaryDialog({
@@ -148,6 +152,7 @@ class _TagDictionaryDialog extends StatefulWidget {
     this.api,
     this.fetchOnOpen = false,
     this.scope = const TagDictionaryScope(),
+    this.batchDelay,
   });
 
   final String? initialTag;
@@ -155,6 +160,9 @@ class _TagDictionaryDialog extends StatefulWidget {
   final DanbooruApi? api;
   final bool fetchOnOpen;
   final TagDictionaryScope scope;
+
+  /// Test override for the pause between batch requests.
+  final Duration? batchDelay;
 
   @override
   State<_TagDictionaryDialog> createState() => _TagDictionaryDialogState();
@@ -235,6 +243,8 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
 
   TagTranslationService get _glossary =>
       context.read<AppState>().tagTranslations;
+
+  DanbooruMetaService get _meta => context.read<AppState>().danbooruMeta;
 
   void _snack(String message) {
     if (!mounted) return;
@@ -610,11 +620,20 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
   /// back with `knownToDanbooru == false`, and saying so is more useful than an
   /// error, because "danbooru doesn't have this either" is exactly what
   /// confirms a typo.
-  Future<DanbooruTagInfo?> _lookup(String query, {bool select = true}) async {
+  Future<DanbooruTagInfo?> _lookup(
+    String query, {
+    bool select = true,
+    bool announceUnknown = true,
+  }) async {
     final l10n = AppLocalizations.of(context)!;
     setState(() => _fetching = true);
     try {
       final info = await _api.fetch(query);
+      // Persisted, not merely cached: the record is what keeps the wiki and
+      // other names rendering next session, and what the batch update skips
+      // by. Recorded under the queried spelling too, so an alias that danbooru
+      // resolved elsewhere is not asked about again.
+      await _meta.record(info, queriedAs: DanbooruApi.parseQuery(query));
       if (!mounted) return null;
       setState(() {
         _fetched[tagLookupKey(info.name)] = info;
@@ -628,7 +647,9 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
           _filter = _DictFilter.all;
         }
       });
-      if (!info.knownToDanbooru) _snack(l10n.dictFetchUnknown(info.name));
+      if (announceUnknown && !info.knownToDanbooru) {
+        _snack(l10n.dictFetchUnknown(info.name));
+      }
       return info;
     } on DanbooruApiException catch (e) {
       if (mounted) _snack(l10n.dictFetchFailed(e.message));
@@ -636,6 +657,172 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
     } finally {
       if (mounted) setState(() => _fetching = false);
     }
+  }
+
+  /// Writes what danbooru answered into the tag's own entry: `other_names`
+  /// join the aliases of a hand-added entry, and the wiki excerpt becomes the
+  /// translation's note when that note is empty. Nothing the user typed is
+  /// ever overwritten — additive on aliases, fill-only on the note.
+  Future<void> _applyDanbooruInfo(String tag, DanbooruTagInfo info) async {
+    if (!info.knownToDanbooru) return;
+    final dictionary = _dictionary;
+
+    // Aliases can only be *persisted* on the user's own entries — the
+    // dictionary CSV is replaced wholesale on refresh, and setCustomEntries
+    // would drop a shadow copy of a tag the dictionary covers rather than
+    // keep it. For dictionary tags the recorded `other_names` still render on
+    // the entry; they just live in the danbooru record instead.
+    final key = tagLookupKey(tag);
+    final at = dictionary.customEntries.indexWhere(
+      (e) => tagLookupKey(e.name) == key,
+    );
+    if (at >= 0 && !dictionary.coveredByDictionary(tag)) {
+      final entry = dictionary.customEntries[at];
+      final seen = {
+        tagLookupKey(entry.name),
+        for (final alias in entry.aliases) tagLookupKey(alias),
+      };
+      final gained = [
+        for (final name in info.otherNames)
+          if (seen.add(tagLookupKey(name))) name,
+      ];
+      final category = info.category ?? entry.category;
+      // Danbooru's own count replaces a collected entry's dataset-usage
+      // stand-in — same rule as adding a fetched tag outright.
+      final postCount = info.postCount > 0 ? info.postCount : entry.postCount;
+      if (gained.isNotEmpty ||
+          category != entry.category ||
+          postCount != entry.postCount) {
+        await dictionary.setCustomEntries([
+          for (final e in dictionary.customEntries)
+            if (identical(e, entry))
+              TagDictionaryEntry(
+                name: entry.name,
+                category: category,
+                postCount: postCount,
+                aliases: [...entry.aliases, ...gained],
+                autocomplete: entry.autocomplete,
+              )
+            else
+              e,
+        ]);
+      }
+    }
+
+    final translation = _glossary.lookup(tag);
+    if (translation != null &&
+        translation.note == null &&
+        info.wikiExcerpt != null) {
+      await _glossary.upsert(
+        TagTranslation(
+          tag: translation.tag,
+          text: translation.text,
+          note: info.wikiExcerpt,
+          // The note came from danbooru but the translation did not; its
+          // provenance is the *translation's*, which must not change under a
+          // "clear AI translations" sweep because a note was filled in.
+          source: translation.source,
+        ),
+      );
+    }
+  }
+
+  /// The single-tag update: fetch, persist the record, and write the answer
+  /// into the entry. A tag danbooru does not have gets its "not on danbooru"
+  /// mark instead — which is also why this button stays offered on a marked
+  /// tag: re-running it is the escape hatch once the tag exists.
+  Future<void> _updateFromDanbooru(String tag) async {
+    final l10n = AppLocalizations.of(context)!;
+    final info = await _lookup(tag, announceUnknown: false);
+    if (info == null || !mounted) return;
+    if (!info.knownToDanbooru) {
+      _snack(l10n.dictDanbooruMarkedMissing(info.name));
+      return;
+    }
+    await _applyDanbooruInfo(tag, info);
+    if (mounted) _snack(l10n.dictDanbooruUpdateDone(info.name));
+  }
+
+  // --- Batch update ------------------------------------------------------
+
+  /// The pause between requests. Danbooru asks callers to go easy, and a
+  /// batch is the one place this app could fail to.
+  static const _defaultBatchDelay = Duration(milliseconds: 600);
+
+  bool _batchRunning = false;
+  bool _batchCancelled = false;
+  int _batchDone = 0;
+  int _batchTotal = 0;
+  String? _batchCurrent;
+  int _batchUpdated = 0;
+  int _batchMarkedMissing = 0;
+  int _batchFailed = 0;
+
+  /// Why the run stopped early; null when it ran to the end.
+  String? _batchError;
+
+  /// Set once a run has ended, so the pane shows its summary rather than the
+  /// candidate counts of the *next* run.
+  bool _batchFinished = false;
+
+  /// Tags the batch would fetch: what the list is showing, minus everything
+  /// already recorded — found or marked missing alike.
+  List<String> _batchCandidates(List<_DictRow> rows) => [
+    for (final row in rows)
+      if (!_meta.has(row.tag)) row.tag,
+  ];
+
+  Future<void> _runBatch(List<String> tags) async {
+    if (_batchRunning || tags.isEmpty) return;
+    setState(() {
+      _batchRunning = true;
+      _batchCancelled = false;
+      _batchDone = 0;
+      _batchTotal = tags.length;
+      _batchCurrent = null;
+      _batchUpdated = 0;
+      _batchMarkedMissing = 0;
+      _batchFailed = 0;
+      _batchError = null;
+      _batchFinished = false;
+    });
+    final delay = widget.batchDelay ?? _defaultBatchDelay;
+    var failuresInARow = 0;
+    for (final tag in tags) {
+      if (!mounted || _batchCancelled) break;
+      setState(() => _batchCurrent = tag);
+      try {
+        final info = await _api.fetch(tag);
+        await _meta.record(info, queriedAs: tag);
+        if (!mounted) return;
+        _fetched[tagLookupKey(info.name)] = info;
+        if (info.knownToDanbooru) {
+          await _applyDanbooruInfo(tag, info);
+          _batchUpdated++;
+        } else {
+          _batchMarkedMissing++;
+        }
+        failuresInARow = 0;
+      } on DanbooruApiException catch (e) {
+        _batchFailed++;
+        // Rate limiting means every further request digs the hole deeper;
+        // three failures in a row means the network itself is the problem.
+        if (e.retryLater || ++failuresInARow >= 3) {
+          _batchError = e.message;
+          break;
+        }
+      }
+      if (!mounted) return;
+      setState(() => _batchDone++);
+      if (_batchCancelled) break;
+      await Future<void>.delayed(delay);
+    }
+    if (!mounted) return;
+    setState(() {
+      _batchRunning = false;
+      _batchCurrent = null;
+      _batchFinished = true;
+    });
   }
 
   // --- Import / export ---------------------------------------------------
@@ -719,10 +906,10 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
 
-    // Both services mutate in place, so the dialog subscribes to them rather
+    // The services mutate in place, so the dialog subscribes to them rather
     // than to AppState — which never forwards their notifications.
     return ListenableBuilder(
-      listenable: Listenable.merge([_dictionary, _glossary]),
+      listenable: Listenable.merge([_dictionary, _glossary, _meta]),
       builder: (context, _) {
         final rows = _rows();
         final missing = _missingTags();
@@ -1029,6 +1216,32 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
           onWrite: _addFromDanbooru,
           onOpen: _select,
         );
+      case _DictPane.batch:
+        final rows = _rows();
+        final candidates = _batchCandidates(rows);
+        return _BatchForm(
+          pending: candidates,
+          cached: rows.length - candidates.length,
+          marked: [
+            for (final row in rows)
+              if (_meta.isMissing(row.tag)) row.tag,
+          ].length,
+          running: _batchRunning,
+          finished: _batchFinished,
+          done: _batchDone,
+          total: _batchTotal,
+          current: _batchCurrent,
+          updated: _batchUpdated,
+          markedMissing: _batchMarkedMissing,
+          failed: _batchFailed,
+          error: _batchError,
+          onStart: () => _runBatch(candidates),
+          onStop: () => setState(() => _batchCancelled = true),
+          onClose: () => setState(() {
+            _pane = _DictPane.detail;
+            _batchFinished = false;
+          }),
+        );
       case _DictPane.detail:
         final selected = _selected;
         if (selected == null) {
@@ -1047,22 +1260,28 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
           );
         }
         return _TranslationForm(
-          // New controllers when the selection moves. Deliberately *not* keyed
-          // on the fetched info: a lookup must not throw away whatever the
-          // user was typing.
-          key: ValueKey('$selected/${_glossary.lookup(selected)?.text}'),
+          // New controllers when the selection moves or the saved entry
+          // changes under the form — a danbooru update writing the note must
+          // reach the field. Deliberately *not* keyed on the fetched info: a
+          // lookup must not throw away whatever the user was typing.
+          key: ValueKey(
+            '$selected/${_glossary.lookup(selected)?.text}'
+            '/${_glossary.lookup(selected)?.note}',
+          ),
           tag: selected,
           entry: _glossary.lookup(selected),
           dictionaryEntry: _dictionary.lookup(selected),
           custom: _isCustom(selected),
-          info: _fetched[tagLookupKey(selected)],
+          // The session cache first — it is fresher within one dialog — then
+          // whatever an earlier session recorded.
+          info: _fetched[tagLookupKey(selected)] ?? _meta.lookup(selected),
           fetching: _fetching,
           datasetUsage: widget.scope.usageOf(selected),
           datasetImages: widget.scope.imageCount,
           glossaryLanguage: _glossary.languageCode,
           onSave: (text, note, source) =>
               _saveTranslation(selected, text, note, source),
-          onFetch: () => _lookup(selected),
+          onFetch: () => _updateFromDanbooru(selected),
           onDeleteTranslation: () => _deleteTranslation(selected),
           onRemoveCustom: () => _removeCustomTag(selected),
           // Only offered when danbooru has the tag and this dictionary does
@@ -1110,6 +1329,15 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
                   alignment: WrapAlignment.end,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
+                    TextButton.icon(
+                      onPressed: () =>
+                          setState(() => _pane = _DictPane.batch),
+                      icon: const Icon(Icons.cloud_sync_outlined, size: 14),
+                      label: Text(
+                        l10n.dictBatchAction,
+                        style: const TextStyle(fontSize: AppText.secondary),
+                      ),
+                    ),
                     TextButton.icon(
                       onPressed: _clearMachineTranslations,
                       icon: const Icon(Icons.auto_awesome_outlined, size: 14),
@@ -1698,6 +1926,9 @@ class _TranslationFormState extends State<_TranslationForm> {
     final profile = context.select<AppState, LlmProviderProfile?>(
       (s) => s.activeLlmProfile,
     );
+    // The entry's own aliases only. Danbooru's recorded `other_names` render
+    // in the danbooru block below instead — showing them here too would put
+    // the same chips on screen twice.
     final aliases = hit?.aliases ?? const <String>[];
 
     return SingleChildScrollView(
@@ -1748,40 +1979,43 @@ class _TranslationFormState extends State<_TranslationForm> {
                     ],
                   ),
                 ),
-                // A hand-added tag is the user's own invention: danbooru has
-                // neither a wiki page nor a tag record for it, so both the link
-                // and the lookup would come back empty.
-                if (!widget.custom) ...[
-                  const SizedBox(width: 8),
-                  // Non-flex, so the two actions keep the right edge; the tag
-                  // column beside them is the tight Expanded that absorbs the
-                  // slack. The inner Wrap still bounds them, because two
-                  // localized labels can be wider than a narrow pane.
-                  ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: pane.maxWidth * 0.62),
-                    child: Wrap(
-                      alignment: WrapAlignment.end,
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        _MiniAction(
-                          icon: Icons.cloud_download_outlined,
-                          label: widget.fetching
-                              ? l10n.dictFetching
-                              : l10n.dictFetchAction,
-                          busy: widget.fetching,
-                          onTap: widget.fetching ? null : widget.onFetch,
-                        ),
+                const SizedBox(width: 8),
+                // Non-flex, so the actions keep the right edge; the tag
+                // column beside them is the tight Expanded that absorbs the
+                // slack. The inner Wrap still bounds them, because two
+                // localized labels can be wider than a narrow pane.
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: pane.maxWidth * 0.62),
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      // Offered on hand-added tags too: a collected dataset
+                      // tag is usually a real danbooru tag, and one danbooru
+                      // has never heard of gets its "not on danbooru" mark —
+                      // exactly what tells the batch update to skip it.
+                      _MiniAction(
+                        icon: Icons.cloud_sync_outlined,
+                        label: widget.fetching
+                            ? l10n.dictFetching
+                            : l10n.dictDanbooruUpdateAction,
+                        busy: widget.fetching,
+                        onTap: widget.fetching ? null : widget.onFetch,
+                      ),
+                      // No wiki link for a tag known to be the user's own
+                      // invention — the page cannot exist.
+                      if (!widget.custom ||
+                          widget.info?.knownToDanbooru == true)
                         _MiniAction(
                           icon: Icons.menu_book_outlined,
                           label: l10n.tagWikiAction,
                           onTap: () =>
                               openExternalUrl(danbooruWikiUrl(widget.tag)),
                         ),
-                      ],
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ],
             ),
           ),
@@ -2765,6 +2999,216 @@ class _FetchFormState extends State<_FetchForm> {
               ],
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// --- Batch update pane ---------------------------------------------------
+
+/// Fetch danbooru's answer for every listed tag that has none yet, one
+/// request at a time.
+///
+/// The candidate set is whatever the left column is showing, so the search
+/// box, the filter segments and the dataset toggle double as the batch's
+/// scope controls. Everything already recorded — found or marked missing
+/// alike — is skipped, which is what makes the run re-entrant: stopping
+/// halfway loses nothing, and the next run picks up where this one left off.
+class _BatchForm extends StatelessWidget {
+  const _BatchForm({
+    required this.pending,
+    required this.cached,
+    required this.marked,
+    required this.running,
+    required this.finished,
+    required this.done,
+    required this.total,
+    required this.current,
+    required this.updated,
+    required this.markedMissing,
+    required this.failed,
+    required this.error,
+    required this.onStart,
+    required this.onStop,
+    required this.onClose,
+  });
+
+  /// Tags a run would fetch, in list order — busiest first in the dataset
+  /// view, so the most valuable entries land even if the run is stopped.
+  final List<String> pending;
+
+  /// Listed tags skipped because they already have a record, and the subset
+  /// of those marked "not on danbooru".
+  final int cached;
+  final int marked;
+
+  final bool running;
+
+  /// A run has ended (completed, stopped, or aborted) and its summary is
+  /// what the pane should show.
+  final bool finished;
+
+  final int done;
+  final int total;
+  final String? current;
+  final int updated;
+  final int markedMissing;
+  final int failed;
+  final String? error;
+
+  final VoidCallback onStart;
+  final VoidCallback onStop;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(18, 15, 18, 15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  l10n.dictBatchTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              PanelIconButton(
+                icon: Icons.close,
+                tooltip: l10n.close,
+                size: 15,
+                onPressed: onClose,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            l10n.dictBatchDesc,
+            style: TextStyle(
+              fontSize: AppText.secondary,
+              color: scheme.onSurface,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${l10n.dictBatchScopeNote} ${l10n.dictBatchRateNote}',
+            style: TextStyle(fontSize: AppText.micro, color: semantic.muted),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.fromLTRB(13, 11, 13, 12),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              border: Border.all(color: semantic.line),
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (running) ...[
+                  Text(
+                    l10n.dictBatchRunning(
+                      done < total ? done + 1 : total,
+                      total,
+                      current ?? '…',
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: AppText.secondary),
+                  ),
+                  const SizedBox(height: 9),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: total == 0 ? null : done / total,
+                      minHeight: 3,
+                      backgroundColor: semantic.line,
+                      color: scheme.primary,
+                    ),
+                  ),
+                ] else if (finished) ...[
+                  Text(
+                    l10n.dictBatchSummary(updated, markedMissing, failed),
+                    style: const TextStyle(fontSize: AppText.secondary),
+                  ),
+                  if (error case final message?) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      l10n.dictBatchStopped(message),
+                      style: TextStyle(
+                        fontSize: AppText.micro,
+                        color: semantic.warn,
+                      ),
+                    ),
+                  ],
+                ] else ...[
+                  Text(
+                    pending.isEmpty
+                        ? l10n.dictBatchNothing
+                        : l10n.dictBatchPending(pending.length),
+                    style: const TextStyle(fontSize: AppText.secondary),
+                  ),
+                  if (cached > 0 || marked > 0) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      [
+                        if (cached - marked > 0)
+                          l10n.dictBatchCached(cached - marked),
+                        if (marked > 0) l10n.dictBatchMissing(marked),
+                      ].join(' · '),
+                      style: TextStyle(
+                        fontSize: AppText.micro,
+                        color: semantic.muted,
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              const Spacer(),
+              if (running)
+                OutlinedButton(
+                  onPressed: onStop,
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  child: Text(
+                    l10n.dictBatchStop,
+                    style: const TextStyle(fontSize: AppText.secondary),
+                  ),
+                )
+              else
+                FilledButton(
+                  onPressed: pending.isEmpty ? null : onStart,
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    minimumSize: const Size(0, 30),
+                  ),
+                  child: Text(
+                    l10n.dictBatchStart,
+                    style: const TextStyle(fontSize: AppText.secondary),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );

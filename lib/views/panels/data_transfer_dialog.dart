@@ -138,6 +138,7 @@ Future<void> _showReport(
         report.groupsCreated,
         report.customTagsAdded,
         report.translationsWritten,
+        report.danbooruRecordsWritten,
       ),
     if (choice.sections.contains(DataSection.promptPresets) &&
         bundle.has(DataSection.promptPresets))
@@ -277,6 +278,7 @@ class _ExportDialogState extends State<_ExportDialog> {
               state.tagGroups.length,
               state.tagDictionary.customEntries.length,
               _translationCount ?? 0,
+              state.danbooruMeta.count,
             ),
             value: _selected.contains(DataSection.tagLibrary),
             onChanged: (v) => _toggle(DataSection.tagLibrary, v),
@@ -352,6 +354,7 @@ class _ImportDialogState extends State<_ImportDialog> {
         bundle.tagLibrary!.groups.length,
         bundle.tagLibrary!.customTags.length,
         bundle.tagLibrary!.translationCount,
+        bundle.tagLibrary!.danbooruMetaCount,
       ),
       DataSection.promptPresets => l10n.dataSectionPresetsSummary(
         bundle.presetCount,

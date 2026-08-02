@@ -8,6 +8,7 @@ import 'models/merge_rules.dart';
 import 'models/prompt_preset.dart';
 import 'models/tag_group.dart';
 import 'models/tag_translation.dart';
+import 'services/danbooru_meta_service.dart';
 import 'services/font_service.dart';
 import 'services/settings_service.dart';
 import 'services/tag_dictionary_service.dart';
@@ -41,14 +42,22 @@ class AppState extends ChangeNotifier {
   /// subscribe through [TagGlossScope] instead.
   final TagTranslationService tagTranslations;
 
-  /// Both tag services are injectable so tests can point them at a temp
+  /// What danbooru answered about each tag ever looked up — other names, wiki
+  /// excerpt, or "danbooru has no such tag". Held here for the same reason the
+  /// other two are, and likewise not forwarded through [notifyListeners]: the
+  /// dictionary manager subscribes directly.
+  final DanbooruMetaService danbooruMeta;
+
+  /// The tag services are injectable so tests can point them at a temp
   /// directory instead of the real application support folder.
   AppState(
     this._settingsService, {
     TagDictionaryService? tagDictionary,
     TagTranslationService? tagTranslations,
+    DanbooruMetaService? danbooruMeta,
   }) : tagDictionary = tagDictionary ?? TagDictionaryService(),
-       tagTranslations = tagTranslations ?? TagTranslationService() {
+       tagTranslations = tagTranslations ?? TagTranslationService(),
+       danbooruMeta = danbooruMeta ?? DanbooruMetaService() {
     fontService.addListener(_onFontServiceChanged);
   }
 
@@ -65,6 +74,7 @@ class AppState extends ChangeNotifier {
     fontService.dispose();
     tagDictionary.dispose();
     tagTranslations.dispose();
+    danbooruMeta.dispose();
     super.dispose();
   }
 

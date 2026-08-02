@@ -61,6 +61,8 @@ void main(List<String> args) async {
   // Same bargain for the glossary: tags render untranslated for a moment and
   // the gloss scope repaints them once it lands.
   unawaited(appState.tagTranslations.load(appState.currentLocale.languageCode));
+  // And for the danbooru records, which only the dictionary manager renders.
+  unawaited(appState.danbooruMeta.init());
 
   runApp(
     _withoutSemantics(

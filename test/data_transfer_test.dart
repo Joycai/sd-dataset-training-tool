@@ -8,6 +8,8 @@ import 'package:dataset_training_tool/models/data_bundle.dart';
 import 'package:dataset_training_tool/models/llm_models.dart';
 import 'package:dataset_training_tool/models/tag_dictionary.dart';
 import 'package:dataset_training_tool/models/tag_translation.dart';
+import 'package:dataset_training_tool/services/danbooru_api.dart';
+import 'package:dataset_training_tool/services/danbooru_meta_service.dart';
 import 'package:dataset_training_tool/services/data_transfer.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/services/tag_dictionary_service.dart';
@@ -48,6 +50,9 @@ void main() {
       tagTranslations: TagTranslationService(
         storageDirectory: () async => translationsDir,
       ),
+      danbooruMeta: DanbooruMetaService(
+        storageDirectory: () async => dictionaryDir,
+      ),
     );
     await state.loadSettings();
     await state.tagTranslations.load(locale);
@@ -83,6 +88,23 @@ void main() {
       const TagTranslation(tag: 'blue_eyes', text: '青い目'),
     ]);
     await state.createPromptPreset(title: 'cleanup', content: 'tidy the tags');
+    // One found record and one "not on danbooru" mark: the mark is the half
+    // that is expensive to lose, because rebuilding it means asking danbooru
+    // about every tag again.
+    await state.danbooruMeta.record(
+      const DanbooruTagInfo(
+        name: 'long_hair',
+        category: TagCategory.general,
+        postCount: 3000000,
+        otherNames: ['ロングヘア'],
+        wikiExcerpt: 'Hair below the shoulder blades.',
+        knownToDanbooru: true,
+        hasWiki: true,
+      ),
+    );
+    await state.danbooruMeta.record(
+      const DanbooruTagInfo(name: 'trigger_word'),
+    );
   }
 
   group('DataBundle file format', () {
@@ -107,6 +129,7 @@ void main() {
       // Every language on disk, not just the one the app is showing.
       expect(decoded.tagLibrary!.translations.keys, containsAll(['zh', 'ja']));
       expect(decoded.tagLibrary!.translationCount, 2);
+      expect(decoded.tagLibrary!.danbooruMetaCount, 2);
       expect(decoded.presets!.single.title, 'cleanup');
     });
 
@@ -205,6 +228,18 @@ void main() {
 
       expect(report.presetsAdded, 1);
       expect(target.promptPresets.single.content, 'tidy the tags');
+
+      expect(report.danbooruRecordsWritten, 2);
+      expect(target.danbooruMeta.lookup('long_hair')?.otherNames, [
+        'ロングヘア',
+      ]);
+      expect(
+        target.danbooruMeta.lookup('long_hair')?.wikiExcerpt,
+        'Hair below the shoulder blades.',
+      );
+      // The mark survives the trip, so the restored install skips the tag in
+      // a batch update exactly as the original did.
+      expect(target.danbooruMeta.isMissing('trigger_word'), isTrue);
     });
 
     test('only the selected sections are applied', () async {

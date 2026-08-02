@@ -49,13 +49,54 @@ class DanbooruTagInfo {
   /// Whether danbooru has a wiki page at all — distinct from [wikiExcerpt],
   /// which is also null for a page whose body is empty.
   final bool hasWiki;
+
+  /// The layout [DanbooruMetaService] persists. Absent fields mean what their
+  /// defaults mean, so a "danbooru has never heard of this" record is just
+  /// `{"known": false}`.
+  Map<String, dynamic> toJson() => {
+    'known': knownToDanbooru,
+    if (category != null) 'category': category!.id,
+    if (postCount != 0) 'count': postCount,
+    if (otherNames.isNotEmpty) 'otherNames': otherNames,
+    if (wikiExcerpt != null) 'wiki': wikiExcerpt,
+    if (hasWiki) 'hasWiki': true,
+  };
+
+  /// Reads one persisted record. Returns null for anything unusable, so a
+  /// hand-edited file cannot poison the store.
+  static DanbooruTagInfo? fromJson(String tag, Object? value) {
+    final name = tag.trim();
+    if (name.isEmpty || value is! Map) return null;
+    final rawCategory = value['category'];
+    return DanbooruTagInfo(
+      name: name,
+      category: rawCategory is num ? TagCategory.fromId(rawCategory.toInt()) : null,
+      postCount: value['count'] is num ? (value['count'] as num).toInt() : 0,
+      otherNames: value['otherNames'] is List
+          ? [
+              for (final other in value['otherNames'] as List)
+                if ('$other'.trim().isNotEmpty) '$other'.trim(),
+            ]
+          : const [],
+      wikiExcerpt: switch ((value['wiki'] as Object?)?.toString().trim()) {
+        final w? when w.isNotEmpty => w,
+        _ => null,
+      },
+      knownToDanbooru: value['known'] == true,
+      hasWiki: value['hasWiki'] == true,
+    );
+  }
 }
 
 /// A failed lookup, with a message fit to show the user.
 class DanbooruApiException implements Exception {
-  DanbooruApiException(this.message);
+  DanbooruApiException(this.message, {this.retryLater = false});
 
   final String message;
+
+  /// Danbooru is rate-limiting this client. A batch caller must stop rather
+  /// than plough on — every further request digs the hole deeper.
+  final bool retryLater;
 
   @override
   String toString() => message;
@@ -228,6 +269,7 @@ class DanbooruApi {
       throw DanbooruApiException(
         'danbooru is rate-limiting this client '
         '(HTTP ${response.statusCode}); try again in a moment',
+        retryLater: true,
       );
     }
     if (response.statusCode != 200) {

@@ -3689,6 +3689,108 @@ abstract class AppLocalizations {
   /// **'Added to the dictionary: {tag}'**
   String dictFetchAdded(String tag);
 
+  /// No description provided for @dictDanbooruUpdateAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Update from danbooru'**
+  String get dictDanbooruUpdateAction;
+
+  /// No description provided for @dictDanbooruUpdateDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Updated {tag} from danbooru'**
+  String dictDanbooruUpdateDone(String tag);
+
+  /// No description provided for @dictDanbooruMarkedMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'danbooru has no tag called \"{tag}\" — marked, so batch updates skip it'**
+  String dictDanbooruMarkedMissing(String tag);
+
+  /// No description provided for @dictBatchAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Danbooru batch update'**
+  String get dictBatchAction;
+
+  /// No description provided for @dictBatchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch update from danbooru'**
+  String get dictBatchTitle;
+
+  /// No description provided for @dictBatchDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Fetches other names and the wiki excerpt for every listed tag danbooru has not been asked about yet. Other names join the tag\'s aliases and the wiki excerpt fills an empty note — existing text is never overwritten.'**
+  String get dictBatchDesc;
+
+  /// No description provided for @dictBatchScopeNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Covers the tags the list on the left is currently showing.'**
+  String get dictBatchScopeNote;
+
+  /// No description provided for @dictBatchPending.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tags to fetch'**
+  String dictBatchPending(int count);
+
+  /// No description provided for @dictBatchCached.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} already have danbooru info'**
+  String dictBatchCached(int count);
+
+  /// No description provided for @dictBatchMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} marked as not on danbooru — skipped'**
+  String dictBatchMissing(int count);
+
+  /// No description provided for @dictBatchNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Every listed tag already has danbooru info.'**
+  String get dictBatchNothing;
+
+  /// No description provided for @dictBatchRateNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags are fetched one at a time with a short pause between requests; a long list takes a while.'**
+  String get dictBatchRateNote;
+
+  /// No description provided for @dictBatchStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get dictBatchStart;
+
+  /// No description provided for @dictBatchStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get dictBatchStop;
+
+  /// No description provided for @dictBatchRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Updating {done}/{total}: {tag}'**
+  String dictBatchRunning(int done, int total, String tag);
+
+  /// No description provided for @dictBatchSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Done: {updated} updated, {missing} not on danbooru, {failed} failed'**
+  String dictBatchSummary(int updated, int missing, int failed);
+
+  /// No description provided for @dictBatchStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped: {error}'**
+  String dictBatchStopped(String error);
+
   /// No description provided for @dataSection.
   ///
   /// In en, this message translates to:
@@ -3788,12 +3890,13 @@ abstract class AppLocalizations {
   /// No description provided for @dataSectionTagLibrarySummary.
   ///
   /// In en, this message translates to:
-  /// **'{tags} tags · {groups} groups · {custom} custom tags · {translations} translations'**
+  /// **'{tags} tags · {groups} groups · {custom} custom tags · {translations} translations · {records} danbooru records'**
   String dataSectionTagLibrarySummary(
     int tags,
     int groups,
     int custom,
     int translations,
+    int records,
   );
 
   /// No description provided for @dataSectionPresets.
@@ -3883,12 +3986,13 @@ abstract class AppLocalizations {
   /// No description provided for @dataImportReportLibrary.
   ///
   /// In en, this message translates to:
-  /// **'Tag library: {tags} tags, {groups} groups, {custom} custom tags, {translations} translations'**
+  /// **'Tag library: {tags} tags, {groups} groups, {custom} custom tags, {translations} translations, {records} danbooru records'**
   String dataImportReportLibrary(
     int tags,
     int groups,
     int custom,
     int translations,
+    int records,
   );
 
   /// No description provided for @dataImportReportPresets.

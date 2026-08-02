@@ -2074,6 +2074,76 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get dictDanbooruUpdateAction => 'Update from danbooru';
+
+  @override
+  String dictDanbooruUpdateDone(String tag) {
+    return 'Updated $tag from danbooru';
+  }
+
+  @override
+  String dictDanbooruMarkedMissing(String tag) {
+    return 'danbooru has no tag called \"$tag\" — marked, so batch updates skip it';
+  }
+
+  @override
+  String get dictBatchAction => 'Danbooru batch update';
+
+  @override
+  String get dictBatchTitle => 'Batch update from danbooru';
+
+  @override
+  String get dictBatchDesc =>
+      'Fetches other names and the wiki excerpt for every listed tag danbooru has not been asked about yet. Other names join the tag\'s aliases and the wiki excerpt fills an empty note — existing text is never overwritten.';
+
+  @override
+  String get dictBatchScopeNote =>
+      'Covers the tags the list on the left is currently showing.';
+
+  @override
+  String dictBatchPending(int count) {
+    return '$count tags to fetch';
+  }
+
+  @override
+  String dictBatchCached(int count) {
+    return '$count already have danbooru info';
+  }
+
+  @override
+  String dictBatchMissing(int count) {
+    return '$count marked as not on danbooru — skipped';
+  }
+
+  @override
+  String get dictBatchNothing => 'Every listed tag already has danbooru info.';
+
+  @override
+  String get dictBatchRateNote =>
+      'Tags are fetched one at a time with a short pause between requests; a long list takes a while.';
+
+  @override
+  String get dictBatchStart => 'Start';
+
+  @override
+  String get dictBatchStop => 'Stop';
+
+  @override
+  String dictBatchRunning(int done, int total, String tag) {
+    return 'Updating $done/$total: $tag';
+  }
+
+  @override
+  String dictBatchSummary(int updated, int missing, int failed) {
+    return 'Done: $updated updated, $missing not on danbooru, $failed failed';
+  }
+
+  @override
+  String dictBatchStopped(String error) {
+    return 'Stopped: $error';
+  }
+
+  @override
   String get dataSection => 'Data';
 
   @override
@@ -2133,8 +2203,9 @@ class AppLocalizationsEn extends AppLocalizations {
     int groups,
     int custom,
     int translations,
+    int records,
   ) {
-    return '$tags tags · $groups groups · $custom custom tags · $translations translations';
+    return '$tags tags · $groups groups · $custom custom tags · $translations translations · $records danbooru records';
   }
 
   @override
@@ -2194,8 +2265,9 @@ class AppLocalizationsEn extends AppLocalizations {
     int groups,
     int custom,
     int translations,
+    int records,
   ) {
-    return 'Tag library: $tags tags, $groups groups, $custom custom tags, $translations translations';
+    return 'Tag library: $tags tags, $groups groups, $custom custom tags, $translations translations, $records danbooru records';
   }
 
   @override
