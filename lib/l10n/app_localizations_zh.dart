@@ -1155,7 +1155,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autoSaveOffStatus => '自动保存已关闭';
 
   @override
-  String get shortcutHints => 'Ctrl+S 保存 · Ctrl+E AI 识别 · Ctrl+Z 撤销';
+  String shortcutHints(String mod) {
+    return '$mod+S 保存 · $mod+E AI 识别 · $mod+Z 撤销';
+  }
 
   @override
   String get aiServiceConnected => 'AI 服务已连接';
@@ -1177,6 +1179,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get datasetSection => '数据集';
+
+  @override
+  String get shortcutsSection => '快捷键';
+
+  @override
+  String get shortcutsDesc => '工作台的全局键盘快捷键。';
+
+  @override
+  String get shortcutFilterLabel => '聚焦标签过滤框';
+
+  @override
+  String get shortcutAiTagLabel => '对当前图片 AI 打标';
+
+  @override
+  String get shortcutNavigateImagesLabel => '上一张 / 下一张图片';
+
+  @override
+  String get shortcutMoveAnchorLabel => '移动插入锚点';
 
   @override
   String get dangerZone => '危险区';

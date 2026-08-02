@@ -391,7 +391,7 @@
   "taggedProgress": "已打标 {tagged} / {total}",
   "autoSaveOnStatus": "自动保存已开启",
   "autoSaveOffStatus": "自动保存已关闭",
-  "shortcutHints": "Ctrl+S 保存 · Ctrl+E AI 识别 · Ctrl+Z 撤销",
+  "shortcutHints": "{mod}+S 保存 · {mod}+E AI 识别 · {mod}+Z 撤销",
   "aiServiceConnected": "AI 服务已连接",
   "aiServiceOffline": "AI 服务未连接",
 
@@ -401,6 +401,12 @@
 
   "appearanceSection": "外观",
   "datasetSection": "数据集",
+  "shortcutsSection": "快捷键",
+  "shortcutsDesc": "工作台的全局键盘快捷键。",
+  "shortcutFilterLabel": "聚焦标签过滤框",
+  "shortcutAiTagLabel": "对当前图片 AI 打标",
+  "shortcutNavigateImagesLabel": "上一张 / 下一张图片",
+  "shortcutMoveAnchorLabel": "移动插入锚点",
   "dangerZone": "危险区",
   "languageDesc": "界面显示语言",
   "themeTitle": "主题",

@@ -10,6 +10,7 @@ import '../services/font_service.dart';
 import '../services/tag_dictionary_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/external_links.dart';
+import '../utils/platform_shortcuts.dart';
 import '../widgets/panel_widgets.dart';
 import 'panels/caption_type_dialog.dart';
 import 'panels/data_transfer_dialog.dart';
@@ -444,6 +445,21 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                     ],
                   ),
+                if (_section == _SettingsSection.shortcuts) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10, left: 2),
+                    child: Text(
+                      l10n.shortcutsDesc,
+                      style: TextStyle(fontSize: 12, color: semantic.muted),
+                    ),
+                  ),
+                  _SettingsCard(
+                    children: [
+                      for (final entry in _shortcutEntries(l10n))
+                        _ShortcutRow(label: entry.$1, keys: entry.$2),
+                    ],
+                  ),
+                ],
                 if (_section == _SettingsSection.assistant)
                   _SettingsCard(
                     children: [
@@ -663,6 +679,23 @@ class _SettingsViewState extends State<SettingsView> {
   }
 }
 
+/// (label, key combo) pairs for the shortcuts help list, in the same order
+/// they're bound in [WorkbenchView].
+List<(String, String)> _shortcutEntries(AppLocalizations l10n) {
+  final mod = primaryModifierLabel;
+  return [
+    (l10n.save, '$mod+S'),
+    (l10n.shortcutFilterLabel, '$mod+F'),
+    (l10n.shortcutAiTagLabel, '$mod+E'),
+    (l10n.dictManagerTitle, '$mod+D'),
+    (l10n.agentPanelTitle, '$mod+I'),
+    (l10n.undo, '$mod+Z'),
+    (l10n.redo, '$mod+Shift+Z / $mod+Y'),
+    (l10n.shortcutNavigateImagesLabel, '← / →'),
+    (l10n.shortcutMoveAnchorLabel, '[ / ]'),
+  ];
+}
+
 String _glossModeLabel(AppLocalizations l10n, TagGlossDisplay mode) =>
     switch (mode) {
       TagGlossDisplay.off => l10n.tagGlossModeOff,
@@ -755,7 +788,7 @@ String _formatTokenCap(AppLocalizations l10n, int value) {
   return '${millions.toStringAsFixed(value % 1000000 == 0 ? 0 : 1)}M';
 }
 
-enum _SettingsSection { appearance, dataset, assistant, data, about }
+enum _SettingsSection { appearance, dataset, shortcuts, assistant, data, about }
 
 /// macOS-style source list: one entry per group, version pinned to the foot.
 class _SettingsSidebar extends StatelessWidget {
@@ -776,6 +809,11 @@ class _SettingsSidebar extends StatelessWidget {
         l10n.appearanceSection,
       ),
       (_SettingsSection.dataset, Icons.dataset_outlined, l10n.datasetSection),
+      (
+        _SettingsSection.shortcuts,
+        Icons.keyboard_outlined,
+        l10n.shortcutsSection,
+      ),
       (_SettingsSection.assistant, Icons.smart_toy_outlined, l10n.llmSection),
       (_SettingsSection.data, Icons.import_export, l10n.dataSection),
       (_SettingsSection.about, Icons.info_outline, l10n.aboutSection),
@@ -1088,6 +1126,49 @@ class _SettingsRow extends StatelessWidget {
           control,
         ],
       ),
+    );
+  }
+}
+
+/// One line of the shortcuts help list: an action label and its key combo,
+/// the latter rendered as a keycap-style chip.
+class _ShortcutRow extends StatelessWidget {
+  const _ShortcutRow({required this.label, required this.keys});
+
+  final String label;
+  final String keys;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 13.5))),
+          const SizedBox(width: 18),
+          _ShortcutKeycap(keys),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShortcutKeycap extends StatelessWidget {
+  const _ShortcutKeycap(this.keys);
+
+  final String keys;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: semantic.raised,
+        border: Border.all(color: semantic.line),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(keys, style: monoStyle(context, size: 12.5)),
     );
   }
 }

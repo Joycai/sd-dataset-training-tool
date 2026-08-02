@@ -9,6 +9,7 @@ import '../state/dataset_state.dart';
 import '../state/tag_ops.dart';
 import '../state/workbench_layout.dart';
 import '../theme/app_theme.dart';
+import '../utils/platform_shortcuts.dart';
 
 /// Title bar: sidebar toggles on the left, the centered activity capsule,
 /// and the document-level actions on the right.
@@ -89,13 +90,13 @@ class WorkbenchTopBar extends StatelessWidget {
           _BarIconButton(
             icon: Icons.undo,
             tooltip:
-                '${tagOps.undoLabel == null ? l10n.undo : l10n.undoTooltip(tagOps.undoLabel!)} (Ctrl+Z)',
+                '${tagOps.undoLabel == null ? l10n.undo : l10n.undoTooltip(tagOps.undoLabel!)} ($primaryModifierLabel+Z)',
             onPressed: tagOps.canUndo ? onUndo : null,
           ),
           _BarIconButton(
             icon: Icons.redo,
             tooltip:
-                '${tagOps.redoLabel == null ? l10n.redo : l10n.redoTooltip(tagOps.redoLabel!)} (Ctrl+Y)',
+                '${tagOps.redoLabel == null ? l10n.redo : l10n.redoTooltip(tagOps.redoLabel!)} ($primaryModifierLabel+Y)',
             onPressed: tagOps.canRedo ? onRedo : null,
           ),
           Padding(
@@ -104,7 +105,7 @@ class WorkbenchTopBar extends StatelessWidget {
           ),
           _BarIconButton(
             icon: Icons.auto_awesome,
-            tooltip: l10n.agentPanelTitle,
+            tooltip: '${l10n.agentPanelTitle} ($primaryModifierLabel+I)',
             active: agentOpen,
             // The assistant is the one always-accented action in this group.
             color: agentOpen ? scheme.primary : null,

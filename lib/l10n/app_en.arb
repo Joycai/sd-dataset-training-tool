@@ -700,7 +700,12 @@
   },
   "autoSaveOnStatus": "Auto-save on",
   "autoSaveOffStatus": "Auto-save off",
-  "shortcutHints": "Ctrl+S save · Ctrl+E AI tag · Ctrl+Z undo",
+  "shortcutHints": "{mod}+S save · {mod}+E AI tag · {mod}+Z undo",
+  "@shortcutHints": {
+    "placeholders": {
+      "mod": { "type": "String" }
+    }
+  },
   "aiServiceConnected": "AI service connected",
   "aiServiceOffline": "AI service offline",
 
@@ -710,6 +715,12 @@
 
   "appearanceSection": "Appearance",
   "datasetSection": "Dataset",
+  "shortcutsSection": "Shortcuts",
+  "shortcutsDesc": "Global keyboard shortcuts for the workbench.",
+  "shortcutFilterLabel": "Focus tag filter",
+  "shortcutAiTagLabel": "AI tag current image",
+  "shortcutNavigateImagesLabel": "Previous / next image",
+  "shortcutMoveAnchorLabel": "Move insertion anchor",
   "dangerZone": "Danger Zone",
   "languageDesc": "Interface display language",
   "themeTitle": "Theme",

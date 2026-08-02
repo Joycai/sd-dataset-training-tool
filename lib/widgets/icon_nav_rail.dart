@@ -9,6 +9,7 @@ import '../state/batch_tag_state.dart';
 import '../state/dataset_state.dart';
 import '../state/workbench_layout.dart';
 import '../theme/app_theme.dart';
+import '../utils/platform_shortcuts.dart';
 import '../views/panels/batch_tag_dialog.dart';
 import '../views/panels/tag_dictionary_dialog.dart';
 
@@ -69,7 +70,7 @@ class IconNavRail extends StatelessWidget {
           // window instead of switching a column.
           _RailButton(
             icon: Icons.translate,
-            tooltip: '${l10n.dictManagerTitle}  (Ctrl+D)',
+            tooltip: '${l10n.dictManagerTitle}  ($primaryModifierLabel+D)',
             active: false,
             onPressed: () => showTagDictionaryDialog(context),
           ),

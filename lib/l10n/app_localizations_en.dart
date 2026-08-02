@@ -1185,7 +1185,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get autoSaveOffStatus => 'Auto-save off';
 
   @override
-  String get shortcutHints => 'Ctrl+S save · Ctrl+E AI tag · Ctrl+Z undo';
+  String shortcutHints(String mod) {
+    return '$mod+S save · $mod+E AI tag · $mod+Z undo';
+  }
 
   @override
   String get aiServiceConnected => 'AI service connected';
@@ -1207,6 +1209,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get datasetSection => 'Dataset';
+
+  @override
+  String get shortcutsSection => 'Shortcuts';
+
+  @override
+  String get shortcutsDesc => 'Global keyboard shortcuts for the workbench.';
+
+  @override
+  String get shortcutFilterLabel => 'Focus tag filter';
+
+  @override
+  String get shortcutAiTagLabel => 'AI tag current image';
+
+  @override
+  String get shortcutNavigateImagesLabel => 'Previous / next image';
+
+  @override
+  String get shortcutMoveAnchorLabel => 'Move insertion anchor';
 
   @override
   String get dangerZone => 'Danger Zone';
