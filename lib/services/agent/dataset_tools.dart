@@ -23,6 +23,7 @@ import '../../state/dataset_state.dart';
 import '../../state/tag_ops.dart';
 import '../../utils/tag_text.dart';
 import 'agent_tools.dart';
+import 'tag_library_tools.dart' show formatTagGroupColor;
 
 class DatasetToolsDeps {
   const DatasetToolsDeps({
@@ -294,10 +295,12 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
       name: 'get_tag_library',
       description:
           'The user\'s curated tag library (their standard tag set), '
-          'with its named groups. Useful as the normalization target '
-          'when cleaning dataset tags, and as the starting point for '
-          'tidying the library itself — organize_tag_library files these '
-          'tags into groups, add_library_tags extends it.',
+          'with its named groups, in the order and colors the panel shows '
+          'them. Useful as the normalization target when cleaning dataset '
+          'tags, and as the starting point for tidying the library itself — '
+          'organize_tag_library files these tags into groups, '
+          'add_library_tags extends it, update_tag_group and '
+          'reorder_tag_groups change how the groups themselves look.',
       parametersSchema: {'type': 'object', 'properties': {}},
     ),
     handler: (args) async {
@@ -307,7 +310,12 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
       };
       return toolOk({
         'groups': [
-          for (final g in groups) {'name': g.name, 'tags': g.tags},
+          for (final g in groups)
+            {
+              'name': g.name,
+              'color': formatTagGroupColor(g.color),
+              'tags': g.tags,
+            },
         ],
         'ungrouped': [
           for (final t in deps.libraryTags())

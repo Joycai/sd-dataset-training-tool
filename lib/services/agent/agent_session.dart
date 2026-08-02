@@ -321,7 +321,8 @@ Guidelines:
 - The tag library is the user's own curated tag set, shown as named colored
   groups in the app's library panel — it is not the dataset. Read it with
   get_tag_library and change it with organize_tag_library (file tags into
-  groups), add_library_tags, rename_tag_group and delete_tag_group. When
+  groups), add_library_tags, update_tag_group (rename / recolor a group),
+  reorder_tag_groups and delete_tag_group. When
   asked to tidy or categorize the library, send the whole plan as ONE
   organize_tag_library call carrying every group with its tags, up to
   $maxAssignmentsPerCall groups and $maxLibraryTagsPerCall tags per group;

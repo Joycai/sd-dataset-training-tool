@@ -108,6 +108,27 @@ void main() {
       expect(state.tagGroups, hasLength(3));
     });
 
+    test('setTagGroupOrder puts the listed groups first', () async {
+      final g1 = await state.createTagGroup('one', 1);
+      final g2 = await state.createTagGroup('two', 2);
+      final g3 = await state.createTagGroup('three', 3);
+
+      await state.setTagGroupOrder([g3.id, g1.id, g2.id]);
+      expect(state.tagGroups.map((g) => g.id), [g3.id, g1.id, g2.id]);
+
+      // A partial list lifts what it names; the rest keeps its order.
+      await state.setTagGroupOrder([g2.id]);
+      expect(state.tagGroups.map((g) => g.id), [g2.id, g3.id, g1.id]);
+
+      // Unknown and repeated ids do not duplicate or drop a group.
+      await state.setTagGroupOrder(['nope', g1.id, g1.id]);
+      expect(state.tagGroups.map((g) => g.id), [g1.id, g2.id, g3.id]);
+
+      // Nothing recognizable: left alone rather than shuffled.
+      await state.setTagGroupOrder(['nope']);
+      expect(state.tagGroups.map((g) => g.id), [g1.id, g2.id, g3.id]);
+    });
+
     test('rename and recolor', () async {
       final g = await state.createTagGroup('one', 1);
       await state.updateTagGroup(g.id, name: 'renamed', color: 42);

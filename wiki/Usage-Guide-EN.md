@@ -161,7 +161,12 @@ With a vision-capable model configured, the assistant can look at a handful of i
 
 ### Tag Library Tools
 
-The assistant can also tidy the **tag library** itself — the curated set in the right panel, not the dataset. Ask it to categorize the library and it reads the current groups, then files the tags in a single pass: existing groups are reused, new ones are created (with an automatic color) only when a batch really needs them, and membership stays exclusive. It can also add tags to the library (optionally straight into a group), rename a group, remove tags, and delete a group (whose tags fall back to Ungrouped).
+The assistant can also tidy the **tag library** itself — the curated set in the right panel, not the dataset. Ask it to categorize the library and it reads the current groups, then files the tags in a single pass: existing groups are reused, new ones are created (with an automatic color) only when a batch really needs them, and membership stays exclusive. It can also add tags to the library (optionally straight into a group), remove tags, and delete a group (whose tags fall back to Ungrouped).
+
+The groups' own appearance is its business too:
+
+- **Rename and recolor**: one call changes a group's name, its color, or both. Colors can be named (blue, purple, pink, orange, mint, gold, slate, brown — the same swatches the color dot offers in organize mode) or given as `#RRGGBB`. The assistant sees each group's current color when it reads the library, so "make these groups easier to tell apart" is a request it can actually act on.
+- **Reorder groups**: one call sets the whole top-to-bottom order of the sections (the same order the up/down arrows step through in organize mode). Groups left out of the list keep their relative order behind the ones named, so lifting one group to the top only takes its name.
 
 Removing tags and deleting groups ask for confirmation, because neither is covered by undo. Nothing here touches a caption file: the images keep every tag they have, whatever the library says.
 
