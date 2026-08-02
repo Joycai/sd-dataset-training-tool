@@ -212,7 +212,7 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
           onPickPreset: _insertPreset,
           onStartSkill: _startCharacterSheet,
         ),
-        if (chat.totalTokens > 0) _UsageFooter(chat: chat),
+        _InputFooter(chat: chat),
       ],
     );
   }
@@ -231,6 +231,10 @@ class AgentPanelHeader extends StatelessWidget {
     required this.onDragEnd,
   });
 
+  /// Fixed bar height. The dock reads it to size its collapsed state, which
+  /// is this bar and nothing else.
+  static const double height = 58;
+
   final AgentChatState chat;
   final VoidCallback onClose;
   final bool minimized;
@@ -242,6 +246,7 @@ class AgentPanelHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
     return MouseRegion(
       cursor: SystemMouseCursors.move,
       child: GestureDetector(
@@ -253,8 +258,8 @@ class AgentPanelHeader extends StatelessWidget {
         // click on the three buttons in this bar would be delayed by ~300ms.
         // The minimize button is the discoverable path anyway.
         child: Container(
-          height: 40,
-          padding: const EdgeInsets.only(left: 12, right: 4),
+          height: height,
+          padding: const EdgeInsets.fromLTRB(12, 0, 10, 0),
           decoration: BoxDecoration(
             border: minimized
                 ? null
@@ -262,12 +267,24 @@ class AgentPanelHeader extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.smart_toy_outlined,
-                size: 15,
-                color: Theme.of(context).colorScheme.primary,
+              // The assistant's mark: a tinted tile rather than a bare icon,
+              // so the panel reads as its own surface and not as one more
+              // toolbar of the workbench behind it.
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: scheme.primary.withAlpha(30),
+                  border: Border.all(color: scheme.primary.withAlpha(70)),
+                  borderRadius: BorderRadius.circular(AppRadii.control + 2),
+                ),
+                child: Icon(
+                  Icons.auto_awesome,
+                  size: 16,
+                  color: scheme.primary,
+                ),
               ),
-              const SizedBox(width: 7),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -275,45 +292,131 @@ class AgentPanelHeader extends StatelessWidget {
                   children: [
                     Text(
                       l10n.agentPanelTitle,
-                      // Two stacked rows in a 40px bar leave the title no
+                      // Two stacked rows in a fixed bar leave the title no
                       // room to wrap when the panel is dragged narrow.
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 12.5,
+                        fontSize: AppText.base,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     _ProfileMenuButton(chat: chat),
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.add_comment_outlined, size: 16),
+              const SizedBox(width: 6),
+              _ChromeButton(
+                icon: Icons.add_comment_outlined,
                 tooltip: l10n.agentNewSession,
-                color: semantic.muted,
-                visualDensity: VisualDensity.compact,
                 onPressed: chat.busy ? null : () => chat.resetSession(),
               ),
-              IconButton(
-                icon: Icon(
-                  minimized ? Icons.expand_less : Icons.remove,
-                  size: 16,
-                ),
+              const SizedBox(width: 4),
+              _ChromeButton(
+                icon: minimized ? Icons.expand_less : Icons.remove,
                 tooltip: minimized ? l10n.agentExpand : l10n.agentMinimize,
-                color: semantic.muted,
-                visualDensity: VisualDensity.compact,
                 onPressed: onToggleMinimized,
               ),
-              IconButton(
-                icon: const Icon(Icons.close, size: 16),
+              const SizedBox(width: 4),
+              _ChromeButton(
+                icon: Icons.close,
                 tooltip: l10n.cancel,
-                color: semantic.muted,
-                visualDensity: VisualDensity.compact,
                 onPressed: onClose,
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// How a [_ChromeSlot] is painted: a hairline slot for secondary actions, a
+/// tinted one for the accented affordances, a solid one for send.
+enum _ChromeFill { outlined, tinted, solid }
+
+/// The square slot the panel's chrome is built from — title-bar buttons, the
+/// preset picker, the input actions. Visual only: the interactive wrappers
+/// ([_ChromeButton], the preset [PopupMenuButton]) supply the gesture, so a
+/// menu button and a plain button can look identical.
+class _ChromeSlot extends StatelessWidget {
+  const _ChromeSlot({
+    required this.icon,
+    this.fill = _ChromeFill.outlined,
+    this.enabled = true,
+  });
+
+  /// One size everywhere: the title bar and the input row are the same
+  /// grid, and a slot that shrinks in one of them breaks the alignment.
+  static const double size = 30;
+
+  final IconData icon;
+  final _ChromeFill fill;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+
+    final (Color? background, Color? border, Color icons) = switch (fill) {
+      _ChromeFill.outlined => (null, semantic.line, semantic.muted),
+      _ChromeFill.tinted => (
+        scheme.primary.withAlpha(enabled ? 30 : 14),
+        scheme.primary.withAlpha(enabled ? 70 : 34),
+        scheme.primary,
+      ),
+      _ChromeFill.solid => (
+        enabled ? scheme.primary : scheme.primary.withAlpha(60),
+        null,
+        scheme.onPrimary,
+      ),
+    };
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: background,
+        border: border == null ? null : Border.all(color: border),
+        borderRadius: BorderRadius.circular(AppRadii.control + 1),
+      ),
+      child: Icon(
+        icon,
+        size: 15,
+        // Disabled slots dim their glyph rather than their frame: the frame
+        // is what keeps the row's rhythm readable.
+        color: enabled ? icons : icons.withAlpha(90),
+      ),
+    );
+  }
+}
+
+class _ChromeButton extends StatelessWidget {
+  const _ChromeButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.fill = _ChromeFill.outlined,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final _ChromeFill fill;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(AppRadii.control + 1),
+          child: _ChromeSlot(icon: icon, fill: fill, enabled: enabled),
         ),
       ),
     );
@@ -402,15 +505,54 @@ class _ProfileMenuButton extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // The provider stays plain text and the model gets the chip: the
+          // model is what the user actually switches between, and a code
+          // name deserves the code face.
+          if (chat.providerName != null)
+            Flexible(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Text(
+                  '${chat.providerName} ·',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: AppText.micro,
+                    color: semantic.muted,
+                  ),
+                ),
+              ),
+            ),
           Flexible(
-            child: Text(
-              chat.profileName ?? l10n.llmNoProfiles,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10, color: semantic.muted),
+            flex: 3,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(6, 1, 2, 1),
+              decoration: BoxDecoration(
+                color: semantic.raised,
+                border: Border.all(color: semantic.line),
+                borderRadius: BorderRadius.circular(AppRadii.input),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      chat.modelLabel ?? l10n.llmNoProfiles,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: monoStyle(
+                        context,
+                        size: AppText.micro,
+                        color: semantic.muted,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.arrow_drop_down, size: 13, color: semantic.muted),
+                ],
+              ),
             ),
           ),
-          Icon(Icons.arrow_drop_down, size: 13, color: semantic.muted),
         ],
       ),
     );
@@ -530,10 +672,11 @@ class _EntryRow extends StatelessWidget {
           child: IntrinsicWidth(
             child: Container(
               margin: const EdgeInsets.only(bottom: 8, left: 30),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
               decoration: BoxDecoration(
-                color: scheme.primary.withAlpha(28),
-                borderRadius: BorderRadius.circular(9),
+                color: scheme.primary.withAlpha(26),
+                border: Border.all(color: scheme.primary.withAlpha(70)),
+                borderRadius: BorderRadius.circular(AppRadii.card - 2),
               ),
               child: chatMarkdown(context, entry.text),
             ),
@@ -601,22 +744,22 @@ class _ToolCardState extends State<_ToolCard> {
       decoration: BoxDecoration(
         color: scheme.surface,
         border: Border.all(color: semantic.line),
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(AppRadii.control + 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           InkWell(
-            borderRadius: BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(AppRadii.control + 2),
             onTap: () => setState(() => _expanded = !_expanded),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               child: Row(
                 children: [
                   if (entry.running)
                     SizedBox(
-                      width: 11,
-                      height: 11,
+                      width: 13,
+                      height: 13,
                       child: CircularProgressIndicator(
                         strokeWidth: 1.5,
                         color: scheme.primary,
@@ -627,10 +770,12 @@ class _ToolCardState extends State<_ToolCard> {
                       entry.isError
                           ? Icons.error_outline
                           : Icons.check_circle_outline,
-                      size: 13,
-                      color: entry.isError ? scheme.error : semantic.muted,
+                      size: 14,
+                      // A finished call is a small good-news event: the ok
+                      // green says so at a glance while scrolling a long run.
+                      color: entry.isError ? scheme.error : semantic.ok,
                     ),
-                  const SizedBox(width: 7),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       entry.toolName,
@@ -976,6 +1121,10 @@ class _ConfirmBar extends StatelessWidget {
 
 /// Multi-line input: grows up to 5 lines, Enter sends, Shift+Enter inserts a
 /// newline, and the expand button opens the large composer dialog.
+///
+/// The field and its three actions sit inside one rounded slot so the whole
+/// composer reads as a single control, the way the transcript above it reads
+/// as a stack of cards.
 class _InputRow extends StatelessWidget {
   const _InputRow({
     required this.controller,
@@ -1000,69 +1149,93 @@ class _InputRow extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
     return Container(
-      padding: const EdgeInsets.fromLTRB(10, 6, 6, 6),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
       decoration: BoxDecoration(
         border: Border(top: BorderSide(color: semantic.line)),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            // Plain Enter sends; Shift+Enter falls through to the text
-            // field's default newline insertion.
-            child: CallbackShortcuts(
-              bindings: {
-                const SingleActivator(LogicalKeyboardKey.enter): onSend,
-                const SingleActivator(LogicalKeyboardKey.numpadEnter): onSend,
-              },
-              child: TextField(
-                controller: controller,
-                focusNode: focusNode,
-                enabled: enabled,
-                style: const TextStyle(fontSize: 12.5, height: 1.4),
-                decoration: InputDecoration(
-                  hintText: l10n.agentInputHint,
-                  hintStyle: TextStyle(fontSize: 12, color: semantic.muted),
-                  isDense: true,
-                  border: InputBorder.none,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border.all(color: semantic.line),
+          borderRadius: BorderRadius.circular(AppRadii.card),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              // Plain Enter sends; Shift+Enter falls through to the text
+              // field's default newline insertion.
+              child: CallbackShortcuts(
+                bindings: {
+                  const SingleActivator(LogicalKeyboardKey.enter): onSend,
+                  const SingleActivator(LogicalKeyboardKey.numpadEnter): onSend,
+                },
+                child: Padding(
+                  // Bottom-aligned against 30px action slots, the field's own
+                  // baseline would otherwise sit a few pixels too low.
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    enabled: enabled,
+                    style: const TextStyle(fontSize: 12.5, height: 1.4),
+                    decoration: InputDecoration(
+                      hintText: l10n.agentInputHint,
+                      hintStyle: TextStyle(fontSize: 12, color: semantic.muted),
+                      // Unbounded, the placeholder wraps to four lines in a
+                      // narrow panel and the empty composer opens that tall.
+                      hintMaxLines: 1,
+                      isDense: true,
+                      filled: false,
+                      contentPadding: EdgeInsets.zero,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                    ),
+                    minLines: 1,
+                    maxLines: 5,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                  ),
                 ),
-                minLines: 1,
-                maxLines: 5,
-                keyboardType: TextInputType.multiline,
-                textInputAction: TextInputAction.newline,
               ),
             ),
-          ),
-          _PresetMenuButton(
-            enabled: enabled,
-            onPick: onPickPreset,
-            onStartSkill: onStartSkill,
-          ),
-          IconButton(
-            icon: const Icon(Icons.open_in_full, size: 15),
-            tooltip: l10n.agentExpandInput,
-            color: semantic.muted,
-            visualDensity: VisualDensity.compact,
-            onPressed: enabled ? onExpand : null,
-          ),
-          IconButton(
-            icon: const Icon(Icons.send, size: 16),
-            tooltip: l10n.agentSend,
-            color: Theme.of(context).colorScheme.primary,
-            visualDensity: VisualDensity.compact,
-            onPressed: enabled ? onSend : null,
-          ),
-        ],
+            const SizedBox(width: 6),
+            _PresetMenuButton(
+              enabled: enabled,
+              onPick: onPickPreset,
+              onStartSkill: onStartSkill,
+            ),
+            const SizedBox(width: 6),
+            _ChromeButton(
+              icon: Icons.open_in_full,
+              tooltip: l10n.agentExpandInput,
+              onPressed: enabled ? onExpand : null,
+            ),
+            const SizedBox(width: 6),
+            _ChromeButton(
+              icon: Icons.send,
+              tooltip: l10n.agentSend,
+              fill: _ChromeFill.solid,
+              onPressed: enabled ? onSend : null,
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Cumulative usage of the conversation. With a cap set it reads "used /
-/// cap" and turns amber near the end: hitting the cap ends the run, and a
+/// Footer under the composer: cumulative usage on the left, the send/newline
+/// reminder on the right.
+///
+/// With a cap set the counter reads "used / cap" and turns amber near the
+/// end, next to a bar of the same ratio: hitting the cap ends the run, and a
 /// counter that only ever climbs gives no warning that it is coming.
-class _UsageFooter extends StatelessWidget {
-  const _UsageFooter({required this.chat});
+class _InputFooter extends StatelessWidget {
+  const _InputFooter({required this.chat});
 
   final AgentChatState chat;
 
@@ -1070,19 +1243,73 @@ class _UsageFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
     final cap = chat.tokenCap;
-    final nearCap = cap > 0 && chat.totalTokens >= cap * 0.8;
+    final used = chat.totalTokens;
+    final nearCap = cap > 0 && used >= cap * 0.8;
+
+    final hint = Text(
+      l10n.agentKeyHint,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontSize: AppText.micro, color: semantic.muted),
+    );
+
+    // The dock parks its resize grip in this corner, so the row stops short
+    // of the panel's right edge.
+    const padding = EdgeInsets.fromLTRB(12, 0, 20, 7);
+
+    // Nothing counted yet: the whole footer is the keyboard hint, which is
+    // exactly when a first-time user is looking for it.
+    if (used == 0) {
+      return Padding(
+        padding: padding,
+        child: Align(alignment: Alignment.centerRight, child: hint),
+      );
+    }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      child: Text(
-        cap > 0
-            ? l10n.agentTokensUsedOfCap(chat.totalTokens, cap)
-            : l10n.agentTokensUsed(chat.totalTokens),
-        style: monoStyle(
-          context,
-          size: 10.5,
-          color: nearCap ? semantic.warn : semantic.muted,
+      padding: padding,
+      child: LayoutBuilder(
+        builder: (context, constraints) => Row(
+          children: [
+            Flexible(
+              child: Text(
+                cap > 0
+                    ? l10n.agentTokensUsedOfCap(used, cap)
+                    : l10n.agentTokensUsed(used),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: monoStyle(
+                  context,
+                  size: 10.5,
+                  color: nearCap ? semantic.warn : semantic.muted,
+                ),
+              ),
+            ),
+            if (cap > 0) ...[
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 72,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
+                  child: LinearProgressIndicator(
+                    value: (used / cap).clamp(0.0, 1.0),
+                    minHeight: 4,
+                    backgroundColor: semantic.line,
+                    color: nearCap ? semantic.warn : scheme.primary,
+                  ),
+                ),
+              ),
+            ],
+            // Beside a live counter the hint is the first thing to go: at
+            // the panel's usual width there is only room for one of them,
+            // and half a keyboard hint teaches nothing.
+            if (constraints.maxWidth >= 460) ...[
+              const SizedBox(width: 12),
+              Flexible(child: hint),
+            ],
+          ],
         ),
       ),
     );
@@ -1132,13 +1359,17 @@ class _PresetMenuButton extends StatelessWidget {
 
     return PopupMenuButton<PromptPreset>(
       tooltip: l10n.promptPresetsTitle,
-      icon: const Icon(Icons.bookmark_border, size: 15),
-      iconColor: semantic.muted,
-      iconSize: 15,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 220, maxWidth: 320),
       position: PopupMenuPosition.over,
       onSelected: onPick,
+      // Matches the input row's other two slots; the tint marks it as the
+      // one that brings its own content rather than acting on the field.
+      child: _ChromeSlot(
+        icon: Icons.auto_awesome,
+        fill: _ChromeFill.tinted,
+        enabled: enabled,
+      ),
       itemBuilder: (_) => [
         PopupMenuItem<PromptPreset>(
           enabled: false,

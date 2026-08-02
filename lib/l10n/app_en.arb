@@ -625,6 +625,7 @@
     }
   },
   "agentExpandInput": "Expand input",
+  "agentKeyHint": "Enter to send · Shift+Enter for a new line",
   "agentComposerTitle": "Compose message",
   "agentQuestionTitle": "The assistant is asking",
   "agentQuestionCustomHint": "Type a custom answer…",

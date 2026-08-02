@@ -320,6 +320,27 @@ class AppState extends ChangeNotifier {
     return profiles.first;
   }
 
+  /// The active pair, unflattened. [activeLlmProfile] has already glued the
+  /// provider and the model into one name; the assistant's header styles the
+  /// two differently and needs them apart again.
+  (LlmProvider, LlmModelConfig)? get activeLlmPair {
+    final id = activeLlmProfile?.id;
+    if (id == null) return null;
+    // `resolve` builds the id as '<providerId>/<modelId>', and only the model
+    // half is guaranteed slash-free.
+    final cut = id.lastIndexOf('/');
+    if (cut < 0) return null;
+    final providerId = id.substring(0, cut);
+    final modelId = id.substring(cut + 1);
+    for (final provider in _llmProviders) {
+      if (provider.id != providerId) continue;
+      for (final model in provider.models) {
+        if (model.id == modelId) return (provider, model);
+      }
+    }
+    return null;
+  }
+
   Future<void> updateLlmProviders(List<LlmProvider> providers) async {
     _llmProviders = providers;
     // Keep the active id pointing at a pair that still exists.

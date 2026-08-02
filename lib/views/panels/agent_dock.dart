@@ -28,12 +28,10 @@ class AgentDock extends StatefulWidget {
 }
 
 class _AgentDockState extends State<AgentDock> {
-  static const double _headerHeight = 40;
-
   /// GlassSurface draws a 1px border on every side, so the collapsed panel
   /// has to be that much taller than its title bar or the bar overflows the
   /// content box by exactly those two pixels.
-  static const double _collapsedHeight = _headerHeight + 2;
+  static const double _collapsedHeight = AgentPanelHeader.height + 2;
   static const double _minWidth = 280;
   static const double _minHeight = 220;
 
@@ -127,24 +125,40 @@ class _AgentDockState extends State<AgentDock> {
     _settings.saveAgentPanelMinimized(_minimized);
   }
 
+  /// Drag of the bottom-right grip. The panel's own offsets pin *that*
+  /// corner, so growing it means moving both of them by exactly what the
+  /// panel gains — the top-left corner is what stays put, which is what the
+  /// grip's direction promises.
+  ///
+  /// Reads the on-screen geometry rather than the raw fields: a saved size
+  /// from a larger window is clamped for display, and resizing from the
+  /// unclamped value would jump on the first pixel of the drag.
   void _onResize(Offset delta) {
+    final size = _size;
+    final (right, bottom) = _clampOffset(_right, _bottom, size);
+    final left = widget.area.width - right - size.width;
+    final top = widget.area.height - bottom - size.height;
+
     setState(() {
-      // The panel grows up and to the left: its bottom-right corner is
-      // pinned by the offsets, so the free edges are the other two.
-      _width = (_width - delta.dx).clamp(
-        _minWidth,
-        math.max(_minWidth, widget.area.width - _right),
-      );
-      _height = (_height - delta.dy).clamp(
-        _minHeight,
-        math.max(_minHeight, widget.area.height - _bottom),
-      );
+      _width = (size.width + delta.dx)
+          .clamp(_minWidth, math.max(_minWidth, widget.area.width - left))
+          .toDouble();
+      _height = (size.height + delta.dy)
+          .clamp(_minHeight, math.max(_minHeight, widget.area.height - top))
+          .toDouble();
+      // Never negative: in a window too small for the minimums the panel
+      // already overflows, and a negative offset would only push it further
+      // off the opposite edge.
+      _right = math.max(0, widget.area.width - left - _width);
+      _bottom = math.max(0, widget.area.height - top - _height);
     });
   }
 
   void _persistSize() {
     _settings.saveAgentPanelWidth(_width);
     _settings.saveAgentPanelHeight(_height);
+    // Resizing moves the pinned corner, so the offsets changed too.
+    _persistOffset();
   }
 
   @override
@@ -180,8 +194,8 @@ class _AgentDockState extends State<AgentDock> {
             ),
             if (!_minimized)
               Positioned(
-                left: 3,
-                top: 3,
+                right: 2,
+                bottom: 2,
                 child: _ResizeCorner(
                   color: semantic.muted,
                   onDrag: _onResize,
@@ -195,7 +209,9 @@ class _AgentDockState extends State<AgentDock> {
   }
 }
 
-/// Top-left grip: the corner opposite the one the offsets pin.
+/// Bottom-right grip, where a window's resize handle belongs. The panel
+/// keeps its top-left corner while this drags, so the grip pulls the frame
+/// out in the direction it points.
 class _ResizeCorner extends StatelessWidget {
   const _ResizeCorner({
     required this.color,
@@ -210,7 +226,7 @@ class _ResizeCorner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      cursor: SystemMouseCursors.resizeUpLeft,
+      cursor: SystemMouseCursors.resizeDownRight,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onPanUpdate: (details) => onDrag(details.delta),
@@ -219,10 +235,9 @@ class _ResizeCorner extends StatelessWidget {
           width: 18,
           height: 18,
           // A diagonal arrow reads as "resize"; a rotated chevron just reads
-          // as a stray angle bracket in the corner.
-          child: Center(
-            child: Icon(Icons.open_in_full, size: 12, color: color),
-          ),
+          // as a stray angle bracket in the corner. It points the way the
+          // drag grows the panel.
+          child: Center(child: Icon(Icons.south_east, size: 12, color: color)),
         ),
       ),
     );

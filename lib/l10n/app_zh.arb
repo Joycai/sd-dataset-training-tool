@@ -400,6 +400,7 @@
   "agentRunning": "思考中…",
   "agentTokensUsed": "本会话已用 {count} tokens",
   "agentExpandInput": "放大输入框",
+  "agentKeyHint": "Enter 发送 · Shift+Enter 换行",
   "agentComposerTitle": "编辑消息",
   "agentQuestionTitle": "助手向你提问",
   "agentQuestionCustomHint": "输入自定义回答…",

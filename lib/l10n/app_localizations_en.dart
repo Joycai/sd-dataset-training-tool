@@ -1161,6 +1161,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentExpandInput => 'Expand input';
 
   @override
+  String get agentKeyHint => 'Enter to send · Shift+Enter for a new line';
+
+  @override
   String get agentComposerTitle => 'Compose message';
 
   @override
