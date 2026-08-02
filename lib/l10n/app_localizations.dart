@@ -1176,6 +1176,42 @@ abstract class AppLocalizations {
   /// **'Delete from all images'**
   String get menuDeleteGlobal;
 
+  /// No description provided for @tagMenuOpenDictionary.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in dictionary…'**
+  String get tagMenuOpenDictionary;
+
+  /// No description provided for @tagMenuRemoveFromImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from this image'**
+  String get tagMenuRemoveFromImage;
+
+  /// No description provided for @tagMenuSetAnchor.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as insertion anchor'**
+  String get tagMenuSetAnchor;
+
+  /// No description provided for @tagMenuClearAnchor.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear insertion anchor'**
+  String get tagMenuClearAnchor;
+
+  /// No description provided for @tagMenuAddToLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to library'**
+  String get tagMenuAddToLibrary;
+
+  /// No description provided for @tagMenuApplySuggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply suggestion'**
+  String get tagMenuApplySuggestion;
+
   /// No description provided for @deleteTagConfirmTitle.
   ///
   /// In en, this message translates to:

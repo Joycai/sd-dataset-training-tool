@@ -6,13 +6,14 @@ import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/caption_type.dart';
 import '../../state/ai_tagger_state.dart';
+import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
 import '../../state/shortcut_relay.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/danbooru_tag_menu.dart';
 import '../../widgets/json_caption_view.dart';
 import '../../widgets/panel_widgets.dart';
 import '../../widgets/tag_autocomplete_field.dart';
+import '../../widgets/tag_context_menu.dart';
 import '../../widgets/tag_gloss.dart';
 import 'ai_compare_view.dart';
 import 'ai_params_dialog.dart';
@@ -134,16 +135,48 @@ class _CaptionPanelState extends State<CaptionPanel> {
     }
   }
 
-  /// Right-click on a tag: what danbooru knows about it, one click away.
+  /// Right-click on a tag: what danbooru knows about it, plus the actions
+  /// that only make sense for a tag actually on the current image. The
+  /// dataset-wide filter is optional — this panel is exercised in isolation
+  /// by tests that never provide a [DatasetState].
   Future<void> _showTagLinks(String tag, Offset globalPosition) async {
-    final dictionary = context.read<AppState>().tagDictionary;
-    final action = await showPanelContextMenu<String>(
+    final appState = context.read<AppState>();
+    final dataset = context.read<DatasetState?>();
+    final session = context.read<EditorSession>();
+    final action = await showPanelContextMenu<TagMenuAction>(
       context: context,
       position: globalPosition,
-      items: danbooruTagMenuItems(context, tag: tag, dictionary: dictionary),
+      items: buildTagMenuItems(
+        context,
+        tag: tag,
+        dictionary: appState.tagDictionary,
+        anchorActive: session.anchorTag == tag,
+        inLibrary: appState.commonTags.contains(tag),
+        sections: TagMenuSections(
+          filter: dataset != null,
+          currentImage: true,
+          addToLibrary: true,
+        ),
+      ),
     );
     if (!mounted) return;
-    await handleDanbooruTagMenuAction(context, action, tag);
+    if (await handleTagMenuAction(context, action, tag)) return;
+    switch (action) {
+      case TagMenuAction.filterInclude:
+        dataset?.setTagFilter(tag, exclude: false);
+      case TagMenuAction.filterExclude:
+        dataset?.setTagFilter(tag, exclude: true);
+      case TagMenuAction.removeFromImage:
+        session.removeTag(tag);
+      case TagMenuAction.setAnchor:
+        session.setAnchorTag(tag);
+      case TagMenuAction.clearAnchor:
+        session.setAnchorTag(null);
+      case TagMenuAction.addToLibrary:
+        await appState.addCommonTags([tag]);
+      default:
+        break;
+    }
   }
 
   @override

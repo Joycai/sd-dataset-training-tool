@@ -324,4 +324,39 @@ void main() {
     await tester.pumpAndSettle();
     expect(ops.canUndo, isFalse);
   });
+
+  testWidgets(
+    'context menu carries the library/dictionary section, unified with '
+    'the tag library panel',
+    (tester) async {
+      await openDatasetTab(tester);
+
+      await rightClick(tester, find.text('beta'));
+      expect(find.text('Danbooru wiki'), findsOneWidget);
+      expect(find.text('Danbooru posts'), findsOneWidget);
+      expect(find.text('Open in dictionary…'), findsOneWidget);
+      // Neither tag is in the (empty) library yet.
+      expect(find.text('Add to library'), findsOneWidget);
+    },
+  );
+
+  testWidgets('add to library from the dataset tab adds the tag', (
+    tester,
+  ) async {
+    await appState.addCommonTags(['alpha']);
+    await openDatasetTab(tester);
+
+    // 'alpha' is already in the library: no add-to-library entry.
+    await rightClick(tester, find.text('alpha'));
+    expect(find.text('Add to library'), findsNothing);
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+
+    // 'beta' is not: the entry adds it.
+    await rightClick(tester, find.text('beta'));
+    expect(find.text('Add to library'), findsOneWidget);
+    await tester.tap(find.text('Add to library'));
+    await tester.pumpAndSettle();
+    expect(appState.commonTags, contains('beta'));
+  });
 }

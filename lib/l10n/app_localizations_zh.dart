@@ -597,6 +597,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get menuDeleteGlobal => '从所有图片中删除';
 
   @override
+  String get tagMenuOpenDictionary => '在词典中打开…';
+
+  @override
+  String get tagMenuRemoveFromImage => '从当前图移除';
+
+  @override
+  String get tagMenuSetAnchor => '设为插入锚点';
+
+  @override
+  String get tagMenuClearAnchor => '取消插入锚点';
+
+  @override
+  String get tagMenuAddToLibrary => '加入标签库';
+
+  @override
+  String get tagMenuApplySuggestion => '应用建议';
+
+  @override
   String get deleteTagConfirmTitle => '全局删除标签';
 
   @override

@@ -11,8 +11,8 @@ import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
 import '../../state/workbench_layout.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/danbooru_tag_menu.dart';
 import '../../widgets/panel_widgets.dart';
+import '../../widgets/tag_context_menu.dart';
 import '../../widgets/tag_gloss.dart';
 import 'dataset_tags_view.dart';
 import 'tag_dictionary_dialog.dart';
@@ -207,30 +207,29 @@ class _LibraryViewState extends State<_LibraryView> {
   }
 
   void _showTagMenu(BuildContext context, Offset position, String tag) async {
-    final l10n = AppLocalizations.of(context)!;
     final appState = context.read<AppState>();
-    final action = await showPanelContextMenu<String>(
+    final dataset = context.read<DatasetState>();
+    final action = await showPanelContextMenu<TagMenuAction>(
       context: context,
       position: position,
-      items: [
-        ...danbooruTagMenuItems(
-          context,
-          tag: tag,
-          dictionary: appState.tagDictionary,
-        ),
-        const PopupMenuDivider(height: 9),
-        panelMenuItem(
-          context: context,
-          value: 'remove',
-          icon: Icons.delete_outline,
-          label: l10n.removeFromLibrary,
-        ),
-      ],
+      items: buildTagMenuItems(
+        context,
+        tag: tag,
+        dictionary: appState.tagDictionary,
+        sections: const TagMenuSections(filter: true, removeFromLibrary: true),
+      ),
     );
     if (!context.mounted) return;
-    if (await handleDanbooruTagMenuAction(context, action, tag)) return;
-    if (action == 'remove') {
-      await appState.removeCommonTags([tag]);
+    if (await handleTagMenuAction(context, action, tag)) return;
+    switch (action) {
+      case TagMenuAction.filterInclude:
+        dataset.setTagFilter(tag, exclude: false);
+      case TagMenuAction.filterExclude:
+        dataset.setTagFilter(tag, exclude: true);
+      case TagMenuAction.removeFromLibrary:
+        await appState.removeCommonTags([tag]);
+      default:
+        break;
     }
   }
 

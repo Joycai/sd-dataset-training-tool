@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
+import 'package:dataset_training_tool/models/tag_filter.dart';
 import 'package:dataset_training_tool/models/tag_group.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
@@ -131,6 +132,47 @@ void main() {
     expect(appState.tagGroups.single.tags, ['gamma']);
     expect(appState.groupOfTag('alpha'), isNull);
     expect(g.tags, isEmpty); // the original instance is immutable
+  });
+
+  testWidgets(
+    'right-click on a library tag (outside edit mode) offers filter and '
+    'dictionary actions, unified with the dataset tab',
+    (tester) async {
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Only images with this tag'), findsOneWidget);
+      expect(find.text('Only images without this tag'), findsOneWidget);
+      expect(find.text('Danbooru wiki'), findsOneWidget);
+      expect(find.text('Danbooru posts'), findsOneWidget);
+      expect(find.text('Open in dictionary…'), findsOneWidget);
+      expect(find.text('Remove from library'), findsOneWidget);
+      // Every tag here is already in the library: no add-to-library entry.
+      expect(find.text('Add to library'), findsNothing);
+
+      await tester.tap(find.text('Only images with this tag'));
+      await tester.pumpAndSettle();
+
+      final conditions = dataset.tagFilterExpression.children
+          .whereType<TagFilterCondition>()
+          .toList();
+      expect(conditions.single.tag, 'alpha');
+    },
+  );
+
+  testWidgets('remove from library via chip context menu', (tester) async {
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('gamma'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove from library'));
+    await tester.pumpAndSettle();
+
+    expect(appState.commonTags, ['alpha', 'beta']);
   });
 
   testWidgets('remove from group via context menu', (tester) async {

@@ -1,11 +1,13 @@
 import 'dart:io';
 
+import 'package:flutter/gestures.dart' show kSecondaryButton;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/models/ai_tagger_models.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
@@ -29,9 +31,12 @@ void main() {
   late File image;
   late EditorSession session;
   late AiTaggerState ai;
+  late AppState appState;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    appState = AppState(SettingsService());
+    await appState.loadSettings();
     tempDir = await Directory.systemTemp.createTemp('compare_view_');
     image = File(p.join(tempDir.path, 'shot.png'));
     await image.writeAsBytes(_pngBytes);
@@ -69,11 +74,14 @@ void main() {
     await tempDir.delete(recursive: true);
   });
 
-  Widget harness({double width = 620}) {
+  Widget harness({double width = 620, bool includeAppState = true}) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: session),
         ChangeNotifierProvider.value(value: ai),
+        // Optional: the context menu's library actions degrade gracefully
+        // without one, which one test below exercises directly.
+        if (includeAppState) ChangeNotifierProvider.value(value: appState),
       ],
       child: MaterialApp(
         theme: buildAppTheme(Brightness.dark),
@@ -123,4 +131,95 @@ void main() {
     // It is now matched on both sides, so it is no longer a suggestion.
     expect(ai.pendingFor(image.path, session.tags), isEmpty);
   });
+
+  testWidgets(
+    'left column: right-click on a matched tag offers remove/anchor, not '
+    'apply-suggestion',
+    (tester) async {
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      // '1girl' is matched (on both sides); the left column renders first.
+      await tester.tap(find.text('1girl').first, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Remove from this image'), findsOneWidget);
+      expect(find.text('Set as insertion anchor'), findsOneWidget);
+      expect(find.text('Add to library'), findsOneWidget);
+      expect(find.text('Apply suggestion'), findsNothing);
+
+      await tester.tap(find.text('Remove from this image'));
+      await tester.pumpAndSettle();
+      expect(session.tags, isNot(contains('1girl')));
+    },
+  );
+
+  testWidgets(
+    'right column: right-click on a suggestion offers apply, not '
+    'remove-from-image',
+    (tester) async {
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('jewelry'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Apply suggestion'), findsOneWidget);
+      expect(find.text('Remove from this image'), findsNothing);
+      expect(find.text('Set as insertion anchor'), findsNothing);
+      expect(find.text('Add to library'), findsOneWidget);
+
+      await tester.tap(find.text('Apply suggestion'));
+      await tester.pumpAndSettle();
+      expect(session.tags, contains('jewelry'));
+    },
+  );
+
+  testWidgets(
+    'right column: right-click on an already-matched suggestion offers no '
+    'action beyond info/library',
+    (tester) async {
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      // '1girl' also renders on the right (matched); that chip is last.
+      await tester.tap(find.text('1girl').last, buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Apply suggestion'), findsNothing);
+      expect(find.text('Remove from this image'), findsNothing);
+      expect(find.text('Add to library'), findsOneWidget);
+    },
+  );
+
+  testWidgets('add to library from either column adds the tag', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    expect(appState.commonTags, isNot(contains('solo')));
+    await tester.tap(find.text('solo'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add to library'));
+    await tester.pumpAndSettle();
+    expect(appState.commonTags, contains('solo'));
+  });
+
+  testWidgets(
+    'without an AppState the menu still opens and add-to-library is a safe '
+    'no-op',
+    (tester) async {
+      await tester.pumpWidget(harness(includeAppState: false));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('solo'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Add to library'), findsOneWidget);
+
+      await tester.tap(find.text('Add to library'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

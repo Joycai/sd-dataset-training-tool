@@ -620,6 +620,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get menuDeleteGlobal => 'Delete from all images';
 
   @override
+  String get tagMenuOpenDictionary => 'Open in dictionary…';
+
+  @override
+  String get tagMenuRemoveFromImage => 'Remove from this image';
+
+  @override
+  String get tagMenuSetAnchor => 'Set as insertion anchor';
+
+  @override
+  String get tagMenuClearAnchor => 'Clear insertion anchor';
+
+  @override
+  String get tagMenuAddToLibrary => 'Add to library';
+
+  @override
+  String get tagMenuApplySuggestion => 'Apply suggestion';
+
+  @override
   String get deleteTagConfirmTitle => 'Delete tag everywhere';
 
   @override

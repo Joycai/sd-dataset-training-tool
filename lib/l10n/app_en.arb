@@ -303,6 +303,12 @@
   "menuFilterExclude": "Only images without this tag",
   "menuReplaceAppend": "Replace / append…",
   "menuDeleteGlobal": "Delete from all images",
+  "tagMenuOpenDictionary": "Open in dictionary…",
+  "tagMenuRemoveFromImage": "Remove from this image",
+  "tagMenuSetAnchor": "Set as insertion anchor",
+  "tagMenuClearAnchor": "Clear insertion anchor",
+  "tagMenuAddToLibrary": "Add to library",
+  "tagMenuApplySuggestion": "Apply suggestion",
   "deleteTagConfirmTitle": "Delete tag everywhere",
   "deleteTagConfirmContent": "Remove \"{tag}\" from {count} images? This can be undone from the toolbar.",
   "@deleteTagConfirmContent": {

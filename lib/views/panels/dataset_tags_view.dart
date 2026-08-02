@@ -10,15 +10,9 @@ import '../../state/tag_ops.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
 import '../../widgets/subdirectory_picker.dart';
+import '../../widgets/tag_context_menu.dart';
 import '../../widgets/tag_gloss.dart';
 import 'tag_dictionary_dialog.dart';
-
-enum _TagMenuAction {
-  filterInclude,
-  filterExclude,
-  replaceAppend,
-  deleteGlobal,
-}
 
 enum _EditMode { replace, insertBefore, insertAfter }
 
@@ -38,51 +32,39 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
   String _filter = '';
 
   Future<void> _showTagMenu(Offset position, DatasetTag entry) async {
-    final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
     final dataset = context.read<DatasetState>();
-    final action = await showPanelContextMenu<_TagMenuAction>(
+    final appState = context.read<AppState>();
+    final action = await showPanelContextMenu<TagMenuAction>(
       context: context,
       position: position,
-      items: [
-        panelMenuItem(
-          context: context,
-          value: _TagMenuAction.filterInclude,
-          icon: Icons.filter_alt_outlined,
-          label: l10n.menuFilterInclude,
+      items: buildTagMenuItems(
+        context,
+        tag: entry.tag,
+        dictionary: appState.tagDictionary,
+        inLibrary: appState.commonTags.contains(entry.tag),
+        sections: const TagMenuSections(
+          filter: true,
+          addToLibrary: true,
+          datasetOps: true,
+          danger: true,
         ),
-        panelMenuItem(
-          context: context,
-          value: _TagMenuAction.filterExclude,
-          icon: Icons.visibility_off_outlined,
-          label: l10n.menuFilterExclude,
-        ),
-        const PopupMenuDivider(height: 8),
-        panelMenuItem(
-          context: context,
-          value: _TagMenuAction.replaceAppend,
-          icon: Icons.find_replace,
-          label: l10n.menuReplaceAppend,
-        ),
-        panelMenuItem(
-          context: context,
-          value: _TagMenuAction.deleteGlobal,
-          icon: Icons.delete_forever_outlined,
-          label: l10n.menuDeleteGlobal,
-          color: scheme.error,
-        ),
-      ],
+      ),
     );
     if (!mounted || action == null) return;
+    if (await handleTagMenuAction(context, action, entry.tag)) return;
     switch (action) {
-      case _TagMenuAction.filterInclude:
+      case TagMenuAction.filterInclude:
         dataset.setTagFilter(entry.tag, exclude: false);
-      case _TagMenuAction.filterExclude:
+      case TagMenuAction.filterExclude:
         dataset.setTagFilter(entry.tag, exclude: true);
-      case _TagMenuAction.replaceAppend:
+      case TagMenuAction.addToLibrary:
+        await appState.addCommonTags([entry.tag]);
+      case TagMenuAction.replaceAppend:
         await _showReplaceDialog(entry);
-      case _TagMenuAction.deleteGlobal:
+      case TagMenuAction.deleteGlobal:
         await _confirmDelete(entry);
+      default:
+        break;
     }
   }
 
