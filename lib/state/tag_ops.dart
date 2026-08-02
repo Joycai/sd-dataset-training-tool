@@ -198,6 +198,36 @@ class TagOps extends ChangeNotifier {
     });
   }
 
+  /// Rewrites every occurrence of any tag in [sources] to [target], in one
+  /// sweep and one undo entry.
+  ///
+  /// Not a loop over [replaceEverywhere]: N passes would leave N entries on
+  /// the undo stack, so a merge of six near-duplicates could only be taken
+  /// back six times over. The merged tag lands where the first of its sources
+  /// sat, and a caption that already carried [target] keeps that position —
+  /// merging must not reorder captions it does not otherwise change.
+  Future<BatchRewriteResult> mergeEverywhere(
+    List<String> sources,
+    String target, {
+    required String label,
+  }) {
+    final name = target.trim();
+    final doomed = sources.where((t) => t != name).toSet();
+    if (name.isEmpty || doomed.isEmpty) {
+      return Future.value(const BatchRewriteResult.none());
+    }
+    return _rewriteAll(label, (tags) {
+      if (!tags.any(doomed.contains)) return null;
+      final out = <String>[];
+      final seen = <String>{};
+      for (final tag in tags) {
+        final next = doomed.contains(tag) ? name : tag;
+        if (seen.add(next)) out.add(next);
+      }
+      return out;
+    });
+  }
+
   /// Inserts the (comma-splittable) input directly before or after [tag] in
   /// every caption that has it, skipping tags the file already contains.
   Future<BatchRewriteResult> insertBeside(

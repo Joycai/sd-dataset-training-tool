@@ -82,19 +82,13 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.checklist));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Click to select, right-click to send to a group'),
-      findsOneWidget,
-    );
+    expect(find.text('Nothing selected'), findsOneWidget);
 
-    // Selection works without an image loaded — edit mode is library-only.
+    // Selection works without an image loaded — organize mode is library-only.
     await tester.tap(find.text('alpha'));
     await tester.tap(find.text('beta'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('2 selected · right-click to send to a group'),
-      findsOneWidget,
-    );
+    expect(find.text('2 tags selected'), findsOneWidget);
 
     await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
     await tester.pumpAndSettle();
@@ -104,10 +98,7 @@ void main() {
     expect(appState.tagGroups.single.tags, ['alpha', 'beta']);
     expect(appState.ungroupedTags, ['gamma']);
     // Moved tags leave the selection.
-    expect(
-      find.text('Click to select, right-click to send to a group'),
-      findsOneWidget,
-    );
+    expect(find.text('Nothing selected'), findsOneWidget);
   });
 
   testWidgets('right-click on an unselected tag sends only that tag', (
@@ -324,10 +315,7 @@ void main() {
     expect(find.text('Deselect'), findsNothing);
     await tester.tap(find.text('Select'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('1 selected · right-click to send to a group'),
-      findsOneWidget,
-    );
+    expect(find.text('1 tag selected'), findsOneWidget);
 
     // Now selected: the same menu item flips to "Deselect".
     await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
@@ -335,10 +323,7 @@ void main() {
     expect(find.text('Deselect'), findsOneWidget);
     await tester.tap(find.text('Deselect'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Click to select, right-click to send to a group'),
-      findsOneWidget,
-    );
+    expect(find.text('Nothing selected'), findsOneWidget);
   });
 
   testWidgets('edit mode menu: select all in group', (tester) async {
@@ -357,10 +342,7 @@ void main() {
     await tester.tap(find.text('Select all in group'));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('2 selected · right-click to send to a group'),
-      findsOneWidget,
-    );
+    expect(find.text('2 tags selected'), findsOneWidget);
   });
 
   testWidgets(

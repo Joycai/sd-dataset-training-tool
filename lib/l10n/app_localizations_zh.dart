@@ -832,6 +832,54 @@ class AppLocalizationsZh extends AppLocalizations {
   String get libraryEmpty => '标签库是空的，点击加号添加标签。';
 
   @override
+  String get libraryNoMatches => '没有匹配的标签。';
+
+  @override
+  String get libraryStatusAll => '全部';
+
+  @override
+  String get libraryStatusUsed => '已用';
+
+  @override
+  String get libraryStatusUnused => '未用';
+
+  @override
+  String get libraryStatusNew => '新';
+
+  @override
+  String libraryGroupUsage(int used, int total) {
+    return '$used/$total 已用';
+  }
+
+  @override
+  String get libraryDatasetOnly => '仅包含当前数据集';
+
+  @override
+  String libraryDatasetOnlyHidden(int count) {
+    return '已隐藏 $count 个库内标签';
+  }
+
+  @override
+  String libraryMoreTags(int count) {
+    return '+$count 更多';
+  }
+
+  @override
+  String get libraryShowLess => '收起';
+
+  @override
+  String get libraryCollapseAllTooltip => '全部折叠';
+
+  @override
+  String get libraryExpandAllTooltip => '全部展开';
+
+  @override
+  String get libraryBrowseHint => '点击组头折叠 · 组内默认只显示前 2 行';
+
+  @override
+  String get libraryUngroupedPending => '待整理';
+
+  @override
   String get moreActionsTooltip => '更多操作';
 
   @override
@@ -890,7 +938,114 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ungroupedSection => '未分组';
 
   @override
-  String get groupEditModeTooltip => '分组编辑模式';
+  String get groupEditModeTooltip => '整理模式';
+
+  @override
+  String get organizeModeTitle => '整理模式';
+
+  @override
+  String get organizeModeDone => '完成';
+
+  @override
+  String organizeSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '已选 $count 个标签',
+      zero: '未选中标签',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get organizeHint => 'Shift 点击可范围多选 · 拖拽选中标签到任意组头即可移组';
+
+  @override
+  String get organizeMoveToGroup => '移至分组';
+
+  @override
+  String get organizeMergeInto => '合并为…';
+
+  @override
+  String get organizeDelete => '删除';
+
+  @override
+  String get organizeDropHere => '拖拽或「移至分组」放入此处';
+
+  @override
+  String organizeDeleteConfirm(int count) {
+    return '从标签库移除 $count 个标签？';
+  }
+
+  @override
+  String get mergeTagsTitle => '合并为一个标签';
+
+  @override
+  String mergeTagsSources(int count) {
+    return '将合并 $count 个标签';
+  }
+
+  @override
+  String get mergeTagsTargetLabel => '合并后的标签';
+
+  @override
+  String get mergeTagsRewriteCaptions => '同时改写数据集标注';
+
+  @override
+  String get mergeTagsRewriteHint => '替换当前范围内所有标注里的这些标签，可撤销。';
+
+  @override
+  String mergeTagsSummary(String tag, int files) {
+    return '已合并为“$tag”，改写 $files 个标注';
+  }
+
+  @override
+  String opMergeLabel(String tag) {
+    return '合并为“$tag”';
+  }
+
+  @override
+  String get aiGroupButton => 'AI 归组';
+
+  @override
+  String get aiGroupTitle => 'AI 归组';
+
+  @override
+  String aiGroupRunning(int done, int total) {
+    return '正在请求模型… $done/$total';
+  }
+
+  @override
+  String aiGroupIntro(int count) {
+    return 'AI 已给出 $count 条归组建议，逐条确认或全部接受：';
+  }
+
+  @override
+  String aiGroupAcceptAll(int count) {
+    return '全部接受（$count）';
+  }
+
+  @override
+  String get aiGroupIgnoreAll => '全部忽略';
+
+  @override
+  String get aiGroupNewGroupBadge => '新建';
+
+  @override
+  String get aiGroupEmpty => '模型没有给出可用的归组建议。';
+
+  @override
+  String aiGroupFailed(String error) {
+    return 'AI 归组失败：$error';
+  }
+
+  @override
+  String get aiGroupNoBackend => '请先在设置中配置 AI 后端。';
+
+  @override
+  String aiGroupApplied(int count) {
+    return '已归组 $count 个标签';
+  }
 
   @override
   String get changeGroupColorTooltip => '修改分组颜色';
@@ -900,14 +1055,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get moveGroupDownTooltip => '下移分组';
-
-  @override
-  String get groupEditHint => '单击选中，右键发送到分组';
-
-  @override
-  String groupEditSelectedHint(int count) {
-    return '已选 $count · 右键发送到分组';
-  }
 
   @override
   String sendToGroup(String name) {

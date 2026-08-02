@@ -856,6 +856,55 @@ class AppLocalizationsEn extends AppLocalizations {
       'The library is empty. Use the plus button to add tags.';
 
   @override
+  String get libraryNoMatches => 'No tag matches the filter.';
+
+  @override
+  String get libraryStatusAll => 'All';
+
+  @override
+  String get libraryStatusUsed => 'Used';
+
+  @override
+  String get libraryStatusUnused => 'Unused';
+
+  @override
+  String get libraryStatusNew => 'New';
+
+  @override
+  String libraryGroupUsage(int used, int total) {
+    return '$used/$total used';
+  }
+
+  @override
+  String get libraryDatasetOnly => 'Current dataset only';
+
+  @override
+  String libraryDatasetOnlyHidden(int count) {
+    return '$count library tags hidden';
+  }
+
+  @override
+  String libraryMoreTags(int count) {
+    return '+$count more';
+  }
+
+  @override
+  String get libraryShowLess => 'Show less';
+
+  @override
+  String get libraryCollapseAllTooltip => 'Collapse all groups';
+
+  @override
+  String get libraryExpandAllTooltip => 'Expand all groups';
+
+  @override
+  String get libraryBrowseHint =>
+      'Click a header to fold a group · rows are capped at two';
+
+  @override
+  String get libraryUngroupedPending => 'needs filing';
+
+  @override
   String get moreActionsTooltip => 'More actions';
 
   @override
@@ -914,7 +963,118 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ungroupedSection => 'Ungrouped';
 
   @override
-  String get groupEditModeTooltip => 'Group edit mode';
+  String get groupEditModeTooltip => 'Organize mode';
+
+  @override
+  String get organizeModeTitle => 'Organize mode';
+
+  @override
+  String get organizeModeDone => 'Done';
+
+  @override
+  String organizeSelectedCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tags selected',
+      one: '1 tag selected',
+      zero: 'Nothing selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get organizeHint =>
+      'Shift-click for a range · drag a selection onto any header to move it';
+
+  @override
+  String get organizeMoveToGroup => 'Move to group';
+
+  @override
+  String get organizeMergeInto => 'Merge into…';
+
+  @override
+  String get organizeDelete => 'Delete';
+
+  @override
+  String get organizeDropHere => 'Drag here, or use \"Move to group\"';
+
+  @override
+  String organizeDeleteConfirm(int count) {
+    return 'Remove $count tags from the library?';
+  }
+
+  @override
+  String get mergeTagsTitle => 'Merge into one tag';
+
+  @override
+  String mergeTagsSources(int count) {
+    return 'Merging $count tags';
+  }
+
+  @override
+  String get mergeTagsTargetLabel => 'Merged tag';
+
+  @override
+  String get mergeTagsRewriteCaptions => 'Rewrite dataset captions too';
+
+  @override
+  String get mergeTagsRewriteHint =>
+      'Replaces them in every caption of the current scope. Undoable.';
+
+  @override
+  String mergeTagsSummary(String tag, int files) {
+    return 'Merged into \"$tag\" · $files captions rewritten';
+  }
+
+  @override
+  String opMergeLabel(String tag) {
+    return 'merge into \"$tag\"';
+  }
+
+  @override
+  String get aiGroupButton => 'AI grouping';
+
+  @override
+  String get aiGroupTitle => 'AI grouping';
+
+  @override
+  String aiGroupRunning(int done, int total) {
+    return 'Asking the model… $done/$total';
+  }
+
+  @override
+  String aiGroupIntro(int count) {
+    return '$count suggestions. Confirm them one at a time, or accept all.';
+  }
+
+  @override
+  String aiGroupAcceptAll(int count) {
+    return 'Accept all ($count)';
+  }
+
+  @override
+  String get aiGroupIgnoreAll => 'Ignore all';
+
+  @override
+  String get aiGroupNewGroupBadge => 'new';
+
+  @override
+  String get aiGroupEmpty =>
+      'The model had no usable suggestion for these tags.';
+
+  @override
+  String aiGroupFailed(String error) {
+    return 'AI grouping failed: $error';
+  }
+
+  @override
+  String get aiGroupNoBackend => 'Configure an AI backend in settings first.';
+
+  @override
+  String aiGroupApplied(int count) {
+    return 'Filed $count tags';
+  }
 
   @override
   String get changeGroupColorTooltip => 'Change group color';
@@ -924,14 +1084,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get moveGroupDownTooltip => 'Move group down';
-
-  @override
-  String get groupEditHint => 'Click to select, right-click to send to a group';
-
-  @override
-  String groupEditSelectedHint(int count) {
-    return '$count selected · right-click to send to a group';
-  }
 
   @override
   String sendToGroup(String name) {
