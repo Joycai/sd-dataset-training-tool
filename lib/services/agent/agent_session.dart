@@ -42,6 +42,15 @@ class AgentFinished extends AgentUiEvent {
   final String? message;
 }
 
+/// The user's answer when a run reaches its turn limit and asks whether to
+/// keep going. [note] is optional extra guidance they typed; it enters the
+/// history as a user message so the model acts on it.
+class AgentContinueDecision {
+  const AgentContinueDecision({this.note});
+
+  final String? note;
+}
+
 /// One conversation with the model, including its full message history and
 /// cumulative token usage. Create a new instance for a new conversation or
 /// after the dataset directory changes.
@@ -54,6 +63,7 @@ class AgentSession {
     this.maxTurnsPerRun = 24,
     this.sessionTokenCap = 1000000,
     this.confirmWrite,
+    this.confirmContinue,
   }) : budget = ContextBudget(
          contextWindow: profile.contextWindow,
          maxOutputTokens: profile.maxOutputTokens,
@@ -67,6 +77,12 @@ class AgentSession {
 
   /// Model turns per user request; guards against infinite tool loops.
   final int maxTurnsPerRun;
+
+  /// Asked when a run has spent [maxTurnsPerRun] turns: a decision grants
+  /// another [maxTurnsPerRun], null stops the run. Without it the limit is a
+  /// hard stop, which kills a legitimate one-image-at-a-time sweep partway
+  /// through; with it the loop is still gated on a human saying "keep going".
+  final Future<AgentContinueDecision?> Function(int turnsUsed)? confirmContinue;
 
   /// Cumulative token cap for the whole conversation; 0 or less means no
   /// cap. Every turn re-sends the whole history, so this grows quadratically
@@ -100,10 +116,29 @@ class AgentSession {
       history.add(ChatMessage.user(userInput));
       var consecutiveToolErrors = 0;
 
-      for (var turn = 0; turn < maxTurnsPerRun; turn++) {
+      var turnBudget = maxTurnsPerRun;
+
+      for (var turn = 0; ; turn++) {
         if (cancel.isCancelled) {
           yield AgentFinished(AgentStopReason.cancelled);
           return;
+        }
+        if (turn >= turnBudget) {
+          final decision = await confirmContinue?.call(turn);
+          if (cancel.isCancelled) {
+            yield AgentFinished(AgentStopReason.cancelled);
+            return;
+          }
+          if (decision == null) {
+            yield AgentFinished(
+              AgentStopReason.maxTurns,
+              'stopped after $turn model turns',
+            );
+            return;
+          }
+          turnBudget = turn + maxTurnsPerRun;
+          final note = decision.note?.trim() ?? '';
+          if (note.isNotEmpty) history.add(ChatMessage.user(note));
         }
         if (sessionTokenCap > 0 && totalUsage.total >= sessionTokenCap) {
           yield AgentFinished(
@@ -208,10 +243,6 @@ class AgentSession {
           return;
         }
       }
-      yield AgentFinished(
-        AgentStopReason.maxTurns,
-        'stopped after $maxTurnsPerRun model turns',
-      );
     } finally {
       _busy = false;
       _cancel = null;

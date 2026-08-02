@@ -9,6 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../models/llm_models.dart';
 import '../../models/merge_rules.dart';
 import '../../models/prompt_preset.dart';
+import '../../services/agent/agent_session.dart';
 import '../../state/agent_chat_state.dart';
 import '../../theme/app_theme.dart';
 import 'character_sheet_dialog.dart';
@@ -202,6 +203,7 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
             ),
           ),
         if (chat.pendingQuestion != null) _QuestionCard(chat: chat),
+        if (chat.pendingContinue != null) _ContinueCard(chat: chat),
         if (chat.pendingConfirm != null) _ConfirmBar(chat: chat),
         _InputRow(
           controller: _input,
@@ -699,6 +701,9 @@ class _EntryRow extends StatelessWidget {
           AgentNoticeType.profileSwitched => l10n.agentProfileSwitchedNotice(
             entry.text,
           ),
+          AgentNoticeType.turnLimitContinued =>
+            l10n.agentTurnLimitContinuedNotice(int.tryParse(entry.text) ?? 0),
+          AgentNoticeType.turnLimitStopped => l10n.agentTurnLimitStoppedNotice,
           AgentNoticeType.error || null => l10n.agentErrorNotice(entry.text),
         };
         return Padding(
@@ -1493,16 +1498,93 @@ class _PresetMenuEntry extends StatelessWidget {
 
 /// Question card for the ask_user tool: the model's question, one button per
 /// option, and a free-form reply field.
-class _QuestionCard extends StatefulWidget {
+class _QuestionCard extends StatelessWidget {
   const _QuestionCard({required this.chat});
 
   final AgentChatState chat;
 
   @override
-  State<_QuestionCard> createState() => _QuestionCardState();
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final pending = chat.pendingQuestion!;
+    return _PromptCard(
+      icon: Icons.help_outline,
+      title: l10n.agentQuestionTitle,
+      body: pending.question,
+      dismissTooltip: l10n.agentQuestionDismiss,
+      customHint: l10n.agentQuestionCustomHint,
+      options: [
+        for (final option in pending.options)
+          (label: option, onPressed: () => chat.resolveQuestion(option)),
+      ],
+      onDismiss: () => chat.resolveQuestion(null),
+      onCustom: chat.resolveQuestion,
+    );
+  }
 }
 
-class _QuestionCardState extends State<_QuestionCard> {
+/// Continue card: the run has spent its turn budget and asks whether to keep
+/// going. A typed reply both continues and steers what comes next.
+class _ContinueCard extends StatelessWidget {
+  const _ContinueCard({required this.chat});
+
+  final AgentChatState chat;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final pending = chat.pendingContinue!;
+    return _PromptCard(
+      icon: Icons.timer_outlined,
+      title: l10n.agentTurnLimitTitle,
+      body: l10n.agentTurnLimitBody(pending.turnsUsed),
+      dismissTooltip: l10n.agentTurnLimitStop,
+      customHint: l10n.agentTurnLimitCustomHint,
+      options: [
+        (
+          label: l10n.agentTurnLimitContinue,
+          onPressed: () => chat.resolveContinue(const AgentContinueDecision()),
+        ),
+        (
+          label: l10n.agentTurnLimitStop,
+          onPressed: () => chat.resolveContinue(null),
+        ),
+      ],
+      onDismiss: () => chat.resolveContinue(null),
+      onCustom: (text) =>
+          chat.resolveContinue(AgentContinueDecision(note: text)),
+    );
+  }
+}
+
+/// Shared shell for the interactive cards above the input row: a titled box
+/// with option buttons and a free-form reply field.
+class _PromptCard extends StatefulWidget {
+  const _PromptCard({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.dismissTooltip,
+    required this.customHint,
+    required this.options,
+    required this.onDismiss,
+    required this.onCustom,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+  final String dismissTooltip;
+  final String customHint;
+  final List<({String label, VoidCallback onPressed})> options;
+  final VoidCallback onDismiss;
+  final ValueChanged<String> onCustom;
+
+  @override
+  State<_PromptCard> createState() => _PromptCardState();
+}
+
+class _PromptCardState extends State<_PromptCard> {
   final TextEditingController _reply = TextEditingController();
 
   @override
@@ -1515,7 +1597,7 @@ class _QuestionCardState extends State<_QuestionCard> {
     final text = _reply.text.trim();
     if (text.isEmpty) return;
     _reply.clear();
-    widget.chat.resolveQuestion(text);
+    widget.onCustom(text);
   }
 
   @override
@@ -1523,7 +1605,6 @@ class _QuestionCardState extends State<_QuestionCard> {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
     final scheme = Theme.of(context).colorScheme;
-    final pending = widget.chat.pendingQuestion!;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
@@ -1538,11 +1619,11 @@ class _QuestionCardState extends State<_QuestionCard> {
         children: [
           Row(
             children: [
-              Icon(Icons.help_outline, size: 14, color: scheme.primary),
+              Icon(widget.icon, size: 14, color: scheme.primary),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  l10n.agentQuestionTitle,
+                  widget.title,
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -1551,32 +1632,32 @@ class _QuestionCardState extends State<_QuestionCard> {
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 14),
-                tooltip: l10n.agentQuestionDismiss,
+                tooltip: widget.dismissTooltip,
                 color: semantic.muted,
                 visualDensity: VisualDensity.compact,
-                onPressed: () => widget.chat.resolveQuestion(null),
+                onPressed: widget.onDismiss,
               ),
             ],
           ),
           const SizedBox(height: 4),
           SelectableText(
-            pending.question,
+            widget.body,
             style: const TextStyle(fontSize: 12.5, height: 1.4),
           ),
-          if (pending.options.isNotEmpty) ...[
+          if (widget.options.isNotEmpty) ...[
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
               runSpacing: 6,
               children: [
-                for (final option in pending.options)
+                for (final option in widget.options)
                   OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       textStyle: const TextStyle(fontSize: 11.5),
                     ),
-                    onPressed: () => widget.chat.resolveQuestion(option),
-                    child: Text(option),
+                    onPressed: option.onPressed,
+                    child: Text(option.label),
                   ),
               ],
             ),
@@ -1589,7 +1670,7 @@ class _QuestionCardState extends State<_QuestionCard> {
                   controller: _reply,
                   style: const TextStyle(fontSize: 12),
                   decoration: InputDecoration(
-                    hintText: l10n.agentQuestionCustomHint,
+                    hintText: widget.customHint,
                     hintStyle: TextStyle(fontSize: 11.5, color: semantic.muted),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(

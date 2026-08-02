@@ -197,6 +197,10 @@ If no rule sets exist yet, the Batch Tagging dialog will tell you to run this sk
 
 Settings let you cap how many tokens a single conversation can spend (500K / 1M / 2M / 5M, or 0 for unlimited — default 1M). Since every turn resends the full history, batch work burns through the budget fast; once it's hit, start a new conversation. The input footer shows current usage and turns amber near the limit. Changing this setting only affects the *next* session you start, not one already running.
 
+### Long Runs and the Turn Limit
+
+One request runs for at most 24 model turns. Working through a dataset one image at a time costs a turn per image, so long jobs reach that ceiling legitimately — instead of stopping there, the assistant asks whether to keep going. Choose **Continue** for another 24 turns, **Stop here** to end the request, or type a reply to continue with extra instructions (e.g. "skip the ones already done"), which the assistant reads before its next turn. It asks again at every ceiling, so an unattended loop can never run away; the token budget above still applies throughout.
+
 ### Follows the Subdirectory Scope
 
 Switch to a subdirectory on the left and the assistant's visibility and edits narrow to that folder too, so it can't accidentally touch the rest of the dataset — it also reports in its results whether it ran against "the whole dataset" or just a subdirectory.

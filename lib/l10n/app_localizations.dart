@@ -2538,6 +2538,48 @@ abstract class AppLocalizations {
   /// **'Error: {message}'**
   String agentErrorNotice(String message);
 
+  /// No description provided for @agentTurnLimitTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep going?'**
+  String get agentTurnLimitTitle;
+
+  /// No description provided for @agentTurnLimitBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The assistant has run {count} turns for this request — one per image when it works through a dataset one by one. Continue, or stop here?'**
+  String agentTurnLimitBody(int count);
+
+  /// No description provided for @agentTurnLimitContinue.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get agentTurnLimitContinue;
+
+  /// No description provided for @agentTurnLimitStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop here'**
+  String get agentTurnLimitStop;
+
+  /// No description provided for @agentTurnLimitCustomHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with instructions (optional)…'**
+  String get agentTurnLimitCustomHint;
+
+  /// No description provided for @agentTurnLimitContinuedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Continued past {count} turns.'**
+  String agentTurnLimitContinuedNotice(int count);
+
+  /// No description provided for @agentTurnLimitStoppedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped at the turn limit. Send a message to pick the task back up.'**
+  String get agentTurnLimitStoppedNotice;
+
   /// No description provided for @agentConfirmTitle.
   ///
   /// In en, this message translates to:

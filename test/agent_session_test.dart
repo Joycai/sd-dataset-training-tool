@@ -160,6 +160,102 @@ void main() {
     expect(client.calls, 4);
   });
 
+  test(
+    'the turn limit asks before stopping, and stops when declined',
+    () async {
+      final client = FakeLlmClient([
+        [
+          ToolCallsReady([
+            const ChatToolCall(id: 'c', name: 'echo', argumentsJson: '{"v":1}'),
+          ]),
+          StreamDone(finishReason: 'tool_calls'),
+        ],
+      ]);
+      final asked = <int>[];
+      final session = AgentSession(
+        client: client,
+        registry: ToolRegistry([_echoTool()]),
+        profile: _profile,
+        systemPrompt: 'sys',
+        maxTurnsPerRun: 4,
+        confirmContinue: (turns) async {
+          asked.add(turns);
+          return null; // "stop here"
+        },
+      );
+
+      final events = await session.run('loop').toList();
+      expect(asked, [4]);
+      expect((events.last as AgentFinished).reason, AgentStopReason.maxTurns);
+      expect(client.calls, 4);
+    },
+  );
+
+  test('continuing grants another budget of turns', () async {
+    final client = FakeLlmClient([
+      [
+        ToolCallsReady([
+          const ChatToolCall(id: 'c', name: 'echo', argumentsJson: '{"v":1}'),
+        ]),
+        StreamDone(finishReason: 'tool_calls'),
+      ],
+    ]);
+    final asked = <int>[];
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+      maxTurnsPerRun: 3,
+      // Continue once, then stop — an unbounded "yes" would never end.
+      confirmContinue: (turns) async {
+        asked.add(turns);
+        return asked.length == 1 ? const AgentContinueDecision() : null;
+      },
+    );
+
+    final events = await session.run('loop').toList();
+    expect(asked, [3, 6]);
+    expect((events.last as AgentFinished).reason, AgentStopReason.maxTurns);
+    expect(client.calls, 6);
+  });
+
+  test('a note typed on the continue card reaches the model', () async {
+    final client = FakeLlmClient([
+      [
+        ToolCallsReady([
+          const ChatToolCall(id: 'c', name: 'echo', argumentsJson: '{"v":1}'),
+        ]),
+        StreamDone(finishReason: 'tool_calls'),
+      ],
+    ]);
+    var first = true;
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+      maxTurnsPerRun: 2,
+      confirmContinue: (_) async {
+        if (!first) return null;
+        first = false;
+        return const AgentContinueDecision(note: 'skip the ones already done');
+      },
+    );
+
+    await session.run('loop').toList();
+    // The note is a user message in the history, and the model call made
+    // right after the limit saw it.
+    expect(
+      session.history.any(
+        (m) =>
+            m.role == ChatRole.user && m.text == 'skip the ones already done',
+      ),
+      isTrue,
+    );
+    expect(client.seenMessages[2].last.text, 'skip the ones already done');
+  });
+
   test('session token cap stops before the next model call', () async {
     final client = FakeLlmClient([
       [

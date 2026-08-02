@@ -1424,6 +1424,33 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get agentTurnLimitTitle => 'Keep going?';
+
+  @override
+  String agentTurnLimitBody(int count) {
+    return 'The assistant has run $count turns for this request — one per image when it works through a dataset one by one. Continue, or stop here?';
+  }
+
+  @override
+  String get agentTurnLimitContinue => 'Continue';
+
+  @override
+  String get agentTurnLimitStop => 'Stop here';
+
+  @override
+  String get agentTurnLimitCustomHint =>
+      'Continue with instructions (optional)…';
+
+  @override
+  String agentTurnLimitContinuedNotice(int count) {
+    return 'Continued past $count turns.';
+  }
+
+  @override
+  String get agentTurnLimitStoppedNotice =>
+      'Stopped at the turn limit. Send a message to pick the task back up.';
+
+  @override
   String get agentConfirmTitle => 'The assistant wants to modify captions';
 
   @override

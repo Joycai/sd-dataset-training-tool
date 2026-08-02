@@ -1388,6 +1388,31 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get agentTurnLimitTitle => '要继续吗？';
+
+  @override
+  String agentTurnLimitBody(int count) {
+    return '助手为这条请求已经执行了 $count 轮——逐张处理数据集时一张图就是一轮。继续执行，还是到此为止？';
+  }
+
+  @override
+  String get agentTurnLimitContinue => '继续';
+
+  @override
+  String get agentTurnLimitStop => '到此为止';
+
+  @override
+  String get agentTurnLimitCustomHint => '继续，并补充说明（可选）…';
+
+  @override
+  String agentTurnLimitContinuedNotice(int count) {
+    return '已执行 $count 轮，继续。';
+  }
+
+  @override
+  String get agentTurnLimitStoppedNotice => '已在轮次上限处停止。发条消息可以接着做。';
+
+  @override
   String get agentConfirmTitle => '助手请求修改 caption';
 
   @override

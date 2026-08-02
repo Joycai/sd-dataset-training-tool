@@ -26,7 +26,15 @@ import 'tag_ops.dart';
 enum AgentEntryKind { user, assistant, tool, notice, rules }
 
 /// What a notice row represents; the panel maps these to localized text.
-enum AgentNoticeType { cancelled, error, reset, tokenCap, profileSwitched }
+enum AgentNoticeType {
+  cancelled,
+  error,
+  reset,
+  tokenCap,
+  profileSwitched,
+  turnLimitStopped,
+  turnLimitContinued,
+}
 
 /// One row in the chat transcript. Mutable: assistant text streams in and
 /// tool entries flip from running to finished.
@@ -90,6 +98,18 @@ class PendingUserQuestion {
   final Completer<String?> completer = Completer();
 }
 
+/// A run that has spent its turn budget, waiting for the user to say whether
+/// to keep going. Unlike [PendingUserQuestion] the wording is the app's, not
+/// the model's, so the panel owns the text and only the answer travels back.
+class PendingContinue {
+  PendingContinue(this.turnsUsed);
+
+  /// Model turns the run has already spent — the number the card shows.
+  final int turnsUsed;
+
+  final Completer<AgentContinueDecision?> completer = Completer();
+}
+
 /// UI state of the assistant panel: the transcript, the running session, and
 /// the LLM clients. Owned by the workbench alongside the other panel states.
 class AgentChatState extends ChangeNotifier {
@@ -120,6 +140,10 @@ class AgentChatState extends ChangeNotifier {
 
   /// Non-null while the ask_user tool waits for the user's answer.
   PendingUserQuestion? pendingQuestion;
+
+  /// Non-null while a run that hit its turn limit waits to hear whether it
+  /// should continue.
+  PendingContinue? pendingContinue;
 
   bool get busy => _busy;
   int get totalTokens => _session?.totalUsage.total ?? 0;
@@ -245,6 +269,9 @@ class AgentChatState extends ChangeNotifier {
         // start a fresh conversation) is not obvious.
         entries.add(AgentChatEntry.notice(AgentNoticeType.tokenCap));
       case AgentStopReason.maxTurns:
+        // Reached only when the user answered "stop" on the continue card, so
+        // it is a normal ending, not the error it used to be reported as.
+        entries.add(AgentChatEntry.notice(AgentNoticeType.turnLimitStopped));
       case AgentStopReason.error:
         entries.add(
           AgentChatEntry.notice(AgentNoticeType.error, message ?? reason.name),
@@ -281,6 +308,32 @@ class AgentChatState extends ChangeNotifier {
     final pending = pendingQuestion;
     if (pending == null) return;
     if (!pending.completer.isCompleted) pending.completer.complete(answer);
+  }
+
+  /// Gate for the turn limit: parks the run until the panel's continue card
+  /// answers. Per-image work (tag this one, then the next…) legitimately
+  /// costs one turn per image, so the limit is a checkpoint rather than a
+  /// ceiling — but an unattended loop still cannot pass it.
+  Future<AgentContinueDecision?> _confirmContinue(int turnsUsed) async {
+    final pending = PendingContinue(turnsUsed);
+    pendingContinue = pending;
+    _touch();
+    final decision = await pending.completer.future;
+    pendingContinue = null;
+    if (decision != null) {
+      entries.add(
+        AgentChatEntry.notice(AgentNoticeType.turnLimitContinued, '$turnsUsed'),
+      );
+    }
+    _touch();
+    return decision;
+  }
+
+  /// Called by the continue card; null stops the run.
+  void resolveContinue(AgentContinueDecision? decision) {
+    final pending = pendingContinue;
+    if (pending == null) return;
+    if (!pending.completer.isCompleted) pending.completer.complete(decision);
   }
 
   /// The UI-bound ask_user tool: blocks the agent loop until the user picks
@@ -427,6 +480,7 @@ class AgentChatState extends ChangeNotifier {
         visionEnabled: profile.supportsVision,
       ),
       confirmWrite: _confirmWrite,
+      confirmContinue: _confirmContinue,
     );
   }
 
@@ -434,6 +488,7 @@ class AgentChatState extends ChangeNotifier {
     // Unblock pending interactions first, or the session cannot wind down.
     resolveConfirm(allow: false);
     resolveQuestion(null);
+    resolveContinue(null);
     _session?.stop();
   }
 
@@ -442,6 +497,7 @@ class AgentChatState extends ChangeNotifier {
   void resetSession({bool datasetSwitched = false}) {
     resolveConfirm(allow: false);
     resolveQuestion(null);
+    resolveContinue(null);
     _session?.stop();
     _session = null;
     _allowAllWrites = false;
@@ -456,6 +512,7 @@ class AgentChatState extends ChangeNotifier {
   void dispose() {
     resolveConfirm(allow: false);
     resolveQuestion(null);
+    resolveContinue(null);
     _session?.stop();
     for (final c in _clients.values) {
       c.dispose();

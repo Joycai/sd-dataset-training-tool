@@ -469,6 +469,13 @@
   "agentSwitchProfile": "切换后端",
   "agentProfileSwitchedNotice": "已切换到「{name}」，下一条消息将开启新会话，不带上面的上下文。",
   "agentErrorNotice": "出错：{message}",
+  "agentTurnLimitTitle": "要继续吗？",
+  "agentTurnLimitBody": "助手为这条请求已经执行了 {count} 轮——逐张处理数据集时一张图就是一轮。继续执行，还是到此为止？",
+  "agentTurnLimitContinue": "继续",
+  "agentTurnLimitStop": "到此为止",
+  "agentTurnLimitCustomHint": "继续，并补充说明（可选）…",
+  "agentTurnLimitContinuedNotice": "已执行 {count} 轮，继续。",
+  "agentTurnLimitStoppedNotice": "已在轮次上限处停止。发条消息可以接着做。",
 
   "agentConfirmTitle": "助手请求修改 caption",
   "agentConfirmAllow": "允许",
