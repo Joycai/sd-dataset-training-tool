@@ -149,7 +149,9 @@ Write tools (confirmed one at a time by default, or you can allow all writes for
 - **Re-sort every caption's tag order in one pass** against a priority list — much faster than adjusting images one at a time.
 - Overwrite a single image's caption.
 
-With more than one caption type enabled (or a single type that isn't tag-format), a few extra tools appear: auditing which type each image has (and which are missing it), and reading/writing a specific type's raw text (e.g. "write a natural-language sentence from this image's WD14 tags").
+With more than one caption type enabled (or a single type that isn't tag-format), a few extra tools appear: auditing which type each image has (and which are missing it), reading/writing a specific type's raw text (e.g. "write a natural-language sentence from this image's WD14 tags"), and:
+
+- **Convert one tag-list type into another in bulk** (WD14 tags ⇄ Anima Tag). The rules are given once for the whole dataset — tags to drop, tags to rename, one spelling style (underscores or spaces), whether parentheses are escaped, a priority order, and a trigger word to put first — and the tool rewrites every caption itself. Nothing is invented: every output tag comes from the source or from the trigger word. An Anima Tag description is carried over when the target is Anima Tag too, and dropped **and counted** when the target is plain tags. The result lists each dropped and renamed tag with how many captions it came out of, so the whole conversion can be checked from one answer — and a drop rule that matched nothing is visible by its absence rather than passing as "there were none". The whole batch undoes as one operation.
 
 When a JSON-format type is configured, two more tools show up:
 
