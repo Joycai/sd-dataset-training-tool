@@ -40,14 +40,31 @@ class _FakeLibrary {
     return group;
   }
 
-  Future<void> rename(String id, String name) async {
+  Future<void> update(String id, {String? name, int? color}) async {
     for (var i = 0; i < groups.length; i++) {
-      if (groups[i].id == id) groups[i] = groups[i].copyWith(name: name);
+      if (groups[i].id == id) {
+        groups[i] = groups[i].copyWith(name: name, color: color);
+      }
     }
   }
 
   Future<void> delete(String id) async {
     groups.removeWhere((g) => g.id == id);
+  }
+
+  /// Same contract as AppState.setTagGroupOrder: listed groups first, the
+  /// rest keep their relative order behind them.
+  Future<void> reorder(List<String> ids) async {
+    final byId = {for (final g in groups) g.id: g};
+    final head = [
+      for (final id in ids)
+        if (byId.containsKey(id)) byId[id]!,
+    ];
+    final seen = {for (final g in head) g.id};
+    final rest = groups.where((g) => !seen.contains(g.id)).toList();
+    groups
+      ..clear()
+      ..addAll([...head, ...rest]);
   }
 
   Future<void> move(List<String> moving, String? groupId) async {
@@ -93,8 +110,9 @@ void main() {
           addTags: library.add,
           removeTags: library.remove,
           createGroup: library.create,
-          renameGroup: library.rename,
+          updateGroup: library.update,
           deleteGroup: library.delete,
+          reorderGroups: library.reorder,
           moveTags: library.move,
         ),
       ),
@@ -312,11 +330,11 @@ void main() {
           },
         ],
       });
-      final out = await call('rename_tag_group', {
+      final out = await call('update_tag_group', {
         'group': '服装',
         'new_name': '衣物',
       });
-      expect(out['to'], '衣物');
+      expect(out['renamed_to'], '衣物');
       expect(library.named('衣物')!.tags, ['boots']);
     });
 
@@ -324,11 +342,58 @@ void main() {
       await library.create('服装', 0);
       await library.create('背景', 0);
       final result = await registry.dispatch(
-        'rename_tag_group',
+        'update_tag_group',
         jsonEncode({'group': '背景', 'new_name': '服装'}),
       );
       expect(result.isError, isTrue);
       expect(library.named('背景'), isNotNull);
+    });
+
+    test('a preset color name recolors the group', () async {
+      await library.create('服装', kTagGroupPresetColors.first);
+      final out = await call('update_tag_group', {
+        'group': '服装',
+        'color': 'Orange',
+      });
+      expect(library.named('服装')!.color, kTagGroupColorNames['orange']);
+      expect(out['color'], contains('orange'));
+      // A color-only edit leaves the name alone.
+      expect(out['renamed_to'], isNull);
+    });
+
+    test('hex works, and 6 digits stay opaque', () async {
+      await library.create('服装', 0);
+      await call('update_tag_group', {'group': '服装', 'color': '#123456'});
+      expect(library.named('服装')!.color, 0xFF123456);
+    });
+
+    test('name and color change together in one call', () async {
+      await library.create('服装', 0);
+      await call('update_tag_group', {
+        'group': '服装',
+        'new_name': '衣物',
+        'color': 'mint',
+      });
+      expect(library.named('衣物')!.color, kTagGroupColorNames['mint']);
+    });
+
+    test('a color that is neither preset nor hex is refused', () async {
+      await library.create('服装', 0xFF000001);
+      final result = await registry.dispatch(
+        'update_tag_group',
+        jsonEncode({'group': '服装', 'color': 'chartreuse'}),
+      );
+      expect(result.isError, isTrue);
+      expect(library.named('服装')!.color, 0xFF000001);
+    });
+
+    test('an edit that changes nothing is rejected', () async {
+      await library.create('服装', 0);
+      final result = await registry.dispatch(
+        'update_tag_group',
+        jsonEncode({'group': '服装'}),
+      );
+      expect(result.isError, isTrue);
     });
 
     test('deleting a group returns its tags to ungrouped', () async {
@@ -353,6 +418,74 @@ void main() {
         jsonEncode({'group': 'nope'}),
       );
       expect(result.isError, isTrue);
+    });
+  });
+
+  group('reorder_tag_groups', () {
+    setUp(() async {
+      for (final name in ['服装', '背景', '身材外貌']) {
+        await library.create(name, 0);
+      }
+    });
+
+    List<String> order() => [for (final g in library.groups) g.name];
+
+    test('a full order is applied as given', () async {
+      final out = await call('reorder_tag_groups', {
+        'order': ['身材外貌', '服装', '背景'],
+      });
+      expect(order(), ['身材外貌', '服装', '背景']);
+      expect(out['order'], ['身材外貌', '服装', '背景']);
+    });
+
+    test('a partial order lifts the named groups to the top', () async {
+      await call('reorder_tag_groups', {
+        'order': ['身材外貌'],
+      });
+      expect(order(), ['身材外貌', '服装', '背景']);
+    });
+
+    test('unknown names are reported, and the rest still moves', () async {
+      final out = await call('reorder_tag_groups', {
+        'order': ['背景', '幻想分组'],
+      });
+      expect(out['no_such_group'], ['幻想分组']);
+      expect(order(), ['背景', '服装', '身材外貌']);
+    });
+
+    test('a name listed twice is reported, not applied twice', () async {
+      final out = await call('reorder_tag_groups', {
+        'order': ['背景', '服装', '背景'],
+      });
+      expect(out['listed_twice'], ['背景']);
+      expect(order(), ['背景', '服装', '身材外貌']);
+    });
+
+    test('tags and membership survive a reorder', () async {
+      await call('organize_tag_library', {
+        'assignments': [
+          {
+            'group': '服装',
+            'tags': ['boots'],
+          },
+        ],
+      });
+      await call('reorder_tag_groups', {
+        'order': ['背景', '服装'],
+      });
+      expect(library.named('服装')!.tags, ['boots']);
+      expect(library.ungrouped, isNot(contains('boots')));
+    });
+
+    test('an order naming no existing group is an error', () async {
+      final result = await registry.dispatch(
+        'reorder_tag_groups',
+        jsonEncode({
+          'order': ['nope'],
+        }),
+      );
+      expect(result.isError, isTrue);
+      expect(order(), ['服装', '背景', '身材外貌']);
     });
   });
 }

@@ -1,5 +1,5 @@
 /// The assistant's tag-library tools: file tags into groups, add and remove
-/// library entries, rename and delete groups.
+/// library entries, edit (rename / recolor), reorder and delete groups.
 ///
 /// The library is the user's curated standard tag set — the thing the tag
 /// panel shows and every caption gets normalized against. Until these tools
@@ -27,8 +27,9 @@ class TagLibraryToolsDeps {
     required this.addTags,
     required this.removeTags,
     required this.createGroup,
-    required this.renameGroup,
+    required this.updateGroup,
     required this.deleteGroup,
+    required this.reorderGroups,
     required this.moveTags,
   });
 
@@ -43,10 +44,16 @@ class TagLibraryToolsDeps {
   /// Creates an empty group and returns it.
   final Future<TagGroup> Function(String name, int color) createGroup;
 
-  final Future<void> Function(String id, String name) renameGroup;
+  /// Changes the group's name and/or its color (ARGB).
+  final Future<void> Function(String id, {String? name, int? color})
+  updateGroup;
 
   /// Deletes the group; its tags fall back to ungrouped.
   final Future<void> Function(String id) deleteGroup;
+
+  /// Puts the groups named by [ids] at the front, in that order; everything
+  /// else keeps its relative order behind them.
+  final Future<void> Function(List<String> ids) reorderGroups;
 
   /// Moves library tags into [groupId] (null = ungrouped). Membership is
   /// exclusive, so this also removes them from wherever they were.
@@ -62,6 +69,58 @@ const int maxLibraryTagsPerCall = 300;
 
 /// Most groups one `organize_tag_library` call may address.
 const int maxAssignmentsPerCall = 40;
+
+/// Names for [kTagGroupPresetColors], in the same order.
+///
+/// The picker in the panel shows swatches; a model cannot point at one, and
+/// asking it for ARGB integers invites `0x6A9BDD` (transparent) or a color
+/// nobody would have chosen. Names keep the common case — "make it orange" —
+/// exact, and hex stays available for anything else.
+const Map<String, int> kTagGroupColorNames = {
+  'blue': 0xFF6A9BDD,
+  'purple': 0xFF9B84E0,
+  'pink': 0xFFD983A6,
+  'orange': 0xFFD9925B,
+  'mint': 0xFF5FBF8F,
+  'gold': 0xFFC7B45A,
+  'slate': 0xFF8A9BB0,
+  'brown': 0xFFB08A6A,
+};
+
+/// Parses a color the model wrote: a preset name, or `#RRGGBB` / `#AARRGGBB`
+/// (with or without the `#`). Six-digit hex is taken as fully opaque —
+/// a group tinted at 0% alpha would just look broken.
+///
+/// Throws [ToolArgError] on anything else rather than falling back to a
+/// default, so a mistyped color is visible instead of silently applied.
+int parseTagGroupColor(String raw) {
+  final text = raw.trim();
+  final preset = kTagGroupColorNames[text.toLowerCase()];
+  if (preset != null) return preset;
+  final hex = text.startsWith('#') ? text.substring(1) : text;
+  if (RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(hex)) {
+    return 0xFF000000 | int.parse(hex, radix: 16);
+  }
+  if (RegExp(r'^[0-9a-fA-F]{8}$').hasMatch(hex)) {
+    return int.parse(hex, radix: 16);
+  }
+  throw ToolArgError(
+    '"$raw" is not a color; use one of '
+    '${kTagGroupColorNames.keys.join(', ')} or a hex value like #6A9BDD',
+  );
+}
+
+/// The color as the model should read it back: hex, plus the preset name when
+/// it landed on one.
+String formatTagGroupColor(int argb) {
+  final hex =
+      '#${(argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+  final name = kTagGroupColorNames.entries
+      .where((e) => e.value == argb)
+      .map((e) => e.key)
+      .firstOrNull;
+  return name == null ? hex : '$name ($hex)';
+}
 
 List<AgentTool> buildTagLibraryTools(TagLibraryToolsDeps deps) {
   /// Finds a group by the name the model used: exact first, then folded, so
@@ -125,8 +184,15 @@ List<AgentTool> buildTagLibraryTools(TagLibraryToolsDeps deps) {
           .libraryTags()
           .where((t) => !grouped.contains(t))
           .length,
+      // In panel order, so a reorder or a recolor is visible in the same
+      // result that performed it.
       'groups': [
-        for (final g in groups) {'name': g.name, 'tags': g.tags.length},
+        for (final g in groups)
+          {
+            'name': g.name,
+            'tags': g.tags.length,
+            'color': formatTagGroupColor(g.color),
+          },
       ],
     };
   }
@@ -383,23 +449,39 @@ List<AgentTool> buildTagLibraryTools(TagLibraryToolsDeps deps) {
     ),
 
     AgentTool(
-      spec: const AgentToolSpec(
-        name: 'rename_tag_group',
+      spec: AgentToolSpec(
+        name: 'update_tag_group',
         description:
-            'Rename a group in the tag library. Its tags and color stay as '
-            'they are.',
+            'Rename a group in the tag library and/or change its color. Its '
+            'tags stay where they are — this never re-files anything.\n'
+            'Pass "new_name", "color", or both.',
         parametersSchema: {
           'type': 'object',
           'properties': {
             'group': {'type': 'string', 'description': 'Current name.'},
             'new_name': {'type': 'string'},
+            'color': {
+              'type': 'string',
+              'description':
+                  'One of ${kTagGroupColorNames.keys.join(', ')}, or a hex '
+                  'value like "#6A9BDD". Group colors are only a visual aid '
+                  'in the panel; pick one that reads as the group\'s theme '
+                  'and keep sibling groups distinguishable.',
+            },
           },
-          'required': ['group', 'new_name'],
+          'required': ['group'],
         },
       ),
       handler: (args) async {
         final name = requireString(args, 'group');
-        final next = requireString(args, 'new_name');
+        final next = optString(args, 'new_name');
+        final rawColor = optString(args, 'color');
+        if (next == null && rawColor == null) {
+          throw ToolArgError(
+            'nothing to change: pass "new_name", "color", or both',
+          );
+        }
+        final color = rawColor == null ? null : parseTagGroupColor(rawColor);
         final group = findGroup(name);
         if (group == null) {
           return toolError(
@@ -407,18 +489,75 @@ List<AgentTool> buildTagLibraryTools(TagLibraryToolsDeps deps) {
             '${deps.tagGroups().map((g) => g.name).join(', ')}',
           );
         }
-        final clash = findGroup(next);
-        if (clash != null && clash.id != group.id) {
+        if (next != null) {
+          final clash = findGroup(next);
+          if (clash != null && clash.id != group.id) {
+            return toolError(
+              'a group named "${clash.name}" already exists; move the tags '
+              'into it with organize_tag_library instead of renaming',
+            );
+          }
+        }
+        await deps.updateGroup(group.id, name: next, color: color);
+        return toolOk({
+          'group': group.name,
+          'renamed_to': ?next,
+          if (color != null) 'color': formatTagGroupColor(color),
+          'tags': group.tags.length,
+        });
+      },
+    ),
+
+    AgentTool(
+      spec: const AgentToolSpec(
+        name: 'reorder_tag_groups',
+        description:
+            'Set the order the groups appear in, top to bottom, in the tag '
+            'library panel. Send the full order in ONE call.\n'
+            'Groups you leave out keep their relative order behind the ones '
+            'you list, so naming a single group lifts it to the top. Tags '
+            'and group membership are untouched.',
+        parametersSchema: {
+          'type': 'object',
+          'properties': {
+            'order': {
+              'type': 'array',
+              'items': {'type': 'string'},
+              'description':
+                  'Existing group names, in the order they should appear. '
+                  'Names that match no group are reported back and skipped.',
+            },
+          },
+          'required': ['order'],
+        },
+      ),
+      handler: (args) async {
+        final asked = requireStringList(args, 'order');
+        final ids = <String>[];
+        final seen = <String>{};
+        final unknown = <String>[];
+        final duplicates = <String>[];
+        for (final name in asked) {
+          final group = findGroup(name);
+          if (group == null) {
+            unknown.add(name);
+          } else if (!seen.add(group.id)) {
+            duplicates.add(name);
+          } else {
+            ids.add(group.id);
+          }
+        }
+        if (ids.isEmpty) {
           return toolError(
-            'a group named "${clash.name}" already exists; move the tags '
-            'into it with organize_tag_library instead of renaming',
+            'none of these names match a group; existing groups: '
+            '${deps.tagGroups().map((g) => g.name).join(', ')}',
           );
         }
-        await deps.renameGroup(group.id, next);
+        await deps.reorderGroups(ids);
         return toolOk({
-          'renamed': group.name,
-          'to': next,
-          'tags': group.tags.length,
+          'order': [for (final g in deps.tagGroups()) g.name],
+          if (unknown.isNotEmpty) 'no_such_group': unknown,
+          if (duplicates.isNotEmpty) 'listed_twice': duplicates,
         });
       },
     ),

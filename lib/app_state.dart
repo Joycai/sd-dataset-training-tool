@@ -272,6 +272,27 @@ class AppState extends ChangeNotifier {
     await _saveGroups();
   }
 
+  /// Reorders the groups so the ones named in [ids] come first, in that
+  /// order. Ids that do not exist are ignored; groups left out keep their
+  /// relative order behind the listed ones — a caller that only wants to lift
+  /// one group to the top does not have to enumerate the whole library.
+  Future<void> setTagGroupOrder(List<String> ids) async {
+    final byId = {for (final g in _tagGroups) g.id: g};
+    final seen = <String>{};
+    final head = [
+      for (final id in ids)
+        if (byId.containsKey(id) && seen.add(id)) byId[id]!,
+    ];
+    if (head.isEmpty) return;
+    final next = [
+      ...head,
+      for (final g in _tagGroups)
+        if (!seen.contains(g.id)) g,
+    ];
+    _tagGroups = next;
+    await _saveGroups();
+  }
+
   /// Removes every tag from the library. Groups survive (emptied) so a
   /// re-import or fresh tagging session keeps the structure.
   Future<void> clearCommonTags() => updateCommonTags(<String>[]);
