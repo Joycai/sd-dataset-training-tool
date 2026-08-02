@@ -813,6 +813,23 @@
       "message": { "type": "String" }
     }
   },
+  "agentTurnLimitTitle": "Keep going?",
+  "agentTurnLimitBody": "The assistant has run {count} turns for this request — one per image when it works through a dataset one by one. Continue, or stop here?",
+  "@agentTurnLimitBody": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "agentTurnLimitContinue": "Continue",
+  "agentTurnLimitStop": "Stop here",
+  "agentTurnLimitCustomHint": "Continue with instructions (optional)…",
+  "agentTurnLimitContinuedNotice": "Continued past {count} turns.",
+  "@agentTurnLimitContinuedNotice": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "agentTurnLimitStoppedNotice": "Stopped at the turn limit. Send a message to pick the task back up.",
 
   "agentConfirmTitle": "The assistant wants to modify captions",
   "agentConfirmAllow": "Allow",
