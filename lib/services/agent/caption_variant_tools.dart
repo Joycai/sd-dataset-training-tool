@@ -916,21 +916,21 @@ Future<_LosslessCheck> _checkLossless({
       verified: 0,
     );
   }
-  // Only the tag format has a tag grammar to read the source with.
-  if (source.format != CaptionFormat.tags) {
+  // Only the tag-list formats have a tag grammar to read the source with.
+  if (!source.format.isTagList) {
     return (
       error: toolError(
-        'expect_tags_from needs a tag-format caption type; '
+        'expect_tags_from needs a tag-list caption type; '
         '"${source.extension}" is ${source.format.name}',
       ),
       verified: 0,
     );
   }
-  if (!isJson && target.format != CaptionFormat.tags) {
+  if (!isJson && !target.format.isTagList) {
     return (
       error: toolError(
         'expect_tags_from cannot verify a ${target.format.name} target '
-        '("${target.extension}"); it works for JSON-format and tag-format '
+        '("${target.extension}"); it works for JSON-format and tag-list '
         'types',
       ),
       verified: 0,
@@ -945,7 +945,7 @@ Future<_LosslessCheck> _checkLossless({
     try {
       final file = File(captionVariantPath(key, source));
       sourceTags = await file.exists()
-          ? parseTagText(await file.readAsString())
+          ? parseCaptionText(await file.readAsString(), format: source.format)
           : const [];
     } catch (e) {
       return (
@@ -957,9 +957,20 @@ Future<_LosslessCheck> _checkLossless({
       );
     }
   }
+  // Same reasoning as for the target below: an Anima Tag source's tail is a
+  // sentence, not a tag the conversion has to carry across.
+  if (source.format == CaptionFormat.animaTag) {
+    sourceTags = splitAnimaParts(sourceTags).tags;
+  }
 
+  // An Anima Tag target's natural-language tail is new writing, not a tag the
+  // source had to carry, so it is excluded from the comparison — the guard is
+  // about tags surviving the conversion, and requiring the tail to match a
+  // source tag would make the format impossible to write.
   final writtenTags = isJson
       ? jsonCaptionTags(decoded, ignoreKeys: ignoreKeys)
+      : target.format == CaptionFormat.animaTag
+      ? splitAnimaParts(parseAnimaTagText(text)).tags
       : parseTagText(text);
   final match = matchPermutation(sourceTags, writtenTags);
   if (match.unknown.isNotEmpty || match.missing.isNotEmpty) {

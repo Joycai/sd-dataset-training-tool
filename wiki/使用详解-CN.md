@@ -37,7 +37,8 @@
 每个类型还要指定**内容格式**，决定整个应用怎么解析和改写它的文件——看的是这个格式，不是文件扩展名：
 
 - **标签**：逗号分隔的 danbooru 风格标签，默认。
-- **散文（句子模式）**：标签化视图按逗号/句号（含中文全角标点）把文本分成一句句短语来展示，更适合自然语言风格的描述。
+- **Anima Tag**：标签语法后面再接一句自然语言描述——`tag, tag, tag. 一句对画面的描述。`。这句描述在标签区下方有独立的输入框，而不是混在标签卡片里，因为它本来就不是标签：不会按它自己的逗号被拆开、不计入标签总数、恒定写在最后。所有标签级操作（拖拽排序、批量排序/替换/添加、AI 助手的标签工具）都只动标签，碰不到这句话。
+- **散文（句子模式）**：第二个页签变成**句子**列表——每段一行，按逗号/句号（含中文全角标点）切分，可以就地编辑、用左侧手柄拖动排序、单独删除。文本页依然把整段 caption 当一块来改。
 - **JSON**：一份 JSON 文档。标签化视图让位给只读的高亮 JSON 视图，标签级改写一律拒绝——一串扁平的标签没法还原成 JSON 文档。这类 caption 要么当文本编辑，要么交给 AI 助手的 JSON 工具（见下文）。
 
 ### 标签对比系统
@@ -180,7 +181,7 @@
 
 面板输入框旁的书签图标菜单里：
 - 上半部分是**内置技能**（目前是"按标准样本打标"，见下）。
-- 中间是**内置提示词**：随应用附带的现成起点，目前有两条，都面向 Anima 模型的 JSON caption——"WD14 标签转 Anima JSON"（把 WD14 打标产出的标签 caption 一次性转换成 Anima 简化格式的 JSON caption，需要先在 caption 类型设置里配置一个 JSON 格式的类型）和"重排 Anima JSON 字段"（把已有 JSON caption 重排成 quality → count → character → series → artist → appearance → tags → environment → nl 的标准字段顺序）。它们和普通预置一样只填充输入框，你可以先补充固定值（如 quality、artist、角色名）再发送。
+- 中间是**内置提示词**：随应用附带的现成起点，目前有三条，都面向 Anima 模型的 caption 格式——"WD14 标签转 Anima Tag"（把 WD14 打标产出的标签 caption 重排成 Anima Tag 顺序：quality → count → character → series → artist → appearance → tags → environment，再跟一个句号和一句自然语言描述，顺带给画师标签补上 `@` 前缀；需要先在 caption 类型设置里配置一个 Anima Tag 格式的类型）、"WD14 标签转 Anima JSON"（把 WD14 打标产出的标签 caption 一次性转换成 Anima 简化格式的 JSON caption，需要先在 caption 类型设置里配置一个 JSON 格式的类型）和"重排 Anima JSON 字段"（把已有 JSON caption 重排成 quality → count → character → series → artist → appearance → tags → environment → nl 的标准字段顺序）。它们和普通预置一样只填充输入框，你可以先补充固定值（如 quality、artist、角色名）再发送。
 - 下半部分是你保存的**预置提示词**：点一下只是把内容填进输入框（追加在你已输入的内容后面），不会自动发送，方便你补充细节后再发。
 - 菜单里也有"管理预置提示词"入口，即使助手正在忙也可以随时打开编辑。
 

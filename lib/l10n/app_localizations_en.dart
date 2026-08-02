@@ -69,7 +69,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get captionTypeFormatTooltip =>
-      'Format: how this type\'s caption files are parsed — comma-separated tags, a JSON document, or natural-language sentences';
+      'Format: how this type\'s caption files are parsed — comma-separated tags, tags plus a trailing sentence, a JSON document, or natural-language sentences';
 
   @override
   String get captionTypeFormatTags => 'WD14 tags';
@@ -77,6 +77,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get captionTypeFormatTagsDesc =>
       'Comma-separated · editable tag chips';
+
+  @override
+  String get captionTypeFormatAnimaTag => 'Anima Tag';
+
+  @override
+  String get captionTypeFormatAnimaTagDesc =>
+      'Tags, then a period, then a sentence';
 
   @override
   String get captionTypeFormatJson => 'Anima JSON';
@@ -258,6 +265,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get jsonTab => 'JSON';
 
   @override
+  String get sentencesTab => 'Sentences';
+
+  @override
   String get captionJsonEmpty => 'No caption yet.';
 
   @override
@@ -288,6 +298,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get captionHint => 'Write the caption here, tags separated by commas';
 
   @override
+  String get captionHintProse =>
+      'Write the description here, in plain sentences';
+
+  @override
   String get addTagHint => 'Type a tag and press Enter';
 
   @override
@@ -295,6 +309,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get editTagTitle => 'Edit Tag';
+
+  @override
+  String get addSentenceHint => 'Type a sentence and press Enter';
+
+  @override
+  String get noSentencesYet => 'No description yet.';
+
+  @override
+  String get editSentenceTitle => 'Edit Sentence';
+
+  @override
+  String sentenceCount(int count) {
+    return '$count sentences';
+  }
+
+  @override
+  String get captionDescriptionLabel => 'Description';
+
+  @override
+  String get captionDescriptionHint =>
+      'A sentence or two about the image, appended after the tags';
+
+  @override
+  String get captionDescriptionTooltip =>
+      'The Anima Tag natural-language part: it is written after the last tag and a period, is never split into tags, and always stays last.';
 
   @override
   String get tagSortModeTooltip => 'Sort mode: drag tags to reorder';
@@ -1547,6 +1586,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get animaJsonGeneratePresetBody =>
       'Convert this dataset\'s WD14 tag captions into Anima JSON captions (the AnimaLoraToolkit simplified format).\n\nTarget fields, in order: quality (fixed value), count (people count), character, series, artist (fixed value), appearance (array: hair, eyes, body, clothing, accessories), tags (array: actions, expressions, composition, viewpoint and everything else — the catch-all), environment (array: indoors/outdoors, sky, lighting, scenery), nl (natural-language description, empty string for now).\n\nSteps:\n1. Confirm with get_dataset_overview that a JSON-format caption type is configured; if not, stop and tell me to add one in the caption type settings first.\n2. Get every tag with get_tag_stats and sort each one into the fields above to build the assign map; leave any tag you are unsure about out of assign so it falls into the tags catch-all.\n3. Run convert_captions_to_json once: source is the tag-format type carrying the WD14 tags, target is the JSON type, unassigned_field is tags, and quality, artist and nl are constants (empty strings unless I gave values below). Declare count, character and series as string normally, but as array if one image can carry several such tags at once (say 1girl plus 1boy), so no image gets skipped. Images that already have a non-empty target file are skipped unless you set overwrite.\n4. Afterwards report the tags that fell into the catch-all (unassigned_tags_seen); if any clearly belong in appearance or environment, fix them with a follow-up restructure_json_captions assign pass.\n\nDo not loop write_caption_file to write JSON image by image.';
+
+  @override
+  String get animaTagPresetTitle => 'WD14 tags to Anima Tag';
+
+  @override
+  String get animaTagPresetBody =>
+      'Convert this dataset\'s WD14 tag captions into Anima Tag captions — one line of tags in the official order, then a period, then a natural-language description.\n\nThe order, one bucket per position: 1 quality (newest, safe), 2 count (1girl, 2boys, no humans), 3 character, 4 series, 5 artist, 6 appearance (hair, eyes, body, clothing, accessories), 7 tags (actions, expressions, composition, viewpoint and everything else — the catch-all), 8 environment (indoors/outdoors, sky, lighting, scenery), then the sentence. Every artist tag must carry an @ prefix — without it the artist tag does almost nothing. Keep quality to newest and safe only; the rest of the quality vocabulary belongs in inference prompts, not in training captions.\n\nSteps:\n1. Run get_dataset_overview and confirm a caption type whose format is animaTag exists; if not, stop and tell me to add one in the caption type settings first. Say which type holds the WD14 tags (the source) and which is the Anima Tag type (the target).\n2. Run get_tag_stats and sort every tag into buckets 1-8. Anything you are unsure about goes into 7, the catch-all. Do not invent a character, series or artist name — use only what I give you below or what the tags already say.\n3. If the Anima Tag type IS the active type, so its own files already hold the WD14 tags, convert the whole dataset with the batch tools rather than image by image: replace_tag_everywhere to give each artist tag its @ prefix, then add_tags_everywhere with newest and safe at index 0, then one sort_captions_everywhere whose priority list is buckets 1-8 flattened in that order with unlisted set to end. A natural-language tail is never a tag, so these tools cannot disturb it.\n4. If the Anima Tag type is a SEPARATE file from the WD14 one, work in batches of 20: read_caption_file on the source extension, then one write_caption_file per image carrying the reordered line. Set expect_tags_from to the source extension in every batch that only reorders; leave it off in the batch that adds quality tags or rewrites an artist tag, and report that tag diff yourself instead.\n5. The description comes last, after a period and a space. Write it only for images you have actually looked at with view_image: one or two sentences on subject, pose and setting, in plain prose and with no tag list in it. If you cannot see the images, leave the sentence off and tell me so — a caption without one is still valid Anima Tag.\n6. When you are done, report how many tags landed in each bucket and list everything left in the catch-all so I can check it.\n\nWhat I already know — character: ; series: ; artist: ';
 
   @override
   String get animaJsonReorderPresetTitle => 'Reorder Anima JSON fields';

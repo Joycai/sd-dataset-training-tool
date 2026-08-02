@@ -1322,10 +1322,15 @@ class _InputFooter extends StatelessWidget {
 }
 
 /// The prompts shipped with the app: ready-made starting points for the
-/// Anima JSON caption workflow. Built from l10n on each open so they follow
+/// Anima caption workflows. Built from l10n on each open so they follow
 /// the UI language; the ids are stable but never persisted — picking one
 /// only fills the input, exactly like a saved preset.
 List<PromptPreset> builtinPromptPresets(AppLocalizations l10n) => [
+  PromptPreset(
+    id: 'builtin-anima-tag',
+    title: l10n.animaTagPresetTitle,
+    content: l10n.animaTagPresetBody,
+  ),
   PromptPreset(
     id: 'builtin-anima-json-generate',
     title: l10n.animaJsonGeneratePresetTitle,

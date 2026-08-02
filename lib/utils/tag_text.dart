@@ -41,14 +41,66 @@ List<String> parseSentenceText(String text) {
   return out;
 }
 
+/// Marks the natural-language tail of an Anima Tag caption inside a parsed
+/// part list. The `". "` is kept on the segment — exactly like prose segments
+/// keep their punctuation — so a flat list of parts still reassembles into the
+/// caption it came from, and so every consumer can tell the tail apart from a
+/// tag without a second channel.
+const String animaNlPrefix = '. ';
+
+/// Where an Anima Tag caption's tag list ends and its natural-language
+/// description begins: the first `.` followed by whitespace or the end of the
+/// text. The lookahead is what keeps `1.5` and `no.7` inside a tag; a tag
+/// spelled with a sentence-style `. ` in it (`dr. pepper`) would end the tag
+/// list early, which is the documented cost of the standard's own separator.
+final RegExp _animaNlBreak = RegExp(r'\.(?=\s|$)');
+
+/// True when [part] is the natural-language tail rather than a tag.
+bool isAnimaNlPart(String part) => part.startsWith(animaNlPrefix);
+
+/// The tail's text without its [animaNlPrefix] marker.
+String animaNlText(String part) =>
+    isAnimaNlPart(part) ? part.substring(animaNlPrefix.length).trim() : part;
+
+/// Splits an Anima Tag caption into its tags plus — when the caption has one
+/// — a single trailing natural-language segment carrying [animaNlPrefix].
+///
+/// The tag half follows the ordinary tag grammar; the tail is taken verbatim,
+/// so the commas and periods inside a sentence never turn into tags.
+List<String> parseAnimaTagText(String text) {
+  final match = _animaNlBreak.firstMatch(text);
+  if (match == null) return parseTagText(text);
+  final tail = text.substring(match.end).trim();
+  final tags = parseTagText(text.substring(0, match.start));
+  return tail.isEmpty ? tags : [...tags, '$animaNlPrefix$tail'];
+}
+
+/// Separates an Anima Tag part list into its tags and its natural-language
+/// tail (null when it has none). The single place that answers "which of
+/// these parts are actually tags" for the rewrite paths.
+({List<String> tags, String? nl}) splitAnimaParts(List<String> parts) {
+  final tags = <String>[];
+  final tail = <String>[];
+  for (final part in parts) {
+    (isAnimaNlPart(part) ? tail : tags).add(part);
+  }
+  return (
+    tags: tags,
+    // More than one tail can only come from hand-editing a part into the
+    // marker; joining them keeps the text rather than dropping it.
+    nl: tail.isEmpty ? null : tail.map(animaNlText).join(' '),
+  );
+}
+
 /// Parses caption text in the grammar of the active caption type's format:
-/// the tag grammar, sentence segments for prose, or the string leaves of a
-/// JSON document.
+/// the tag grammar, tags plus a natural-language tail for Anima Tag, sentence
+/// segments for prose, or the string leaves of a JSON document.
 List<String> parseCaptionText(
   String text, {
   CaptionFormat format = CaptionFormat.tags,
 }) => switch (format) {
   CaptionFormat.tags => parseTagText(text),
+  CaptionFormat.animaTag => parseAnimaTagText(text),
   CaptionFormat.prose => parseSentenceText(text),
   CaptionFormat.json => parseJsonCaptionTags(text),
 };
@@ -107,12 +159,19 @@ List<String> jsonCaptionTags(
 /// Joins parsed caption parts back into file text. Tags join with `", "`;
 /// prose segments carry their own punctuation, so they join with a plain
 /// space — omitted after full-width punctuation, which no space follows.
-/// JSON captions cannot be reassembled from a flat tag list, so every
+/// An Anima Tag caption's natural-language tail is re-appended last whatever
+/// position it holds in [parts], because "last" is what the format means by
+/// it. JSON captions cannot be reassembled from a flat tag list, so every
 /// tag-level rewrite path refuses to run on them before ever joining.
 String joinCaptionText(
   List<String> parts, {
   CaptionFormat format = CaptionFormat.tags,
 }) {
+  if (format == CaptionFormat.animaTag) {
+    final split = splitAnimaParts(parts);
+    final tags = split.tags.join(', ');
+    return split.nl == null ? tags : '$tags$animaNlPrefix${split.nl}';
+  }
   if (format != CaptionFormat.prose) return parts.join(', ');
   final buffer = StringBuffer();
   for (var i = 0; i < parts.length; i++) {

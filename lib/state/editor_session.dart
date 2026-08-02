@@ -61,6 +61,33 @@ class EditorSession extends ChangeNotifier {
   /// documents cannot be rebuilt from a flat tag list.
   CaptionFormat get format => _format;
 
+  /// The parts a tag view should render as tags. For Anima Tag that is
+  /// [tags] without the natural-language tail — the tail is a sentence with
+  /// its own editor, and showing it as a chip is what made it read (and
+  /// behave) like a tag. Always a prefix of [tags], so a chip's index is
+  /// still an index into [tags] for [reorderTag] and [replaceTagAt].
+  List<String> get captionTags =>
+      _format == CaptionFormat.animaTag ? splitAnimaParts(_tags).tags : _tags;
+
+  /// The Anima Tag caption's natural-language description, empty when it has
+  /// none. Always empty for the other formats, which have no such part.
+  String get description => _format == CaptionFormat.animaTag
+      ? (splitAnimaParts(_tags).nl ?? '')
+      : '';
+
+  /// Replaces the Anima Tag description; a blank value removes it (and with
+  /// it the period that introduced it). The tags are untouched.
+  void setDescription(String text) {
+    if (!tagsEditable || _format != CaptionFormat.animaTag) return;
+    final trimmed = text.trim();
+    if (trimmed == description) return;
+    _tags = [
+      ...splitAnimaParts(_tags).tags,
+      if (trimmed.isNotEmpty) '$animaNlPrefix$trimmed',
+    ];
+    _writeTagsToText();
+  }
+
   // ignore: avoid_setters_without_getters
   set autoSaveEnabled(bool value) {
     _autoSaveEnabled = value;
@@ -205,7 +232,14 @@ class EditorSession extends ChangeNotifier {
   void _insertTags(List<String> parts) {
     if (!tagsEditable || parts.isEmpty) return;
     final anchor = anchorTag;
-    final at = anchor == null ? _tags.length : _tags.indexOf(anchor) + 1;
+    // "At the end" means after the last tag, not after an Anima Tag caption's
+    // natural-language tail — that one is always the last part there.
+    final end = _format == CaptionFormat.animaTag
+        ? _tags.indexWhere(isAnimaNlPart)
+        : -1;
+    final at = anchor == null
+        ? (end < 0 ? _tags.length : end)
+        : _tags.indexOf(anchor) + 1;
     _tags = [..._tags]..insertAll(at, parts);
     if (anchor != null) {
       // The anchor rides along onto the newest insert, so consecutive adds
@@ -229,7 +263,16 @@ class EditorSession extends ChangeNotifier {
   void replaceTagAt(int index, String replacement) {
     if (!tagsEditable) return;
     final replaced = _tags[index];
-    final parts = _parseTags(replacement);
+    // Editing an Anima Tag caption's natural-language tail edits a sentence,
+    // not a tag list: without the marker the rewritten sentence would come
+    // back split on its own commas.
+    final parts = _format == CaptionFormat.animaTag && isAnimaNlPart(replaced)
+        ? _parseTags(
+            isAnimaNlPart(replacement)
+                ? replacement
+                : '$animaNlPrefix${replacement.trim()}',
+          )
+        : _parseTags(replacement);
     final next = [..._tags];
     next.removeAt(index);
     // Re-de-duplicate against the remaining tags.
@@ -297,7 +340,13 @@ class EditorSession extends ChangeNotifier {
   }
 
   void _writeTagsToText() {
-    _setText(joinCaptionText(_tags, format: _format));
+    final text = joinCaptionText(_tags, format: _format);
+    // The Anima Tag join moves the natural-language tail back to last place
+    // whatever the part list said, so re-derive the list from the text the
+    // file will hold — otherwise a tail dragged mid-list keeps rendering
+    // there while the caption on disk reads differently.
+    if (_format == CaptionFormat.animaTag) _tags = _parseTags(text);
+    _setText(text);
     _saveState = SaveState.dirty;
     _autoSaveTimer?.cancel();
     if (_autoSaveEnabled && _image != null) {

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../models/ai_tagger_models.dart';
+import '../models/caption_type.dart';
 import '../models/merge_rules.dart';
 import '../services/ai_tagger_service.dart';
 import '../services/settings_service.dart';
@@ -400,7 +401,14 @@ class BatchTagState extends ChangeNotifier {
     if (await captionFile.exists()) {
       before = await captionFile.readAsString();
     }
-    final current = parseTagText(before);
+    // An Anima Tag caption's natural-language tail describes the image, not
+    // the tagger's output: it is held aside so the merge below never sees it
+    // as a tag, and restored unchanged afterwards.
+    final anima = dataset.captionFormat == CaptionFormat.animaTag;
+    final split = anima
+        ? splitAnimaParts(parseAnimaTagText(before))
+        : (tags: parseTagText(before), nl: null);
+    final current = split.tags;
     final rules = runConfig.rules;
     final next = runConfig.mode == BatchTagMode.characterSheet && rules != null
         ? applyMergeRules(
@@ -416,7 +424,10 @@ class BatchTagState extends ChangeNotifier {
             config: runConfig,
           );
     if (next == null) return null;
-    final after = next.join(', ');
+    final after = joinCaptionText(
+      [...next, if (split.nl != null) '$animaNlPrefix${split.nl}'],
+      format: anima ? CaptionFormat.animaTag : CaptionFormat.tags,
+    );
     await captionFile.writeAsString(after);
     return CaptionEdit(
       imagePath: imagePath,

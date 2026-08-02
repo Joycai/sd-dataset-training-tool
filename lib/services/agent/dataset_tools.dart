@@ -655,7 +655,14 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
         return toolError('image ${notFoundMessage(deps.dataset, rel)}');
       }
 
-      final current = deps.dataset.tagsOf(key);
+      // An Anima Tag caption's natural-language tail is not part of the
+      // permutation: the model reorders tags, and the tail is re-appended
+      // where the format puts it.
+      final anima = deps.dataset.captionFormat == CaptionFormat.animaTag;
+      final split = anima
+          ? splitAnimaParts(deps.dataset.tagsOf(key))
+          : (tags: deps.dataset.tagsOf(key), nl: null);
+      final current = split.tags;
       if (current.isEmpty) return toolError('$rel has no caption to reorder');
 
       final match = matchPermutation(current, order);
@@ -675,7 +682,10 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
       }
       final result = await tagOps.rewriteOne(
         key,
-        match.ordered.join(', '),
+        joinCaptionText([
+          ...match.ordered,
+          if (split.nl != null) '$animaNlPrefix${split.nl}',
+        ], format: deps.dataset.captionFormat),
         label: 'AI: reorder ${p.basename(key)}',
       );
       if (result.failed) {

@@ -67,13 +67,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get captionTypeFormatTooltip =>
-      '格式：决定该类型标注文件的解析方式——逗号分隔标签、JSON 文档或自然语言句子';
+      '格式：决定该类型标注文件的解析方式——逗号分隔标签、标签加句末自然语言、JSON 文档或自然语言句子';
 
   @override
   String get captionTypeFormatTags => 'WD14 标签';
 
   @override
   String get captionTypeFormatTagsDesc => '逗号分隔 · 可编辑标签卡片';
+
+  @override
+  String get captionTypeFormatAnimaTag => 'Anima Tag';
+
+  @override
+  String get captionTypeFormatAnimaTagDesc => '标签在前 · 句号后接自然语言';
 
   @override
   String get captionTypeFormatJson => 'Anima JSON';
@@ -249,6 +255,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get jsonTab => 'JSON';
 
   @override
+  String get sentencesTab => '句子';
+
+  @override
   String get captionJsonEmpty => '还没有 caption。';
 
   @override
@@ -279,6 +288,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get captionHint => '在这里编写 caption，标签之间用逗号分隔';
 
   @override
+  String get captionHintProse => '在这里编写描述，用完整的句子';
+
+  @override
   String get addTagHint => '输入标签后按回车添加';
 
   @override
@@ -286,6 +298,30 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editTagTitle => '编辑标签';
+
+  @override
+  String get addSentenceHint => '输入一句话后按回车添加';
+
+  @override
+  String get noSentencesYet => '还没有描述。';
+
+  @override
+  String get editSentenceTitle => '编辑句子';
+
+  @override
+  String sentenceCount(int count) {
+    return '$count 句';
+  }
+
+  @override
+  String get captionDescriptionLabel => '自然语言描述';
+
+  @override
+  String get captionDescriptionHint => '一两句对画面的描述，接在标签之后';
+
+  @override
+  String get captionDescriptionTooltip =>
+      'Anima Tag 的自然语言部分：写在最后一个标签和句号之后，不会被拆成标签，且恒定排在最末。';
 
   @override
   String get tagSortModeTooltip => '排序模式：直接拖动标签排序';
@@ -1504,6 +1540,13 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get animaJsonGeneratePresetBody =>
       '把当前数据集的 WD14 标签 caption 转换成 Anima 的 JSON caption（AnimaLoraToolkit 简化格式）。\n\n目标字段及顺序：quality（固定值）、count（人数）、character（角色名）、series（作品名）、artist（固定值）、appearance（数组：发型发色、瞳色、体型、服装、饰品等外貌特征）、tags（数组：动作、表情、构图、视角等其余标签，兜底字段）、environment（数组：室内外、天空、光照、场景物件等环境背景）、nl（自然语言描述，先留空字符串）。\n\n步骤：\n1. 用 get_dataset_overview 确认已配置 JSON 格式的 caption 类型；如果没有，停下来提醒我先在 caption 类型设置里添加一个格式为 JSON 的类型，不要继续。\n2. 用 get_tag_stats 拿到全部标签，逐个归类到上述字段，构建 assign 映射；拿不准的不要放进 assign，让它落入 tags 兜底。\n3. 用 convert_captions_to_json 一次完成转换：source 是 WD14 标签所在的 tag 类型，target 是 JSON 类型，unassigned_field 用 tags，quality、artist、nl 用 constants 写固定值（我没在下面给值就用空字符串）。count、character、series 一般声明为 string；若同一张图可能同时出现多个该类标签（比如 1girl 和 1boy 并存），就把该字段声明为 array，避免整图被跳过。已有非空目标文件的图默认跳过，需要重建时加 overwrite。\n4. 完成后报告落入兜底的标签（unassigned_tags_seen），其中明显属于 appearance 或 environment 的，用 restructure_json_captions 补一轮 assign 修正。\n\n不要用 write_caption_file 循环逐图写 JSON。';
+
+  @override
+  String get animaTagPresetTitle => 'WD14 标签转 Anima Tag';
+
+  @override
+  String get animaTagPresetBody =>
+      '把当前数据集的 WD14 标签 caption 转换成 Anima Tag caption——先按官方顺序排一行标签，再跟一个句号，最后接自然语言描述。\n\n顺序，每档一个位置：1 质量（newest、safe）、2 人数（1girl、2boys、no humans）、3 角色、4 作品、5 画师、6 外观（发型发色、瞳色、体型、服装、饰品）、7 标签（动作、表情、构图、视角等其余全部，兜底档）、8 环境（室内外、天空、光照、场景），最后是那句自然语言。画师标签必须带 @ 前缀，没有 @ 的画师标签几乎不起作用。质量只保留 newest 和 safe，其余质量词属于推理时的提示词，不要写进训练 caption。\n\n步骤：\n1. 用 get_dataset_overview 确认存在格式为 animaTag 的 caption 类型；如果没有，停下来提醒我先去 caption 类型设置里加一个，不要继续。说明哪个类型装着 WD14 标签（源）、哪个是 Anima Tag 类型（目标）。\n2. 用 get_tag_stats 拿到全部标签，逐个归入 1-8 档。拿不准的一律放进第 7 档兜底。不要凭空编造角色名、作品名或画师名，只用我在下面给出的、或标签里本来就有的。\n3. 如果 Anima Tag 类型就是当前激活类型（它自己的文件里已经是 WD14 标签），用批量工具整体转换，不要逐图处理：先用 replace_tag_everywhere 给每个画师标签加上 @ 前缀，再用 add_tags_everywhere 在 index 0 位置加入 newest 和 safe，最后跑一次 sort_captions_everywhere，priority 就是 1-8 档按序摊平的列表，unlisted 设为 end。自然语言尾句不算标签，这些工具碰不到它。\n4. 如果 Anima Tag 类型和 WD14 是两个不同的文件，就每 20 张一批：先 read_caption_file 读源扩展名，再逐图 write_caption_file 写入排好序的那一行。只做重排的批次，把 expect_tags_from 设成源扩展名；加质量标签或改写画师标签的那一批不要设，改由你自己报告标签差异。\n5. 描述句放在最后，前面用句号加空格分隔。只为你真正用 view_image 看过的图写：一到两句，讲清主体、姿态和场景，用平实的散文，句子里不要再堆标签。如果你看不到图，就不写这句并告诉我——没有尾句的 caption 依然是合法的 Anima Tag。\n6. 完成后报告每一档各归入了多少标签，并列出留在兜底档里的全部标签，方便我复核。\n\n我已知的信息——角色：；作品：；画师：';
 
   @override
   String get animaJsonReorderPresetTitle => '重排 Anima JSON 字段';

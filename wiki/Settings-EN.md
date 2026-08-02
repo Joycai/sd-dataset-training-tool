@@ -28,6 +28,7 @@ Click the **settings icon** in the top-right corner of the main interface to acc
   - Add, name, and set the extension for each caption type here, and enable or disable it. Edits stay in the dialog until you press **Done** (cancelling or closing it discards everything); the default type cannot be disabled or deleted, and extensions must be unique.
   - Every type picks a **format**, which decides how the whole app parses that type's caption files:
     - **WD14 tags**: comma-separated, editable tag by tag in the tag view.
+    - **Anima Tag**: the WD14 grammar plus a trailing natural-language description — `tag, tag, tag. A sentence about the image.` Everything after the period that closes the tag list is one segment: it is never split on its own commas, never counts as a tag, and always stays last, so batch edits (sort, replace, add) and the AI assistant's tag tools cannot disturb it.
     - **Anima JSON**: a structured document; the tag view is read-only, edit it from the text tab or with the assistant's JSON tools.
     - **Natural language**: full text; the tag view segments it by comma/period into phrases instead of treating it as comma-separated danbooru tags.
   - Enabling more than one type unlocks a few extra AI Assistant tools for auditing coverage and reading/writing a specific type's files.

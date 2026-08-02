@@ -66,9 +66,10 @@ class _CaptionPanelState extends State<CaptionPanel> {
     final session = context.read<EditorSession>();
     final image = session.image;
     if (image == null || ai.running) return;
-    // JSON captions have no tag grid for the compare view to land in, and
-    // adopting suggestions could not be serialized back anyway.
-    if (session.format == CaptionFormat.json) return;
+    // Only tag-list captions have a tag grid for the compare view to land in.
+    // A JSON document could not be serialized back from suggestions, and a
+    // prose caption would have danbooru tags stapled onto its sentences.
+    if (!session.format.isTagList) return;
 
     if (ai.modelName == null) {
       await ai.refreshModels();
@@ -109,14 +110,19 @@ class _CaptionPanelState extends State<CaptionPanel> {
 
   Future<void> _editTag(EditorSession session, int index) async {
     final l10n = AppLocalizations.of(context)!;
+    final prose = session.format == CaptionFormat.prose;
     final controller = TextEditingController(text: session.tags[index]);
     final newValue = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(l10n.editTagTitle),
+        title: Text(prose ? l10n.editSentenceTitle : l10n.editTagTitle),
         content: TextField(
           controller: controller,
           autofocus: true,
+          // A sentence needs room to be read while it is edited; a tag is a
+          // single line by nature.
+          maxLines: prose ? 4 : 1,
+          minLines: prose ? 2 : 1,
           onSubmitted: (value) => Navigator.of(context).pop(value),
         ),
         actions: [
@@ -186,9 +192,12 @@ class _CaptionPanelState extends State<CaptionPanel> {
     final semantic = context.semantic;
     final session = context.watch<EditorSession>();
     final ai = context.watch<AiTaggerState>();
-    // A JSON-format caption swaps the tag grid for a read-only highlighted
-    // JSON view; the text tab remains the way to edit it.
-    final isJson = session.format == CaptionFormat.json;
+    // Each format gets its own second tab: a tag grid, a read-only JSON view
+    // for documents the tag grammar cannot rebuild, or a sentence list for
+    // prose. The text tab always edits the raw file.
+    final format = session.format;
+    final isJson = format == CaptionFormat.json;
+    final isProse = format == CaptionFormat.prose;
 
     // The editor is a panel under the canvas, not a floating card: one
     // hairline separates them and the fill runs to the window edges.
@@ -247,7 +256,11 @@ class _CaptionPanelState extends State<CaptionPanel> {
                   segments: [
                     SegmentedOption(
                       value: _tabTags,
-                      label: isJson ? l10n.jsonTab : l10n.tagsTab,
+                      label: isJson
+                          ? l10n.jsonTab
+                          : isProse
+                          ? l10n.sentencesTab
+                          : l10n.tagsTab,
                     ),
                     SegmentedOption(value: _tabText, label: l10n.textTab),
                   ],
@@ -268,7 +281,11 @@ class _CaptionPanelState extends State<CaptionPanel> {
                     if (!tight)
                       Expanded(
                         child: Text(
-                          l10n.tagCount(session.tags.length),
+                          // The Anima Tag description is not a tag, so it is
+                          // not in the count either.
+                          isProse
+                              ? l10n.sentenceCount(session.tags.length)
+                              : l10n.tagCount(session.captionTags.length),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: monoStyle(
@@ -331,7 +348,8 @@ class _CaptionPanelState extends State<CaptionPanel> {
                     ],
                     _AiRunButton(
                       ai: ai,
-                      enabled: session.hasImage && !ai.running && !isJson,
+                      enabled:
+                          session.hasImage && !ai.running && format.isTagList,
                       compact: compact,
                       onPressed: _runAi,
                       l10n: l10n,
@@ -363,6 +381,8 @@ class _CaptionPanelState extends State<CaptionPanel> {
                       _buildTextView(session, l10n),
                       if (isJson)
                         JsonCaptionView(text: session.captionController.text)
+                      else if (isProse)
+                        _buildSentencesView(session, l10n, semantic)
                       else
                         // Compare mode is a global flag, but it only makes
                         // sense for images that actually have (or are
@@ -391,7 +411,9 @@ class _CaptionPanelState extends State<CaptionPanel> {
         textAlignVertical: TextAlignVertical.top,
         style: const TextStyle(fontSize: 13, height: 1.6),
         decoration: InputDecoration(
-          hintText: l10n.captionHint,
+          hintText: session.format == CaptionFormat.prose
+              ? l10n.captionHintProse
+              : l10n.captionHint,
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
@@ -408,10 +430,16 @@ class _CaptionPanelState extends State<CaptionPanel> {
     AppLocalizations l10n,
     AppSemanticColors semantic,
   ) {
+    // Anima Tag: the chips are the tags only. The natural-language part is a
+    // sentence, not a tag — as a chip it was draggable into the middle of the
+    // tag list, edited through the tag dialog and counted as a tag, which is
+    // exactly what the format says it is not.
+    final tags = session.captionTags;
+
     return Column(
       children: [
         Expanded(
-          child: session.tags.isEmpty
+          child: tags.isEmpty
               ? Center(
                   child: Text(
                     l10n.noTagsYet,
@@ -433,7 +461,7 @@ class _CaptionPanelState extends State<CaptionPanel> {
                       spacing: 6,
                       runSpacing: 6,
                       children: [
-                        for (final (index, tag) in session.tags.indexed)
+                        for (final (index, tag) in tags.indexed)
                           // Tags are de-duplicated on parse, so the tag itself
                           // is a stable key across reorders.
                           ReorderableItemView(
@@ -468,6 +496,13 @@ class _CaptionPanelState extends State<CaptionPanel> {
                   ),
                 ),
         ),
+        if (session.format == CaptionFormat.animaTag) ...[
+          Container(height: 1, color: semantic.line),
+          _DescriptionField(
+            value: session.description,
+            onChanged: session.setDescription,
+          ),
+        ],
         Container(height: 1, color: semantic.line),
         Padding(
           padding: const EdgeInsets.fromLTRB(10, 4, 6, 4),
@@ -532,6 +567,271 @@ class _CaptionPanelState extends State<CaptionPanel> {
           ),
         ),
       ],
+    );
+  }
+
+  /// The prose counterpart of the tag grid: one row per sentence instead of
+  /// chips. A sentence is too long to read in a chip and too long to wrap
+  /// beside its neighbours, so the segments stack, keep their punctuation on
+  /// screen, and stay individually editable, reorderable and removable —
+  /// which is what the raw text tab cannot offer.
+  Widget _buildSentencesView(
+    EditorSession session,
+    AppLocalizations l10n,
+    AppSemanticColors semantic,
+  ) {
+    return Column(
+      children: [
+        Expanded(
+          child: session.tags.isEmpty
+              ? Center(
+                  child: Text(
+                    l10n.noSentencesYet,
+                    style: TextStyle(fontSize: 12.5, color: semantic.muted),
+                  ),
+                )
+              : ReorderableListView.builder(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                  buildDefaultDragHandles: false,
+                  itemCount: session.tags.length,
+                  // onReorderItem, not onReorder: it hands over the index the
+                  // item actually lands on, which is what reorderTag wants.
+                  onReorderItem: session.reorderTag,
+                  itemBuilder: (context, index) {
+                    final sentence = session.tags[index];
+                    return _SentenceRow(
+                      key: ValueKey(sentence),
+                      index: index,
+                      text: sentence,
+                      onTap: () => _editTag(session, index),
+                      onDelete: () => session.removeTag(sentence),
+                    );
+                  },
+                ),
+        ),
+        Container(height: 1, color: semantic.line),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
+          child: TextField(
+            controller: _addTagController,
+            focusNode: _addTagFocus,
+            style: const TextStyle(fontSize: AppText.secondary),
+            decoration: InputDecoration(
+              hintText: l10n.addSentenceHint,
+              filled: false,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+              prefixIcon: Icon(Icons.add, size: 15, color: semantic.muted),
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 26,
+                minHeight: 26,
+              ),
+            ),
+            onSubmitted: (value) {
+              session.addTagsFromInput(value);
+              _addTagController.clear();
+              _addTagFocus.requestFocus();
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One sentence of a prose caption: the text, a drag handle and a delete.
+class _SentenceRow extends StatefulWidget {
+  const _SentenceRow({
+    super.key,
+    required this.index,
+    required this.text,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  final int index;
+  final String text;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  @override
+  State<_SentenceRow> createState() => _SentenceRowState();
+}
+
+class _SentenceRowState extends State<_SentenceRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadii.card),
+          onTap: widget.onTap,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(4, 6, 4, 6),
+            decoration: BoxDecoration(
+              color: semantic.raised,
+              borderRadius: BorderRadius.circular(AppRadii.card),
+              border: Border.all(
+                color: _hovered
+                    ? scheme.primary.withValues(alpha: 0.35)
+                    : semantic.line,
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ReorderableDragStartListener(
+                  index: widget.index,
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.grab,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 2, 4, 2),
+                      child: Icon(
+                        Icons.drag_indicator,
+                        size: 15,
+                        color: semantic.muted,
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 1),
+                    child: Text(
+                      widget.text,
+                      style: const TextStyle(fontSize: 13, height: 1.45),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                // Revealed on hover like the tag chip's own delete: a row per
+                // sentence with a permanent × reads as a list of warnings.
+                Opacity(
+                  opacity: _hovered ? 1 : 0,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, size: 14),
+                    tooltip: MaterialLocalizations.of(
+                      context,
+                    ).deleteButtonTooltip,
+                    color: semantic.muted,
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(
+                      minWidth: 26,
+                      minHeight: 26,
+                    ),
+                    padding: EdgeInsets.zero,
+                    onPressed: _hovered ? widget.onDelete : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The Anima Tag caption's natural-language part, edited as prose in its own
+/// strip under the tag grid.
+///
+/// Its controller is local so typing does not rebuild the tag grid on every
+/// keystroke; [didUpdateWidget] pulls in changes that came from elsewhere (a
+/// new image, an undo, an assistant write) and leaves the text alone while
+/// the field has focus, so a background write cannot move the caret.
+class _DescriptionField extends StatefulWidget {
+  const _DescriptionField({required this.value, required this.onChanged});
+
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_DescriptionField> createState() => _DescriptionFieldState();
+}
+
+class _DescriptionFieldState extends State<_DescriptionField> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.value,
+  );
+  final FocusNode _focus = FocusNode();
+
+  @override
+  void didUpdateWidget(_DescriptionField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != _controller.text && !_focus.hasFocus) {
+      _controller.text = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Tooltip(
+            message: l10n.captionDescriptionTooltip,
+            waitDuration: const Duration(milliseconds: 600),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.subject, size: 13, color: scheme.primary),
+                const SizedBox(width: 5),
+                Text(
+                  l10n.captionDescriptionLabel,
+                  style: TextStyle(
+                    fontSize: AppText.small,
+                    color: semantic.muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          TextField(
+            controller: _controller,
+            focusNode: _focus,
+            minLines: 2,
+            maxLines: 3,
+            style: const TextStyle(fontSize: 13, height: 1.45),
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: l10n.captionDescriptionHint,
+              hintStyle: TextStyle(
+                fontSize: AppText.secondary,
+                color: semantic.muted,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 8,
+              ),
+            ),
+            onChanged: widget.onChanged,
+          ),
+        ],
+      ),
     );
   }
 }

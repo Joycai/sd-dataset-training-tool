@@ -481,11 +481,24 @@ class TagOps extends ChangeNotifier {
           );
           continue;
         }
-        final tags = parseCaptionText(before, format: dataset.captionFormat);
-        final next = transform(tags);
+        final parts = parseCaptionText(before, format: dataset.captionFormat);
+        // An Anima Tag caption's natural-language tail is not a tag: it must
+        // not be matched by a replace, land in a sort bucket, or push an
+        // "insert at the end" past itself. Holding it aside means every
+        // transform below sees a plain tag list and cannot reach it.
+        final split = dataset.captionFormat == CaptionFormat.animaTag
+            ? splitAnimaParts(parts)
+            : (tags: parts, nl: null);
+        final tags = split.tags;
+        final nl = split.nl;
+        final rewritten = transform(tags);
         // No semantic change: don't rewrite the file just to normalize
         // separators.
-        if (next == null || listEquals(next, tags)) continue;
+        if (rewritten == null || listEquals(rewritten, tags)) continue;
+        final next = [
+          ...rewritten,
+          if (nl != null) '$animaNlPrefix$nl',
+        ];
         final after = joinCaptionText(next, format: dataset.captionFormat);
         try {
           await captionFile.writeAsString(after);
