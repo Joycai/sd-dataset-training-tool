@@ -878,7 +878,20 @@
   "dictTranslationHint": "Shown beside the tag in the UI",
   "dictNoteLabel": "Note",
   "dictNoteHint": "What the tag actually means, when the translation alone is ambiguous",
-  "dictClearFieldHint": "Emptying the translation field deletes the translation.",
+  "dictDeleteHint": "An empty field is not saved; use the button below to delete a translation.",
+  "dictDeleteTranslationAction": "Delete translation",
+  "dictDeleteTranslationConfirm": "Delete the translation for \"{tag}\"? The tag goes back to showing its own name.",
+  "@dictDeleteTranslationConfirm": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+  "dictRemoveCustomConfirm": "Remove \"{tag}\" from the dictionary? It will no longer be offered in autocomplete; its translation is kept.",
+  "@dictRemoveCustomConfirm": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
   "dictCustomBadge": "added",
   "dictOrphanBadge": "unknown tag",
   "dictCategoryAndCount": "{category} · {count} posts",

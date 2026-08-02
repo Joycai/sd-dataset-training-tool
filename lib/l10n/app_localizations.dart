@@ -3029,11 +3029,29 @@ abstract class AppLocalizations {
   /// **'What the tag actually means, when the translation alone is ambiguous'**
   String get dictNoteHint;
 
-  /// No description provided for @dictClearFieldHint.
+  /// No description provided for @dictDeleteHint.
   ///
   /// In en, this message translates to:
-  /// **'Emptying the translation field deletes the translation.'**
-  String get dictClearFieldHint;
+  /// **'An empty field is not saved; use the button below to delete a translation.'**
+  String get dictDeleteHint;
+
+  /// No description provided for @dictDeleteTranslationAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete translation'**
+  String get dictDeleteTranslationAction;
+
+  /// No description provided for @dictDeleteTranslationConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the translation for \"{tag}\"? The tag goes back to showing its own name.'**
+  String dictDeleteTranslationConfirm(String tag);
+
+  /// No description provided for @dictRemoveCustomConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{tag}\" from the dictionary? It will no longer be offered in autocomplete; its translation is kept.'**
+  String dictRemoveCustomConfirm(String tag);
 
   /// No description provided for @dictCustomBadge.
   ///

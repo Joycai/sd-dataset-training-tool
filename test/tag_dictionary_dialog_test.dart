@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart' show kSecondaryButton;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -18,6 +19,7 @@ import 'package:dataset_training_tool/services/tag_dictionary_service.dart';
 import 'package:dataset_training_tool/services/tag_translation_service.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/views/panels/tag_dictionary_dialog.dart';
+import 'package:dataset_training_tool/widgets/panel_widgets.dart';
 import 'package:dataset_training_tool/widgets/tag_gloss.dart';
 
 const _csv = '''
@@ -201,25 +203,177 @@ void main() {
     expect(find.text('长发'), findsWidgets);
   });
 
-  testWidgets('emptying the field deletes the translation', (tester) async {
+  group('the toolbar band', () {
+    /// The band is one row by construction — the search field's vertical
+    /// centre used to move when the controls wrapped to a second line — so
+    /// every width it can get has to fit, with the surplus in the menu.
+    for (final width in const [1400.0, 1000.0, 820.0, 680.0, 560.0, 460.0]) {
+      testWidgets('holds one line at ${width.toInt()}px', (tester) async {
+        addTearDown(tester.view.reset);
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(width, 760);
+
+        await tester.runAsync(() => prepare());
+        // The widest the strip ever gets: four filters plus both actions.
+        await open(
+          tester,
+          workbench: const TagDictionaryScope(
+            imageTags: ['long_hair'],
+            datasetTags: ['long_hair'],
+            datasetUsage: {'long hair': 1},
+            imageCount: 1,
+          ),
+        );
+
+        // An overflow would already have thrown; this pins the row down.
+        // Whatever survived on the strip has to share the search field's
+        // midline — the wrap this replaced pushed it up half a line.
+        final search = tester.getRect(find.byType(PanelSearchField));
+        final probes = <Finder>[
+          for (final label in const ['All', 'Untranslated'])
+            if (find.text(label).evaluate().isNotEmpty) find.text(label),
+          if (find.byIcon(Icons.more_horiz).evaluate().isNotEmpty)
+            find.byIcon(Icons.more_horiz),
+        ];
+        expect(probes, isNotEmpty);
+        for (final probe in probes) {
+          expect(
+            tester.getRect(probe).center.dy,
+            closeTo(search.center.dy, 1),
+            reason: 'a control left the search field\'s midline',
+          );
+        }
+      });
+    }
+
+    testWidgets('what does not fit is reachable from the menu', (tester) async {
+      addTearDown(tester.view.reset);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(560, 760);
+
+      await tester.runAsync(() => prepare());
+      await open(tester);
+
+      // The two actions are dropped first: each is reachable another way,
+      // while the filters steer the list.
+      expect(find.text('New tag'), findsNothing);
+      await tester.tap(find.byIcon(Icons.more_horiz));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('New tag'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('New custom tag'), findsOneWidget);
+    });
+  });
+
+  testWidgets('the save row does not move as the line beside it changes', (
+    tester,
+  ) async {
     await tester.runAsync(
       () => prepare(
-        glossary: const [TagTranslation(tag: 'long_hair', text: '长发')],
+        glossary: const [
+          // An entry the user did not write, so typing over it flips the
+          // provenance and raises the note this test is about.
+          TagTranslation(
+            tag: 'long_hair',
+            text: '长发',
+            source: TagTranslationSource.llm,
+          ),
+        ],
       ),
     );
     await open(tester, initialTag: 'long_hair');
 
+    final before = tester.getRect(find.widgetWithText(FilledButton, 'Save'));
+    // Typing raises a "saving makes it X" note next to the source badge. The
+    // buttons used to be one flex child among three and slid left when it did.
     await tester.enterText(
       find.widgetWithText(TextField, 'Shown beside the tag in the UI'),
-      '',
+      '长长的头发',
     );
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await tester.pumpAndSettle();
 
-    // One action, one meaning: there is no separate delete button, so an empty
-    // field must not persist as a blank gloss on every chip.
-    expect(appState.tagTranslations.has('long_hair'), isFalse);
+    expect(find.textContaining('saving makes it'), findsOneWidget);
+    expect(tester.getRect(find.widgetWithText(FilledButton, 'Save')), before);
+  });
+
+  group('deleting', () {
+    Future<void> openTranslated(WidgetTester tester) async {
+      await tester.runAsync(
+        () => prepare(
+          glossary: const [TagTranslation(tag: 'long_hair', text: '长发')],
+        ),
+      );
+      await open(tester, initialTag: 'long_hair');
+    }
+
+    testWidgets('emptying the field is not a delete', (tester) async {
+      await openTranslated(tester);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Shown beside the tag in the UI'),
+        '',
+      );
+      await tester.pump();
+
+      // Deleting by clearing meant a select-all-and-retype that ended up empty
+      // silently dropped a translation. Saving is simply not offered instead.
+      final save = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Save'),
+      );
+      expect(save.onPressed, isNull);
+      expect(appState.tagTranslations.has('long_hair'), isTrue);
+    });
+
+    testWidgets('the explicit delete asks before it acts', (tester) async {
+      await openTranslated(tester);
+
+      await tapInForm(
+        tester,
+        find.widgetWithText(OutlinedButton, 'Delete translation'),
+      );
+      // Nothing is gone until the question is answered.
+      expect(appState.tagTranslations.has('long_hair'), isTrue);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+      expect(appState.tagTranslations.has('long_hair'), isTrue);
+
+      await tapInForm(
+        tester,
+        find.widgetWithText(OutlinedButton, 'Delete translation'),
+      );
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.pumpAndSettle();
+      expect(appState.tagTranslations.has('long_hair'), isFalse);
+    });
+
+    testWidgets('a row offers its deletions on right-click', (tester) async {
+      await openTranslated(tester);
+
+      // Reached without selecting the row first, which is what makes clearing
+      // out a batch of stray entries bearable.
+      await tester.tapAt(
+        tester.getCenter(
+          // The gloss shows in the list row and in the editor field alike.
+          find.descendant(of: find.byType(ListView), matching: find.text('长发')),
+        ),
+        buttons: kSecondaryButton,
+      );
+      await tester.pumpAndSettle();
+      // The editor behind the menu offers the same action under the same name.
+      await tester.tap(
+        find.descendant(
+          of: find.byType(PopupMenuItem<String>),
+          matching: find.text('Delete translation'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(appState.tagTranslations.has('long_hair'), isFalse);
+    });
   });
 
   testWidgets('an unreadable glossary file says so instead of looking empty', (
@@ -429,6 +583,12 @@ void main() {
       await tester.runAsync(() => prepare());
       await open(tester, workbench: workbench());
 
+      // The strip gives way to an overflow menu on a narrow window, and the
+      // test font is wide enough to trigger it at the default surface size.
+      if (find.text('This image 2').evaluate().isEmpty) {
+        await tester.tap(find.byIcon(Icons.more_horiz));
+        await tester.pumpAndSettle();
+      }
       await tester.tap(find.text('This image 2'));
       await tester.pumpAndSettle();
 
@@ -525,9 +685,11 @@ void main() {
     );
     await open(tester, initialTag: 'my_oc');
 
-    await tester.tap(
+    await tapInForm(
+      tester,
       find.widgetWithText(OutlinedButton, 'Remove from dictionary'),
     );
+    await tester.tap(find.widgetWithText(TextButton, 'Delete'));
     await tester.pumpAndSettle();
 
     expect(appState.tagDictionary.customEntries, isEmpty);

@@ -1627,7 +1627,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dictNoteHint => '译文本身不够清楚时，说明这个标签到底指什么';
 
   @override
-  String get dictClearFieldHint => '清空译文输入框即可删除该翻译。';
+  String get dictDeleteHint => '留空不会保存；要删除译文请用下方的按钮。';
+
+  @override
+  String get dictDeleteTranslationAction => '删除译文';
+
+  @override
+  String dictDeleteTranslationConfirm(String tag) {
+    return '删除「$tag」的译文？该标签会恢复显示原文。';
+  }
+
+  @override
+  String dictRemoveCustomConfirm(String tag) {
+    return '把「$tag」从词典中移除？它将不再出现在自动补全里；已填写的译文会保留。';
+  }
 
   @override
   String get dictCustomBadge => '自定义';

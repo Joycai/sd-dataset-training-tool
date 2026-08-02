@@ -1681,8 +1681,21 @@ class AppLocalizationsEn extends AppLocalizations {
       'What the tag actually means, when the translation alone is ambiguous';
 
   @override
-  String get dictClearFieldHint =>
-      'Emptying the translation field deletes the translation.';
+  String get dictDeleteHint =>
+      'An empty field is not saved; use the button below to delete a translation.';
+
+  @override
+  String get dictDeleteTranslationAction => 'Delete translation';
+
+  @override
+  String dictDeleteTranslationConfirm(String tag) {
+    return 'Delete the translation for \"$tag\"? The tag goes back to showing its own name.';
+  }
+
+  @override
+  String dictRemoveCustomConfirm(String tag) {
+    return 'Remove \"$tag\" from the dictionary? It will no longer be offered in autocomplete; its translation is kept.';
+  }
 
   @override
   String get dictCustomBadge => 'added';

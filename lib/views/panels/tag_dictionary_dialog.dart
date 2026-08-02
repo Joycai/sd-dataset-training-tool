@@ -383,12 +383,10 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
     TagTranslationSource source,
   ) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty) {
-      // Clearing the field is how a translation is deleted; a separate empty
-      // entry would render as a blank gloss on every chip.
-      await _glossary.remove([tag]);
-      return;
-    }
+    // An empty field is "nothing to save", not "delete it". Deleting used to
+    // ride on this, which meant a select-all-and-type that ended up empty
+    // silently dropped a translation; it is now its own confirmed action.
+    if (trimmed.isEmpty) return;
     await _glossary.upsert(
       TagTranslation(
         tag: tag,
@@ -477,7 +475,60 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
     _snack(l10n.dictCollectedCount(entries.length));
   }
 
+  // --- Deleting ----------------------------------------------------------
+  //
+  // Both of these throw away something the user typed and neither is undoable,
+  // so both ask first. They are separate questions: a translation can be wrong
+  // for a tag that still belongs in the dictionary, and a hand-added tag can be
+  // a mistake while its translation was fine.
+
+  /// Yes/no, with [action] as both the title and the confirming button — the
+  /// button that performs a delete should say which delete.
+  Future<bool> _confirmDestructive(String action, String message) async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(action),
+        content: SizedBox(width: 360, child: Text(message)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            child: Text(l10n.delete),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
+  Future<void> _deleteTranslation(String tag) async {
+    final l10n = AppLocalizations.of(context)!;
+    if (!await _confirmDestructive(
+      l10n.dictDeleteTranslationAction,
+      l10n.dictDeleteTranslationConfirm(tag),
+    )) {
+      return;
+    }
+    await _glossary.remove([tag]);
+    if (mounted) setState(() {});
+  }
+
   Future<void> _removeCustomTag(String tag) async {
+    final l10n = AppLocalizations.of(context)!;
+    if (!await _confirmDestructive(
+      l10n.dictRemoveCustomAction,
+      l10n.dictRemoveCustomConfirm(tag),
+    )) {
+      return;
+    }
     final key = tagLookupKey(tag);
     final dictionary = _dictionary;
     await dictionary.setCustomEntries([
@@ -485,6 +536,57 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
         if (tagLookupKey(entry.name) != key) entry,
     ]);
     if (mounted) setState(() {});
+  }
+
+  /// A row's own menu: the two deletions, offered only where they apply.
+  ///
+  /// Right-click reaches them without selecting the row first, which is what
+  /// makes clearing out a batch of stray entries bearable.
+  Future<void> _showRowMenu(Offset position, _DictRow row) async {
+    final l10n = AppLocalizations.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+    final items = [
+      if (row.orphan)
+        panelMenuItem(
+          context: context,
+          value: 'collect',
+          icon: Icons.library_add_outlined,
+          label: l10n.dictCollectAction,
+        ),
+      if (row.translation != null)
+        panelMenuItem(
+          context: context,
+          value: 'translation',
+          icon: Icons.translate,
+          label: l10n.dictDeleteTranslationAction,
+          color: scheme.error,
+        ),
+      if (row.custom)
+        panelMenuItem(
+          context: context,
+          value: 'entry',
+          icon: Icons.delete_outline,
+          label: l10n.dictRemoveCustomAction,
+          color: scheme.error,
+        ),
+    ];
+    // A dictionary row the user has neither translated nor added has nothing
+    // to delete; an empty menu is worse than none.
+    if (items.isEmpty) return;
+    final action = await showPanelContextMenu<String>(
+      context: context,
+      position: position,
+      items: items,
+    );
+    if (action == null || !mounted) return;
+    switch (action) {
+      case 'collect':
+        await _collectMissing([row.tag]);
+      case 'translation':
+        await _deleteTranslation(row.tag);
+      case 'entry':
+        await _removeCustomTag(row.tag);
+    }
   }
 
   // --- Danbooru lookup ---------------------------------------------------
@@ -638,16 +740,22 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
                       onCollect: (tag) => _collectMissing([tag]),
                     ),
                   Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          width: 296,
-                          child: _list(l10n, semantic, rows),
-                        ),
-                        Container(width: 1, color: semantic.line),
-                        Expanded(child: _rightPane(l10n, semantic)),
-                      ],
+                    child: LayoutBuilder(
+                      builder: (context, area) => Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(
+                            // A fixed 296 leaves a shrunken window's editor
+                            // with nothing to lay out in. The list is the
+                            // cheaper of the two to narrow, but only down to
+                            // where a tag and its gloss still read.
+                            width: (area.maxWidth * 0.36).clamp(200.0, 296.0),
+                            child: _list(l10n, semantic, rows),
+                          ),
+                          Container(width: 1, color: semantic.line),
+                          Expanded(child: _rightPane(l10n, semantic)),
+                        ],
+                      ),
                     ),
                   ),
                   _footer(l10n, semantic),
@@ -750,67 +858,58 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: semantic.line)),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: PanelSearchField(
-                hint: l10n.dictSearchHint,
-                controller: _searchController,
-                padding: EdgeInsets.zero,
-                onChanged: (value) => setState(() => _query = value),
-              ),
-            ),
-            const SizedBox(width: 10),
-            // A Wrap, not a Row: equal-width segments would waste half the
-            // strip on "All", and localized labels plus four counts overrun a
-            // fixed row long before the window gets small. Flexible so the
-            // search field keeps half the band whatever the labels say.
-            Flexible(
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final (filter, label) in _filterLabels(l10n))
-                    FilterChipPill(
-                      label: label,
-                      selected: _filter == filter,
-                      onTap: () => setState(() => _filter = filter),
-                    ),
-                  _ToolbarButton(
-                    icon: Icons.add,
-                    label: l10n.dictNewTagAction,
-                    accent: true,
-                    onTap: () => setState(() => _pane = _DictPane.newTag),
-                  ),
-                  _ToolbarButton(
-                    icon: Icons.cloud_download_outlined,
-                    label: l10n.dictFetchSourceName,
-                    busy: _fetching,
-                    onTap: () => setState(() => _pane = _DictPane.fetch),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        child: _ToolbarStrip(
+          search: PanelSearchField(
+            hint: l10n.dictSearchHint,
+            controller: _searchController,
+            padding: EdgeInsets.zero,
+            onChanged: (value) => setState(() => _query = value),
+          ),
+          entries: _toolbarEntries(l10n),
+          overflowTooltip: l10n.moreActionsTooltip,
         ),
       );
 
-  /// The filter strip, with the counts that make each one worth clicking.
-  /// "This image" disappears when the dialog was opened without a workbench
-  /// behind it — an always-empty filter is a dead control.
-  List<(_DictFilter, String)> _filterLabels(AppLocalizations l10n) => [
-    (_DictFilter.all, l10n.dictFilterAll),
-    if (widget.scope.imageTags.isNotEmpty)
-      (
-        _DictFilter.thisImage,
-        l10n.dictFilterThisImage(widget.scope.imageTags.length),
-      ),
-    (_DictFilter.untranslated, l10n.dictUntranslated),
-    (
-      _DictFilter.custom,
-      l10n.dictFilterCustom(_dictionary.customEntries.length),
+  /// Everything on the toolbar's right-hand side, in the order it should be
+  /// given up when the window is too narrow to hold it all.
+  ///
+  /// The filter group leads because it steers the list; the two actions trail
+  /// because each is reachable another way (the fetch pane also opens from a
+  /// tag's context menu, and adding a tag is not a per-second act).
+  List<_ToolbarEntry> _toolbarEntries(AppLocalizations l10n) => [
+    _ToolbarEntry.segments([
+      // "This image" disappears when the dialog was opened without a workbench
+      // behind it — an always-empty filter is a dead control.
+      for (final (filter, label) in <(_DictFilter, String)>[
+        (_DictFilter.all, l10n.dictFilterAll),
+        if (widget.scope.imageTags.isNotEmpty)
+          (
+            _DictFilter.thisImage,
+            l10n.dictFilterThisImage(widget.scope.imageTags.length),
+          ),
+        (_DictFilter.untranslated, l10n.dictUntranslated),
+        (
+          _DictFilter.custom,
+          l10n.dictFilterCustom(_dictionary.customEntries.length),
+        ),
+      ])
+        _ToolbarSegment(
+          label: label,
+          selected: _filter == filter,
+          onTap: () => setState(() => _filter = filter),
+        ),
+    ]),
+    _ToolbarEntry.action(
+      icon: Icons.add,
+      label: l10n.dictNewTagAction,
+      accent: true,
+      onTap: () => setState(() => _pane = _DictPane.newTag),
+    ),
+    _ToolbarEntry.action(
+      icon: Icons.cloud_download_outlined,
+      label: l10n.dictFetchSourceName,
+      busy: _fetching,
+      onTap: () => setState(() => _pane = _DictPane.fetch),
     ),
   ];
 
@@ -870,6 +969,8 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
                         tagLookupKey(_selected ?? ''),
                     onTap: () => _select(rows[index].tag),
                     onCollect: () => _collectMissing([rows[index].tag]),
+                    onContextMenu: (position) =>
+                        _showRowMenu(position, rows[index]),
                   ),
                 ),
         ),
@@ -940,6 +1041,7 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
           onSave: (text, note, source) =>
               _saveTranslation(selected, text, note, source),
           onFetch: () => _lookup(selected),
+          onDeleteTranslation: () => _deleteTranslation(selected),
           onRemoveCustom: () => _removeCustomTag(selected),
           // Only offered when danbooru has the tag and this dictionary does
           // not — otherwise there is nothing to add.
@@ -969,28 +1071,38 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
                 ),
               ),
             ),
-            TextButton.icon(
-              onPressed: _clearMachineTranslations,
-              icon: const Icon(Icons.auto_awesome_outlined, size: 14),
-              label: Text(
-                l10n.dictClearAiAction,
-                style: const TextStyle(fontSize: AppText.secondary),
-              ),
-            ),
-            TextButton.icon(
-              onPressed: _import,
-              icon: const Icon(Icons.file_download_outlined, size: 14),
-              label: Text(
-                l10n.dictImportAction,
-                style: const TextStyle(fontSize: AppText.secondary),
-              ),
-            ),
-            TextButton.icon(
-              onPressed: _glossary.isEmpty ? null : _export,
-              icon: const Icon(Icons.file_upload_outlined, size: 14),
-              label: Text(
-                l10n.dictExportAction,
-                style: const TextStyle(fontSize: AppText.secondary),
+            // Wrapped, not fixed: three localized labels are wider than a
+            // shrunken window, and these are the actions the footer is for.
+            Flexible(
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  TextButton.icon(
+                    onPressed: _clearMachineTranslations,
+                    icon: const Icon(Icons.auto_awesome_outlined, size: 14),
+                    label: Text(
+                      l10n.dictClearAiAction,
+                      style: const TextStyle(fontSize: AppText.secondary),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _import,
+                    icon: const Icon(Icons.file_download_outlined, size: 14),
+                    label: Text(
+                      l10n.dictImportAction,
+                      style: const TextStyle(fontSize: AppText.secondary),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _glossary.isEmpty ? null : _export,
+                    icon: const Icon(Icons.file_upload_outlined, size: 14),
+                    label: Text(
+                      l10n.dictExportAction,
+                      style: const TextStyle(fontSize: AppText.secondary),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -1038,6 +1150,7 @@ class _DictRowTile extends StatelessWidget {
     required this.selected,
     required this.onTap,
     required this.onCollect,
+    required this.onContextMenu,
   });
 
   final _DictRow row;
@@ -1046,6 +1159,9 @@ class _DictRowTile extends StatelessWidget {
 
   /// Takes an orphan row into the dictionary as a custom entry.
   final VoidCallback onCollect;
+
+  /// Right-click: the row's deletions, without selecting it first.
+  final ValueChanged<Offset> onContextMenu;
 
   /// The second line: the translation when there is one, and otherwise what
   /// the row is instead — untranslated, unknown, or both.
@@ -1074,6 +1190,9 @@ class _DictRowTile extends StatelessWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onTap,
+          onSecondaryTapDown: (details) =>
+              onContextMenu(details.globalPosition),
+          onLongPressStart: (details) => onContextMenu(details.globalPosition),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
             decoration: BoxDecoration(
@@ -1398,6 +1517,7 @@ class _TranslationForm extends StatefulWidget {
     required this.glossaryLanguage,
     required this.onSave,
     required this.onFetch,
+    required this.onDeleteTranslation,
     required this.onRemoveCustom,
     required this.onAddFromDanbooru,
   });
@@ -1427,6 +1547,11 @@ class _TranslationForm extends StatefulWidget {
   )
   onSave;
   final Future<void> Function() onFetch;
+
+  /// Both confirm before they act, and both live on the host: the dialog owns
+  /// the two stores, and this form is rebuilt from scratch whenever either
+  /// changes.
+  final Future<void> Function() onDeleteTranslation;
   final Future<void> Function() onRemoveCustom;
 
   /// Null when there is nothing to add — the dictionary already has the tag.
@@ -1680,25 +1805,20 @@ class _TranslationFormState extends State<_TranslationForm> {
               hintText: l10n.dictTranslationHint,
               isDense: true,
             ),
-            onChanged: (_) {
+            // Every keystroke, not only the first: the save button now also
+            // watches whether the field is empty.
+            onChanged: (_) => setState(() {
+              _dirty = true;
               // Typing over danbooru's or the model's own wording makes the
               // entry the user's again, so a later "clear fetched translations"
               // leaves it alone.
-              if (!_dirty || _source != TagTranslationSource.manual) {
-                setState(() {
-                  _dirty = true;
-                  _source = TagTranslationSource.manual;
-                });
-              }
-            },
+              _source = TagTranslationSource.manual;
+            }),
             onSubmitted: (_) => _save(),
           ),
           const SizedBox(height: 5),
-          // Clearing the field is the documented way to delete a translation,
-          // so there is no separate delete button for it — one action, one
-          // meaning.
           Text(
-            l10n.dictClearFieldHint,
+            l10n.dictDeleteHint,
             style: TextStyle(fontSize: AppText.micro, color: semantic.muted),
           ),
           const SizedBox(height: 12),
@@ -1719,30 +1839,41 @@ class _TranslationFormState extends State<_TranslationForm> {
           const SizedBox(height: 14),
           Row(
             children: [
-              if (entry != null) ...[
-                Flexible(
-                  child: _Badge(
-                    label: _sourceLabel(l10n, entry.source),
-                    color: entry.source == TagTranslationSource.manual
-                        ? semantic.muted
-                        : scheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (_dirty && _source != entry.source)
-                  Flexible(
-                    child: Text(
-                      l10n.dictSourceBecomes(_sourceLabel(l10n, _source)),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: AppText.micro,
-                        color: semantic.muted,
+              // One Expanded holding the whole provenance line, so the two
+              // buttons stay pinned to the right edge instead of drifting as
+              // that line grows and shrinks. The Spacer this replaces was one
+              // flex child among three, which handed it a third of the slack
+              // and moved the buttons on every rebuild.
+              Expanded(
+                child: Row(
+                  children: [
+                    if (entry != null) ...[
+                      Flexible(
+                        child: _Badge(
+                          label: _sourceLabel(l10n, entry.source),
+                          color: entry.source == TagTranslationSource.manual
+                              ? semantic.muted
+                              : scheme.primary,
+                        ),
                       ),
-                    ),
-                  ),
-              ],
-              const Spacer(),
+                      const SizedBox(width: 8),
+                      if (_dirty && _source != entry.source)
+                        Flexible(
+                          child: Text(
+                            l10n.dictSourceBecomes(_sourceLabel(l10n, _source)),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: AppText.micro,
+                              color: semantic.muted,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
               TextButton(
                 onPressed: _dirty ? _revert : null,
                 style: TextButton.styleFrom(
@@ -1755,7 +1886,11 @@ class _TranslationFormState extends State<_TranslationForm> {
               ),
               const SizedBox(width: 6),
               FilledButton(
-                onPressed: _dirty ? _save : null,
+                // An empty field no longer means "delete"; with nothing to
+                // write, saving would be a no-op that looks like a success.
+                onPressed: _dirty && _text.text.trim().isNotEmpty
+                    ? _save
+                    : null,
                 style: FilledButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   minimumSize: const Size(0, 30),
@@ -1767,22 +1902,44 @@ class _TranslationFormState extends State<_TranslationForm> {
               ),
             ],
           ),
-          if (widget.custom) ...[
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: widget.onRemoveCustom,
-                icon: const Icon(Icons.remove_circle_outline, size: 14),
-                label: Text(
-                  l10n.dictRemoveCustomAction,
-                  style: const TextStyle(fontSize: AppText.secondary),
-                ),
-                style: OutlinedButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  foregroundColor: scheme.error,
-                ),
-              ),
+          if (entry != null || widget.custom) ...[
+            const SizedBox(height: 14),
+            Container(height: 1, color: semantic.line),
+            const SizedBox(height: 10),
+            // Two separate questions, so two separate buttons: a translation
+            // can be wrong for a tag that still belongs in the dictionary, and
+            // a hand-added tag can be a mistake while its translation was fine.
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                if (entry != null)
+                  OutlinedButton.icon(
+                    onPressed: widget.onDeleteTranslation,
+                    icon: const Icon(Icons.translate, size: 14),
+                    label: Text(
+                      l10n.dictDeleteTranslationAction,
+                      style: const TextStyle(fontSize: AppText.secondary),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      foregroundColor: scheme.error,
+                    ),
+                  ),
+                if (widget.custom)
+                  OutlinedButton.icon(
+                    onPressed: widget.onRemoveCustom,
+                    icon: const Icon(Icons.delete_outline, size: 14),
+                    label: Text(
+                      l10n.dictRemoveCustomAction,
+                      style: const TextStyle(fontSize: AppText.secondary),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      foregroundColor: scheme.error,
+                    ),
+                  ),
+              ],
             ),
           ],
           if (widget.info case final info?) ...[
@@ -2043,24 +2200,30 @@ class _NewTagFormState extends State<_NewTagForm> {
         children: [
           Row(
             children: [
-              Text(
-                l10n.dictNewTagTitle,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+              Flexible(
+                child: Text(
+                  l10n.dictNewTagTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               const SizedBox(width: 9),
-              Expanded(
+              Flexible(
                 child: Text(
                   l10n.dictNewTagDesc,
                   maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: AppText.micro,
                     color: semantic.muted,
                   ),
                 ),
               ),
+              const Spacer(),
               PanelIconButton(
                 icon: Icons.close,
                 tooltip: l10n.cancel,
@@ -2651,6 +2814,341 @@ class _MiniAction extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Width of [label] as this toolbar will draw it.
+///
+/// Always measured at the *selected* weight, whatever the segment's current
+/// state: a control that grew by two pixels every time it was clicked would
+/// nudge its neighbours on every click.
+double _labelWidth(BuildContext context, String label) {
+  final painter = TextPainter(
+    text: TextSpan(
+      text: label,
+      style: DefaultTextStyle.of(context).style.merge(
+        const TextStyle(
+          fontSize: AppText.secondary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    ),
+    textDirection: Directionality.of(context),
+    maxLines: 1,
+  )..layout();
+  return painter.width;
+}
+
+/// One choice inside the filter group.
+class _ToolbarSegment {
+  const _ToolbarSegment({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  /// 11px of padding a side around the label.
+  double width(BuildContext context) => _labelWidth(context, label) + 22;
+}
+
+/// One control on the toolbar's right-hand side, in whichever of its two
+/// shapes: the filter group, or an icon action.
+class _ToolbarEntry {
+  const _ToolbarEntry.segments(this.segments)
+    : icon = null,
+      label = '',
+      accent = false,
+      busy = false,
+      onTap = null;
+
+  const _ToolbarEntry.action({
+    required IconData this.icon,
+    required this.label,
+    required VoidCallback this.onTap,
+    this.accent = false,
+    this.busy = false,
+  }) : segments = const [];
+
+  /// Non-empty for the filter group, which moves as one: half a segmented
+  /// control is not a control.
+  final List<_ToolbarSegment> segments;
+
+  final IconData? icon;
+  final String label;
+  final bool accent;
+  final bool busy;
+  final VoidCallback? onTap;
+
+  bool get isSegments => segments.isNotEmpty;
+
+  /// What this control will measure once built, so the strip can decide what
+  /// fits before building anything. An action adds a 13px icon and its 6px
+  /// gap to 11px of padding and a 1px border a side; the group adds the 2px
+  /// inset of its slot.
+  double width(BuildContext context) => isSegments
+      ? segments.fold(0.0, (sum, s) => sum + s.width(context)) + 4
+      : _labelWidth(context, label) + 43;
+}
+
+/// The toolbar band: a search field that takes the slack, and as many controls
+/// beside it as the window can hold.
+///
+/// One row, always — the previous `Wrap` grew a second line on a narrow window
+/// and took the search field's vertical centre with it. What no longer fits
+/// moves into an overflow menu instead, so the band keeps one baseline at
+/// every width.
+class _ToolbarStrip extends StatelessWidget {
+  const _ToolbarStrip({
+    required this.search,
+    required this.entries,
+    required this.overflowTooltip,
+  });
+
+  final Widget search;
+  final List<_ToolbarEntry> entries;
+  final String overflowTooltip;
+
+  /// The search field is never squeezed below this; past it the controls give
+  /// way instead, because a two-character search box is not a search box.
+  static const double _searchMin = 190;
+  static const double _gap = 6;
+  static const double _searchGap = 10;
+  static const double _overflowWidth = 32;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final widths = [for (final entry in entries) entry.width(context)];
+      final budget = constraints.maxWidth - _searchMin - _searchGap;
+
+      double widthFor(int count, {required bool withOverflow}) {
+        var width = count == 0
+            ? 0.0
+            : widths.take(count).fold(0.0, (a, b) => a + b) +
+                  _gap * (count - 1);
+        if (withOverflow) width += (count == 0 ? 0 : _gap) + _overflowWidth;
+        return width;
+      }
+
+      var visible = entries.length;
+      if (widthFor(visible, withOverflow: false) > budget) {
+        // Drop from the end — the list order is the give-up order — until what
+        // is left plus the overflow button fits.
+        visible = entries.length - 1;
+        while (visible > 0 && widthFor(visible, withOverflow: true) > budget) {
+          visible--;
+        }
+      }
+
+      return Row(
+        children: [
+          Expanded(child: search),
+          const SizedBox(width: _searchGap),
+          for (final (index, entry) in entries.take(visible).indexed) ...[
+            if (index > 0) const SizedBox(width: _gap),
+            _ToolbarEntryView(entry: entry),
+          ],
+          if (visible < entries.length) ...[
+            if (visible > 0) const SizedBox(width: _gap),
+            _ToolbarOverflowButton(
+              entries: entries.sublist(visible),
+              tooltip: overflowTooltip,
+            ),
+          ],
+        ],
+      );
+    },
+  );
+}
+
+/// Renders one [_ToolbarEntry] in its own shape.
+class _ToolbarEntryView extends StatelessWidget {
+  const _ToolbarEntryView({required this.entry});
+
+  final _ToolbarEntry entry;
+
+  @override
+  Widget build(BuildContext context) => entry.isSegments
+      ? _FilterSegments(segments: entry.segments)
+      : _ToolbarButton(
+          icon: entry.icon!,
+          label: entry.label,
+          accent: entry.accent,
+          busy: entry.busy,
+          onTap: entry.onTap!,
+        );
+}
+
+/// The filter group: one recessed slot holding the four views of the list,
+/// with the active one raised out of it.
+///
+/// A segmented control rather than four pills, because these are four states
+/// of one thing — exactly one is always active — and pills say "toggles" to a
+/// reader. Not [SegmentedControl]: that one is equal-width, which is what
+/// makes its sliding thumb cheap, and here the labels carry counts and run
+/// from "All" to "Untranslated". Each segment is instead pinned to its own
+/// measured width so the group never resizes as the selection moves.
+class _FilterSegments extends StatelessWidget {
+  const _FilterSegments({required this.segments});
+
+  final List<_ToolbarSegment> segments;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final segment in segments)
+            _FilterSegment(segment: segment, width: segment.width(context)),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterSegment extends StatelessWidget {
+  const _FilterSegment({required this.segment, required this.width});
+
+  final _ToolbarSegment segment;
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final semantic = context.semantic;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: segment.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 170),
+          curve: Curves.easeOut,
+          width: width,
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: segment.selected ? semantic.raised : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppRadii.input),
+          ),
+          child: Text(
+            segment.label,
+            maxLines: 1,
+            style: TextStyle(
+              fontSize: AppText.secondary,
+              fontWeight: segment.selected ? FontWeight.w600 : FontWeight.w400,
+              color: segment.selected ? scheme.onSurface : semantic.muted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// What did not fit, in the app's own popup surface rather than Material's
+/// default one.
+class _ToolbarOverflowButton extends StatelessWidget {
+  const _ToolbarOverflowButton({required this.entries, required this.tooltip});
+
+  final List<_ToolbarEntry> entries;
+  final String tooltip;
+
+  /// The hidden controls flattened into menu rows: the filter group expands
+  /// into one row per segment, since a segmented control cannot be drawn in a
+  /// popup menu but its choices still have to be reachable.
+  List<VoidCallback> _actions() => [
+    for (final entry in entries)
+      if (entry.isSegments)
+        for (final segment in entry.segments) segment.onTap
+      else
+        entry.onTap!,
+  ];
+
+  Future<void> _show(BuildContext context) async {
+    final scheme = Theme.of(context).colorScheme;
+    final box = context.findRenderObject()! as RenderBox;
+    var index = 0;
+    final items = <PopupMenuEntry<int>>[];
+    for (final entry in entries) {
+      if (entry.isSegments) {
+        for (final segment in entry.segments) {
+          items.add(
+            panelMenuItem(
+              context: context,
+              value: index++,
+              icon: segment.selected ? Icons.check : Icons.filter_list_outlined,
+              label: segment.label,
+              color: segment.selected ? scheme.primary : null,
+            ),
+          );
+        }
+      } else {
+        items.add(
+          panelMenuItem(
+            context: context,
+            value: index++,
+            icon: entry.icon!,
+            label: entry.label,
+            color: entry.accent ? scheme.primary : null,
+          ),
+        );
+      }
+    }
+    final picked = await showPanelContextMenu<int>(
+      context: context,
+      position: box.localToGlobal(Offset(0, box.size.height + 4)),
+      items: items,
+    );
+    if (picked != null) _actions()[picked]();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    // A filter that is not "all" hiding in the menu has to say so from the
+    // outside, or the strip reads as if nothing were filtering the list.
+    final flagged = entries.any(
+      (e) => e.isSegments && !e.segments.first.selected,
+    );
+    final tint = flagged
+        ? Theme.of(context).colorScheme.primary
+        : semantic.muted;
+    return Tooltip(
+      message: tooltip,
+      child: Builder(
+        builder: (buttonContext) => MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _show(buttonContext),
+            child: Container(
+              width: _ToolbarStrip._overflowWidth,
+              height: 26,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: flagged ? tint.withValues(alpha: 0.5) : semantic.line,
+                ),
+                borderRadius: BorderRadius.circular(AppRadii.control),
+              ),
+              child: Icon(Icons.more_horiz, size: 15, color: tint),
+            ),
           ),
         ),
       ),
