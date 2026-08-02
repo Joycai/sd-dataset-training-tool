@@ -4,14 +4,24 @@ import 'package:dataset_training_tool/models/llm_models.dart';
 import 'package:dataset_training_tool/services/llm/llm_client.dart';
 import 'package:dataset_training_tool/services/tag_ai_group.dart';
 
-/// Answers each turn with the next scripted reply, in two deltas — a real
-/// stream never hands a JSON array over in one piece.
+/// Answers each turn with the next scripted reply.
+///
+/// [asToolCall] picks the channel: the service asks for a `file_tags` call and
+/// only falls back to assistant text, so both have to be exercised. Text
+/// replies arrive in two deltas — a real stream never hands a JSON array over
+/// in one piece.
 class _FakeLlm implements LlmClient {
-  _FakeLlm(this.replies);
+  _FakeLlm(this.replies, {this.asToolCall = false, this.finishReason = ''});
+
+  /// Answers via the `file_tags` tool call instead of assistant text.
+  _FakeLlm.toolCall(List<String> replies) : this(replies, asToolCall: true);
 
   final List<String> replies;
+  final bool asToolCall;
+  final String finishReason;
   final List<List<ChatMessage>> sent = [];
   final List<LlmProviderProfile> profiles = [];
+  final List<List<AgentToolSpec>> offeredTools = [];
   bool disposed = false;
 
   @override
@@ -24,10 +34,17 @@ class _FakeLlm implements LlmClient {
     final reply = replies[sent.length.clamp(0, replies.length - 1)];
     sent.add(messages);
     profiles.add(profile);
-    final cut = reply.length ~/ 2;
-    if (cut > 0) yield TextDelta(reply.substring(0, cut));
-    if (reply.length > cut) yield TextDelta(reply.substring(cut));
-    yield StreamDone();
+    offeredTools.add(tools);
+    if (asToolCall) {
+      yield ToolCallsReady([
+        ChatToolCall(id: 't1', name: 'file_tags', argumentsJson: reply),
+      ]);
+    } else {
+      final cut = reply.length ~/ 2;
+      if (cut > 0) yield TextDelta(reply.substring(0, cut));
+      if (reply.length > cut) yield TextDelta(reply.substring(cut));
+    }
+    yield StreamDone(finishReason: finishReason);
   }
 
   @override
@@ -131,6 +148,54 @@ void main() {
     // Skipped, but reported: an empty result that cannot say why is the bug
     // this callback exists for.
     expect(problems, [TagGroupBatchProblem.unparseable]);
+  });
+
+  group('the tool-call channel', () {
+    test('the request offers the file_tags tool', () async {
+      // Text-only answers are what a reasoning model behind a relay fails to
+      // deliver; the tool call is the channel this feature relies on.
+      final llm = _FakeLlm(['[]']);
+      await ask(llm, tags: ['boots']);
+      expect(llm.offeredTools.single.map((t) => t.name), ['file_tags']);
+    });
+
+    test('an answer arriving as tool arguments is read', () async {
+      final llm = _FakeLlm.toolCall([
+        '{"assignments":[{"tag":"boots","group":"鞋靴"}]}',
+      ]);
+      final out = await ask(llm, tags: ['boots']);
+      expect(out.single.group, '鞋靴');
+    });
+
+    test('tool arguments win over any accompanying text', () async {
+      final llm = _FakeLlm.toolCall([
+        '{"assignments":[{"tag":"boots","group":"鞋靴"}]}',
+      ]);
+      final out = await ask(llm, tags: ['boots']);
+      expect(out.single.tag, 'boots');
+    });
+
+    test(
+      'a model that ignores the tool and answers in text still lands',
+      () async {
+        final llm = _FakeLlm(['[{"tag":"boots","group":"鞋靴"}]']);
+        final out = await ask(llm, tags: ['boots']);
+        expect(out.single.group, '鞋靴');
+      },
+    );
+
+    test('truncated-by-budget is reported as its own problem', () async {
+      // finish_reason "length" means the answer ran out of output tokens —
+      // the user can fix that, but only if we say so.
+      final llm = _FakeLlm([''], finishReason: 'length');
+      final problems = <TagGroupBatchProblem>[];
+      await ask(
+        llm,
+        tags: ['boots'],
+        onBatchProblem: (p, _) => problems.add(p),
+      );
+      expect(problems, [TagGroupBatchProblem.truncated]);
+    });
   });
 
   test('a reply with no text at all is reported as such', () async {

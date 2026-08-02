@@ -101,7 +101,10 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
         },
         onBatchProblem: (problem, _) {
           switch (problem) {
+            // Both mean "the answer never arrived in full", and both are
+            // fixed the same way — a bigger output budget.
             case TagGroupBatchProblem.emptyReply:
+            case TagGroupBatchProblem.truncated:
               _emptyBatches++;
             case TagGroupBatchProblem.unparseable:
               _unreadableBatches++;
