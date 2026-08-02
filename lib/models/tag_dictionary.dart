@@ -36,6 +36,7 @@ class TagDictionaryEntry {
     // count. Every dictionary source supplies it explicitly.
     this.postCount = 0,
     this.aliases = const [],
+    this.autocomplete = true,
   });
 
   /// The canonical name in danbooru's own spelling — underscored, unescaped
@@ -53,11 +54,24 @@ class TagDictionaryEntry {
   /// dictionary carries these — the WD label file has no alias column.
   final List<String> aliases;
 
+  /// Whether the caption editor may offer this entry as a completion.
+  ///
+  /// Only a user-added entry can turn this off, and the reason is narrow but
+  /// real: a private tag worth *translating* is not always a tag worth
+  /// *suggesting*. Retired spellings and one-off dataset words belong in the
+  /// glossary so their gloss renders, and nowhere near the type-ahead. Always
+  /// true for entries parsed out of a dictionary CSV, which is the whole point
+  /// of downloading one.
+  final bool autocomplete;
+
   Map<String, dynamic> toJson() => {
     'name': name,
     'category': category.id,
     if (postCount != 0) 'count': postCount,
     if (aliases.isNotEmpty) 'aliases': aliases,
+    // Written only when off: the file stays as it was for every entry that
+    // predates this flag, and those all mean "yes".
+    if (!autocomplete) 'autocomplete': false,
   };
 
   /// Reads a user-added entry. Returns null for anything unusable so a
@@ -84,6 +98,10 @@ class TagDictionaryEntry {
                 if ('$a'.trim().isNotEmpty) '$a'.trim(),
             ]
           : const [],
+      // Absent means yes: every entry written before the flag existed was a
+      // completion candidate, and reading them as anything else would silently
+      // empty the user's type-ahead.
+      autocomplete: value['autocomplete'] != false,
     );
   }
 }

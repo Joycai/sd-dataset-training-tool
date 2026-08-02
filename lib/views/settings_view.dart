@@ -428,9 +428,18 @@ class _SettingsViewState extends State<SettingsView> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          onPressed: () => showTagDictionaryDialog(context),
+                          // A jump, not a nested modal: the dictionary is a
+                          // window of its own — wide, and worth keeping open
+                          // beside the editor — so settings steps out of the
+                          // way instead of stacking a second dialog on top of
+                          // itself.
+                          onPressed: () {
+                            final navigator = Navigator.of(context);
+                            navigator.pop();
+                            showTagDictionaryDialog(navigator.context);
+                          },
                           icon: const Icon(Icons.translate, size: 15),
-                          label: Text(l10n.llmManageAction),
+                          label: Text(l10n.tagDictionaryOpenAction),
                         ),
                       ),
                     ],

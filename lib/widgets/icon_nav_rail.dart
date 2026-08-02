@@ -10,6 +10,7 @@ import '../state/dataset_state.dart';
 import '../state/workbench_layout.dart';
 import '../theme/app_theme.dart';
 import '../views/panels/batch_tag_dialog.dart';
+import '../views/panels/tag_dictionary_dialog.dart';
 
 /// The vertical icon rail: one entry per workbench area, settings pinned to
 /// the bottom.
@@ -58,6 +59,20 @@ class IconNavRail extends StatelessWidget {
             onPressed: () => layout.showInspectorTab(InspectorTab.dataset),
           ),
           const _BatchRailButton(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            child: Container(height: 1, color: semantic.line),
+          ),
+          // The dictionary is a workbench area of its own, not a setting: it
+          // is opened while captioning, next to the tag panel it answers
+          // questions about. It sits below the hairline because it opens a
+          // window instead of switching a column.
+          _RailButton(
+            icon: Icons.translate,
+            tooltip: '${l10n.dictManagerTitle}  (Ctrl+D)',
+            active: false,
+            onPressed: () => showTagDictionaryDialog(context),
+          ),
           const Spacer(),
           _RailButton(
             icon: Icons.settings_outlined,

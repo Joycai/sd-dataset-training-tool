@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/tag_filter.dart';
 import '../../state/dataset_state.dart';
@@ -10,6 +11,7 @@ import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
 import '../../widgets/subdirectory_picker.dart';
 import '../../widgets/tag_gloss.dart';
+import 'tag_dictionary_dialog.dart';
 
 enum _TagMenuAction {
   filterInclude,
@@ -206,6 +208,7 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
     final dataset = context.watch<DatasetState>();
     final session = context.watch<EditorSession>();
     final ops = context.watch<TagOps>();
+    final dictionary = context.read<AppState>().tagDictionary;
 
     final allTags = dataset.datasetTags;
     final query = _filter.trim().toLowerCase();
@@ -235,14 +238,26 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
                 icon: Icons.playlist_add,
                 tooltip: l10n.addTagsGlobalTooltip,
                 size: 16,
+                hitSize: 28,
                 onPressed: dataset.totalCount > 0 && !ops.busy
                     ? _showAddTagsDialog
                     : null,
               ),
               PanelIconButton(
+                icon: Icons.translate,
+                tooltip: l10n.dictOpenTooltip,
+                size: 16,
+                hitSize: 28,
+                onPressed: () => showTagDictionaryDialog(
+                  context,
+                  initialQuery: _filter.trim().isEmpty ? null : _filter,
+                ),
+              ),
+              PanelIconButton(
                 icon: Icons.filter_alt_off_outlined,
                 tooltip: l10n.clearTagFilter,
                 size: 16,
+                hitSize: 28,
                 onPressed: dataset.tagFilterActive
                     ? dataset.clearTagFilter
                     : null,
@@ -293,28 +308,42 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 7,
-                        runSpacing: 7,
-                        children: [
-                          for (final entry in visibleTags)
-                            _DatasetTagChip(
-                              entry: entry,
-                              applied: session.hasTag(entry.tag),
-                              filtered:
-                                  refs.included.contains(entry.tag) ||
-                                  refs.excluded.contains(entry.tag),
-                              // Excluded-only tags show the eye-off glyph; a
-                              // tag used both ways keeps the include glyph.
-                              filterExclude:
-                                  !refs.included.contains(entry.tag) &&
-                                  refs.excluded.contains(entry.tag),
-                              enabled: session.hasImage && !ops.busy,
-                              onTap: () => session.toggleTag(entry.tag),
-                              onContextMenu: (position) =>
-                                  _showTagMenu(position, entry),
-                            ),
-                        ],
+                      // The dictionary notifies on its own (a download ticks
+                      // every 256 KB) and AppState never forwards that, so the
+                      // "not in the dictionary" marking subscribes to it
+                      // directly — and only the chip wrap rebuilds.
+                      ListenableBuilder(
+                        listenable: dictionary,
+                        builder: (context, _) => Wrap(
+                          spacing: 7,
+                          runSpacing: 7,
+                          children: [
+                            for (final entry in visibleTags)
+                              _DatasetTagChip(
+                                entry: entry,
+                                applied: session.hasTag(entry.tag),
+                                filtered:
+                                    refs.included.contains(entry.tag) ||
+                                    refs.excluded.contains(entry.tag),
+                                // Excluded-only tags show the eye-off glyph; a
+                                // tag used both ways keeps the include glyph.
+                                filterExclude:
+                                    !refs.included.contains(entry.tag) &&
+                                    refs.excluded.contains(entry.tag),
+                                // Amber outline for a tag danbooru has never
+                                // heard of and the user has not added: it can
+                                // never be translated or completed, and on a
+                                // fresh dataset that is usually a typo.
+                                unknown:
+                                    dictionary.isReady &&
+                                    dictionary.lookup(entry.tag) == null,
+                                enabled: session.hasImage && !ops.busy,
+                                onTap: () => session.toggleTag(entry.tag),
+                                onContextMenu: (position) =>
+                                    _showTagMenu(position, entry),
+                              ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -874,6 +903,7 @@ class _DatasetTagChip extends StatelessWidget {
     required this.applied,
     required this.filtered,
     required this.filterExclude,
+    required this.unknown,
     required this.enabled,
     required this.onTap,
     required this.onContextMenu,
@@ -883,6 +913,10 @@ class _DatasetTagChip extends StatelessWidget {
   final bool applied;
   final bool filtered;
   final bool filterExclude;
+
+  /// Known to neither the dictionary nor the user's own additions.
+  final bool unknown;
+
   final bool enabled;
   final VoidCallback onTap;
   final ValueChanged<Offset> onContextMenu;
@@ -892,14 +926,18 @@ class _DatasetTagChip extends StatelessWidget {
     final semantic = context.semantic;
     final scheme = Theme.of(context).colorScheme;
 
-    // Four states, four colours: excluded from the gallery reads as the
+    // Five states, five colours: excluded from the gallery reads as the
     // destructive one, included is the accent, on-this-image stays green,
-    // and everything else is inventory in muted ink.
+    // a tag no dictionary knows is amber, and everything else is inventory in
+    // muted ink. The gallery states outrank "unknown" — they answer what the
+    // user is doing right now, while unknown is a standing property.
     final Color accentOfState;
     if (filtered) {
       accentOfState = filterExclude ? scheme.error : scheme.primary;
     } else if (applied) {
       accentOfState = semantic.ok;
+    } else if (unknown) {
+      accentOfState = semantic.warn;
     } else {
       accentOfState = semantic.muted;
     }
@@ -912,7 +950,14 @@ class _DatasetTagChip extends StatelessWidget {
             ? Color.alphaBlend(accentOfState.withAlpha(38), semantic.panel)
             : semantic.raised,
         border: Border.all(
-          color: tinted ? accentOfState.withAlpha(128) : semantic.line,
+          color: tinted
+              ? accentOfState.withAlpha(128)
+              : unknown
+              // An outline only: the tag is still ordinary inventory, and a
+              // filled amber chip on every fresh dataset would read as an
+              // error state.
+              ? semantic.warn.withAlpha(105)
+              : semantic.line,
         ),
         borderRadius: BorderRadius.circular(AppRadii.pill),
       ),
@@ -951,22 +996,30 @@ class _DatasetTagChip extends StatelessWidget {
       ),
     );
 
+    final hovering = MouseRegion(
+      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      child: chip,
+    );
+    // The amber outline says *that* something is off; the tooltip says what.
+    // It rides along with the gloss rather than replacing it — a translated
+    // tag can still be one the dictionary does not know.
+    final gloss = tagGlossTooltip(context, entry.tag);
+    final unknownHint = AppLocalizations.of(context)!.dictUnknownTagHint;
+    final message = !unknown
+        ? gloss
+        : gloss == null
+        ? unknownHint
+        : '$gloss — $unknownHint';
+
     return Opacity(
       opacity: enabled ? 1 : 0.55,
       child: GestureDetector(
         onTap: enabled ? onTap : null,
         onSecondaryTapDown: (details) => onContextMenu(details.globalPosition),
         onLongPressStart: (details) => onContextMenu(details.globalPosition),
-        child: withTagGlossTooltip(
-          context: context,
-          tag: entry.tag,
-          child: MouseRegion(
-            cursor: enabled
-                ? SystemMouseCursors.click
-                : SystemMouseCursors.basic,
-            child: chip,
-          ),
-        ),
+        child: message == null
+            ? hovering
+            : Tooltip(message: message, child: hovering),
       ),
     );
   }

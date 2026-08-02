@@ -323,7 +323,10 @@ void main() {
       await dictionary.loadCsv(_fullCsv, full: true);
       dictionary.setLocalTags(datasetUsage: {'my_trigger_word': 40});
 
-      expect(dictionary.search('my_trig').single.origin, TagSuggestionOrigin.local);
+      expect(
+        dictionary.search('my_trig').single.origin,
+        TagSuggestionOrigin.local,
+      );
 
       await dictionary.setCustomEntries(const [
         TagDictionaryEntry(
@@ -340,14 +343,57 @@ void main() {
       );
     });
 
+    test('an entry kept out of autocomplete is still looked up', () async {
+      await dictionary.loadCsv(_fullCsv, full: true);
+      await dictionary.setCustomEntries(const [
+        TagDictionaryEntry(
+          name: 'retired_spelling',
+          category: TagCategory.general,
+          autocomplete: false,
+        ),
+        TagDictionaryEntry(name: 'retired_oc', category: TagCategory.character),
+      ]);
+
+      // The whole point of the flag: a tag worth translating is not always a
+      // tag worth suggesting, and its gloss has to keep rendering either way.
+      expect(
+        dictionary.lookup('retired_spelling')?.category,
+        TagCategory.general,
+      );
+      expect(dictionary.search('retired').map((h) => h.name), ['retired_oc']);
+    });
+
+    test('the autocomplete flag survives a reload', () async {
+      await dictionary.setCustomEntries(const [
+        TagDictionaryEntry(
+          name: 'quiet_tag',
+          category: TagCategory.general,
+          autocomplete: false,
+        ),
+      ]);
+
+      final reloaded = TagDictionaryService(storageDirectory: () async => temp);
+      await reloaded.init();
+      expect(reloaded.customEntries.single.autocomplete, isFalse);
+      expect(reloaded.search('quiet'), isEmpty);
+    });
+
+    test('an entry written before the flag existed is offered', () {
+      // Absence means yes: reading an older file as "hidden" would silently
+      // empty the user's type-ahead.
+      final entry = TagDictionaryEntry.fromJson({
+        'name': 'old_oc',
+        'category': 4,
+      });
+      expect(entry?.autocomplete, isTrue);
+    });
+
     test('custom entries survive a reload', () async {
       await dictionary.setCustomEntries(const [
         TagDictionaryEntry(name: 'my_oc', category: TagCategory.character),
       ]);
 
-      final reloaded = TagDictionaryService(
-        storageDirectory: () async => temp,
-      );
+      final reloaded = TagDictionaryService(storageDirectory: () async => temp);
       await reloaded.init();
       expect(reloaded.customEntries.single.name, 'my_oc');
       expect(reloaded.lookup('my_oc')?.category, TagCategory.character);

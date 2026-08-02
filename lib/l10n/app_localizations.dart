@@ -2952,17 +2952,28 @@ abstract class AppLocalizations {
   /// **'Translate tags, add tags danbooru does not have, import or export a glossary'**
   String get tagDictionaryManageDesc;
 
+  /// No description provided for @tagDictionaryOpenAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open dictionary'**
+  String get tagDictionaryOpenAction;
+
   /// No description provided for @dictManagerTitle.
   ///
   /// In en, this message translates to:
   /// **'Tag dictionary'**
   String get dictManagerTitle;
 
-  /// No description provided for @dictManagerSubtitle.
+  /// No description provided for @dictManagerCounts.
   ///
   /// In en, this message translates to:
-  /// **'{locale} · {count} translated'**
-  String dictManagerSubtitle(String locale, int count);
+  /// **'{locale} · {builtin} built in, {custom} added, {translated} translated'**
+  String dictManagerCounts(
+    String locale,
+    int builtin,
+    int custom,
+    int translated,
+  );
 
   /// No description provided for @dictGlossaryError.
   ///
@@ -3018,11 +3029,29 @@ abstract class AppLocalizations {
   /// **'What the tag actually means, when the translation alone is ambiguous'**
   String get dictNoteHint;
 
-  /// No description provided for @dictClearFieldHint.
+  /// No description provided for @dictDeleteHint.
   ///
   /// In en, this message translates to:
-  /// **'Emptying the translation field deletes the translation.'**
-  String get dictClearFieldHint;
+  /// **'An empty field is not saved; use the button below to delete a translation.'**
+  String get dictDeleteHint;
+
+  /// No description provided for @dictDeleteTranslationAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete translation'**
+  String get dictDeleteTranslationAction;
+
+  /// No description provided for @dictDeleteTranslationConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the translation for \"{tag}\"? The tag goes back to showing its own name.'**
+  String dictDeleteTranslationConfirm(String tag);
+
+  /// No description provided for @dictRemoveCustomConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{tag}\" from the dictionary? It will no longer be offered in autocomplete; its translation is kept.'**
+  String dictRemoveCustomConfirm(String tag);
 
   /// No description provided for @dictCustomBadge.
   ///
@@ -3095,18 +3124,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove from dictionary'**
   String get dictRemoveCustomAction;
-
-  /// No description provided for @dictAddTagAction.
-  ///
-  /// In en, this message translates to:
-  /// **'Add a tag'**
-  String get dictAddTagAction;
-
-  /// No description provided for @dictAddTagTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Add a tag'**
-  String get dictAddTagTitle;
 
   /// No description provided for @dictAddTagNameLabel.
   ///
@@ -3183,8 +3200,254 @@ abstract class AppLocalizations {
   /// No description provided for @dictFooterHint.
   ///
   /// In en, this message translates to:
-  /// **'One glossary per app language'**
+  /// **'One glossary per app language · added tags and translations stay on this machine'**
   String get dictFooterHint;
+
+  /// No description provided for @dictOpenTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Open the tag dictionary'**
+  String get dictOpenTooltip;
+
+  /// No description provided for @dictFilterAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get dictFilterAll;
+
+  /// No description provided for @dictFilterCustom.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count}'**
+  String dictFilterCustom(int count);
+
+  /// No description provided for @dictUntranslated.
+  ///
+  /// In en, this message translates to:
+  /// **'Untranslated'**
+  String get dictUntranslated;
+
+  /// No description provided for @dictNewTagAction.
+  ///
+  /// In en, this message translates to:
+  /// **'New tag'**
+  String get dictNewTagAction;
+
+  /// No description provided for @dictFetchSourceName.
+  ///
+  /// In en, this message translates to:
+  /// **'danbooru'**
+  String get dictFetchSourceName;
+
+  /// No description provided for @dictOrderAlpha.
+  ///
+  /// In en, this message translates to:
+  /// **'A–Z'**
+  String get dictOrderAlpha;
+
+  /// No description provided for @dictOrderUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'By usage'**
+  String get dictOrderUsage;
+
+  /// No description provided for @dictDatasetOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This dataset only'**
+  String get dictDatasetOnly;
+
+  /// No description provided for @dictOrderRelevance.
+  ///
+  /// In en, this message translates to:
+  /// **'By relevance'**
+  String get dictOrderRelevance;
+
+  /// No description provided for @dictResultCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} results'**
+  String dictResultCount(int count);
+
+  /// No description provided for @dictCustomEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags added yet. Use \"New tag\" for characters or private tags the built-in dictionary does not have.'**
+  String get dictCustomEmpty;
+
+  /// No description provided for @dictUntranslatedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing left to translate.'**
+  String get dictUntranslatedEmpty;
+
+  /// No description provided for @dictCollectAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get dictCollectAction;
+
+  /// No description provided for @dictCollectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count} tags to the dictionary'**
+  String dictCollectedCount(int count);
+
+  /// No description provided for @dictMissingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tags are not in the dictionary'**
+  String dictMissingTitle(int count);
+
+  /// No description provided for @dictMissingDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'They render untranslated; adding them makes them translatable and completable'**
+  String get dictMissingDesc;
+
+  /// No description provided for @dictMissingIgnore.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignore'**
+  String get dictMissingIgnore;
+
+  /// No description provided for @dictMissingCollectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Add all as custom'**
+  String get dictMissingCollectAll;
+
+  /// No description provided for @dictMissingUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} images'**
+  String dictMissingUsage(int count);
+
+  /// No description provided for @dictMissingMore.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} more'**
+  String dictMissingMore(int count);
+
+  /// No description provided for @dictAliasesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Aliases'**
+  String get dictAliasesLabel;
+
+  /// No description provided for @dictAliasesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'searching these spellings finds this entry too'**
+  String get dictAliasesHint;
+
+  /// No description provided for @dictAiTranslateAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate with AI'**
+  String get dictAiTranslateAction;
+
+  /// No description provided for @dictAiTranslating.
+  ///
+  /// In en, this message translates to:
+  /// **'Translating…'**
+  String get dictAiTranslating;
+
+  /// No description provided for @dictAiTranslateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'AI translation failed: {error}'**
+  String dictAiTranslateFailed(String error);
+
+  /// No description provided for @dictRevertAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Revert'**
+  String get dictRevertAction;
+
+  /// No description provided for @dictSourceBecomes.
+  ///
+  /// In en, this message translates to:
+  /// **'saving makes it \"{source}\"'**
+  String dictSourceBecomes(String source);
+
+  /// No description provided for @dictUsageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Used in this dataset'**
+  String get dictUsageLabel;
+
+  /// No description provided for @dictUsageValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} images · {percent}%'**
+  String dictUsageValue(int count, int percent);
+
+  /// No description provided for @dictUnknownTagHint.
+  ///
+  /// In en, this message translates to:
+  /// **'not in the dictionary'**
+  String get dictUnknownTagHint;
+
+  /// No description provided for @dictNewTagTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New custom tag'**
+  String get dictNewTagTitle;
+
+  /// No description provided for @dictNewTagDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'For characters, styles or private tags the built-in dictionary does not have'**
+  String get dictNewTagDesc;
+
+  /// No description provided for @dictNewTagSpellingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'danbooru spelling: lower case, underscores'**
+  String get dictNewTagSpellingHint;
+
+  /// No description provided for @dictNewTagSpellingPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'stored as {name}'**
+  String dictNewTagSpellingPreview(String name);
+
+  /// No description provided for @dictNewTagAliasesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Aliases (optional, comma separated)'**
+  String get dictNewTagAliasesLabel;
+
+  /// No description provided for @dictNewTagAliasesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'prettysammy, sammy'**
+  String get dictNewTagAliasesHint;
+
+  /// No description provided for @dictNewTagAutocompleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Offer in autocomplete'**
+  String get dictNewTagAutocompleteTitle;
+
+  /// No description provided for @dictNewTagAutocompleteDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggested alongside built-in tags in tag fields'**
+  String get dictNewTagAutocompleteDesc;
+
+  /// No description provided for @dictNewTagExistsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A tag the dictionary already has is not added twice'**
+  String get dictNewTagExistsHint;
+
+  /// No description provided for @dictNewTagSubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get dictNewTagSubmit;
 
   /// No description provided for @dictFetchAction.
   ///
@@ -3197,18 +3460,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fetching…'**
   String get dictFetching;
-
-  /// No description provided for @dictFetchPromptTooltip.
-  ///
-  /// In en, this message translates to:
-  /// **'Look a tag up on danbooru'**
-  String get dictFetchPromptTooltip;
-
-  /// No description provided for @dictFetchPromptTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Look up on danbooru'**
-  String get dictFetchPromptTitle;
 
   /// No description provided for @dictFetchPromptLabel.
   ///
@@ -3281,6 +3532,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add to the dictionary'**
   String get dictFetchAddAction;
+
+  /// No description provided for @dictFetchPrivacyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Reads the public API only; nothing is uploaded'**
+  String get dictFetchPrivacyNote;
+
+  /// No description provided for @dictFetchLookupAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Look up'**
+  String get dictFetchLookupAction;
+
+  /// No description provided for @dictFetchWillWrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Will write'**
+  String get dictFetchWillWrite;
+
+  /// No description provided for @dictFetchFieldPostCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Post count'**
+  String get dictFetchFieldPostCount;
+
+  /// No description provided for @dictFetchKeepsEdits.
+  ///
+  /// In en, this message translates to:
+  /// **'· your own translation and note are never overwritten'**
+  String get dictFetchKeepsEdits;
+
+  /// No description provided for @dictFetchAlreadyKnown.
+  ///
+  /// In en, this message translates to:
+  /// **'The dictionary already has this tag.'**
+  String get dictFetchAlreadyKnown;
+
+  /// No description provided for @dictFetchWriteAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Write to dictionary'**
+  String get dictFetchWriteAction;
+
+  /// No description provided for @dictFetchOpenAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to the tag'**
+  String get dictFetchOpenAction;
 
   /// No description provided for @dictFetchAdded.
   ///

@@ -1582,11 +1582,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tagDictionaryManageDesc => '翻译标签、添加 Danbooru 没有的标签、导入或导出译文';
 
   @override
+  String get tagDictionaryOpenAction => '打开词典';
+
+  @override
   String get dictManagerTitle => '标签词典';
 
   @override
-  String dictManagerSubtitle(String locale, int count) {
-    return '$locale · 已翻译 $count 条';
+  String dictManagerCounts(
+    String locale,
+    int builtin,
+    int custom,
+    int translated,
+  ) {
+    return '$locale · 内置 $builtin 条，自定义 $custom 条，已翻译 $translated 条';
   }
 
   @override
@@ -1619,7 +1627,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dictNoteHint => '译文本身不够清楚时，说明这个标签到底指什么';
 
   @override
-  String get dictClearFieldHint => '清空译文输入框即可删除该翻译。';
+  String get dictDeleteHint => '留空不会保存；要删除译文请用下方的按钮。';
+
+  @override
+  String get dictDeleteTranslationAction => '删除译文';
+
+  @override
+  String dictDeleteTranslationConfirm(String tag) {
+    return '删除「$tag」的译文？该标签会恢复显示原文。';
+  }
+
+  @override
+  String dictRemoveCustomConfirm(String tag) {
+    return '把「$tag」从词典中移除？它将不再出现在自动补全里；已填写的译文会保留。';
+  }
 
   @override
   String get dictCustomBadge => '自定义';
@@ -1658,12 +1679,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dictRemoveCustomAction => '从词典移除';
-
-  @override
-  String get dictAddTagAction => '添加标签';
-
-  @override
-  String get dictAddTagTitle => '添加标签';
 
   @override
   String get dictAddTagNameLabel => '标签名';
@@ -1710,19 +1725,156 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dictClearAiNone => '没有 AI 译文需要清除';
 
   @override
-  String get dictFooterHint => '每种界面语言各有一份译文';
+  String get dictFooterHint => '每种界面语言各有一份译文 · 自定义标签与译文只保存在本机';
+
+  @override
+  String get dictOpenTooltip => '打开标签词典';
+
+  @override
+  String get dictFilterAll => '全部';
+
+  @override
+  String dictFilterCustom(int count) {
+    return '自定义 $count';
+  }
+
+  @override
+  String get dictUntranslated => '未翻译';
+
+  @override
+  String get dictNewTagAction => '新建标签';
+
+  @override
+  String get dictFetchSourceName => 'Danbooru';
+
+  @override
+  String get dictOrderAlpha => '按字母 A–Z';
+
+  @override
+  String get dictOrderUsage => '按用量';
+
+  @override
+  String get dictDatasetOnly => '仅本数据集内';
+
+  @override
+  String get dictOrderRelevance => '按匹配度';
+
+  @override
+  String dictResultCount(int count) {
+    return '$count 条结果';
+  }
+
+  @override
+  String get dictCustomEmpty => '还没有自定义标签。用「新建标签」加入内置库里没有的角色或私有标签。';
+
+  @override
+  String get dictUntranslatedEmpty => '没有待翻译的标签。';
+
+  @override
+  String get dictCollectAction => '收录';
+
+  @override
+  String dictCollectedCount(int count) {
+    return '已收录 $count 个标签';
+  }
+
+  @override
+  String dictMissingTitle(int count) {
+    return '$count 个标签不在词典中';
+  }
+
+  @override
+  String get dictMissingDesc => '它们只显示原文；收录后可以补译文，也会进入自动补全';
+
+  @override
+  String get dictMissingIgnore => '忽略';
+
+  @override
+  String get dictMissingCollectAll => '全部收录为自定义';
+
+  @override
+  String dictMissingUsage(int count) {
+    return '$count 张';
+  }
+
+  @override
+  String dictMissingMore(int count) {
+    return '还有 $count 个';
+  }
+
+  @override
+  String get dictAliasesLabel => '别名';
+
+  @override
+  String get dictAliasesHint => '搜索这些写法也能命中本条';
+
+  @override
+  String get dictAiTranslateAction => '用 AI 翻译';
+
+  @override
+  String get dictAiTranslating => '翻译中…';
+
+  @override
+  String dictAiTranslateFailed(String error) {
+    return 'AI 翻译失败：$error';
+  }
+
+  @override
+  String get dictRevertAction => '还原';
+
+  @override
+  String dictSourceBecomes(String source) {
+    return '保存后转为「$source」';
+  }
+
+  @override
+  String get dictUsageLabel => '在数据集中的用量';
+
+  @override
+  String dictUsageValue(int count, int percent) {
+    return '$count 张图 · 占 $percent%';
+  }
+
+  @override
+  String get dictUnknownTagHint => '词典里没有这个标签';
+
+  @override
+  String get dictNewTagTitle => '新建自定义标签';
+
+  @override
+  String get dictNewTagDesc => '用于内置库里没有的角色、画风或私有标签';
+
+  @override
+  String get dictNewTagSpellingHint => 'Danbooru 拼法：小写、下划线连接';
+
+  @override
+  String dictNewTagSpellingPreview(String name) {
+    return '将存为 $name';
+  }
+
+  @override
+  String get dictNewTagAliasesLabel => '别名（可选，用逗号分隔）';
+
+  @override
+  String get dictNewTagAliasesHint => 'prettysammy, sammy';
+
+  @override
+  String get dictNewTagAutocompleteTitle => '加入自动补全';
+
+  @override
+  String get dictNewTagAutocompleteDesc => '在标签输入框里和内置标签一起提示';
+
+  @override
+  String get dictNewTagExistsHint => '词典里已有同名标签时不会重复添加';
+
+  @override
+  String get dictNewTagSubmit => '添加';
 
   @override
   String get dictFetchAction => '从 Danbooru 获取';
 
   @override
   String get dictFetching => '获取中…';
-
-  @override
-  String get dictFetchPromptTooltip => '在 Danbooru 上查一个标签';
-
-  @override
-  String get dictFetchPromptTitle => '在 Danbooru 上查询';
 
   @override
   String get dictFetchPromptLabel => '标签名或 Danbooru 地址';
@@ -1766,6 +1918,30 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dictFetchAddAction => '加入词典';
+
+  @override
+  String get dictFetchPrivacyNote => '只读取公开 API，不上传任何数据';
+
+  @override
+  String get dictFetchLookupAction => '查询';
+
+  @override
+  String get dictFetchWillWrite => '将写入';
+
+  @override
+  String get dictFetchFieldPostCount => '投稿数';
+
+  @override
+  String get dictFetchKeepsEdits => '· 你已填写的译文与注释不会被覆盖';
+
+  @override
+  String get dictFetchAlreadyKnown => '词典里已经有这个标签了。';
+
+  @override
+  String get dictFetchWriteAction => '写入词典';
+
+  @override
+  String get dictFetchOpenAction => '查看该标签';
 
   @override
   String dictFetchAdded(String tag) {

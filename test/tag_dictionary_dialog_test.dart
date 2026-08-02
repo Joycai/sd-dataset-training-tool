@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart' show kSecondaryButton;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -18,6 +19,7 @@ import 'package:dataset_training_tool/services/tag_dictionary_service.dart';
 import 'package:dataset_training_tool/services/tag_translation_service.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/views/panels/tag_dictionary_dialog.dart';
+import 'package:dataset_training_tool/widgets/panel_widgets.dart';
 import 'package:dataset_training_tool/widgets/tag_gloss.dart';
 
 const _csv = '''
@@ -66,6 +68,9 @@ void main() {
   /// Which tag the dialog is opened onto; set by [open] before pumping.
   String? openWith;
 
+  /// The workbench snapshot handed to the dialog; set by [open].
+  TagDictionaryScope scope = const TagDictionaryScope();
+
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     temp = await Directory.systemTemp.createTemp('dict_dialog_');
@@ -92,7 +97,9 @@ void main() {
     List<TagDictionaryEntry> custom = const [],
   }) async {
     await appState.tagDictionary.loadCsv(_csv, full: true);
-    if (custom.isNotEmpty) await appState.tagDictionary.setCustomEntries(custom);
+    if (custom.isNotEmpty) {
+      await appState.tagDictionary.setCustomEntries(custom);
+    }
     await appState.tagTranslations.load('zh');
     if (glossary.isNotEmpty) await appState.tagTranslations.upsertAll(glossary);
   }
@@ -117,6 +124,7 @@ void main() {
                     context,
                     initialTag: openWith,
                     api: _fakeApi(),
+                    scope: scope,
                   ),
                   child: const Text('open'),
                 ),
@@ -128,8 +136,13 @@ void main() {
     ),
   );
 
-  Future<void> open(WidgetTester tester, {String? initialTag}) async {
+  Future<void> open(
+    WidgetTester tester, {
+    String? initialTag,
+    TagDictionaryScope workbench = const TagDictionaryScope(),
+  }) async {
     openWith = initialTag;
+    scope = workbench;
     await tester.pumpWidget(harness());
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
@@ -143,12 +156,24 @@ void main() {
   /// ten-minute timeout.
   Future<void> fetch(WidgetTester tester) async {
     await tester.runAsync(() async {
-      await tester.tap(
-        find.widgetWithText(OutlinedButton, 'Fetch from danbooru'),
-      );
+      // The header actions are bare tap targets, not buttons: they sit beside
+      // the tag name, where a Material button's padding would dominate.
+      await tester.tap(find.text('Fetch from danbooru'));
       await tester.pump();
       await Future<void>.delayed(const Duration(milliseconds: 80));
     });
+    await tester.pumpAndSettle();
+  }
+
+  /// Taps a toolbar control by label, reaching into the overflow menu when the
+  /// strip was too narrow to keep it. The test font is wide enough that the
+  /// default surface size already pushes controls in there.
+  Future<void> tapToolbar(WidgetTester tester, String label) async {
+    if (find.text(label).evaluate().isEmpty) {
+      await tester.tap(find.byIcon(Icons.more_horiz));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.text(label));
     await tester.pumpAndSettle();
   }
 
@@ -190,25 +215,197 @@ void main() {
     expect(find.text('长发'), findsWidgets);
   });
 
-  testWidgets('emptying the field deletes the translation', (tester) async {
+  group('the toolbar band', () {
+    /// The band is one row by construction — the search field's vertical
+    /// centre used to move when the controls wrapped to a second line — so
+    /// every width it can get has to fit, with the surplus in the menu.
+    for (final width in const [1400.0, 1000.0, 820.0, 680.0, 560.0, 460.0]) {
+      testWidgets('holds one line at ${width.toInt()}px', (tester) async {
+        addTearDown(tester.view.reset);
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(width, 760);
+
+        await tester.runAsync(() => prepare());
+        // The widest the strip ever gets: four filters plus both actions.
+        await open(
+          tester,
+          workbench: const TagDictionaryScope(
+            datasetTags: ['long_hair'],
+            datasetUsage: {'long hair': 1},
+            imageCount: 1,
+          ),
+        );
+
+        // An overflow would already have thrown; this pins the row down.
+        // Whatever survived on the strip has to share the search field's
+        // midline — the wrap this replaced pushed it up half a line.
+        final search = tester.getRect(find.byType(PanelSearchField));
+        final probes = <Finder>[
+          for (final label in const ['All', 'Untranslated'])
+            if (find.text(label).evaluate().isNotEmpty) find.text(label),
+          if (find.byIcon(Icons.more_horiz).evaluate().isNotEmpty)
+            find.byIcon(Icons.more_horiz),
+        ];
+        expect(probes, isNotEmpty);
+        for (final probe in probes) {
+          expect(
+            tester.getRect(probe).center.dy,
+            closeTo(search.center.dy, 1),
+            reason: 'a control left the search field\'s midline',
+          );
+        }
+      });
+    }
+
+    testWidgets('what does not fit is reachable from the menu', (tester) async {
+      addTearDown(tester.view.reset);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(560, 760);
+
+      await tester.runAsync(() => prepare());
+      await open(tester);
+
+      // The two actions are dropped first: each is reachable another way,
+      // while the filters steer the list.
+      expect(find.text('New tag'), findsNothing);
+      await tester.tap(find.byIcon(Icons.more_horiz));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('New tag'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('New custom tag'), findsOneWidget);
+    });
+  });
+
+  testWidgets('the trailing actions keep the right edge', (tester) async {
+    await tester.runAsync(() => prepare());
+    await open(tester, initialTag: 'long_hair');
+
+    final surface = tester.getRect(find.byType(GlassSurface));
+    // The footer's own 12px of padding and nothing else. These used to be one
+    // flex child among two, which handed them half the band and left them
+    // aligned right *within that half* — the middle of the footer.
+    expect(
+      surface.right -
+          tester.getRect(find.widgetWithText(TextButton, 'Export')).right,
+      closeTo(12, 1),
+    );
+    // And the same shape one row up.
+    expect(
+      surface.right -
+          tester.getRect(find.widgetWithText(FilledButton, 'Save')).right,
+      closeTo(18, 1),
+    );
+  });
+
+  testWidgets('the save row does not move as the line beside it changes', (
+    tester,
+  ) async {
     await tester.runAsync(
       () => prepare(
-        glossary: const [TagTranslation(tag: 'long_hair', text: '长发')],
+        glossary: const [
+          // An entry the user did not write, so typing over it flips the
+          // provenance and raises the note this test is about.
+          TagTranslation(
+            tag: 'long_hair',
+            text: '长发',
+            source: TagTranslationSource.llm,
+          ),
+        ],
       ),
     );
     await open(tester, initialTag: 'long_hair');
 
+    final before = tester.getRect(find.widgetWithText(FilledButton, 'Save'));
+    // Typing raises a "saving makes it X" note next to the source badge. The
+    // buttons used to be one flex child among three and slid left when it did.
     await tester.enterText(
       find.widgetWithText(TextField, 'Shown beside the tag in the UI'),
-      '',
+      '长长的头发',
     );
-    await tester.pump();
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await tester.pumpAndSettle();
 
-    // One action, one meaning: there is no separate delete button, so an empty
-    // field must not persist as a blank gloss on every chip.
-    expect(appState.tagTranslations.has('long_hair'), isFalse);
+    expect(find.textContaining('saving makes it'), findsOneWidget);
+    expect(tester.getRect(find.widgetWithText(FilledButton, 'Save')), before);
+  });
+
+  group('deleting', () {
+    Future<void> openTranslated(WidgetTester tester) async {
+      await tester.runAsync(
+        () => prepare(
+          glossary: const [TagTranslation(tag: 'long_hair', text: '长发')],
+        ),
+      );
+      await open(tester, initialTag: 'long_hair');
+    }
+
+    testWidgets('emptying the field is not a delete', (tester) async {
+      await openTranslated(tester);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Shown beside the tag in the UI'),
+        '',
+      );
+      await tester.pump();
+
+      // Deleting by clearing meant a select-all-and-retype that ended up empty
+      // silently dropped a translation. Saving is simply not offered instead.
+      final save = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Save'),
+      );
+      expect(save.onPressed, isNull);
+      expect(appState.tagTranslations.has('long_hair'), isTrue);
+    });
+
+    testWidgets('the explicit delete asks before it acts', (tester) async {
+      await openTranslated(tester);
+
+      await tapInForm(
+        tester,
+        find.widgetWithText(OutlinedButton, 'Delete translation'),
+      );
+      // Nothing is gone until the question is answered.
+      expect(appState.tagTranslations.has('long_hair'), isTrue);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+      expect(appState.tagTranslations.has('long_hair'), isTrue);
+
+      await tapInForm(
+        tester,
+        find.widgetWithText(OutlinedButton, 'Delete translation'),
+      );
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.pumpAndSettle();
+      expect(appState.tagTranslations.has('long_hair'), isFalse);
+    });
+
+    testWidgets('a row offers its deletions on right-click', (tester) async {
+      await openTranslated(tester);
+
+      // Reached without selecting the row first, which is what makes clearing
+      // out a batch of stray entries bearable.
+      await tester.tapAt(
+        tester.getCenter(
+          // The gloss shows in the list row and in the editor field alike.
+          find.descendant(of: find.byType(ListView), matching: find.text('长发')),
+        ),
+        buttons: kSecondaryButton,
+      );
+      await tester.pumpAndSettle();
+      // The editor behind the menu offers the same action under the same name.
+      await tester.tap(
+        find.descendant(
+          of: find.byType(PopupMenuItem<String>),
+          matching: find.text('Delete translation'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Delete'));
+      await tester.pumpAndSettle();
+
+      expect(appState.tagTranslations.has('long_hair'), isFalse);
+    });
   });
 
   testWidgets('an unreadable glossary file says so instead of looking empty', (
@@ -222,7 +419,10 @@ void main() {
 
     // Zero translations and a broken file look identical otherwise, which
     // invites the user to translate the whole dataset a second time.
-    expect(find.textContaining('Glossary file could not be read'), findsOneWidget);
+    expect(
+      find.textContaining('Glossary file could not be read'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('the list searches by translation, not only by tag', (
@@ -360,11 +560,158 @@ void main() {
 
       // danbooru has neither a record nor a wiki page for the user's own
       // invention, so both the lookup and the wiki link would come back empty.
-      expect(
-        find.widgetWithText(OutlinedButton, 'Fetch from danbooru'),
-        findsNothing,
+      expect(find.text('Fetch from danbooru'), findsNothing);
+      expect(find.text('Danbooru wiki'), findsNothing);
+    });
+  });
+
+  group('the open dataset', () {
+    /// A workbench with three dataset tags, one of which danbooru — and this
+    /// dictionary — has never heard of.
+    TagDictionaryScope workbench() => const TagDictionaryScope(
+      datasetTags: ['1girl', 'long_hair', 'prettysammy'],
+      datasetUsage: {'1girl': 40, 'long hair': 30, 'prettysammy': 12},
+      imageCount: 40,
+    );
+
+    testWidgets('tags missing from the dictionary are offered for adding', (
+      tester,
+    ) async {
+      await tester.runAsync(() => prepare());
+      await open(tester, workbench: workbench());
+
+      // Only the one the dictionary cannot resolve: the other two are real
+      // danbooru tags and adding them would shadow the real entries.
+      expect(find.text('1 tags are not in the dictionary'), findsOneWidget);
+      expect(find.text('prettysammy'), findsWidgets);
+
+      await tester.tap(find.text('Add all as custom'));
+      await tester.pumpAndSettle();
+
+      expect(appState.tagDictionary.customEntries.map((e) => e.name), [
+        'prettysammy',
+      ]);
+      // The prompt is gone once there is nothing left to prompt about.
+      expect(find.text('1 tags are not in the dictionary'), findsNothing);
+    });
+
+    testWidgets('the banner can be dismissed without adding anything', (
+      tester,
+    ) async {
+      await tester.runAsync(() => prepare());
+      await open(tester, workbench: workbench());
+
+      await tester.tap(find.text('Ignore'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1 tags are not in the dictionary'), findsNothing);
+      expect(appState.tagDictionary.customEntries, isEmpty);
+    });
+
+    testWidgets('the list is narrowed to the dataset by default', (
+      tester,
+    ) async {
+      await tester.runAsync(() => prepare());
+      await open(tester, workbench: workbench());
+
+      // The vocabulary in front of the user, busiest first — not the hundred
+      // thousand tags danbooru knows.
+      expect(find.text('3 results'), findsOneWidget);
+      expect(find.text('By usage'), findsOneWidget);
+
+      await tapToolbar(tester, 'This dataset only');
+
+      // Widened: with nothing translated and nothing added, the whole-
+      // dictionary view has nothing to list until something is searched for.
+      expect(find.text('0 results'), findsOneWidget);
+      expect(find.text('1girl'), findsNothing);
+    });
+
+    testWidgets('a tag the dataset lacks opens with the narrowing off', (
+      tester,
+    ) async {
+      await tester.runAsync(() => prepare());
+      // The path from the tag library, whose tags need not be in the dataset:
+      // an editor whose tag the list beside it cannot show reads as a glitch.
+      await open(tester, initialTag: 'blue_eyes', workbench: workbench());
+
+      expect(find.text('blue_eyes'), findsWidgets);
+      expect(find.text('1 results'), findsOneWidget);
+    });
+
+    testWidgets('the editor shows how much of the dataset uses the tag', (
+      tester,
+    ) async {
+      await tester.runAsync(() => prepare());
+      await open(tester, initialTag: 'long_hair', workbench: workbench());
+
+      // 30 of 40 images: the number that decides whether a translation is
+      // worth writing at all.
+      expect(find.text('30 images · 75%'), findsOneWidget);
+    });
+  });
+
+  group('new custom tag', () {
+    Future<void> openForm(WidgetTester tester) async {
+      await tester.tap(find.text('New tag'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('adds the tag, its translation and its aliases at once', (
+      tester,
+    ) async {
+      await tester.runAsync(() => prepare());
+      await open(tester);
+      await openForm(tester);
+
+      await tester.enterText(
+        find.widgetWithText(
+          TextField,
+          'danbooru spelling, e.g. my_character_(oc)',
+        ),
+        'pretty sammy (oc)',
       );
-      expect(find.widgetWithText(OutlinedButton, 'Danbooru wiki'), findsNothing);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Shown beside the tag in the UI'),
+        '美少女战士萨米',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'prettysammy, sammy'),
+        'prettysammy, sammy',
+      );
+      await tester.pump();
+      await tapInForm(tester, find.widgetWithText(FilledButton, 'Add'));
+
+      // Stored in danbooru's spelling whatever the user typed, so one entry
+      // serves every caption style.
+      final entry = appState.tagDictionary.customEntries.single;
+      expect(entry.name, 'pretty_sammy_(oc)');
+      expect(entry.aliases, ['prettysammy', 'sammy']);
+      expect(entry.autocomplete, isTrue);
+      expect(appState.tagTranslations.glossFor('pretty_sammy_(oc)'), '美少女战士萨米');
+    });
+
+    testWidgets('the autocomplete switch is carried into the entry', (
+      tester,
+    ) async {
+      await tester.runAsync(() => prepare());
+      await open(tester);
+      await openForm(tester);
+
+      await tester.enterText(
+        find.widgetWithText(
+          TextField,
+          'danbooru spelling, e.g. my_character_(oc)',
+        ),
+        'quiet_tag',
+      );
+      await tapInForm(tester, find.byType(Switch));
+      await tapInForm(tester, find.widgetWithText(FilledButton, 'Add'));
+
+      expect(appState.tagDictionary.customEntries.single.autocomplete, isFalse);
+      // Still in the dictionary, just not in the type-ahead.
+      expect(appState.tagDictionary.lookup('quiet_tag'), isNotNull);
+      expect(appState.tagDictionary.search('quiet'), isEmpty);
     });
   });
 
@@ -380,9 +727,11 @@ void main() {
     );
     await open(tester, initialTag: 'my_oc');
 
-    await tester.tap(
+    await tapInForm(
+      tester,
       find.widgetWithText(OutlinedButton, 'Remove from dictionary'),
     );
+    await tester.tap(find.widgetWithText(TextButton, 'Delete'));
     await tester.pumpAndSettle();
 
     expect(appState.tagDictionary.customEntries, isEmpty);
