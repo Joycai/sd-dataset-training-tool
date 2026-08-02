@@ -1332,6 +1332,11 @@ List<PromptPreset> builtinPromptPresets(AppLocalizations l10n) => [
     content: l10n.animaTagPresetBody,
   ),
   PromptPreset(
+    id: 'builtin-wd14-from-anima-tag',
+    title: l10n.wd14FromAnimaTagPresetTitle,
+    content: l10n.wd14FromAnimaTagPresetBody,
+  ),
+  PromptPreset(
     id: 'builtin-anima-json-generate',
     title: l10n.animaJsonGeneratePresetTitle,
     content: l10n.animaJsonGeneratePresetBody,

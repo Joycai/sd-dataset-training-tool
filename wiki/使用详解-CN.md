@@ -181,7 +181,7 @@
 
 面板输入框旁的书签图标菜单里：
 - 上半部分是**内置技能**（目前是"按标准样本打标"，见下）。
-- 中间是**内置提示词**：随应用附带的现成起点，目前有三条，都面向 Anima 模型的 caption 格式——"WD14 标签转 Anima Tag"（把 WD14 打标产出的标签 caption 重排成 Anima Tag 顺序：quality → count → character → series → artist → appearance → tags → environment，再跟一个句号和一句自然语言描述，顺带给画师标签补上 `@` 前缀；需要先在 caption 类型设置里配置一个 Anima Tag 格式的类型）、"WD14 标签转 Anima JSON"（把 WD14 打标产出的标签 caption 一次性转换成 Anima 简化格式的 JSON caption，需要先在 caption 类型设置里配置一个 JSON 格式的类型）和"重排 Anima JSON 字段"（把已有 JSON caption 重排成 quality → count → character → series → artist → appearance → tags → environment → nl 的标准字段顺序）。它们和普通预置一样只填充输入框，你可以先补充固定值（如 quality、artist、角色名）再发送。
+- 中间是**内置提示词**：随应用附带的现成起点，目前有四条，都面向 Anima 模型的 caption 格式——"WD14 标签转 Anima Tag"（把 WD14 打标产出的标签 caption 重排成 Anima Tag 顺序：quality → count → character → series → artist → appearance → tags → environment，再跟一个句号和一句自然语言描述，顺带给画师标签补上 `@` 前缀；需要先在 caption 类型设置里配置一个 Anima Tag 格式的类型）、"Anima Tag 转 WD14 标签"（反方向，用于拿按 Anima 标注过的数据集去训 LoRA：丢掉尾句、去掉画师标签的 `@`、给标签里的括号加转义，并剔除不该被 LoRA 学进去的质量/分级/年份和 meta 词表）、"WD14 标签转 Anima JSON"（把 WD14 打标产出的标签 caption 一次性转换成 Anima 简化格式的 JSON caption，需要先在 caption 类型设置里配置一个 JSON 格式的类型）和"重排 Anima JSON 字段"（把已有 JSON caption 重排成 quality → count → character → series → artist → appearance → tags → environment → nl 的标准字段顺序）。它们和普通预置一样只填充输入框，你可以先补充固定值（如 quality、artist、角色名）再发送。
 - 下半部分是你保存的**预置提示词**：点一下只是把内容填进输入框（追加在你已输入的内容后面），不会自动发送，方便你补充细节后再发。
 - 菜单里也有"管理预置提示词"入口，即使助手正在忙也可以随时打开编辑。
 

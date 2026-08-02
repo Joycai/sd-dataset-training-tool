@@ -1542,6 +1542,13 @@ class AppLocalizationsZh extends AppLocalizations {
       '把当前数据集的 WD14 标签 caption 转换成 Anima 的 JSON caption（AnimaLoraToolkit 简化格式）。\n\n目标字段及顺序：quality（固定值）、count（人数）、character（角色名）、series（作品名）、artist（固定值）、appearance（数组：发型发色、瞳色、体型、服装、饰品等外貌特征）、tags（数组：动作、表情、构图、视角等其余标签，兜底字段）、environment（数组：室内外、天空、光照、场景物件等环境背景）、nl（自然语言描述，先留空字符串）。\n\n步骤：\n1. 用 get_dataset_overview 确认已配置 JSON 格式的 caption 类型；如果没有，停下来提醒我先在 caption 类型设置里添加一个格式为 JSON 的类型，不要继续。\n2. 用 get_tag_stats 拿到全部标签，逐个归类到上述字段，构建 assign 映射；拿不准的不要放进 assign，让它落入 tags 兜底。\n3. 用 convert_captions_to_json 一次完成转换：source 是 WD14 标签所在的 tag 类型，target 是 JSON 类型，unassigned_field 用 tags，quality、artist、nl 用 constants 写固定值（我没在下面给值就用空字符串）。count、character、series 一般声明为 string；若同一张图可能同时出现多个该类标签（比如 1girl 和 1boy 并存），就把该字段声明为 array，避免整图被跳过。已有非空目标文件的图默认跳过，需要重建时加 overwrite。\n4. 完成后报告落入兜底的标签（unassigned_tags_seen），其中明显属于 appearance 或 environment 的，用 restructure_json_captions 补一轮 assign 修正。\n\n不要用 write_caption_file 循环逐图写 JSON。';
 
   @override
+  String get wd14FromAnimaTagPresetTitle => 'Anima Tag 转 WD14 标签';
+
+  @override
+  String get wd14FromAnimaTagPresetBody =>
+      '把当前数据集的 Anima Tag caption 转回纯 WD14 标签 caption，用于 LoRA 训练。\n\nWD14 是打标器，不是 caption 格式规范，所以没有一套官方字段顺序需要还原。训练脚本和提示词解析器真正要求的是这些：\n- 一行逗号分隔的 danbooru 标签，仅此而已。自然语言那句直接丢掉，不要折算成标签——它留在 Anima Tag 文件里，WD14 文件里不能有。\n- 画师标签不带 @。那个前缀是 Anima 的写法，danbooru 的画师标签就是名字本身。\n- 标签里的括号要用反斜杠转义：hatsune miku (racing) 写成 hatsune miku \\(racing\\)。未转义的括号会被提示词解析器当成权重语法，于是角色变体标签不再是在点名角色，而是在悄悄改权重。\n- 全数据集只用一种拼写风格——要么全下划线，要么全空格，不能混。数据集本来是哪种就保持哪种。\n- 丢掉 Anima 的质量、分级、年份词表：newest、recent、mid、early、old、year 加数字、safe、sensitive、nsfw、explicit、masterpiece、best quality、good quality、normal quality 以及整个 score_ 系列。质量是推理时才加的；被 LoRA 学进去就再也换不掉了。\n- 数据集里若有 meta 标签也一并丢掉：highres、absurdres、commentary、commentary request、translated、annotated、artist name、signature、watermark、username、web address。\n- 如果这个数据集有触发词，它必须排在每条 caption 的最前面。训练器用 keep_tokens 保护开头几个 token、其余打乱，这也是为什么触发词之后的顺序其实无所谓——沿用 Anima 的排序即可，不要另发明一套。\n\n步骤：\n1. 用 get_dataset_overview 说明哪个类型是 Anima Tag 源、哪个是目标 tag 类型。如果没有 tag 格式的类型，停下来提醒我先去 caption 类型设置里加一个，不要继续。\n2. 用 get_tag_stats，在写第一个文件之前先给我两份清单：将要丢掉的全部标签，以及将要改写的全部标签（去掉 @、转义括号、统一拼写风格）。这份清单就是整个转换的全貌，我想一次性核对它，而不是事后去翻几百条 caption。\n3. 然后每 20 张一批地转换：用 read_caption_file 读 Anima Tag 扩展名，再逐图 write_caption_file 写入结果那一行。这是纯机械转换：不要看图，不要调打标器，也不要逐图重新判定规则。\n4. 这些写入不要设 expect_tags_from：本次转换本就要丢标签和改写标签，那道校验会把每一次写入都拒掉。\n5. 最后报告：转换了多少张图、每个被丢掉的标签各来自多少条 caption、每一处改写，以及你拿不准的地方。\n\n这个数据集的触发词（如果有）：';
+
+  @override
   String get animaTagPresetTitle => 'WD14 标签转 Anima Tag';
 
   @override
