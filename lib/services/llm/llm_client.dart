@@ -64,3 +64,59 @@ abstract class LlmClient {
   /// Releases underlying HTTP resources.
   void dispose();
 }
+
+/// One probe request's outcome, kept structured.
+///
+/// [LlmClient.probe] flattens everything into a message, which is right for a
+/// connection test and useless for capability detection: telling a context
+/// limit apart from a rate limit needs the status code and the provider's own
+/// error code, not a sentence.
+class ProbeResponse {
+  const ProbeResponse({
+    required this.statusCode,
+    this.errorCode = '',
+    this.message = '',
+    this.usage,
+  });
+
+  /// HTTP status, or 0 when the request never got a reply (in which case
+  /// [message] carries the transport error).
+  final int statusCode;
+
+  /// The provider's machine-readable code (`context_length_exceeded`…), empty
+  /// when the response carried none.
+  final String errorCode;
+
+  /// Error text on failure, truncated. Empty on success.
+  final String message;
+
+  /// Token accounting the server reported, when it reported any.
+  final TokenUsage? usage;
+
+  /// A usable response, which is not the same as a 2xx: relays are known to
+  /// answer 200 with an error object in the body, and treating that as a
+  /// success would read "the server accepted it" out of a refusal.
+  bool get ok => statusCode >= 200 && statusCode < 300 && message.isEmpty;
+}
+
+/// The non-chat surface capability detection needs. Kept separate from
+/// [LlmClient] so implementing a chat client — in a test double, say — does
+/// not oblige anyone to implement endpoint inspection.
+abstract class LlmEndpointInspector {
+  /// Sends one deliberately small, non-streaming request and reports what
+  /// came back, including failures. Never throws for an HTTP or transport
+  /// error — those are the result.
+  Future<ProbeResponse> sendProbe(
+    LlmProviderProfile profile, {
+    required List<ChatMessage> messages,
+    required int maxTokens,
+    Duration? timeout,
+  });
+
+  /// `GET /models` as whole objects rather than just ids, because the
+  /// per-model metadata (`context_length`, `max_model_len`, …) is exactly
+  /// what gets thrown away by an id-only listing.
+  Future<List<Map<String, dynamic>>> listModelsDetailed(
+    LlmProviderProfile profile,
+  );
+}

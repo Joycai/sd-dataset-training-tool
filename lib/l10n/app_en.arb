@@ -884,6 +884,64 @@
   "llmManageProfilesDesc": "Add, edit, test and remove LLM backend configurations",
   "llmManageAction": "Manage",
   "llmProfilesTitle": "LLM Backends",
+  "llmDetect": "Detect",
+  "llmDetectTitle": "Detect endpoint capabilities",
+  "llmDetectIntro": "Reads what the endpoint publishes about itself, then sends one small request that makes the server state its own limits. Nothing is written to your settings until you apply it.",
+  "llmDetectRun": "Start",
+  "llmDetectRerun": "Run again",
+  "llmDetectApply": "Apply to settings",
+  "llmDetectRunning": "Detecting…",
+  "llmDetectNothingFound": "The endpoint published no limits and did not state any. The values in the form are unchanged.",
+  "llmDetectFoundContext": "Context window: {tokens} tokens",
+  "@llmDetectFoundContext": {
+    "placeholders": {
+      "tokens": { "type": "int" }
+    }
+  },
+  "llmDetectFoundOutput": "Max output: {tokens} tokens",
+  "@llmDetectFoundOutput": {
+    "placeholders": {
+      "tokens": { "type": "int" }
+    }
+  },
+  "llmDetectEvidenceListing": "from the model listing",
+  "llmDetectEvidenceBackend": "from the backend's own API",
+  "llmDetectEvidenceError": "stated by the server when refusing a request",
+  "llmDetectEvidenceMeasured": "measured directly",
+  "llmDetectStepListing": "Model listing",
+  "llmDetectStepBackendApi": "Backend API",
+  "llmDetectStepErrorProbe": "Limit probe",
+  "llmDetectStepCalibration": "Token calibration",
+  "llmDetectStepTruncation": "Silent truncation check",
+  "llmDetectStatusRunning": "running",
+  "llmDetectStatusDone": "done",
+  "llmDetectStatusSkipped": "no result",
+  "llmDetectStatusFailed": "failed",
+  "llmDetectTruncationOption": "Also check for silent truncation",
+  "llmDetectTruncationOptionDesc": "Sends one large prompt and compares the token count the server reports back. This is the only way to catch a backend that accepts an over-long prompt and quietly drops part of it. Costs about {tokens} input tokens.",
+  "@llmDetectTruncationOptionDesc": {
+    "placeholders": {
+      "tokens": { "type": "int" }
+    }
+  },
+  "llmDetectTruncationDetected": "Silent truncation: the server accepted the prompt but only counted {tokens} tokens. Content past that point is dropped without an error.",
+  "@llmDetectTruncationDetected": {
+    "placeholders": {
+      "tokens": { "type": "int" }
+    }
+  },
+  "llmDetectTruncationNotDetected": "No truncation seen at the size tested. That is not proof the endpoint is clean — some servers report the count from before truncating.",
+  "llmDetectNotes": "Diagnostics",
+  "llmMeasuredBadge": "Detected",
+  "llmMeasuredSummary": "Detected {date}: context {context}, max output {output}",
+  "@llmMeasuredSummary": {
+    "placeholders": {
+      "date": { "type": "String" },
+      "context": { "type": "String" },
+      "output": { "type": "String" }
+    }
+  },
+  "llmMeasuredTruncationWarning": "This endpoint was seen dropping part of an over-long prompt without reporting an error.",
   "llmProviderLabel": "PROVIDER",
   "llmAddProvider": "Add provider",
   "llmAddModel": "Add model",

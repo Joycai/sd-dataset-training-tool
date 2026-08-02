@@ -2916,6 +2916,192 @@ abstract class AppLocalizations {
   /// **'LLM Backends'**
   String get llmProfilesTitle;
 
+  /// No description provided for @llmDetect.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect'**
+  String get llmDetect;
+
+  /// No description provided for @llmDetectTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect endpoint capabilities'**
+  String get llmDetectTitle;
+
+  /// No description provided for @llmDetectIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'Reads what the endpoint publishes about itself, then sends one small request that makes the server state its own limits. Nothing is written to your settings until you apply it.'**
+  String get llmDetectIntro;
+
+  /// No description provided for @llmDetectRun.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get llmDetectRun;
+
+  /// No description provided for @llmDetectRerun.
+  ///
+  /// In en, this message translates to:
+  /// **'Run again'**
+  String get llmDetectRerun;
+
+  /// No description provided for @llmDetectApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply to settings'**
+  String get llmDetectApply;
+
+  /// No description provided for @llmDetectRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Detecting…'**
+  String get llmDetectRunning;
+
+  /// No description provided for @llmDetectNothingFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The endpoint published no limits and did not state any. The values in the form are unchanged.'**
+  String get llmDetectNothingFound;
+
+  /// No description provided for @llmDetectFoundContext.
+  ///
+  /// In en, this message translates to:
+  /// **'Context window: {tokens} tokens'**
+  String llmDetectFoundContext(int tokens);
+
+  /// No description provided for @llmDetectFoundOutput.
+  ///
+  /// In en, this message translates to:
+  /// **'Max output: {tokens} tokens'**
+  String llmDetectFoundOutput(int tokens);
+
+  /// No description provided for @llmDetectEvidenceListing.
+  ///
+  /// In en, this message translates to:
+  /// **'from the model listing'**
+  String get llmDetectEvidenceListing;
+
+  /// No description provided for @llmDetectEvidenceBackend.
+  ///
+  /// In en, this message translates to:
+  /// **'from the backend\'s own API'**
+  String get llmDetectEvidenceBackend;
+
+  /// No description provided for @llmDetectEvidenceError.
+  ///
+  /// In en, this message translates to:
+  /// **'stated by the server when refusing a request'**
+  String get llmDetectEvidenceError;
+
+  /// No description provided for @llmDetectEvidenceMeasured.
+  ///
+  /// In en, this message translates to:
+  /// **'measured directly'**
+  String get llmDetectEvidenceMeasured;
+
+  /// No description provided for @llmDetectStepListing.
+  ///
+  /// In en, this message translates to:
+  /// **'Model listing'**
+  String get llmDetectStepListing;
+
+  /// No description provided for @llmDetectStepBackendApi.
+  ///
+  /// In en, this message translates to:
+  /// **'Backend API'**
+  String get llmDetectStepBackendApi;
+
+  /// No description provided for @llmDetectStepErrorProbe.
+  ///
+  /// In en, this message translates to:
+  /// **'Limit probe'**
+  String get llmDetectStepErrorProbe;
+
+  /// No description provided for @llmDetectStepCalibration.
+  ///
+  /// In en, this message translates to:
+  /// **'Token calibration'**
+  String get llmDetectStepCalibration;
+
+  /// No description provided for @llmDetectStepTruncation.
+  ///
+  /// In en, this message translates to:
+  /// **'Silent truncation check'**
+  String get llmDetectStepTruncation;
+
+  /// No description provided for @llmDetectStatusRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'running'**
+  String get llmDetectStatusRunning;
+
+  /// No description provided for @llmDetectStatusDone.
+  ///
+  /// In en, this message translates to:
+  /// **'done'**
+  String get llmDetectStatusDone;
+
+  /// No description provided for @llmDetectStatusSkipped.
+  ///
+  /// In en, this message translates to:
+  /// **'no result'**
+  String get llmDetectStatusSkipped;
+
+  /// No description provided for @llmDetectStatusFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'failed'**
+  String get llmDetectStatusFailed;
+
+  /// No description provided for @llmDetectTruncationOption.
+  ///
+  /// In en, this message translates to:
+  /// **'Also check for silent truncation'**
+  String get llmDetectTruncationOption;
+
+  /// No description provided for @llmDetectTruncationOptionDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Sends one large prompt and compares the token count the server reports back. This is the only way to catch a backend that accepts an over-long prompt and quietly drops part of it. Costs about {tokens} input tokens.'**
+  String llmDetectTruncationOptionDesc(int tokens);
+
+  /// No description provided for @llmDetectTruncationDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'Silent truncation: the server accepted the prompt but only counted {tokens} tokens. Content past that point is dropped without an error.'**
+  String llmDetectTruncationDetected(int tokens);
+
+  /// No description provided for @llmDetectTruncationNotDetected.
+  ///
+  /// In en, this message translates to:
+  /// **'No truncation seen at the size tested. That is not proof the endpoint is clean — some servers report the count from before truncating.'**
+  String get llmDetectTruncationNotDetected;
+
+  /// No description provided for @llmDetectNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get llmDetectNotes;
+
+  /// No description provided for @llmMeasuredBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Detected'**
+  String get llmMeasuredBadge;
+
+  /// No description provided for @llmMeasuredSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Detected {date}: context {context}, max output {output}'**
+  String llmMeasuredSummary(String date, String context, String output);
+
+  /// No description provided for @llmMeasuredTruncationWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'This endpoint was seen dropping part of an over-long prompt without reporting an error.'**
+  String get llmMeasuredTruncationWarning;
+
   /// No description provided for @llmProviderLabel.
   ///
   /// In en, this message translates to:

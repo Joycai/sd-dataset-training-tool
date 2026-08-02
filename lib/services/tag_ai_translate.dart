@@ -35,7 +35,9 @@ Future<String> translateTagWithLlm({
   String? note,
   LlmClient? client,
 }) async {
-  final llm =
+  // Annotated, not inferred: both concrete clients implement two interfaces,
+  // so their least upper bound is no longer LlmClient.
+  final LlmClient llm =
       client ??
       (profile.kind == LlmApiKind.anthropic
           ? AnthropicClient()

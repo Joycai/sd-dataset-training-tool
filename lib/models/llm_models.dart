@@ -196,6 +196,10 @@ class LlmModelConfig {
     this.temperature = 0.7,
     this.supportsVision = false,
     this.pricing,
+    this.measuredContextWindow = 0,
+    this.measuredMaxOutput = 0,
+    this.measuredAt = '',
+    this.silentTruncation = false,
   });
 
   /// Stable local id; the wire name is [modelId] and may change.
@@ -211,7 +215,32 @@ class LlmModelConfig {
   final bool supportsVision;
   final LlmPricing? pricing;
 
+  // --- Detection results ------------------------------------------------
+  //
+  // Kept apart from the four fields above, which the user owns. Detection
+  // proposes; only the user applies. Overwriting a hand-set value with a
+  // measurement would make a relay's bad day look like a settings change.
+
+  /// Context window detection found, 0 when never detected.
+  final int measuredContextWindow;
+
+  /// Max output length detection found, 0 when never detected.
+  final int measuredMaxOutput;
+
+  /// ISO-8601 timestamp of the last detection run, empty when never run.
+  /// A measurement against a relay is a sample of one moment — the same model
+  /// name can route elsewhere tomorrow — so the reading is only meaningful
+  /// alongside when it was taken.
+  final String measuredAt;
+
+  /// The endpoint accepted an over-long prompt and quietly dropped part of
+  /// it. Only ever set from a positive detection: not being set means
+  /// "nothing found", never "verified clean".
+  final bool silentTruncation;
+
   String get label => displayName.trim().isEmpty ? modelId : displayName;
+
+  bool get hasMeasurement => measuredAt.isNotEmpty;
 
   LlmModelConfig copyWith({
     String? modelId,
@@ -222,6 +251,10 @@ class LlmModelConfig {
     bool? supportsVision,
     LlmPricing? pricing,
     bool clearPricing = false,
+    int? measuredContextWindow,
+    int? measuredMaxOutput,
+    String? measuredAt,
+    bool? silentTruncation,
   }) => LlmModelConfig(
     id: id,
     modelId: modelId ?? this.modelId,
@@ -231,6 +264,10 @@ class LlmModelConfig {
     temperature: temperature ?? this.temperature,
     supportsVision: supportsVision ?? this.supportsVision,
     pricing: clearPricing ? null : (pricing ?? this.pricing),
+    measuredContextWindow: measuredContextWindow ?? this.measuredContextWindow,
+    measuredMaxOutput: measuredMaxOutput ?? this.measuredMaxOutput,
+    measuredAt: measuredAt ?? this.measuredAt,
+    silentTruncation: silentTruncation ?? this.silentTruncation,
   );
 
   Map<String, dynamic> toJson() => {
@@ -242,6 +279,11 @@ class LlmModelConfig {
     'temperature': temperature,
     'supportsVision': supportsVision,
     if (pricing != null && !pricing!.isEmpty) 'pricing': pricing!.toJson(),
+    if (measuredContextWindow > 0) 'measuredContextWindow':
+        measuredContextWindow,
+    if (measuredMaxOutput > 0) 'measuredMaxOutput': measuredMaxOutput,
+    if (measuredAt.isNotEmpty) 'measuredAt': measuredAt,
+    if (silentTruncation) 'silentTruncation': true,
   };
 
   factory LlmModelConfig.fromJson(Map<String, dynamic> json) => LlmModelConfig(
@@ -255,6 +297,11 @@ class LlmModelConfig {
     pricing: json['pricing'] is Map<String, dynamic>
         ? LlmPricing.fromJson(json['pricing'] as Map<String, dynamic>)
         : null,
+    measuredContextWindow:
+        (json['measuredContextWindow'] as num?)?.toInt() ?? 0,
+    measuredMaxOutput: (json['measuredMaxOutput'] as num?)?.toInt() ?? 0,
+    measuredAt: (json['measuredAt'] as String?) ?? '',
+    silentTruncation: (json['silentTruncation'] as bool?) ?? false,
   );
 }
 

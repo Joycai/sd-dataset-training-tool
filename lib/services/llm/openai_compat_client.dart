@@ -14,7 +14,7 @@ import '../../models/llm_models.dart';
 import 'llm_client.dart';
 import 'sse.dart';
 
-class OpenAiCompatClient implements LlmClient {
+class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
   OpenAiCompatClient({
     this.connectTimeout = const Duration(seconds: 30),
     this.idleTimeout = const Duration(seconds: 120),
@@ -175,17 +175,17 @@ class OpenAiCompatClient implements LlmClient {
   Future<http.StreamedResponse> _send(
     http.Client client,
     LlmProviderProfile profile,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    Duration? timeout,
+  }) async {
+    final limit = timeout ?? connectTimeout;
     final request = http.Request('POST', _endpoint(profile))
       ..headers.addAll(_headers(profile))
       ..body = jsonEncode(body);
     try {
-      return await client.send(request).timeout(connectTimeout);
+      return await client.send(request).timeout(limit);
     } on TimeoutException {
-      throw LlmException(
-        'Connection timed out after ${connectTimeout.inSeconds}s.',
-      );
+      throw LlmException('Connection timed out after ${limit.inSeconds}s.');
     } on SocketException catch (e) {
       throw LlmException(
         'Cannot reach ${_endpoint(profile).host}: ${e.message}',
@@ -361,6 +361,20 @@ class OpenAiCompatClient implements LlmClient {
   /// endpoint. Returns the `data[].id` values sorted alphabetically.
   @override
   Future<List<String>> listModels(LlmProviderProfile profile) async {
+    final ids =
+        (await listModelsDetailed(profile))
+            .map((m) => (m['id'] ?? '').toString())
+            .where((id) => id.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return ids;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listModelsDetailed(
+    LlmProviderProfile profile,
+  ) async {
     final client = http.Client();
     try {
       final resp = await client
@@ -375,15 +389,7 @@ class OpenAiCompatClient implements LlmClient {
       if (decoded is! Map<String, dynamic> || decoded['data'] is! List) {
         throw LlmException('Unexpected /models response shape.');
       }
-      final ids =
-          (decoded['data'] as List)
-              .whereType<Map<String, dynamic>>()
-              .map((m) => (m['id'] ?? '').toString())
-              .where((id) => id.isNotEmpty)
-              .toSet()
-              .toList()
-            ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-      return ids;
+      return (decoded['data'] as List).whereType<Map<String, dynamic>>().toList();
     } on TimeoutException {
       throw LlmException(
         'Connection timed out after ${connectTimeout.inSeconds}s.',
@@ -399,6 +405,87 @@ class OpenAiCompatClient implements LlmClient {
     } finally {
       client.close();
     }
+  }
+
+  // --- Capability probe -------------------------------------------------
+
+  @override
+  Future<ProbeResponse> sendProbe(
+    LlmProviderProfile profile, {
+    required List<ChatMessage> messages,
+    required int maxTokens,
+    Duration? timeout,
+  }) async {
+    final client = http.Client();
+    try {
+      var body =
+          _buildBody(
+            profile,
+            messages,
+            const [],
+            stream: false,
+            maxTokensOverride: maxTokens,
+          )..remove('stream_options');
+      var resp = await _send(client, profile, body, timeout: timeout);
+      var text = await _readBody(resp);
+
+      // One repair pass, same as the chat path: a server that only knows
+      // `max_completion_tokens` would otherwise be reported as "rejected the
+      // request size" when it merely dislikes the parameter's name.
+      if (resp.statusCode >= 400 && resp.statusCode < 500) {
+        final adjusted = _adjustBody(body, text);
+        if (adjusted != null) {
+          body = adjusted;
+          resp = await _send(client, profile, body, timeout: timeout);
+          text = await _readBody(resp);
+        }
+      }
+      return _toProbeResponse(resp.statusCode, text);
+    } on LlmException catch (e) {
+      return ProbeResponse(statusCode: 0, message: e.message);
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Reads status, provider error code and usage out of a raw response body.
+  static ProbeResponse _toProbeResponse(int statusCode, String text) {
+    Object? decoded;
+    try {
+      decoded = jsonDecode(text);
+    } on FormatException {
+      decoded = null;
+    }
+    final map = decoded is Map<String, dynamic> ? decoded : null;
+
+    var errorCode = '';
+    var message = '';
+    final error = map?['error'];
+    if (error is Map<String, dynamic>) {
+      errorCode = (error['code'] ?? error['type'] ?? '').toString();
+      message = (error['message'] ?? '').toString();
+    }
+    if (message.isEmpty && statusCode >= 400) {
+      // Relays return bare strings and HTML often enough that the raw body is
+      // the only evidence there is; the patterns match against it too.
+      message = _truncate(text);
+    }
+
+    TokenUsage? usage;
+    final rawUsage = map?['usage'];
+    if (rawUsage is Map<String, dynamic>) {
+      usage = TokenUsage(
+        prompt: (rawUsage['prompt_tokens'] as num?)?.toInt() ?? 0,
+        completion: (rawUsage['completion_tokens'] as num?)?.toInt() ?? 0,
+      );
+    }
+
+    return ProbeResponse(
+      statusCode: statusCode,
+      errorCode: errorCode,
+      message: message,
+      usage: usage,
+    );
   }
 
   @override
