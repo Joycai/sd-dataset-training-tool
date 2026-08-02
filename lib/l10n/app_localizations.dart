@@ -1143,7 +1143,7 @@ abstract class AppLocalizations {
   /// No description provided for @datasetTagsHint.
   ///
   /// In en, this message translates to:
-  /// **'Green = on the current image. Right-click for actions'**
+  /// **'✓ = on the current image. Right-click for actions'**
   String get datasetTagsHint;
 
   /// No description provided for @clearTagFilter.
@@ -1176,6 +1176,42 @@ abstract class AppLocalizations {
   /// **'Delete from all images'**
   String get menuDeleteGlobal;
 
+  /// No description provided for @tagMenuOpenDictionary.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in dictionary…'**
+  String get tagMenuOpenDictionary;
+
+  /// No description provided for @tagMenuRemoveFromImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from this image'**
+  String get tagMenuRemoveFromImage;
+
+  /// No description provided for @tagMenuSetAnchor.
+  ///
+  /// In en, this message translates to:
+  /// **'Set as insertion anchor'**
+  String get tagMenuSetAnchor;
+
+  /// No description provided for @tagMenuClearAnchor.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear insertion anchor'**
+  String get tagMenuClearAnchor;
+
+  /// No description provided for @tagMenuAddToLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to library'**
+  String get tagMenuAddToLibrary;
+
+  /// No description provided for @tagMenuApplySuggestion.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply suggestion'**
+  String get tagMenuApplySuggestion;
+
   /// No description provided for @deleteTagConfirmTitle.
   ///
   /// In en, this message translates to:
@@ -1187,6 +1223,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove \"{tag}\" from {count} images? This can be undone from the toolbar.'**
   String deleteTagConfirmContent(int count, String tag);
+
+  /// No description provided for @deleteTagConfirmButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete ({count})'**
+  String deleteTagConfirmButton(int count);
+
+  /// No description provided for @datasetTagSortAlphaTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort tags alphabetically'**
+  String get datasetTagSortAlphaTooltip;
+
+  /// No description provided for @datasetReorderMenuLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort all images\' tags…'**
+  String get datasetReorderMenuLabel;
+
+  /// No description provided for @datasetReorderDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort tags everywhere'**
+  String get datasetReorderDialogTitle;
+
+  /// No description provided for @datasetReorderDialogContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Reorders every image\'s tags to match the order shown in this list. Applies to {count} images.'**
+  String datasetReorderDialogContent(int count);
 
   /// No description provided for @addTagsGlobalTooltip.
   ///
@@ -1271,6 +1337,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Comma-separated tags'**
   String get replaceInputHint;
+
+  /// No description provided for @replaceAffectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to {count} images'**
+  String replaceAffectedCount(int count);
+
+  /// No description provided for @applyCountButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply ({count})'**
+  String applyCountButton(int count);
 
   /// No description provided for @apply.
   ///
@@ -1433,6 +1511,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'append next to \"{tag}\"'**
   String opInsertLabel(String tag);
+
+  /// No description provided for @opReorderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'sort tags everywhere'**
+  String get opReorderLabel;
 
   /// No description provided for @tagLibraryTitle.
   ///
@@ -1643,6 +1727,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove from group'**
   String get removeFromGroup;
+
+  /// No description provided for @groupEditSelectAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Select'**
+  String get groupEditSelectAction;
+
+  /// No description provided for @groupEditDeselectAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Deselect'**
+  String get groupEditDeselectAction;
+
+  /// No description provided for @groupEditSelectAllInGroupAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all in group'**
+  String get groupEditSelectAllInGroupAction;
 
   /// No description provided for @editGroupMenu.
   ///

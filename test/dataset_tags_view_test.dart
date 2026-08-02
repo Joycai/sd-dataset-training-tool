@@ -61,7 +61,7 @@ void main() {
     await tempDir.delete(recursive: true);
   });
 
-  Widget harness() {
+  Widget harness({double width = 340}) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: appState),
@@ -77,15 +77,15 @@ void main() {
         home: Scaffold(
           body: Align(
             alignment: Alignment.centerLeft,
-            child: SizedBox(width: 340, child: TagLibraryPanel()),
+            child: SizedBox(width: width, child: TagLibraryPanel()),
           ),
         ),
       ),
     );
   }
 
-  Future<void> openDatasetTab(WidgetTester tester) async {
-    await tester.pumpWidget(harness());
+  Future<void> openDatasetTab(WidgetTester tester, {double width = 340}) async {
+    await tester.pumpWidget(harness(width: width));
     await tester.pumpAndSettle();
     // The tab label carries its tag count ("Dataset  12") since the views
     // dropped their own title rows.
@@ -95,6 +95,14 @@ void main() {
 
   Future<void> rightClick(WidgetTester tester, Finder finder) async {
     await tester.tap(finder, buttons: kSecondaryMouseButton);
+    await tester.pumpAndSettle();
+  }
+
+  // "Add tags to all images…" moved into the toolbar's overflow menu.
+  Future<void> openAddTagsDialog(WidgetTester tester) async {
+    await tester.tap(find.byIcon(Icons.more_horiz));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add tags to all images…'));
     await tester.pumpAndSettle();
   }
 
@@ -220,16 +228,16 @@ void main() {
   ) async {
     await openDatasetTab(tester);
 
-    await tester.tap(find.byIcon(Icons.playlist_add));
-    await tester.pumpAndSettle();
+    await openAddTagsDialog(tester);
     expect(find.text('Add tags to all images'), findsOneWidget);
     // No gallery filter active: the scope checkbox is absent.
     expect(find.byType(Checkbox), findsNothing);
     expect(find.textContaining('added to 2 images'), findsOneWidget);
 
-    // Empty input disables Apply.
+    // Empty input disables Apply. The button's own label carries the
+    // target count (2 images, unaffected by which position pill is picked).
     TextButton applyButton() =>
-        tester.widget<TextButton>(find.widgetWithText(TextButton, 'Apply'));
+        tester.widget<TextButton>(find.widgetWithText(TextButton, 'Apply (2)'));
     expect(applyButton().onPressed, isNull);
 
     await tester.enterText(find.byType(TextField).last, 'new tag');
@@ -260,8 +268,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(dataset.visibleFiles, hasLength(1));
 
-    await tester.tap(find.byIcon(Icons.playlist_add));
-    await tester.pumpAndSettle();
+    await openAddTagsDialog(tester);
     expect(find.text('Only the 1 filtered images'), findsOneWidget);
     expect(find.textContaining('added to 2 images'), findsOneWidget);
 
@@ -288,6 +295,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Remove "beta" from 2 images'), findsOneWidget);
+    // The confirm button's own label carries the same count.
+    expect(find.text('Delete (2)'), findsOneWidget);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
@@ -312,16 +321,169 @@ void main() {
     final field = find.byType(TextField).last;
     expect(tester.widget<TextField>(field).controller?.text, 'beta');
 
+    // The button label carries the affected count ('beta' is on 2 images).
+    expect(find.text('Applies to 2 images'), findsOneWidget);
+
     // Emptying the input disables Apply.
     await tester.enterText(field, '');
     await tester.pumpAndSettle();
     final applyButton = tester.widget<TextButton>(
-      find.widgetWithText(TextButton, 'Apply'),
+      find.widgetWithText(TextButton, 'Apply (2)'),
     );
     expect(applyButton.onPressed, isNull);
 
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(ops.canUndo, isFalse);
+  });
+
+  testWidgets(
+    'context menu carries the library/dictionary section, unified with '
+    'the tag library panel',
+    (tester) async {
+      await openDatasetTab(tester);
+
+      await rightClick(tester, find.text('beta'));
+      expect(find.text('Danbooru wiki'), findsOneWidget);
+      expect(find.text('Danbooru posts'), findsOneWidget);
+      expect(find.text('Open in dictionary…'), findsOneWidget);
+      // Neither tag is in the (empty) library yet.
+      expect(find.text('Add to library'), findsOneWidget);
+    },
+  );
+
+  testWidgets('add to library from the dataset tab adds the tag', (
+    tester,
+  ) async {
+    await appState.addCommonTags(['alpha']);
+    await openDatasetTab(tester);
+
+    // 'alpha' is already in the library: no add-to-library entry.
+    await rightClick(tester, find.text('alpha'));
+    expect(find.text('Add to library'), findsNothing);
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+
+    // 'beta' is not: the entry adds it.
+    await rightClick(tester, find.text('beta'));
+    expect(find.text('Add to library'), findsOneWidget);
+    await tester.tap(find.text('Add to library'));
+    await tester.pumpAndSettle();
+    expect(appState.commonTags, contains('beta'));
+  });
+
+  BoxDecoration decorationOf(WidgetTester tester, String tag) {
+    final container = tester.widget<Container>(
+      find.ancestor(of: find.text(tag), matching: find.byType(Container)).first,
+    );
+    return container.decoration! as BoxDecoration;
+  }
+
+  testWidgets(
+    'applied dataset tags take their library group color instead of a '
+    'flat green',
+    (tester) async {
+      await appState.addCommonTags(['alpha']);
+      final group = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+      await appState.moveTagsToGroup(['alpha'], group.id);
+      await tester.runAsync(
+        () => session.load(File(p.join(tempDir.path, '001.png')), '.txt'),
+      );
+
+      await openDatasetTab(tester);
+
+      // 'alpha' and 'beta' are both applied (session is on 001.png, whose
+      // caption is "alpha, beta"); only 'alpha' is grouped.
+      final grouped = decorationOf(tester, 'alpha');
+      final ungrouped = decorationOf(tester, 'beta');
+      expect(
+        (grouped.border! as Border).top.color,
+        const Color(0xFF6A9BDD).withAlpha(128),
+      );
+      expect(
+        (ungrouped.border! as Border).top.color,
+        isNot((grouped.border! as Border).top.color),
+      );
+    },
+  );
+
+  testWidgets(
+    'a grouped tag not on the current image gets a colored outline, not a '
+    'filled chip',
+    (tester) async {
+      await appState.addCommonTags(['alpha']);
+      final group = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+      await appState.moveTagsToGroup(['alpha'], group.id);
+      // 002.png's caption is "beta" only — 'alpha' is in the dataset (via
+      // 001.txt) but not applied to this image.
+      await tester.runAsync(
+        () => session.load(File(p.join(tempDir.path, '002.png')), '.txt'),
+      );
+
+      await openDatasetTab(tester);
+
+      final decoration = decorationOf(tester, 'alpha');
+      // The "applied" branch tints at alpha 128; unapplied-but-grouped uses
+      // a distinct 140 so the two states never collide on the same value.
+      expect(
+        (decoration.border! as Border).top.color,
+        const Color(0xFF6A9BDD).withAlpha(140),
+      );
+    },
+  );
+
+  testWidgets(
+    'sort toggle switches the tag list between frequency and alphabetical '
+    'order',
+    (tester) async {
+      await openDatasetTab(tester);
+
+      // Default: frequency-descending — beta (count 2) before alpha (1).
+      expect(
+        tester.getTopLeft(find.text('beta')).dx,
+        lessThan(tester.getTopLeft(find.text('alpha')).dx),
+      );
+
+      await tester.tap(find.byIcon(Icons.sort_by_alpha));
+      await tester.pumpAndSettle();
+
+      // Alphabetical: alpha before beta.
+      expect(
+        tester.getTopLeft(find.text('alpha')).dx,
+        lessThan(tester.getTopLeft(find.text('beta')).dx),
+      );
+    },
+  );
+
+  testWidgets(
+    'overflow menu: "sort all images tags" shows the affected count and '
+    'cancels without effect',
+    (tester) async {
+      await openDatasetTab(tester);
+
+      await tester.tap(find.byIcon(Icons.more_horiz));
+      await tester.pumpAndSettle();
+      expect(find.text("Sort all images' tags…"), findsOneWidget);
+      await tester.tap(find.text("Sort all images' tags…"));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sort tags everywhere'), findsOneWidget);
+      expect(find.textContaining('Applies to 2 images'), findsOneWidget);
+      expect(find.text('Apply (2)'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(ops.canUndo, isFalse);
+    },
+  );
+
+  testWidgets('toolbar row does not overflow at the panel\'s minimum width', (
+    tester,
+  ) async {
+    // 200px is the panel's documented minimum (see PanelIconButton.hitSize
+    // usage in tag_library_panel.dart); the row now carries a 4th icon
+    // button after the sort toggle and overflow menu were added.
+    await openDatasetTab(tester, width: 200);
+    expect(tester.takeException(), isNull);
   });
 }

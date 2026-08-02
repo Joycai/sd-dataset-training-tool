@@ -11,8 +11,8 @@ import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
 import '../../state/workbench_layout.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/danbooru_tag_menu.dart';
 import '../../widgets/panel_widgets.dart';
+import '../../widgets/tag_context_menu.dart';
 import '../../widgets/tag_gloss.dart';
 import 'dataset_tags_view.dart';
 import 'tag_dictionary_dialog.dart';
@@ -207,42 +207,73 @@ class _LibraryViewState extends State<_LibraryView> {
   }
 
   void _showTagMenu(BuildContext context, Offset position, String tag) async {
-    final l10n = AppLocalizations.of(context)!;
     final appState = context.read<AppState>();
-    final action = await showPanelContextMenu<String>(
+    final dataset = context.read<DatasetState>();
+    final action = await showPanelContextMenu<TagMenuAction>(
       context: context,
       position: position,
-      items: [
-        ...danbooruTagMenuItems(
-          context,
-          tag: tag,
-          dictionary: appState.tagDictionary,
-        ),
-        const PopupMenuDivider(height: 9),
-        panelMenuItem(
-          context: context,
-          value: 'remove',
-          icon: Icons.delete_outline,
-          label: l10n.removeFromLibrary,
-        ),
-      ],
+      items: buildTagMenuItems(
+        context,
+        tag: tag,
+        dictionary: appState.tagDictionary,
+        sections: const TagMenuSections(filter: true, removeFromLibrary: true),
+      ),
     );
     if (!context.mounted) return;
-    if (await handleDanbooruTagMenuAction(context, action, tag)) return;
-    if (action == 'remove') {
-      await appState.removeCommonTags([tag]);
+    if (await handleTagMenuAction(context, action, tag)) return;
+    switch (action) {
+      case TagMenuAction.filterInclude:
+        dataset.setTagFilter(tag, exclude: false);
+      case TagMenuAction.filterExclude:
+        dataset.setTagFilter(tag, exclude: true);
+      case TagMenuAction.removeFromLibrary:
+        await appState.removeCommonTags([tag]);
+      default:
+        break;
     }
   }
 
-  /// Group-edit mode context menu. [targets] is the whole selection when the
-  /// clicked tag is part of it, otherwise just the clicked tag.
-  Future<void> _showSendMenu(Offset position, List<String> targets) async {
+  /// Group-edit mode context menu: the same three-section shape as the
+  /// normal tag menu (info is meaningless here, so it starts at "selection")
+  /// — a selection section for the clicked tag, the send-to-group actions,
+  /// and a danger section last. [clickedTag] drives the selection toggle and
+  /// "select all in group"; [targets] is the whole selection when the
+  /// clicked tag is part of it, otherwise just the clicked tag, and is what
+  /// the send/remove actions act on.
+  Future<void> _showSendMenu(
+    Offset position,
+    String clickedTag,
+    List<String> targets,
+  ) async {
     final l10n = AppLocalizations.of(context)!;
     final appState = context.read<AppState>();
+    final scheme = Theme.of(context).colorScheme;
+    final clickedSelected = _selected.contains(clickedTag);
+    final siblings =
+        appState.groupOfTag(clickedTag)?.tags ?? appState.ungroupedTags;
+
     final action = await showPanelContextMenu<String>(
       context: context,
       position: position,
       items: [
+        panelMenuItem(
+          context: context,
+          value: clickedSelected ? 'deselect' : 'select',
+          icon: clickedSelected
+              ? Icons.check_box_outlined
+              : Icons.check_box_outline_blank,
+          label: clickedSelected
+              ? l10n.groupEditDeselectAction
+              : l10n.groupEditSelectAction,
+        ),
+        if (siblings.length > 1)
+          panelMenuItem(
+            context: context,
+            value: 'selectGroup',
+            icon: Icons.select_all,
+            label: l10n.groupEditSelectAllInGroupAction,
+          ),
+        const PopupMenuDivider(height: 9),
         for (final group in appState.tagGroups)
           panelMenuItem(
             context: context,
@@ -257,21 +288,47 @@ class _LibraryViewState extends State<_LibraryView> {
           icon: Icons.create_new_folder_outlined,
           label: l10n.sendToNewGroup,
         ),
-        const PopupMenuDivider(height: 10),
         panelMenuItem(
           context: context,
           value: 'ungroup',
           icon: Icons.folder_off_outlined,
           label: l10n.removeFromGroup,
         ),
+        const PopupMenuDivider(height: 9),
+        panelMenuItem(
+          context: context,
+          value: 'removeFromLibrary',
+          icon: Icons.delete_outline,
+          label: l10n.removeFromLibrary,
+          color: scheme.error,
+        ),
       ],
     );
     if (action == null || !mounted) return;
+
+    switch (action) {
+      case 'select':
+        setState(() => _selected.add(clickedTag));
+        return;
+      case 'deselect':
+        setState(() => _selected.remove(clickedTag));
+        return;
+      case 'selectGroup':
+        setState(() => _selected.addAll(siblings));
+        return;
+      case 'removeFromLibrary':
+        await appState.removeCommonTags(targets);
+        setState(() => _selected.removeAll(targets));
+        return;
+    }
 
     String? groupId;
     if (action == 'ungroup') {
       groupId = null;
     } else if (action == 'new') {
+      // The switch above only reaches here on a non-awaiting branch, but the
+      // analyzer can't see that across the case boundaries.
+      if (!mounted) return;
       final input = await showTagGroupDialog(context);
       if (input == null) return;
       groupId = (await appState.createTagGroup(input.name, input.color)).id;
@@ -587,7 +644,7 @@ class _LibraryViewState extends State<_LibraryView> {
                 .where(_selected.contains)
                 .toList()
           : [tag];
-      _showSendMenu(position, targets);
+      _showSendMenu(position, tag, targets);
     } else {
       _showTagMenu(context, position, tag);
     }
@@ -695,201 +752,221 @@ class _LibraryViewState extends State<_LibraryView> {
           ),
         ),
         Expanded(
-          // Empty groups still render as sections (e.g. right after clearing
-          // the library), so the empty state needs all three to be empty.
-          child:
-              commonTags.isEmpty &&
-                  newTags.isEmpty &&
-                  appState.tagGroups.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Text(
-                      l10n.libraryEmpty,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12.5, color: semantic.muted),
+          child: Container(
+            // A faint wash while editing groups — a reminder that a click
+            // here selects instead of applying to the current image, since
+            // the chips themselves keep the same pill shape either way.
+            decoration: _groupEditMode
+                ? BoxDecoration(
+                    color: scheme.primary.withAlpha(10),
+                    border: Border(
+                      top: BorderSide(color: scheme.primary.withAlpha(60)),
                     ),
-                  ),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _SectionLabel(
-                              text: _groupEditMode
-                                  ? (_selected.isEmpty
-                                        ? l10n.groupEditHint
-                                        : l10n.groupEditSelectedHint(
-                                            _selected.length,
-                                          ))
-                                  : l10n.clickToApplyHint,
-                              color: _groupEditMode ? scheme.primary : null,
-                            ),
-                            // Sections are single keyed children so a
-                            // reorder slides them to their new position.
-                            AnimatedReorderColumn(
-                              reorderToken: _reorderTick,
-                              children: [
-                                for (final (group, tags) in sections)
-                                  Padding(
-                                    key: ValueKey(group?.id ?? '__ungrouped'),
-                                    padding: const EdgeInsets.only(top: 10),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        _GroupHeader(
-                                          group: group,
-                                          count: tags.length,
-                                          ungroupedLabel: l10n.ungroupedSection,
-                                          deleteTooltip: l10n.deleteGroupMenu,
-                                          colorTooltip:
-                                              l10n.changeGroupColorTooltip,
-                                          moveUpTooltip:
-                                              l10n.moveGroupUpTooltip,
-                                          moveDownTooltip:
-                                              l10n.moveGroupDownTooltip,
-                                          onContextMenu: group == null
-                                              ? null
-                                              : (position) => _showGroupMenu(
-                                                  position,
-                                                  group,
-                                                ),
-                                          onDelete: group == null
-                                              ? null
-                                              : () =>
-                                                    _confirmDeleteGroup(group),
-                                          // Quick controls only in group-edit
-                                          // mode; arrows reorder within the
-                                          // full group list (a filter may
-                                          // hide sections but the order is
-                                          // global) and disable at the ends.
-                                          onColorTap:
-                                              !_groupEditMode || group == null
-                                              ? null
-                                              : (position) =>
-                                                    _showColorSwatches(
-                                                      position,
-                                                      group,
-                                                    ),
-                                          onMoveUp:
-                                              !_groupEditMode ||
-                                                  group == null ||
-                                                  group.id ==
-                                                      appState
-                                                          .tagGroups
-                                                          .first
-                                                          .id
-                                              ? null
-                                              : () => _reorderGroup(group, -1),
-                                          onMoveDown:
-                                              !_groupEditMode ||
-                                                  group == null ||
-                                                  group.id ==
-                                                      appState.tagGroups.last.id
-                                              ? null
-                                              : () => _reorderGroup(group, 1),
-                                        ),
-                                        const SizedBox(height: 7),
-                                        Wrap(
-                                          spacing: 7,
-                                          runSpacing: 7,
-                                          children: [
-                                            for (final tag in tags)
-                                              _LibraryTagChip(
-                                                label: tag,
-                                                applied: session.hasTag(tag),
-                                                enabled:
-                                                    _groupEditMode ||
-                                                    session.hasImage,
-                                                dotColor: group == null
-                                                    ? null
-                                                    : Color(group.color),
-                                                selectionMode: _groupEditMode,
-                                                selected: _selected.contains(
-                                                  tag,
-                                                ),
-                                                onTap: () =>
-                                                    _onChipTap(session, tag),
-                                                onContextMenu: (position) =>
-                                                    _onChipContextMenu(
-                                                      position,
-                                                      tag,
-                                                    ),
-                                              ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
+                  )
+                : null,
+            // Empty groups still render as sections (e.g. right after
+            // clearing the library), so the empty state needs all three to
+            // be empty.
+            child:
+                commonTags.isEmpty &&
+                    newTags.isEmpty &&
+                    appState.tagGroups.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text(
+                        l10n.libraryEmpty,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12.5, color: semantic.muted),
                       ),
-                      if (newTags.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        // A hairline, not a card: this is a section of the
-                        // same list, not a separate surface.
-                        Container(height: 1, color: semantic.line),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Row(
+                    ),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _SectionLabel(
+                                text: _groupEditMode
+                                    ? (_selected.isEmpty
+                                          ? l10n.groupEditHint
+                                          : l10n.groupEditSelectedHint(
+                                              _selected.length,
+                                            ))
+                                    : l10n.clickToApplyHint,
+                                color: _groupEditMode ? scheme.primary : null,
+                              ),
+                              // Sections are single keyed children so a
+                              // reorder slides them to their new position.
+                              AnimatedReorderColumn(
+                                reorderToken: _reorderTick,
                                 children: [
-                                  Flexible(
-                                    child: Text(
-                                      l10n.newTagsSection,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: AppText.secondary,
-                                        fontWeight: FontWeight.w600,
-                                        color: scheme.onSurface,
+                                  for (final (group, tags) in sections)
+                                    Padding(
+                                      key: ValueKey(group?.id ?? '__ungrouped'),
+                                      padding: const EdgeInsets.only(top: 10),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          _GroupHeader(
+                                            group: group,
+                                            count: tags.length,
+                                            ungroupedLabel:
+                                                l10n.ungroupedSection,
+                                            deleteTooltip: l10n.deleteGroupMenu,
+                                            colorTooltip:
+                                                l10n.changeGroupColorTooltip,
+                                            moveUpTooltip:
+                                                l10n.moveGroupUpTooltip,
+                                            moveDownTooltip:
+                                                l10n.moveGroupDownTooltip,
+                                            onContextMenu: group == null
+                                                ? null
+                                                : (position) => _showGroupMenu(
+                                                    position,
+                                                    group,
+                                                  ),
+                                            onDelete: group == null
+                                                ? null
+                                                : () => _confirmDeleteGroup(
+                                                    group,
+                                                  ),
+                                            // Quick controls only in group-edit
+                                            // mode; arrows reorder within the
+                                            // full group list (a filter may
+                                            // hide sections but the order is
+                                            // global) and disable at the ends.
+                                            onColorTap:
+                                                !_groupEditMode || group == null
+                                                ? null
+                                                : (position) =>
+                                                      _showColorSwatches(
+                                                        position,
+                                                        group,
+                                                      ),
+                                            onMoveUp:
+                                                !_groupEditMode ||
+                                                    group == null ||
+                                                    group.id ==
+                                                        appState
+                                                            .tagGroups
+                                                            .first
+                                                            .id
+                                                ? null
+                                                : () =>
+                                                      _reorderGroup(group, -1),
+                                            onMoveDown:
+                                                !_groupEditMode ||
+                                                    group == null ||
+                                                    group.id ==
+                                                        appState
+                                                            .tagGroups
+                                                            .last
+                                                            .id
+                                                ? null
+                                                : () => _reorderGroup(group, 1),
+                                          ),
+                                          const SizedBox(height: 7),
+                                          Wrap(
+                                            spacing: 7,
+                                            runSpacing: 7,
+                                            children: [
+                                              for (final tag in tags)
+                                                _LibraryTagChip(
+                                                  label: tag,
+                                                  applied: session.hasTag(tag),
+                                                  enabled:
+                                                      _groupEditMode ||
+                                                      session.hasImage,
+                                                  dotColor: group == null
+                                                      ? null
+                                                      : Color(group.color),
+                                                  selectionMode: _groupEditMode,
+                                                  selected: _selected.contains(
+                                                    tag,
+                                                  ),
+                                                  onTap: () =>
+                                                      _onChipTap(session, tag),
+                                                  onContextMenu: (position) =>
+                                                      _onChipContextMenu(
+                                                        position,
+                                                        tag,
+                                                      ),
+                                                ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    '${newTags.length}',
-                                    style: monoStyle(
-                                      context,
-                                      size: AppText.small,
-                                      color: semantic.muted,
-                                    ),
-                                  ),
                                 ],
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            _LinkButton(
-                              label: l10n.addAllToLibrary,
-                              onTap: () => appState.addCommonTags(newTags),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: [
-                            for (final tag in newTags)
-                              _NewTagChip(
-                                label: tag,
-                                onTap: () => appState.addCommonTags([tag]),
+                        if (newTags.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          // A hairline, not a card: this is a section of the
+                          // same list, not a separate surface.
+                          Container(height: 1, color: semantic.line),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        l10n.newTagsSection,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: AppText.secondary,
+                                          fontWeight: FontWeight.w600,
+                                          color: scheme.onSurface,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      '${newTags.length}',
+                                      style: monoStyle(
+                                        context,
+                                        size: AppText.small,
+                                        color: semantic.muted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                          ],
-                        ),
+                              const SizedBox(width: 8),
+                              _LinkButton(
+                                label: l10n.addAllToLibrary,
+                                onTap: () => appState.addCommonTags(newTags),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              for (final tag in newTags)
+                                _NewTagChip(
+                                  label: tag,
+                                  onTap: () => appState.addCommonTags([tag]),
+                                ),
+                            ],
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
+          ),
         ),
         const Divider(),
         Padding(
@@ -1144,10 +1221,17 @@ class _LibraryTagChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (selectionMode && selected) ...[
-            Icon(Icons.check, size: 10, color: scheme.primary),
+          if (selectionMode) ...[
+            // A checkbox, not a checkmark: unlike "applied", "selected" has
+            // no colored fill of its own to lean on, so the unselected state
+            // needs its own glyph rather than just omitting one.
+            Icon(
+              selected ? Icons.check_box : Icons.check_box_outline_blank,
+              size: 12,
+              color: selected ? scheme.primary : semantic.muted,
+            ),
             const SizedBox(width: 4),
-          ] else if (!selectionMode && applied) ...[
+          ] else if (applied) ...[
             Icon(Icons.check, size: 10, color: semantic.ok),
             const SizedBox(width: 4),
           ],

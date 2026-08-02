@@ -579,7 +579,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get datasetTagsEmpty => '数据集里还没有标签。';
 
   @override
-  String get datasetTagsHint => '绿色 = 当前图片包含，右键打开操作菜单';
+  String get datasetTagsHint => '✓ = 当前图片包含，右键打开操作菜单';
 
   @override
   String get clearTagFilter => '清除标签过滤';
@@ -597,11 +597,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String get menuDeleteGlobal => '从所有图片中删除';
 
   @override
+  String get tagMenuOpenDictionary => '在词典中打开…';
+
+  @override
+  String get tagMenuRemoveFromImage => '从当前图移除';
+
+  @override
+  String get tagMenuSetAnchor => '设为插入锚点';
+
+  @override
+  String get tagMenuClearAnchor => '取消插入锚点';
+
+  @override
+  String get tagMenuAddToLibrary => '加入标签库';
+
+  @override
+  String get tagMenuApplySuggestion => '应用建议';
+
+  @override
   String get deleteTagConfirmTitle => '全局删除标签';
 
   @override
   String deleteTagConfirmContent(int count, String tag) {
     return '从 $count 张图片中移除“$tag”？此操作可从顶栏撤销。';
+  }
+
+  @override
+  String deleteTagConfirmButton(int count) {
+    return '删除（$count）';
+  }
+
+  @override
+  String get datasetTagSortAlphaTooltip => '按字母排序标签';
+
+  @override
+  String get datasetReorderMenuLabel => '为所有图片排序标签…';
+
+  @override
+  String get datasetReorderDialogTitle => '全局排序标签';
+
+  @override
+  String datasetReorderDialogContent(int count) {
+    return '将每张图片的标签顺序调整为与此列表一致，影响 $count 张图片。';
   }
 
   @override
@@ -649,6 +686,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get replaceInputHint => '逗号分隔的标签';
+
+  @override
+  String replaceAffectedCount(int count) {
+    return '将影响 $count 张图片';
+  }
+
+  @override
+  String applyCountButton(int count) {
+    return '应用（$count）';
+  }
 
   @override
   String get apply => '应用';
@@ -750,6 +797,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String opInsertLabel(String tag) {
     return '在“$tag”旁追加';
   }
+
+  @override
+  String get opReorderLabel => '全局排序标签';
 
   @override
   String get tagLibraryTitle => '常用标签库';
@@ -869,6 +919,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get removeFromGroup => '移出分组';
+
+  @override
+  String get groupEditSelectAction => '选中';
+
+  @override
+  String get groupEditDeselectAction => '取消选中';
+
+  @override
+  String get groupEditSelectAllInGroupAction => '全选本组';
 
   @override
   String get editGroupMenu => '编辑分组…';

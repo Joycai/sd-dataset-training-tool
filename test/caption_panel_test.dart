@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/gestures.dart' show kLongPressTimeout;
+import 'package:flutter/gestures.dart'
+    show kLongPressTimeout, kSecondaryButton;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -294,5 +295,79 @@ void main() {
       (plain.border! as Border).top.color,
       isNot((grouped.border! as Border).top.color),
     );
+  });
+
+  testWidgets(
+    'tag chip context menu: remove from image, no gallery filter without '
+    'a DatasetState',
+    (tester) async {
+      await tester.runAsync(() async {
+        await session.load(imageA, '.txt'); // tags: alpha, beta
+      });
+
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      // This harness never provides a DatasetState (the panel is exercised
+      // standalone) — the gallery-filter section has to disappear rather
+      // than crash the menu.
+      expect(find.text('Only images with this tag'), findsNothing);
+      expect(find.text('Danbooru wiki'), findsOneWidget);
+      expect(find.text('Set as insertion anchor'), findsOneWidget);
+      expect(find.text('Add to library'), findsOneWidget);
+
+      await tester.tap(find.text('Remove from this image'));
+      await tester.pumpAndSettle();
+      expect(session.tags, ['beta']);
+    },
+  );
+
+  testWidgets('tag chip context menu: set and clear the insertion anchor', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await session.load(imageA, '.txt'); // tags: alpha, beta
+    });
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Set as insertion anchor'));
+    await tester.pumpAndSettle();
+    expect(session.anchorTag, 'alpha');
+
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Clear insertion anchor'), findsOneWidget);
+    await tester.tap(find.text('Clear insertion anchor'));
+    await tester.pumpAndSettle();
+    expect(session.anchorTag, isNull);
+  });
+
+  testWidgets('tag chip context menu: add to library', (tester) async {
+    await tester.runAsync(() async {
+      await session.load(imageA, '.txt'); // tags: alpha, beta
+    });
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    expect(appState.commonTags, isNot(contains('alpha')));
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add to library'));
+    await tester.pumpAndSettle();
+    expect(appState.commonTags, contains('alpha'));
+
+    // Already in the library now: the entry disappears rather than
+    // offering a no-op re-add.
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Add to library'), findsNothing);
   });
 }

@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
+import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/ai_tagger_state.dart';
 import '../../state/editor_session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
+import '../../widgets/tag_context_menu.dart';
 
 /// The AI compare mode shown inside the caption editor's tags tab: current
 /// tags on the left, AI predictions on the right, with the diff highlighted.
@@ -28,6 +30,54 @@ class AiCompareView extends StatefulWidget {
 }
 
 class _AiCompareViewState extends State<AiCompareView> {
+  /// Right-click on either column: what danbooru knows about the tag, plus
+  /// whichever action fits where the chip lives — remove/anchor on the
+  /// left (the same current-image actions the tags tab offers), adopt the
+  /// suggestion on the right. [appState] is optional because this view is
+  /// exercised standalone in tests that never provide one.
+  Future<void> _showTagMenu(
+    String tag,
+    Offset position, {
+    required EditorSession session,
+    bool currentImage = false,
+    bool applySuggestion = false,
+    bool anchorActive = false,
+  }) async {
+    final appState = context.read<AppState?>();
+    final action = await showPanelContextMenu<TagMenuAction>(
+      context: context,
+      position: position,
+      items: buildTagMenuItems(
+        context,
+        tag: tag,
+        dictionary: appState?.tagDictionary,
+        inLibrary: appState?.commonTags.contains(tag) ?? false,
+        anchorActive: anchorActive,
+        sections: TagMenuSections(
+          currentImage: currentImage,
+          applySuggestion: applySuggestion,
+          addToLibrary: true,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (await handleTagMenuAction(context, action, tag)) return;
+    switch (action) {
+      case TagMenuAction.removeFromImage:
+        session.removeTag(tag);
+      case TagMenuAction.setAnchor:
+        session.setAnchorTag(tag);
+      case TagMenuAction.clearAnchor:
+        session.setAnchorTag(null);
+      case TagMenuAction.applySuggestion:
+        session.applyTag(tag);
+      case TagMenuAction.addToLibrary:
+        await appState?.addCommonTags([tag]);
+      default:
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -189,10 +239,24 @@ class _AiCompareViewState extends State<AiCompareView> {
                                   label: tag,
                                   semantic: semantic,
                                   onDelete: () => session.removeTag(tag),
+                                  onContextMenu: (position) => _showTagMenu(
+                                    tag,
+                                    position,
+                                    session: session,
+                                    currentImage: true,
+                                    anchorActive: session.anchorTag == tag,
+                                  ),
                                 )
                               : _CompareChip.matched(
                                   label: tag,
                                   semantic: semantic,
+                                  onContextMenu: (position) => _showTagMenu(
+                                    tag,
+                                    position,
+                                    session: session,
+                                    currentImage: true,
+                                    anchorActive: session.anchorTag == tag,
+                                  ),
                                 ),
                         ),
                       ),
@@ -271,12 +335,23 @@ class _AiCompareViewState extends State<AiCompareView> {
                             label: p.tag,
                             probability: p.probability,
                             semantic: semantic,
+                            onContextMenu: (position) => _showTagMenu(
+                              p.tag,
+                              position,
+                              session: session,
+                            ),
                           )
                         : _CompareChip.suggestion(
                             label: p.tag,
                             probability: p.probability,
                             semantic: semantic,
                             onTap: () => session.applyTag(p.tag),
+                            onContextMenu: (position) => _showTagMenu(
+                              p.tag,
+                              position,
+                              session: session,
+                              applySuggestion: true,
+                            ),
                           ),
                 ],
               ),
@@ -490,6 +565,7 @@ class _CompareChip extends StatelessWidget {
     required this.semantic,
     required double this.probability,
     required VoidCallback this.onTap,
+    this.onContextMenu,
   }) : _state = _ChipState.suggestion,
        onDelete = null;
 
@@ -497,6 +573,7 @@ class _CompareChip extends StatelessWidget {
     required this.label,
     required this.semantic,
     required VoidCallback this.onDelete,
+    this.onContextMenu,
   }) : _state = _ChipState.missing,
        probability = null,
        onTap = null;
@@ -505,6 +582,7 @@ class _CompareChip extends StatelessWidget {
     required this.label,
     required this.semantic,
     this.probability,
+    this.onContextMenu,
   }) : _state = _ChipState.matched,
        onTap = null,
        onDelete = null;
@@ -514,6 +592,9 @@ class _CompareChip extends StatelessWidget {
   final AppSemanticColors semantic;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+
+  /// Right-click, with the global tap position for menu placement.
+  final ValueChanged<Offset>? onContextMenu;
   final _ChipState _state;
 
   @override
@@ -592,11 +673,18 @@ class _CompareChip extends StatelessWidget {
       ),
     );
 
-    if (onTap == null) return chip;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadii.control),
-      child: MouseRegion(cursor: SystemMouseCursors.click, child: chip),
+    Widget body = chip;
+    if (onTap != null) {
+      body = InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+        child: MouseRegion(cursor: SystemMouseCursors.click, child: chip),
+      );
+    }
+    if (onContextMenu == null) return body;
+    return GestureDetector(
+      onSecondaryTapUp: (details) => onContextMenu!(details.globalPosition),
+      child: body,
     );
   }
 }

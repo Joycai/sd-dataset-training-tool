@@ -10,23 +10,18 @@ import '../../state/tag_ops.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
 import '../../widgets/subdirectory_picker.dart';
+import '../../widgets/tag_context_menu.dart';
 import '../../widgets/tag_gloss.dart';
 import 'tag_dictionary_dialog.dart';
-
-enum _TagMenuAction {
-  filterInclude,
-  filterExclude,
-  replaceAppend,
-  deleteGlobal,
-}
 
 enum _EditMode { replace, insertBefore, insertAfter }
 
 enum _AddPosition { head, tail, at }
 
 /// Right panel, "Dataset" tab: every tag in the dataset with its image count.
-/// Green marks tags present on the current image; click toggles the tag on
-/// it; right-click offers gallery filtering and dataset-wide edits.
+/// A checkmark (tinted by the tag's library group, or green if it has none)
+/// marks tags present on the current image; click toggles the tag on it;
+/// right-click offers gallery filtering and dataset-wide edits.
 class DatasetTagsView extends StatefulWidget {
   const DatasetTagsView({super.key});
 
@@ -37,52 +32,54 @@ class DatasetTagsView extends StatefulWidget {
 class _DatasetTagsViewState extends State<DatasetTagsView> {
   String _filter = '';
 
+  /// Display order for the tag list — count-descending (the default) or
+  /// alphabetical. Purely cosmetic; it also seeds the priority list for
+  /// "sort all images' tags…" (see [_confirmReorder]), so the batch
+  /// operation applies whichever order is currently on screen.
+  bool _sortAlphabetically = false;
+
+  /// [dataset.datasetTags] is already frequency-sorted (and cached); an
+  /// alphabetical view is a plain copy, never a mutation of that cache.
+  List<DatasetTag> _sortedTags(DatasetState dataset) {
+    final tags = dataset.datasetTags;
+    if (!_sortAlphabetically) return tags;
+    return [...tags]..sort((a, b) => a.tag.compareTo(b.tag));
+  }
+
   Future<void> _showTagMenu(Offset position, DatasetTag entry) async {
-    final l10n = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
     final dataset = context.read<DatasetState>();
-    final action = await showPanelContextMenu<_TagMenuAction>(
+    final appState = context.read<AppState>();
+    final action = await showPanelContextMenu<TagMenuAction>(
       context: context,
       position: position,
-      items: [
-        panelMenuItem(
-          context: context,
-          value: _TagMenuAction.filterInclude,
-          icon: Icons.filter_alt_outlined,
-          label: l10n.menuFilterInclude,
+      items: buildTagMenuItems(
+        context,
+        tag: entry.tag,
+        dictionary: appState.tagDictionary,
+        inLibrary: appState.commonTags.contains(entry.tag),
+        sections: const TagMenuSections(
+          filter: true,
+          addToLibrary: true,
+          datasetOps: true,
+          danger: true,
         ),
-        panelMenuItem(
-          context: context,
-          value: _TagMenuAction.filterExclude,
-          icon: Icons.visibility_off_outlined,
-          label: l10n.menuFilterExclude,
-        ),
-        const PopupMenuDivider(height: 8),
-        panelMenuItem(
-          context: context,
-          value: _TagMenuAction.replaceAppend,
-          icon: Icons.find_replace,
-          label: l10n.menuReplaceAppend,
-        ),
-        panelMenuItem(
-          context: context,
-          value: _TagMenuAction.deleteGlobal,
-          icon: Icons.delete_forever_outlined,
-          label: l10n.menuDeleteGlobal,
-          color: scheme.error,
-        ),
-      ],
+      ),
     );
     if (!mounted || action == null) return;
+    if (await handleTagMenuAction(context, action, entry.tag)) return;
     switch (action) {
-      case _TagMenuAction.filterInclude:
+      case TagMenuAction.filterInclude:
         dataset.setTagFilter(entry.tag, exclude: false);
-      case _TagMenuAction.filterExclude:
+      case TagMenuAction.filterExclude:
         dataset.setTagFilter(entry.tag, exclude: true);
-      case _TagMenuAction.replaceAppend:
+      case TagMenuAction.addToLibrary:
+        await appState.addCommonTags([entry.tag]);
+      case TagMenuAction.replaceAppend:
         await _showReplaceDialog(entry);
-      case _TagMenuAction.deleteGlobal:
+      case TagMenuAction.deleteGlobal:
         await _confirmDelete(entry);
+      default:
+        break;
     }
   }
 
@@ -90,15 +87,37 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
     final l10n = AppLocalizations.of(context)!;
     final dataset = context.read<DatasetState>();
     final ops = context.read<TagOps>();
+    final scope = dataset.activeSubdirectory == null
+        ? null
+        : subdirectoryLabel(l10n, dataset.activeSubdirectory);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(l10n.deleteTagConfirmTitle),
         content: SizedBox(
           width: 380,
-          child: Text(
-            l10n.deleteTagConfirmContent(entry.count, entry.tag),
-            style: const TextStyle(fontSize: 13, height: 1.5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.deleteTagConfirmContent(entry.count, entry.tag),
+                style: const TextStyle(fontSize: 13, height: 1.5),
+              ),
+              // entry.count already respects the active subdirectory scope
+              // (see DatasetState.datasetTags), so this is only naming it —
+              // the modal hides the scope banner behind it.
+              if (scope != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  l10n.subdirScopeNotice(scope),
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: context.semantic.muted,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
         actions: [
@@ -111,7 +130,7 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: Text(l10n.delete),
+            child: Text(l10n.deleteTagConfirmButton(entry.count)),
           ),
         ],
       ),
@@ -130,10 +149,17 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
 
   Future<void> _showReplaceDialog(DatasetTag entry) async {
     final l10n = AppLocalizations.of(context)!;
+    final dataset = context.read<DatasetState>();
     final ops = context.read<TagOps>();
     final result = await showDialog<(_EditMode, String)>(
       context: context,
-      builder: (context) => _ReplaceDialog(tag: entry.tag),
+      builder: (context) => _ReplaceDialog(
+        tag: entry.tag,
+        count: entry.count,
+        scopeLabel: dataset.activeSubdirectory == null
+            ? null
+            : subdirectoryLabel(l10n, dataset.activeSubdirectory),
+      ),
     );
     if (result == null || !mounted) return;
 
@@ -169,6 +195,9 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
       builder: (context) => _AddTagsDialog(
         totalCount: dataset.totalCount,
         filteredCount: dataset.visibleFiles.length,
+        scopeLabel: dataset.activeSubdirectory == null
+            ? null
+            : subdirectoryLabel(l10n, dataset.activeSubdirectory),
       ),
     );
     if (result == null || !mounted) return;
@@ -181,6 +210,84 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
       label: l10n.opAddGlobalLabel(input.trim()),
     );
     _showResult(outcome);
+  }
+
+  /// Overflow menu on the toolbar: the two dataset-wide sweeps that don't
+  /// need a permanent icon of their own. Each item hides itself rather than
+  /// showing disabled — an empty dataset has nothing to add to or sort.
+  Future<void> _showMoreMenu(BuildContext buttonContext) async {
+    final l10n = AppLocalizations.of(context)!;
+    final dataset = context.read<DatasetState>();
+    final ops = context.read<TagOps>();
+    final box = buttonContext.findRenderObject()! as RenderBox;
+    final action = await showPanelContextMenu<String>(
+      context: context,
+      position: box.localToGlobal(Offset(0, box.size.height)),
+      items: [
+        if (dataset.totalCount > 0 && !ops.busy)
+          panelMenuItem(
+            context: context,
+            value: 'addTags',
+            icon: Icons.playlist_add,
+            label: l10n.addTagsGlobalTooltip,
+          ),
+        if (dataset.datasetTags.length > 1 && !ops.busy)
+          panelMenuItem(
+            context: context,
+            value: 'reorder',
+            icon: Icons.sort,
+            label: l10n.datasetReorderMenuLabel,
+          ),
+      ],
+    );
+    if (action == null || !mounted) return;
+    switch (action) {
+      case 'addTags':
+        await _showAddTagsDialog();
+      case 'reorder':
+        await _confirmReorder();
+    }
+  }
+
+  /// Confirm-and-run for "sort all images' tags…": the priority list is
+  /// whatever order this panel is currently showing (see
+  /// [_sortAlphabetically]), so the sweep matches what the user is looking
+  /// at rather than a hidden order they'd have to guess.
+  Future<void> _confirmReorder() async {
+    final l10n = AppLocalizations.of(context)!;
+    final dataset = context.read<DatasetState>();
+    final ops = context.read<TagOps>();
+    final priority = _sortedTags(dataset).map((t) => t.tag).toList();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.datasetReorderDialogTitle),
+        content: SizedBox(
+          width: 380,
+          child: Text(
+            l10n.datasetReorderDialogContent(dataset.totalCount),
+            style: const TextStyle(fontSize: 13, height: 1.5),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l10n.applyCountButton(dataset.totalCount)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final result = await ops.reorderEverywhere(
+      priority,
+      label: l10n.opReorderLabel,
+    );
+    _showResult(result);
   }
 
   /// A sweep skips caption files it cannot write, so the snack bar has to
@@ -205,12 +312,16 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
     final dataset = context.watch<DatasetState>();
     final session = context.watch<EditorSession>();
     final ops = context.watch<TagOps>();
-    final dictionary = context.read<AppState>().tagDictionary;
+    // Watched, not read: recoloring a group while this tab is open should
+    // repaint its chips immediately.
+    final appState = context.watch<AppState>();
+    final dictionary = appState.tagDictionary;
 
-    final allTags = dataset.datasetTags;
+    final allTags = _sortedTags(dataset);
     final query = _filter.trim().toLowerCase();
     final visibleTags = query.isEmpty
         ? allTags
@@ -235,13 +346,13 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
               ),
               const SizedBox(width: 4),
               PanelIconButton(
-                icon: Icons.playlist_add,
-                tooltip: l10n.addTagsGlobalTooltip,
+                icon: Icons.sort_by_alpha,
+                tooltip: l10n.datasetTagSortAlphaTooltip,
                 size: 16,
                 hitSize: 28,
-                onPressed: dataset.totalCount > 0 && !ops.busy
-                    ? _showAddTagsDialog
-                    : null,
+                color: _sortAlphabetically ? scheme.primary : null,
+                onPressed: () =>
+                    setState(() => _sortAlphabetically = !_sortAlphabetically),
               ),
               PanelIconButton(
                 icon: Icons.translate,
@@ -261,6 +372,18 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
                 onPressed: dataset.tagFilterActive
                     ? dataset.clearTagFilter
                     : null,
+              ),
+              // Add-tags and the batch reorder sweep live in an overflow
+              // menu; the Builder provides the button's own context to
+              // anchor the popup.
+              Builder(
+                builder: (buttonContext) => PanelIconButton(
+                  icon: Icons.more_horiz,
+                  tooltip: l10n.moreActionsTooltip,
+                  size: 16,
+                  hitSize: 28,
+                  onPressed: () => _showMoreMenu(buttonContext),
+                ),
               ),
             ],
           ),
@@ -337,6 +460,9 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
                                 unknown:
                                     dictionary.isReady &&
                                     dictionary.lookup(entry.tag) == null,
+                                groupColor: appState
+                                    .groupOfTag(entry.tag)
+                                    ?.color,
                                 enabled: session.hasImage && !ops.busy,
                                 onTap: () => session.toggleTag(entry.tag),
                                 onContextMenu: (position) =>
@@ -907,6 +1033,7 @@ class _DatasetTagChip extends StatelessWidget {
     required this.enabled,
     required this.onTap,
     required this.onContextMenu,
+    this.groupColor,
   });
 
   final DatasetTag entry;
@@ -921,44 +1048,57 @@ class _DatasetTagChip extends StatelessWidget {
   final VoidCallback onTap;
   final ValueChanged<Offset> onContextMenu;
 
+  /// Tint from the tag's library group — the same source the caption
+  /// editor's chips read — or null if it isn't in any group (or not in the
+  /// library at all).
+  final int? groupColor;
+
   @override
   Widget build(BuildContext context) {
     final semantic = context.semantic;
     final scheme = Theme.of(context).colorScheme;
+    final group = groupColor == null ? null : Color(groupColor!);
 
-    // Five states, five colours: excluded from the gallery reads as the
-    // destructive one, included is the accent, on-this-image stays green,
-    // a tag no dictionary knows is amber, and everything else is inventory in
-    // muted ink. The gallery states outrank "unknown" — they answer what the
-    // user is doing right now, while unknown is a standing property.
-    final Color accentOfState;
+    // The gallery states outrank everything else — they answer what the
+    // user is doing right now, not what the tag is. Below that, "applied"
+    // takes over the tag's own group color for its fill (an ungrouped tag
+    // falls back to the old green), while "unknown" keeps its own amber ring
+    // regardless of group, since it is warning about the tag itself. Either
+    // way "applied" gets a fixed-color checkmark: with the fill now able to
+    // take any group's hue, the check is what still reads the same on every
+    // one of them.
+    final Color fill;
+    final Color border;
+    final Color textColor;
     if (filtered) {
-      accentOfState = filterExclude ? scheme.error : scheme.primary;
+      final accent = filterExclude ? scheme.error : scheme.primary;
+      fill = Color.alphaBlend(accent.withAlpha(38), semantic.panel);
+      border = accent.withAlpha(128);
+      textColor = scheme.onSurface;
     } else if (applied) {
-      accentOfState = semantic.ok;
-    } else if (unknown) {
-      accentOfState = semantic.warn;
+      final accent = group ?? semantic.ok;
+      fill = Color.alphaBlend(accent.withAlpha(38), semantic.panel);
+      border = (unknown ? semantic.warn : accent).withAlpha(128);
+      textColor = scheme.onSurface;
     } else {
-      accentOfState = semantic.muted;
+      // Outline only, fill stays neutral: a grouped-but-unapplied tag is
+      // still ordinary inventory, and filling every chip in a group's color
+      // would bury "applied" as just another hue among many instead of the
+      // one elevated state.
+      fill = group == null
+          ? semantic.raised
+          : Color.alphaBlend(group.withAlpha(20), semantic.raised);
+      border = unknown
+          ? semantic.warn.withAlpha(105)
+          : (group?.withAlpha(140) ?? semantic.line);
+      textColor = semantic.muted;
     }
-    final tinted = filtered || applied;
 
     final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2.5),
       decoration: BoxDecoration(
-        color: tinted
-            ? Color.alphaBlend(accentOfState.withAlpha(38), semantic.panel)
-            : semantic.raised,
-        border: Border.all(
-          color: tinted
-              ? accentOfState.withAlpha(128)
-              : unknown
-              // An outline only: the tag is still ordinary inventory, and a
-              // filled amber chip on every fresh dataset would read as an
-              // error state.
-              ? semantic.warn.withAlpha(105)
-              : semantic.line,
-        ),
+        color: fill,
+        border: Border.all(color: border),
         borderRadius: BorderRadius.circular(AppRadii.pill),
       ),
       child: Row(
@@ -968,7 +1108,7 @@ class _DatasetTagChip extends StatelessWidget {
             Icon(
               filterExclude ? Icons.block_outlined : Icons.filter_alt_outlined,
               size: 10,
-              color: accentOfState,
+              color: filterExclude ? scheme.error : scheme.primary,
             ),
             const SizedBox(width: 4),
           ] else if (applied) ...[
@@ -977,10 +1117,7 @@ class _DatasetTagChip extends StatelessWidget {
           ],
           Text(
             entry.tag,
-            style: TextStyle(
-              fontSize: AppText.small,
-              color: tinted ? scheme.onSurface : semantic.muted,
-            ),
+            style: TextStyle(fontSize: AppText.small, color: textColor),
           ),
           TagGlossLabel(entry.tag),
           const SizedBox(width: 5),
@@ -1028,9 +1165,21 @@ class _DatasetTagChip extends StatelessWidget {
 /// Mode picker + tag input for the dataset-wide replace / insert operation.
 /// Pops `(mode, input)` on apply, null on cancel.
 class _ReplaceDialog extends StatefulWidget {
-  const _ReplaceDialog({required this.tag});
+  const _ReplaceDialog({
+    required this.tag,
+    required this.count,
+    this.scopeLabel,
+  });
 
   final String tag;
+
+  /// How many images this sweep will touch — every image already carrying
+  /// [tag], which is exactly what [count] already reflects (it comes from
+  /// [DatasetState.datasetTags], itself scoped to the active subdirectory).
+  final int count;
+
+  /// The active subdirectory's display name, or null for the whole dataset.
+  final String? scopeLabel;
 
   @override
   State<_ReplaceDialog> createState() => _ReplaceDialogState();
@@ -1121,6 +1270,16 @@ class _ReplaceDialogState extends State<_ReplaceDialog> {
               onChanged: (_) => setState(() {}),
               onSubmitted: (_) => _submit(),
             ),
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                widget.scopeLabel == null
+                    ? l10n.replaceAffectedCount(widget.count)
+                    : '${l10n.replaceAffectedCount(widget.count)} · '
+                          '${l10n.subdirScopeNotice(widget.scopeLabel!)}',
+                style: TextStyle(fontSize: 11.5, color: semantic.muted),
+              ),
+            ),
           ],
         ),
       ),
@@ -1131,7 +1290,7 @@ class _ReplaceDialogState extends State<_ReplaceDialog> {
         ),
         TextButton(
           onPressed: canApply ? _submit : null,
-          child: Text(l10n.apply),
+          child: Text(l10n.applyCountButton(widget.count)),
         ),
       ],
     );
@@ -1142,10 +1301,17 @@ class _ReplaceDialogState extends State<_ReplaceDialog> {
 /// operation. Pops `(input, index, onlyFiltered)` on apply — index null
 /// means append at the end — or null on cancel.
 class _AddTagsDialog extends StatefulWidget {
-  const _AddTagsDialog({required this.totalCount, required this.filteredCount});
+  const _AddTagsDialog({
+    required this.totalCount,
+    required this.filteredCount,
+    this.scopeLabel,
+  });
 
   final int totalCount;
   final int filteredCount;
+
+  /// The active subdirectory's display name, or null for the whole dataset.
+  final String? scopeLabel;
 
   @override
   State<_AddTagsDialog> createState() => _AddTagsDialogState();
@@ -1286,7 +1452,10 @@ class _AddTagsDialogState extends State<_AddTagsDialog> {
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: Text(
-                l10n.addTagsGlobalTargetCount(targetCount),
+                widget.scopeLabel == null
+                    ? l10n.addTagsGlobalTargetCount(targetCount)
+                    : '${l10n.addTagsGlobalTargetCount(targetCount)} · '
+                          '${l10n.subdirScopeNotice(widget.scopeLabel!)}',
                 style: TextStyle(fontSize: 11.5, color: semantic.muted),
               ),
             ),
@@ -1300,7 +1469,7 @@ class _AddTagsDialogState extends State<_AddTagsDialog> {
         ),
         TextButton(
           onPressed: _canApply ? _submit : null,
-          child: Text(l10n.apply),
+          child: Text(l10n.applyCountButton(targetCount)),
         ),
       ],
     );
