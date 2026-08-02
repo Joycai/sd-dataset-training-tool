@@ -347,7 +347,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   void _openDictionary() {
     showTagDictionaryDialog(
       context,
-      scope: tagDictionaryScope(dataset: _dataset, session: _session),
+      scope: tagDictionaryScope(dataset: _dataset),
     );
   }
 

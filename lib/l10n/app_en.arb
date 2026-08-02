@@ -947,12 +947,6 @@
 
   "dictOpenTooltip": "Open the tag dictionary",
   "dictFilterAll": "All",
-  "dictFilterThisImage": "This image {count}",
-  "@dictFilterThisImage": {
-    "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
   "dictFilterCustom": "Added {count}",
   "@dictFilterCustom": {
     "placeholders": {
@@ -963,6 +957,8 @@
   "dictNewTagAction": "New tag",
   "dictFetchSourceName": "danbooru",
   "dictOrderAlpha": "A–Z",
+  "dictOrderUsage": "By usage",
+  "dictDatasetOnly": "This dataset only",
   "dictOrderRelevance": "By relevance",
   "dictResultCount": "{count} results",
   "@dictResultCount": {
@@ -972,7 +968,6 @@
   },
   "dictCustomEmpty": "No tags added yet. Use \"New tag\" for characters or private tags the built-in dictionary does not have.",
   "dictUntranslatedEmpty": "Nothing left to translate.",
-  "dictThisImageEmpty": "The open image has no tags.",
   "dictCollectAction": "Add",
   "dictCollectedCount": "Added {count} tags to the dictionary",
   "@dictCollectedCount": {

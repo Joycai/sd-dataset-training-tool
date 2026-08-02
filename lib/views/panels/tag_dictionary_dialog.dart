@@ -15,7 +15,6 @@ import '../../services/tag_ai_translate.dart';
 import '../../services/tag_dictionary_service.dart';
 import '../../services/tag_translation_service.dart';
 import '../../state/dataset_state.dart';
-import '../../state/editor_session.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/external_links.dart';
 import '../../utils/tag_text.dart';
@@ -29,14 +28,10 @@ import '../../widgets/panel_widgets.dart';
 /// the dataset-shaped affordances simply absent instead of broken.
 class TagDictionaryScope {
   const TagDictionaryScope({
-    this.imageTags = const [],
     this.datasetTags = const [],
     this.datasetUsage = const {},
     this.imageCount = 0,
   });
-
-  /// Tags on the image currently open in the editor, in caption order.
-  final List<String> imageTags;
 
   /// Every tag in the dataset, busiest first, in the dataset's own spelling.
   ///
@@ -58,14 +53,10 @@ class TagDictionaryScope {
 }
 
 /// Snapshots the workbench state the dictionary can make use of.
-TagDictionaryScope tagDictionaryScope({
-  DatasetState? dataset,
-  EditorSession? session,
-}) {
+TagDictionaryScope tagDictionaryScope({DatasetState? dataset}) {
   if (dataset == null) return const TagDictionaryScope();
   final tags = dataset.datasetTags;
   return TagDictionaryScope(
-    imageTags: session?.hasImage == true ? List.of(session!.tags) : const [],
     datasetTags: [for (final entry in tags) entry.tag],
     datasetUsage: {
       for (final entry in tags) tagLookupKey(entry.tag): entry.count,
@@ -76,23 +67,25 @@ TagDictionaryScope tagDictionaryScope({
 
 /// The same snapshot, taken off whatever providers [context] can see.
 ///
-/// Nullable reads: provider answers null rather than throwing for a `T?`,
+/// A nullable read: provider answers null rather than throwing for a `T?`,
 /// which is exactly the "opened from somewhere without a workbench above it"
 /// case — the settings dialog lives above those providers.
-TagDictionaryScope _scopeOf(BuildContext context) => tagDictionaryScope(
-  dataset: context.read<DatasetState?>(),
-  session: context.read<EditorSession?>(),
-);
+TagDictionaryScope _scopeOf(BuildContext context) =>
+    tagDictionaryScope(dataset: context.read<DatasetState?>());
 
 /// The dictionary window: browse and search tags, write their translations,
 /// and add vocabulary danbooru does not have.
 ///
-/// The list on the left is one of four views, chosen by the filter strip:
-/// everything translated or hand-added, the tags on the open image, the ones
-/// still untranslated, and the user's own additions. A non-empty search box
-/// widens the first of those to the whole dictionary *and* matches on the
-/// translations themselves — searching `长发` is the whole reason a
-/// Chinese-speaking user keeps a glossary at all.
+/// Two controls decide what the list holds. "Only this dataset" — on by
+/// default, because the vocabulary in front of the user is the vocabulary
+/// worth translating — narrows everything to tags the open dataset actually
+/// uses, ordered by how many images carry them. Turned off, the list widens
+/// to the whole dictionary, which is what a lookup of some tag the dataset has
+/// never seen needs. The segments then pick a view of whichever set that is:
+/// everything, the untranslated ones, or the user's own additions.
+///
+/// A non-empty search box matches names *and* translations — searching `长发`
+/// is the whole reason a Chinese-speaking user keeps a glossary at all.
 ///
 /// [initialTag] opens straight onto that tag's editor — the path taken from a
 /// tag's own context menu, where the user has already picked the tag.
@@ -140,8 +133,8 @@ const _searchLimit = 80;
 /// and the banner is a prompt, not a list view.
 const _missingChipLimit = 18;
 
-/// Which list the left column is showing.
-enum _DictFilter { all, thisImage, untranslated, custom }
+/// Which view of the candidate set the left column is showing.
+enum _DictFilter { all, untranslated, custom }
 
 /// What the right column is showing. The two forms replace what used to be
 /// nested dialogs: a modal on top of a modal hides the very list the user is
@@ -181,6 +174,18 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
 
   _DictFilter _filter = _DictFilter.all;
   _DictPane _pane = _DictPane.detail;
+
+  /// Whether the list is confined to tags the open dataset uses.
+  ///
+  /// On by default: a hundred thousand danbooru tags are a reference, while
+  /// the few hundred in front of the user are the work. Off when there is no
+  /// dataset behind this dialog, and off when it was opened onto a tag the
+  /// dataset does not have — landing on an editor whose tag the list beside it
+  /// cannot show reads as a glitch, and that is exactly the tag-library case.
+  late bool _datasetOnly =
+      widget.scope.hasDataset &&
+      (_initialSelection == null ||
+          widget.scope.usageOf(_initialSelection!) != null);
 
   /// The incoming tag in the spelling the dictionary and glossary key on; a
   /// caption may have handed us `long hair`.
@@ -287,36 +292,43 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
           (row.translation?.note?.toLowerCase().contains(needle) ?? false);
     }
 
-    List<_DictRow> fromNames(Iterable<String> names, {bool sort = true}) {
+    /// Which of the candidates the segments keep. Applied to every path, so
+    /// the three views mean the same thing whichever set they narrow.
+    bool keeps(_DictRow row) => switch (_filter) {
+      _DictFilter.all => true,
+      _DictFilter.untranslated => row.translation == null,
+      _DictFilter.custom => row.custom,
+    };
+
+    List<_DictRow> fromNames(Iterable<String> names, {bool sort = false}) {
       final seen = <String>{};
       final rows = [
         for (final name in names)
           if (seen.add(tagLookupKey(name)))
             _rowFor(name, custom: custom.contains(tagLookupKey(name))),
-      ].where(matches).toList();
+      ].where(matches).where(keeps).toList();
       if (sort) rows.sort((a, b) => a.tag.compareTo(b.tag));
       return rows;
     }
 
+    // Busiest first — the dataset index is already in that order, and the tag
+    // on four hundred images is the one whose missing gloss actually costs
+    // something.
+    if (_datasetOnly) return fromNames(widget.scope.datasetTags);
+
     switch (_filter) {
-      case _DictFilter.thisImage:
-        // Caption order: the list should read like the tag row it mirrors.
-        return fromNames(widget.scope.imageTags, sort: false);
       case _DictFilter.custom:
         return fromNames([
           for (final entry in _dictionary.customEntries) entry.name,
-        ], sort: false);
+        ], sort: true);
       case _DictFilter.untranslated:
-        // The user's own additions first, then the dataset busiest-first: the
-        // tag on four hundred images is the one whose missing gloss actually
-        // costs something. Never the whole dictionary — a hundred thousand
-        // untranslated tags is not a to-do list.
+        // The user's own additions first, then the dataset. Never the whole
+        // dictionary — a hundred thousand untranslated tags is not a to-do
+        // list, and the dataset is the only bounded set that means anything.
         return fromNames([
-          for (final entry in _dictionary.customEntries)
-            if (!_glossary.has(entry.name)) entry.name,
-          for (final tag in widget.scope.datasetTags)
-            if (!_glossary.has(tag)) tag,
-        ], sort: false);
+          for (final entry in _dictionary.customEntries) entry.name,
+          ...widget.scope.datasetTags,
+        ]);
       case _DictFilter.all:
         return _allRows(query, custom);
     }
@@ -878,15 +890,8 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
   /// tag's context menu, and adding a tag is not a per-second act).
   List<_ToolbarEntry> _toolbarEntries(AppLocalizations l10n) => [
     _ToolbarEntry.segments([
-      // "This image" disappears when the dialog was opened without a workbench
-      // behind it — an always-empty filter is a dead control.
       for (final (filter, label) in <(_DictFilter, String)>[
         (_DictFilter.all, l10n.dictFilterAll),
-        if (widget.scope.imageTags.isNotEmpty)
-          (
-            _DictFilter.thisImage,
-            l10n.dictFilterThisImage(widget.scope.imageTags.length),
-          ),
         (_DictFilter.untranslated, l10n.dictUntranslated),
         (
           _DictFilter.custom,
@@ -899,6 +904,15 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
           onTap: () => setState(() => _filter = filter),
         ),
     ]),
+    // Hidden rather than disabled when there is no dataset behind the dialog:
+    // a switch that cannot be moved is a puzzle, and from settings there is
+    // nothing for it to narrow to.
+    if (widget.scope.hasDataset)
+      _ToolbarEntry.toggle(
+        label: l10n.dictDatasetOnly,
+        value: _datasetOnly,
+        onTap: () => setState(() => _datasetOnly = !_datasetOnly),
+      ),
     _ToolbarEntry.action(
       icon: Icons.add,
       label: l10n.dictNewTagAction,
@@ -918,7 +932,13 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
     AppSemanticColors semantic,
     List<_DictRow> rows,
   ) {
-    final ranked = _filter == _DictFilter.all && _query.trim().isNotEmpty;
+    // What the list is actually ordered by, said plainly: the three paths
+    // sort on three different keys and a wrong label is worse than none.
+    final order = _datasetOnly || _filter == _DictFilter.untranslated
+        ? l10n.dictOrderUsage
+        : _filter == _DictFilter.all && _query.trim().isNotEmpty
+        ? l10n.dictOrderRelevance
+        : l10n.dictOrderAlpha;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -927,7 +947,7 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
           child: Row(
             children: [
               Text(
-                ranked ? l10n.dictOrderRelevance : l10n.dictOrderAlpha,
+                order,
                 style: TextStyle(
                   fontSize: AppText.micro,
                   color: semantic.muted,
@@ -983,10 +1003,12 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
   String _emptyMessage(AppLocalizations l10n) {
     if (_query.trim().isNotEmpty) return l10n.dictNoResults;
     return switch (_filter) {
-      _DictFilter.all => l10n.dictGlossaryEmpty,
+      // With the dataset narrowing on, "nothing here" means this dataset has
+      // no such tag — not that the glossary is empty.
+      _DictFilter.all =>
+        _datasetOnly ? l10n.datasetTagsEmpty : l10n.dictGlossaryEmpty,
       _DictFilter.custom => l10n.dictCustomEmpty,
       _DictFilter.untranslated => l10n.dictUntranslatedEmpty,
-      _DictFilter.thisImage => l10n.dictThisImageEmpty,
     };
   }
 
@@ -2884,15 +2906,29 @@ class _ToolbarSegment {
   double width(BuildContext context) => _labelWidth(context, label) + 22;
 }
 
-/// One control on the toolbar's right-hand side, in whichever of its two
-/// shapes: the filter group, or an icon action.
+/// What shape a toolbar control takes.
+enum _ToolbarKind { segments, toggle, action }
+
+/// One control on the toolbar's right-hand side.
 class _ToolbarEntry {
   const _ToolbarEntry.segments(this.segments)
-    : icon = null,
+    : kind = _ToolbarKind.segments,
+      icon = null,
       label = '',
+      value = false,
       accent = false,
       busy = false,
       onTap = null;
+
+  const _ToolbarEntry.toggle({
+    required this.label,
+    required this.value,
+    required VoidCallback this.onTap,
+  }) : kind = _ToolbarKind.toggle,
+       segments = const [],
+       icon = null,
+       accent = false,
+       busy = false;
 
   const _ToolbarEntry.action({
     required IconData this.icon,
@@ -2900,7 +2936,11 @@ class _ToolbarEntry {
     required VoidCallback this.onTap,
     this.accent = false,
     this.busy = false,
-  }) : segments = const [];
+  }) : kind = _ToolbarKind.action,
+       segments = const [],
+       value = false;
+
+  final _ToolbarKind kind;
 
   /// Non-empty for the filter group, which moves as one: half a segmented
   /// control is not a control.
@@ -2908,19 +2948,24 @@ class _ToolbarEntry {
 
   final IconData? icon;
   final String label;
+
+  /// The switch's state, for [_ToolbarKind.toggle].
+  final bool value;
+
   final bool accent;
   final bool busy;
   final VoidCallback? onTap;
 
-  bool get isSegments => segments.isNotEmpty;
-
   /// What this control will measure once built, so the strip can decide what
   /// fits before building anything. An action adds a 13px icon and its 6px
-  /// gap to 11px of padding and a 1px border a side; the group adds the 2px
-  /// inset of its slot.
-  double width(BuildContext context) => isSegments
-      ? segments.fold(0.0, (sum, s) => sum + s.width(context)) + 4
-      : _labelWidth(context, label) + 43;
+  /// gap to 11px of padding and a 1px border a side; the toggle a 28px switch
+  /// and its gap; the group the 2px inset of its slot.
+  double width(BuildContext context) => switch (kind) {
+    _ToolbarKind.segments =>
+      segments.fold(0.0, (sum, s) => sum + s.width(context)) + 4,
+    _ToolbarKind.toggle => _labelWidth(context, label) + 52,
+    _ToolbarKind.action => _labelWidth(context, label) + 43,
+  };
 }
 
 /// The toolbar band: a search field that takes the slack, and as many controls
@@ -3001,15 +3046,102 @@ class _ToolbarEntryView extends StatelessWidget {
   final _ToolbarEntry entry;
 
   @override
-  Widget build(BuildContext context) => entry.isSegments
-      ? _FilterSegments(segments: entry.segments)
-      : _ToolbarButton(
-          icon: entry.icon!,
-          label: entry.label,
-          accent: entry.accent,
-          busy: entry.busy,
-          onTap: entry.onTap!,
-        );
+  Widget build(BuildContext context) => switch (entry.kind) {
+    _ToolbarKind.segments => _FilterSegments(segments: entry.segments),
+    _ToolbarKind.toggle => _ToolbarToggle(
+      label: entry.label,
+      value: entry.value,
+      onTap: entry.onTap!,
+    ),
+    _ToolbarKind.action => _ToolbarButton(
+      icon: entry.icon!,
+      label: entry.label,
+      accent: entry.accent,
+      busy: entry.busy,
+      onTap: entry.onTap!,
+    ),
+  };
+}
+
+/// A label and a switch in one hairline pill: a standing constraint on the
+/// list, not a view of it, which is why it sits outside the segmented group
+/// rather than becoming a fourth segment.
+class _ToolbarToggle extends StatelessWidget {
+  const _ToolbarToggle({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final semantic = context.semantic;
+    final tint = value ? scheme.primary : semantic.muted;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(11, 4, 5, 4),
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: value ? tint.withValues(alpha: 0.5) : semantic.line,
+            ),
+            borderRadius: BorderRadius.circular(AppRadii.control),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: AppText.secondary, color: tint),
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Hand-drawn rather than a Material Switch: the smallest that
+              // widget goes is 32px tall with its tap padding, half again the
+              // height of this band.
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 170),
+                curve: Curves.easeOut,
+                width: 28,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: value ? scheme.primary : semantic.line,
+                  borderRadius: BorderRadius.circular(AppRadii.pill),
+                ),
+                child: AnimatedAlign(
+                  duration: const Duration(milliseconds: 170),
+                  curve: Curves.easeOut,
+                  alignment: value
+                      ? Alignment.centerRight
+                      : Alignment.centerLeft,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: value ? scheme.onPrimary : semantic.muted,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// The filter group: one recessed slot holding the four views of the list,
@@ -3099,7 +3231,7 @@ class _ToolbarOverflowButton extends StatelessWidget {
   /// popup menu but its choices still have to be reachable.
   List<VoidCallback> _actions() => [
     for (final entry in entries)
-      if (entry.isSegments)
+      if (entry.kind == _ToolbarKind.segments)
         for (final segment in entry.segments) segment.onTap
       else
         entry.onTap!,
@@ -3111,28 +3243,43 @@ class _ToolbarOverflowButton extends StatelessWidget {
     var index = 0;
     final items = <PopupMenuEntry<int>>[];
     for (final entry in entries) {
-      if (entry.isSegments) {
-        for (final segment in entry.segments) {
+      switch (entry.kind) {
+        case _ToolbarKind.segments:
+          for (final segment in entry.segments) {
+            items.add(
+              panelMenuItem(
+                context: context,
+                value: index++,
+                icon: segment.selected
+                    ? Icons.check
+                    : Icons.filter_list_outlined,
+                label: segment.label,
+                color: segment.selected ? scheme.primary : null,
+              ),
+            );
+          }
+        case _ToolbarKind.toggle:
           items.add(
             panelMenuItem(
               context: context,
               value: index++,
-              icon: segment.selected ? Icons.check : Icons.filter_list_outlined,
-              label: segment.label,
-              color: segment.selected ? scheme.primary : null,
+              icon: entry.value
+                  ? Icons.check_box_outlined
+                  : Icons.check_box_outline_blank,
+              label: entry.label,
+              color: entry.value ? scheme.primary : null,
             ),
           );
-        }
-      } else {
-        items.add(
-          panelMenuItem(
-            context: context,
-            value: index++,
-            icon: entry.icon!,
-            label: entry.label,
-            color: entry.accent ? scheme.primary : null,
-          ),
-        );
+        case _ToolbarKind.action:
+          items.add(
+            panelMenuItem(
+              context: context,
+              value: index++,
+              icon: entry.icon!,
+              label: entry.label,
+              color: entry.accent ? scheme.primary : null,
+            ),
+          );
       }
     }
     final picked = await showPanelContextMenu<int>(
@@ -3146,10 +3293,14 @@ class _ToolbarOverflowButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final semantic = context.semantic;
-    // A filter that is not "all" hiding in the menu has to say so from the
-    // outside, or the strip reads as if nothing were filtering the list.
+    // A narrowing hidden in the menu has to say so from the outside, or the
+    // strip reads as if nothing were filtering the list.
     final flagged = entries.any(
-      (e) => e.isSegments && !e.segments.first.selected,
+      (e) => switch (e.kind) {
+        _ToolbarKind.segments => !e.segments.first.selected,
+        _ToolbarKind.toggle => e.value,
+        _ToolbarKind.action => false,
+      },
     );
     final tint = flagged
         ? Theme.of(context).colorScheme.primary

@@ -165,6 +165,18 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Taps a toolbar control by label, reaching into the overflow menu when the
+  /// strip was too narrow to keep it. The test font is wide enough that the
+  /// default surface size already pushes controls in there.
+  Future<void> tapToolbar(WidgetTester tester, String label) async {
+    if (find.text(label).evaluate().isEmpty) {
+      await tester.tap(find.byIcon(Icons.more_horiz));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+  }
+
   /// The fetched-info panel sits at the bottom of a scrolling form, so on the
   /// 580px-tall dialog it starts below the fold.
   Future<void> tapInForm(WidgetTester tester, Finder finder) async {
@@ -218,7 +230,6 @@ void main() {
         await open(
           tester,
           workbench: const TagDictionaryScope(
-            imageTags: ['long_hair'],
             datasetTags: ['long_hair'],
             datasetUsage: {'long hair': 1},
             imageCount: 1,
@@ -558,7 +569,6 @@ void main() {
     /// A workbench with three dataset tags, one of which danbooru — and this
     /// dictionary — has never heard of.
     TagDictionaryScope workbench() => const TagDictionaryScope(
-      imageTags: ['long_hair', 'prettysammy'],
       datasetTags: ['1girl', 'long_hair', 'prettysammy'],
       datasetUsage: {'1girl': 40, 'long hair': 30, 'prettysammy': 12},
       imageCount: 40,
@@ -598,24 +608,35 @@ void main() {
       expect(appState.tagDictionary.customEntries, isEmpty);
     });
 
-    testWidgets('the per-image filter lists only the open image\'s tags', (
+    testWidgets('the list is narrowed to the dataset by default', (
       tester,
     ) async {
       await tester.runAsync(() => prepare());
       await open(tester, workbench: workbench());
 
-      // The strip gives way to an overflow menu on a narrow window, and the
-      // test font is wide enough to trigger it at the default surface size.
-      if (find.text('This image 2').evaluate().isEmpty) {
-        await tester.tap(find.byIcon(Icons.more_horiz));
-        await tester.pumpAndSettle();
-      }
-      await tester.tap(find.text('This image 2'));
-      await tester.pumpAndSettle();
+      // The vocabulary in front of the user, busiest first — not the hundred
+      // thousand tags danbooru knows.
+      expect(find.text('3 results'), findsOneWidget);
+      expect(find.text('By usage'), findsOneWidget);
 
-      expect(find.text('2 results'), findsOneWidget);
-      // In the dataset but not on this image.
+      await tapToolbar(tester, 'This dataset only');
+
+      // Widened: with nothing translated and nothing added, the whole-
+      // dictionary view has nothing to list until something is searched for.
+      expect(find.text('0 results'), findsOneWidget);
       expect(find.text('1girl'), findsNothing);
+    });
+
+    testWidgets('a tag the dataset lacks opens with the narrowing off', (
+      tester,
+    ) async {
+      await tester.runAsync(() => prepare());
+      // The path from the tag library, whose tags need not be in the dataset:
+      // an editor whose tag the list beside it cannot show reads as a glitch.
+      await open(tester, initialTag: 'blue_eyes', workbench: workbench());
+
+      expect(find.text('blue_eyes'), findsWidgets);
+      expect(find.text('1 results'), findsOneWidget);
     });
 
     testWidgets('the editor shows how much of the dataset uses the tag', (

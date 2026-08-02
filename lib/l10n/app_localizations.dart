@@ -3215,12 +3215,6 @@ abstract class AppLocalizations {
   /// **'All'**
   String get dictFilterAll;
 
-  /// No description provided for @dictFilterThisImage.
-  ///
-  /// In en, this message translates to:
-  /// **'This image {count}'**
-  String dictFilterThisImage(int count);
-
   /// No description provided for @dictFilterCustom.
   ///
   /// In en, this message translates to:
@@ -3251,6 +3245,18 @@ abstract class AppLocalizations {
   /// **'A–Z'**
   String get dictOrderAlpha;
 
+  /// No description provided for @dictOrderUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'By usage'**
+  String get dictOrderUsage;
+
+  /// No description provided for @dictDatasetOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'This dataset only'**
+  String get dictDatasetOnly;
+
   /// No description provided for @dictOrderRelevance.
   ///
   /// In en, this message translates to:
@@ -3274,12 +3280,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing left to translate.'**
   String get dictUntranslatedEmpty;
-
-  /// No description provided for @dictThisImageEmpty.
-  ///
-  /// In en, this message translates to:
-  /// **'The open image has no tags.'**
-  String get dictThisImageEmpty;
 
   /// No description provided for @dictCollectAction.
   ///

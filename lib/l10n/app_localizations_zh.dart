@@ -1734,11 +1734,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dictFilterAll => '全部';
 
   @override
-  String dictFilterThisImage(int count) {
-    return '本图 $count';
-  }
-
-  @override
   String dictFilterCustom(int count) {
     return '自定义 $count';
   }
@@ -1756,6 +1751,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dictOrderAlpha => '按字母 A–Z';
 
   @override
+  String get dictOrderUsage => '按用量';
+
+  @override
+  String get dictDatasetOnly => '仅本数据集内';
+
+  @override
   String get dictOrderRelevance => '按匹配度';
 
   @override
@@ -1768,9 +1769,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dictUntranslatedEmpty => '没有待翻译的标签。';
-
-  @override
-  String get dictThisImageEmpty => '当前图片没有标签。';
 
   @override
   String get dictCollectAction => '收录';

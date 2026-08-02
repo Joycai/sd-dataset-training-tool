@@ -1790,11 +1790,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dictFilterAll => 'All';
 
   @override
-  String dictFilterThisImage(int count) {
-    return 'This image $count';
-  }
-
-  @override
   String dictFilterCustom(int count) {
     return 'Added $count';
   }
@@ -1812,6 +1807,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dictOrderAlpha => 'A–Z';
 
   @override
+  String get dictOrderUsage => 'By usage';
+
+  @override
+  String get dictDatasetOnly => 'This dataset only';
+
+  @override
   String get dictOrderRelevance => 'By relevance';
 
   @override
@@ -1825,9 +1826,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dictUntranslatedEmpty => 'Nothing left to translate.';
-
-  @override
-  String get dictThisImageEmpty => 'The open image has no tags.';
 
   @override
   String get dictCollectAction => 'Add';

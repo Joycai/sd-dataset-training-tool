@@ -689,12 +689,6 @@
 
   "dictOpenTooltip": "打开标签词典",
   "dictFilterAll": "全部",
-  "dictFilterThisImage": "本图 {count}",
-  "@dictFilterThisImage": {
-    "placeholders": {
-      "count": { "type": "int" }
-    }
-  },
   "dictFilterCustom": "自定义 {count}",
   "@dictFilterCustom": {
     "placeholders": {
@@ -705,6 +699,8 @@
   "dictNewTagAction": "新建标签",
   "dictFetchSourceName": "Danbooru",
   "dictOrderAlpha": "按字母 A–Z",
+  "dictOrderUsage": "按用量",
+  "dictDatasetOnly": "仅本数据集内",
   "dictOrderRelevance": "按匹配度",
   "dictResultCount": "{count} 条结果",
   "@dictResultCount": {
@@ -714,7 +710,6 @@
   },
   "dictCustomEmpty": "还没有自定义标签。用「新建标签」加入内置库里没有的角色或私有标签。",
   "dictUntranslatedEmpty": "没有待翻译的标签。",
-  "dictThisImageEmpty": "当前图片没有标签。",
   "dictCollectAction": "收录",
   "dictCollectedCount": "已收录 {count} 个标签",
   "@dictCollectedCount": {
