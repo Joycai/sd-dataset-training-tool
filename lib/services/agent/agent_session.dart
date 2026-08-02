@@ -8,6 +8,8 @@ import '../../models/llm_models.dart';
 import '../llm/llm_client.dart';
 import 'agent_tools.dart';
 import 'context_budget.dart';
+import 'tag_library_tools.dart'
+    show maxAssignmentsPerCall, maxLibraryTagsPerCall;
 import 'tag_translation_tools.dart' show maxTranslationEntries;
 
 enum AgentStopReason { completed, cancelled, maxTurns, tokenCap, error }
@@ -316,6 +318,16 @@ Guidelines:
 - run_wd_tagger produces booru-style tags for images via the local tagger
   server. Results are returned to you, not written to disk — filter them,
   then apply with the write tools.
+- The tag library is the user's own curated tag set, shown as named colored
+  groups in the app's library panel — it is not the dataset. Read it with
+  get_tag_library and change it with organize_tag_library (file tags into
+  groups), add_library_tags, rename_tag_group and delete_tag_group. When
+  asked to tidy or categorize the library, send the whole plan as ONE
+  organize_tag_library call carrying every group with its tags, up to
+  $maxAssignmentsPerCall groups and $maxLibraryTagsPerCall tags per group;
+  never one call per tag. Reuse the group names that already exist and keep
+  the number of new ones small. None of this touches a caption file, so a
+  library change never alters the dataset.
 - The tag glossary is display-only: translations are shown beside tags in
   the app's UI and never written into a caption. There is one glossary per
   app language and the tools report which is active, so translate into that

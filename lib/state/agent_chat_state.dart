@@ -14,6 +14,7 @@ import '../services/agent/dataset_tools.dart';
 import '../services/agent/json_caption_tools.dart';
 import '../services/agent/media_tools.dart';
 import '../services/agent/merge_rule_tools.dart';
+import '../services/agent/tag_library_tools.dart';
 import '../services/agent/tag_translation_tools.dart';
 import '../services/llm/anthropic_client.dart';
 import '../services/llm/llm_client.dart';
@@ -365,6 +366,18 @@ class AgentChatState extends ChangeNotifier {
       ...buildTaggerTools(deps, aiTagger),
       if (profile.supportsVision) ...buildVisionTools(deps),
       ...buildMergeRuleTools(_saveMergeRules),
+      ...buildTagLibraryTools(
+        TagLibraryToolsDeps(
+          libraryTags: () => app.commonTags,
+          tagGroups: () => app.tagGroups,
+          addTags: app.addCommonTags,
+          removeTags: app.removeCommonTags,
+          createGroup: app.createTagGroup,
+          renameGroup: (id, name) => app.updateTagGroup(id, name: name),
+          deleteGroup: app.deleteTagGroup,
+          moveTags: app.moveTagsToGroup,
+        ),
+      ),
       ...buildTagTranslationTools(
         TagTranslationToolsDeps(
           glossary: app.tagTranslations,

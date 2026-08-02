@@ -1064,6 +1064,19 @@ class AppLocalizationsEn extends AppLocalizations {
       'The model had no usable suggestion for these tags.';
 
   @override
+  String aiGroupNoReply(int failed, int total) {
+    return 'The model returned nothing for $failed of $total batches. Its output-length limit is probably too low — raise \"max output tokens\" for this model in settings, then try again.';
+  }
+
+  @override
+  String aiGroupUnreadable(int failed, int total) {
+    return 'The model\'s answer could not be read for $failed of $total batches. Try again, or pick a different model.';
+  }
+
+  @override
+  String get aiGroupRetry => 'Try again';
+
+  @override
   String aiGroupFailed(String error) {
     return 'AI grouping failed: $error';
   }
