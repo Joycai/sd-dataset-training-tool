@@ -1074,6 +1074,50 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get aiGroupModelLabel => 'Model';
+
+  @override
+  String get aiGroupStart => 'Start';
+
+  @override
+  String aiGroupSetupHint(int count) {
+    return '$count ungrouped tags will be sent to the model. Nothing changes until you accept a suggestion.';
+  }
+
+  @override
+  String get aiGroupLogTitle => 'Run log';
+
+  @override
+  String aiGroupLogModel(String name) {
+    return 'Model: $name';
+  }
+
+  @override
+  String aiGroupLogBatchStart(int index, int total, int size) {
+    return 'Batch $index/$total · $size tags · asking…';
+  }
+
+  @override
+  String aiGroupLogBatchDone(int index, int total, int count) {
+    return 'Batch $index/$total · $count placements';
+  }
+
+  @override
+  String get aiGroupLogBatchEmpty => 'The model returned nothing at all.';
+
+  @override
+  String get aiGroupLogBatchTruncated =>
+      'The answer was cut off by the output-length limit.';
+
+  @override
+  String get aiGroupLogBatchUnreadable => 'The answer could not be read.';
+
+  @override
+  String aiGroupLogDone(int count) {
+    return 'Done · $count suggestions';
+  }
+
+  @override
   String get aiGroupRetry => 'Try again';
 
   @override

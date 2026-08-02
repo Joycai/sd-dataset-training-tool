@@ -1045,6 +1045,49 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get aiGroupModelLabel => '模型';
+
+  @override
+  String get aiGroupStart => '开始归组';
+
+  @override
+  String aiGroupSetupHint(int count) {
+    return '将把 $count 个未分组标签交给模型归类。在你接受建议之前不会改动任何东西。';
+  }
+
+  @override
+  String get aiGroupLogTitle => '执行日志';
+
+  @override
+  String aiGroupLogModel(String name) {
+    return '模型：$name';
+  }
+
+  @override
+  String aiGroupLogBatchStart(int index, int total, int size) {
+    return '第 $index/$total 批 · $size 个标签 · 请求中…';
+  }
+
+  @override
+  String aiGroupLogBatchDone(int index, int total, int count) {
+    return '第 $index/$total 批 · $count 条归组';
+  }
+
+  @override
+  String get aiGroupLogBatchEmpty => '模型没有返回任何内容。';
+
+  @override
+  String get aiGroupLogBatchTruncated => '回复被输出长度上限截断。';
+
+  @override
+  String get aiGroupLogBatchUnreadable => '回复无法解析。';
+
+  @override
+  String aiGroupLogDone(int count) {
+    return '完成 · 共 $count 条建议';
+  }
+
+  @override
   String get aiGroupRetry => '重试';
 
   @override

@@ -1920,6 +1920,72 @@ abstract class AppLocalizations {
   /// **'The model\'s answer could not be read for {failed} of {total} batches. Try again, or pick a different model.'**
   String aiGroupUnreadable(int failed, int total);
 
+  /// No description provided for @aiGroupModelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model'**
+  String get aiGroupModelLabel;
+
+  /// No description provided for @aiGroupStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get aiGroupStart;
+
+  /// No description provided for @aiGroupSetupHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} ungrouped tags will be sent to the model. Nothing changes until you accept a suggestion.'**
+  String aiGroupSetupHint(int count);
+
+  /// No description provided for @aiGroupLogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Run log'**
+  String get aiGroupLogTitle;
+
+  /// No description provided for @aiGroupLogModel.
+  ///
+  /// In en, this message translates to:
+  /// **'Model: {name}'**
+  String aiGroupLogModel(String name);
+
+  /// No description provided for @aiGroupLogBatchStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch {index}/{total} · {size} tags · asking…'**
+  String aiGroupLogBatchStart(int index, int total, int size);
+
+  /// No description provided for @aiGroupLogBatchDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch {index}/{total} · {count} placements'**
+  String aiGroupLogBatchDone(int index, int total, int count);
+
+  /// No description provided for @aiGroupLogBatchEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'The model returned nothing at all.'**
+  String get aiGroupLogBatchEmpty;
+
+  /// No description provided for @aiGroupLogBatchTruncated.
+  ///
+  /// In en, this message translates to:
+  /// **'The answer was cut off by the output-length limit.'**
+  String get aiGroupLogBatchTruncated;
+
+  /// No description provided for @aiGroupLogBatchUnreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'The answer could not be read.'**
+  String get aiGroupLogBatchUnreadable;
+
+  /// No description provided for @aiGroupLogDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done · {count} suggestions'**
+  String aiGroupLogDone(int count);
+
   /// No description provided for @aiGroupRetry.
   ///
   /// In en, this message translates to:

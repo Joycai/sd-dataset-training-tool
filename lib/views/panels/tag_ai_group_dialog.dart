@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/tag_group.dart';
+import '../../models/llm_models.dart';
 import '../../services/llm/llm_client.dart';
 import '../../services/tag_ai_group.dart';
 import '../../theme/app_theme.dart';
@@ -48,7 +49,30 @@ class _AiGroupingDialog extends StatefulWidget {
   State<_AiGroupingDialog> createState() => _AiGroupingDialogState();
 }
 
+/// One line of the run log. The level only picks a colour — the text is
+/// already a full sentence, because a log nobody can read without a legend is
+/// not a log.
+enum _LogLevel { info, ok, warn, error }
+
+class _LogLine {
+  const _LogLine(this.text, this.level);
+
+  final String text;
+  final _LogLevel level;
+}
+
 class _AiGroupingDialogState extends State<_AiGroupingDialog> {
+  /// Which model to ask. Defaults to the assistant's active backend, but this
+  /// run is a one-off — filing tags is a different job from the conversation,
+  /// and may well deserve a cheaper (or simply a different) model.
+  String? _profileId;
+
+  /// Null until the user starts the run: the model choice has to be made
+  /// before any tokens are spent, so this dialog no longer fires on open.
+  bool _started = false;
+
+  final List<_LogLine> _log = [];
+
   List<TagGroupSuggestion>? _suggestions;
   String? _error;
   int _done = 0;
@@ -68,23 +92,39 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
   @override
   void initState() {
     super.initState();
-    // The dialog opens straight into the request: the user already asked for
-    // suggestions by opening it, so a second "Start" button would be a
-    // confirmation of the confirmation.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _run());
+    _profileId = context.read<AppState>().activeLlmProfile?.id;
+  }
+
+  /// The profile the run will use, falling back to the active one when the
+  /// remembered id no longer resolves (the user edited backends meanwhile).
+  LlmProviderProfile? _selectedProfile(AppState appState) {
+    final profiles = appState.llmProfiles;
+    if (profiles.isEmpty) return null;
+    return profiles.where((p) => p.id == _profileId).firstOrNull ??
+        appState.activeLlmProfile ??
+        profiles.first;
+  }
+
+  void _appendLog(String text, _LogLevel level) {
+    if (!mounted) return;
+    setState(() => _log.add(_LogLine(text, level)));
   }
 
   Future<void> _run() async {
+    final l10n = AppLocalizations.of(context)!;
     final appState = context.read<AppState>();
-    final profile = appState.activeLlmProfile;
+    final profile = _selectedProfile(appState);
     if (profile == null) return;
     setState(() {
+      _started = true;
       _suggestions = null;
       _error = null;
       _done = 0;
       _emptyBatches = 0;
       _unreadableBatches = 0;
       _totalBatches = 0;
+      _log.clear();
+      _log.add(_LogLine(l10n.aiGroupLogModel(profile.name), _LogLevel.info));
     });
     try {
       final result = await suggestTagGroupsWithLlm(
@@ -99,15 +139,28 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
         onProgress: (done, _) {
           if (mounted) setState(() => _done = done);
         },
+        onBatchStart: (index, batches, size) => _appendLog(
+          l10n.aiGroupLogBatchStart(index, batches, size),
+          _LogLevel.info,
+        ),
+        onBatchDone: (index, batches, placed) => _appendLog(
+          l10n.aiGroupLogBatchDone(index, batches, placed),
+          _LogLevel.ok,
+        ),
         onBatchProblem: (problem, _) {
           switch (problem) {
-            // Both mean "the answer never arrived in full", and both are
-            // fixed the same way — a bigger output budget.
+            // The first two both mean "the answer never arrived in full", and
+            // both are fixed the same way — a bigger output budget — but the
+            // log names which one happened.
             case TagGroupBatchProblem.emptyReply:
+              _emptyBatches++;
+              _appendLog(l10n.aiGroupLogBatchEmpty, _LogLevel.warn);
             case TagGroupBatchProblem.truncated:
               _emptyBatches++;
+              _appendLog(l10n.aiGroupLogBatchTruncated, _LogLevel.warn);
             case TagGroupBatchProblem.unparseable:
               _unreadableBatches++;
+              _appendLog(l10n.aiGroupLogBatchUnreadable, _LogLevel.warn);
           }
         },
       );
@@ -115,15 +168,25 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
       setState(() {
         _suggestions = result;
         _totalBatches = (widget.tags.length / tagGroupBatchSize).ceil();
+        _log.add(_LogLine(l10n.aiGroupLogDone(result.length), _LogLevel.ok));
       });
     } on LlmException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      _fail(e.message);
     } catch (e) {
       // Anything the transport did not wrap still has to reach the user:
       // an unhandled throw here leaves the dialog spinning forever, which is
       // indistinguishable from the feature doing nothing.
-      if (mounted) setState(() => _error = '$e');
+      _fail('$e');
     }
+  }
+
+  void _fail(String message) {
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    setState(() {
+      _error = message;
+      _log.add(_LogLine(l10n.aiGroupFailed(message), _LogLevel.error));
+    });
   }
 
   int get _failedBatches => _emptyBatches + _unreadableBatches;
@@ -208,36 +271,82 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
     final suggestions = _suggestions;
 
     final Widget body;
-    if (_error != null) {
-      body = Text(
-        l10n.aiGroupFailed(_error!),
-        style: TextStyle(fontSize: AppText.secondary, color: scheme.error),
-      );
-    } else if (suggestions == null) {
-      body = Row(
+    if (!_started) {
+      // Setup: pick the model, see what is about to be sent, then start.
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 10),
           Text(
-            l10n.aiGroupRunning(_done, widget.tags.length),
+            l10n.aiGroupSetupHint(widget.tags.length),
             style: TextStyle(
               fontSize: AppText.secondary,
               color: semantic.muted,
             ),
           ),
+          const SizedBox(height: 12),
+          _ProfilePicker(
+            label: l10n.aiGroupModelLabel,
+            selected: _selectedProfile(appState),
+            providers: appState.llmProviders,
+            emptyLabel: l10n.llmNoProfiles,
+            onSelected: (id) => setState(() => _profileId = id),
+          ),
+        ],
+      );
+    } else if (_error != null) {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            l10n.aiGroupFailed(_error!),
+            style: TextStyle(fontSize: AppText.secondary, color: scheme.error),
+          ),
+          const SizedBox(height: 10),
+          _LogView(lines: _log, title: l10n.aiGroupLogTitle),
+        ],
+      );
+    } else if (suggestions == null) {
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                l10n.aiGroupRunning(_done, widget.tags.length),
+                style: TextStyle(
+                  fontSize: AppText.secondary,
+                  color: semantic.muted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _LogView(lines: _log, title: l10n.aiGroupLogTitle),
         ],
       );
     } else if (suggestions.isEmpty) {
-      body = Text(
-        // After a run that filed everything the list is empty for a happy
-        // reason; before one it means the model had nothing usable to say —
-        // and [_emptyMessage] says which kind of nothing that was.
-        _applied > 0 ? l10n.aiGroupApplied(_applied) : _emptyMessage(l10n),
-        style: TextStyle(fontSize: AppText.secondary, color: semantic.muted),
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            // After a run that filed everything the list is empty for a happy
+            // reason; before one it means the model had nothing usable to say
+            // — and [_emptyMessage] says which kind of nothing that was.
+            _applied > 0 ? l10n.aiGroupApplied(_applied) : _emptyMessage(l10n),
+            style: TextStyle(
+              fontSize: AppText.secondary,
+              color: semantic.muted,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _LogView(lines: _log, title: l10n.aiGroupLogTitle),
+        ],
       );
     } else {
       body = Column(
@@ -252,7 +361,7 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
           ),
           const SizedBox(height: 10),
           for (final suggestion in suggestions)
-            _SuggestionRow(
+            AiGroupSuggestionRow(
               suggestion: suggestion,
               gloss: appState.tagTranslations.glossFor(suggestion.tag),
               isNewGroup: _groupNamed(appState, suggestion.group) == null,
@@ -263,6 +372,8 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
               onAccept: () => _accept(suggestion),
               onReject: () => _reject(suggestion),
             ),
+          const SizedBox(height: 8),
+          _LogView(lines: _log, title: l10n.aiGroupLogTitle, collapsed: true),
         ],
       );
     }
@@ -286,7 +397,17 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
       ),
       body: body,
       actions: [
-        if (suggestions != null && suggestions.isNotEmpty) ...[
+        if (!_started) ...[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(_applied),
+            child: Text(l10n.cancel),
+          ),
+          const SizedBox(width: 6),
+          FilledButton(
+            onPressed: _selectedProfile(appState) == null ? null : _run,
+            child: Text(l10n.aiGroupStart),
+          ),
+        ] else if (suggestions != null && suggestions.isNotEmpty) ...[
           TextButton(
             onPressed: _applying
                 ? null
@@ -317,8 +438,13 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
   }
 }
 
-class _SuggestionRow extends StatelessWidget {
-  const _SuggestionRow({
+/// One proposal row. Public only so the layout regression test can pump it
+/// directly — the accept/reject pair drifting with tag length is a bug you
+/// cannot see from the widget tree, only from geometry.
+@visibleForTesting
+class AiGroupSuggestionRow extends StatelessWidget {
+  const AiGroupSuggestionRow({
+    super.key,
     required this.suggestion,
     required this.gloss,
     required this.isNewGroup,
@@ -352,67 +478,83 @@ class _SuggestionRow extends StatelessWidget {
         border: Border.all(color: semantic.line),
         borderRadius: BorderRadius.circular(AppRadii.control),
       ),
+      // The accept/reject pair is pinned to the right edge by giving the
+      // content one Expanded slot of its own. The obvious version — content
+      // chips, then a Spacer, then the buttons — does not do that: Spacer is
+      // `Expanded(flex: 1)`, so it splits the free space evenly with the three
+      // `Flexible` children beside it and only claims a quarter of it. The
+      // buttons then sit at "content width + a quarter of the slack", which
+      // moves with every tag's length and reads as ragged.
       child: Row(
         children: [
-          Flexible(
-            child: Text(
-              suggestion.tag,
-              overflow: TextOverflow.ellipsis,
-              style: monoStyle(context, size: AppText.secondary),
-            ),
-          ),
-          if (gloss != null) ...[
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                gloss!,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: AppText.small,
-                  color: semantic.muted,
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    suggestion.tag,
+                    overflow: TextOverflow.ellipsis,
+                    style: monoStyle(context, size: AppText.secondary),
+                  ),
                 ),
-              ),
-            ),
-          ],
-          const SizedBox(width: 8),
-          Icon(Icons.arrow_forward, size: 13, color: semantic.muted),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: scheme.primary.withAlpha(30),
-                border: Border.all(color: scheme.primary.withAlpha(90)),
-                borderRadius: BorderRadius.circular(AppRadii.pill),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
+                if (gloss != null) ...[
+                  const SizedBox(width: 6),
                   Flexible(
                     child: Text(
-                      suggestion.group,
+                      gloss!,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: AppText.small,
-                        color: scheme.primary,
-                      ),
-                    ),
-                  ),
-                  if (isNewGroup) ...[
-                    const SizedBox(width: 5),
-                    Text(
-                      newBadge,
-                      style: TextStyle(
-                        fontSize: AppText.micro,
                         color: semantic.muted,
                       ),
                     ),
-                  ],
+                  ),
                 ],
-              ),
+                const SizedBox(width: 8),
+                Icon(Icons.arrow_forward, size: 13, color: semantic.muted),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.primary.withAlpha(30),
+                      border: Border.all(color: scheme.primary.withAlpha(90)),
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            suggestion.group,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: AppText.small,
+                              color: scheme.primary,
+                            ),
+                          ),
+                        ),
+                        if (isNewGroup) ...[
+                          const SizedBox(width: 5),
+                          Text(
+                            newBadge,
+                            style: TextStyle(
+                              fontSize: AppText.micro,
+                              color: semantic.muted,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           PanelIconButton(
             icon: Icons.check,
             tooltip: acceptTooltip,
@@ -430,6 +572,214 @@ class _SuggestionRow extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Backend chooser for this run.
+///
+/// Deliberately not tied to the assistant's active backend: filing tags is a
+/// short structured job, and the model that is right for a conversation is
+/// often not the one you want to spend on a hundred one-line placements.
+/// Picking here does not move the assistant.
+class _ProfilePicker extends StatelessWidget {
+  const _ProfilePicker({
+    required this.label,
+    required this.selected,
+    required this.providers,
+    required this.emptyLabel,
+    required this.onSelected,
+  });
+
+  final String label;
+  final LlmProviderProfile? selected;
+  final List<LlmProvider> providers;
+  final String emptyLabel;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    // With one provider its name is already in the closed label, so a header
+    // above one short list would just repeat it.
+    final grouped = providers.length > 1;
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: AppText.secondary, color: semantic.muted),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: PopupMenuButton<String>(
+            position: PopupMenuPosition.under,
+            constraints: const BoxConstraints(minWidth: 220, maxWidth: 380),
+            padding: EdgeInsets.zero,
+            enabled: providers.isNotEmpty,
+            onSelected: onSelected,
+            itemBuilder: (_) => [
+              for (final provider in providers) ...[
+                if (grouped)
+                  PopupMenuItem<String>(
+                    enabled: false,
+                    height: 26,
+                    child: Text(
+                      provider.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: AppText.micro,
+                        color: semantic.muted,
+                      ),
+                    ),
+                  ),
+                for (final model in provider.models)
+                  PopupMenuItem<String>(
+                    value: provider.resolve(model).id,
+                    height: 34,
+                    child: Padding(
+                      padding: EdgeInsets.only(left: grouped ? 8 : 0),
+                      child: Text(
+                        model.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: AppText.secondary),
+                      ),
+                    ),
+                  ),
+              ],
+            ],
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: semantic.raised,
+                border: Border.all(color: semantic.line),
+                borderRadius: BorderRadius.circular(AppRadii.control),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      selected?.name ?? emptyLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: AppText.secondary,
+                        color: selected == null ? semantic.muted : null,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.arrow_drop_down, size: 18, color: semantic.muted),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The run log.
+///
+/// This feature's failures are all invisible from the outside — a request in
+/// flight, a model that answered with nothing, a batch whose reply could not
+/// be read — and a spinner reading `0/24` describes every one of them
+/// identically. The log is what makes the difference legible without asking
+/// the user to reproduce anything.
+class _LogView extends StatefulWidget {
+  const _LogView({
+    required this.lines,
+    required this.title,
+    this.collapsed = false,
+  });
+
+  final List<_LogLine> lines;
+  final String title;
+
+  /// Starts folded. Once suggestions are on screen they are the thing to
+  /// read; the log stays one click away rather than pushing them down.
+  final bool collapsed;
+
+  @override
+  State<_LogView> createState() => _LogViewState();
+}
+
+class _LogViewState extends State<_LogView> {
+  late bool _open = !widget.collapsed;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+    if (widget.lines.isEmpty) return const SizedBox.shrink();
+
+    Color colorOf(_LogLevel level) => switch (level) {
+      _LogLevel.info => semantic.muted,
+      _LogLevel.ok => semantic.ok,
+      _LogLevel.warn => semantic.warn,
+      _LogLevel.error => scheme.error,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _open = !_open),
+          borderRadius: BorderRadius.circular(AppRadii.control),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              children: [
+                Icon(
+                  _open ? Icons.expand_more : Icons.chevron_right,
+                  size: 15,
+                  color: semantic.muted,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '${widget.title} (${widget.lines.length})',
+                  style: TextStyle(
+                    fontSize: AppText.small,
+                    color: semantic.muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_open)
+          Container(
+            constraints: const BoxConstraints(maxHeight: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: semantic.panel,
+              border: Border.all(color: semantic.line),
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            ),
+            child: SingleChildScrollView(
+              // Newest last, like every other log: the interesting line is at
+              // the bottom while a run is in flight.
+              reverse: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final line in widget.lines)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 1.5),
+                      child: Text(
+                        line.text,
+                        style: monoStyle(
+                          context,
+                          size: AppText.micro,
+                        ).copyWith(color: colorOf(line.level)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -141,6 +141,8 @@ Future<List<TagGroupSuggestion>> suggestTagGroupsWithLlm({
   int batchSize = tagGroupBatchSize,
   LlmClient? client,
   void Function(int done, int total)? onProgress,
+  void Function(int index, int batches, int size)? onBatchStart,
+  void Function(int index, int batches, int placed)? onBatchDone,
   void Function(TagGroupBatchProblem problem, String reply)? onBatchProblem,
 }) async {
   if (tags.isEmpty) return const [];
@@ -155,12 +157,17 @@ Future<List<TagGroupSuggestion>> suggestTagGroupsWithLlm({
     maxOutputTokens: math.max(profile.maxOutputTokens, _minOutputTokens),
   );
   final out = <TagGroupSuggestion>[];
+  final batches = (tags.length / batchSize).ceil();
   try {
     for (var start = 0; start < tags.length; start += batchSize) {
       final batch = tags.sublist(
         start,
         (start + batchSize).clamp(0, tags.length),
       );
+      // Before the request, not after: a batch that is still in flight is
+      // exactly the state the user is staring at, and the one the old
+      // progress line could not describe.
+      onBatchStart?.call(start ~/ batchSize + 1, batches, batch.length);
       final answer = await _ask(
         llm: llm,
         profile: budgeted,
@@ -169,11 +176,14 @@ Future<List<TagGroupSuggestion>> suggestTagGroupsWithLlm({
         glosses: glosses,
         languageCode: languageCode,
       );
+      final index = start ~/ batchSize + 1;
       final decoded = _decodeItems(answer);
       if (decoded == null) {
         onBatchProblem?.call(answer.problem, answer.forDisplay);
       } else {
-        out.addAll(_parse(decoded, batch));
+        final placed = _parse(decoded, batch);
+        out.addAll(placed);
+        onBatchDone?.call(index, batches, placed.length);
       }
       onProgress?.call(
         (start + batch.length).clamp(0, tags.length),
