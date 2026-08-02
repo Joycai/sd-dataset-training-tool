@@ -614,6 +614,46 @@
       "total": { "type": "int" }
     }
   },
+  "aiGroupModelLabel": "Model",
+  "aiGroupStart": "Start",
+  "aiGroupSetupHint": "{count} ungrouped tags will be sent to the model. Nothing changes until you accept a suggestion.",
+  "@aiGroupSetupHint": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "aiGroupLogTitle": "Run log",
+  "aiGroupLogModel": "Model: {name}",
+  "@aiGroupLogModel": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "aiGroupLogBatchStart": "Batch {index}/{total} · {size} tags · asking…",
+  "@aiGroupLogBatchStart": {
+    "placeholders": {
+      "index": { "type": "int" },
+      "total": { "type": "int" },
+      "size": { "type": "int" }
+    }
+  },
+  "aiGroupLogBatchDone": "Batch {index}/{total} · {count} placements",
+  "@aiGroupLogBatchDone": {
+    "placeholders": {
+      "index": { "type": "int" },
+      "total": { "type": "int" },
+      "count": { "type": "int" }
+    }
+  },
+  "aiGroupLogBatchEmpty": "The model returned nothing at all.",
+  "aiGroupLogBatchTruncated": "The answer was cut off by the output-length limit.",
+  "aiGroupLogBatchUnreadable": "The answer could not be read.",
+  "aiGroupLogDone": "Done · {count} suggestions",
+  "@aiGroupLogDone": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "aiGroupRetry": "Try again",
   "aiGroupFailed": "AI grouping failed: {error}",
   "@aiGroupFailed": {
