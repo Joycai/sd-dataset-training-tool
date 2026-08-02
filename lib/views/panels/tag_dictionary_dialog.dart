@@ -1058,54 +1058,65 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: semantic.line)),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                l10n.dictFooterHint,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: AppText.micro,
-                  color: semantic.muted,
+        // The hint is the *only* flex child, so it absorbs every pixel of
+        // slack and the actions keep the right edge. `Expanded` + `Flexible`
+        // does not: those are two flex children of equal weight, so the
+        // actions get half the band and align right within that half — which
+        // is the middle of the footer.
+        child: LayoutBuilder(
+          builder: (context, band) => Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.dictFooterHint,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: AppText.micro,
+                    color: semantic.muted,
+                  ),
                 ),
               ),
-            ),
-            // Wrapped, not fixed: three localized labels are wider than a
-            // shrunken window, and these are the actions the footer is for.
-            Flexible(
-              child: Wrap(
-                alignment: WrapAlignment.end,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  TextButton.icon(
-                    onPressed: _clearMachineTranslations,
-                    icon: const Icon(Icons.auto_awesome_outlined, size: 14),
-                    label: Text(
-                      l10n.dictClearAiAction,
-                      style: const TextStyle(fontSize: AppText.secondary),
+              const SizedBox(width: 10),
+              // Bounded from the outside — a non-flex Row child is handed
+              // unbounded width, and an unbounded Wrap never wraps — so three
+              // long localized labels break onto a second line instead of off
+              // the edge.
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: band.maxWidth * 0.78),
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    TextButton.icon(
+                      onPressed: _clearMachineTranslations,
+                      icon: const Icon(Icons.auto_awesome_outlined, size: 14),
+                      label: Text(
+                        l10n.dictClearAiAction,
+                        style: const TextStyle(fontSize: AppText.secondary),
+                      ),
                     ),
-                  ),
-                  TextButton.icon(
-                    onPressed: _import,
-                    icon: const Icon(Icons.file_download_outlined, size: 14),
-                    label: Text(
-                      l10n.dictImportAction,
-                      style: const TextStyle(fontSize: AppText.secondary),
+                    TextButton.icon(
+                      onPressed: _import,
+                      icon: const Icon(Icons.file_download_outlined, size: 14),
+                      label: Text(
+                        l10n.dictImportAction,
+                        style: const TextStyle(fontSize: AppText.secondary),
+                      ),
                     ),
-                  ),
-                  TextButton.icon(
-                    onPressed: _glossary.isEmpty ? null : _export,
-                    icon: const Icon(Icons.file_upload_outlined, size: 14),
-                    label: Text(
-                      l10n.dictExportAction,
-                      style: const TextStyle(fontSize: AppText.secondary),
+                    TextButton.icon(
+                      onPressed: _glossary.isEmpty ? null : _export,
+                      icon: const Icon(Icons.file_upload_outlined, size: 14),
+                      label: Text(
+                        l10n.dictExportAction,
+                        style: const TextStyle(fontSize: AppText.secondary),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
 }
@@ -1361,38 +1372,48 @@ class _MissingBanner extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.warning_amber_outlined,
-                size: 14,
-                color: semantic.warn,
-              ),
-              const SizedBox(width: 7),
-              // Both texts shrink; neither may push the two actions off the
-              // end, because the whole banner exists to offer them.
-              Flexible(
-                child: Text(
-                  l10n.dictMissingTitle(missing.length),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: AppText.secondary,
-                    fontWeight: FontWeight.w600,
-                  ),
+              // One tight Expanded holding every piece of text, so the two
+              // actions keep the right edge: a Spacer among several flex
+              // children only ever gets its own share of the slack, and the
+              // rest lands after the buttons.
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning_amber_outlined,
+                      size: 14,
+                      color: semantic.warn,
+                    ),
+                    const SizedBox(width: 7),
+                    // Both texts shrink; neither may push the actions off the
+                    // end, because the whole banner exists to offer them.
+                    Flexible(
+                      child: Text(
+                        l10n.dictMissingTitle(missing.length),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: AppText.secondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Flexible(
+                      child: Text(
+                        l10n.dictMissingDesc,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: AppText.micro,
+                          color: semantic.muted,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 9),
-              Flexible(
-                child: Text(
-                  l10n.dictMissingDesc,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: AppText.micro,
-                    color: semantic.muted,
-                  ),
-                ),
-              ),
-              const Spacer(),
+              const SizedBox(width: 8),
               TextButton(
                 onPressed: onIgnore,
                 style: TextButton.styleFrom(
@@ -1662,81 +1683,85 @@ class _TranslationFormState extends State<_TranslationForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(widget.tag, style: monoStyle(context, size: 16)),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _categoryColor(context, hit?.category),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            hit == null
-                                ? l10n.dictOrphanBadge
-                                : l10n.dictCategoryAndCount(
-                                    _categoryLabel(l10n, hit.category),
-                                    hit.postCount,
-                                  ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: AppText.micro,
-                              color: semantic.muted,
+          LayoutBuilder(
+            builder: (context, pane) => Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(widget.tag, style: monoStyle(context, size: 16)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _categoryColor(context, hit?.category),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              // A hand-added tag is the user's own invention: danbooru has
-              // neither a wiki page nor a tag record for it, so both the link
-              // and the lookup would come back empty.
-              if (!widget.custom) ...[
-                const SizedBox(width: 8),
-                // Flexible + Wrap: two localized button labels can be wider
-                // than the pane, and the tag they belong to must not be the
-                // thing that gets squeezed to nothing.
-                Flexible(
-                  child: Wrap(
-                    alignment: WrapAlignment.end,
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      _MiniAction(
-                        icon: Icons.cloud_download_outlined,
-                        label: widget.fetching
-                            ? l10n.dictFetching
-                            : l10n.dictFetchAction,
-                        busy: widget.fetching,
-                        onTap: widget.fetching ? null : widget.onFetch,
-                      ),
-                      _MiniAction(
-                        icon: Icons.menu_book_outlined,
-                        label: l10n.tagWikiAction,
-                        onTap: () =>
-                            openExternalUrl(danbooruWikiUrl(widget.tag)),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              hit == null
+                                  ? l10n.dictOrphanBadge
+                                  : l10n.dictCategoryAndCount(
+                                      _categoryLabel(l10n, hit.category),
+                                      hit.postCount,
+                                    ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: AppText.micro,
+                                color: semantic.muted,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
+                // A hand-added tag is the user's own invention: danbooru has
+                // neither a wiki page nor a tag record for it, so both the link
+                // and the lookup would come back empty.
+                if (!widget.custom) ...[
+                  const SizedBox(width: 8),
+                  // Non-flex, so the two actions keep the right edge; the tag
+                  // column beside them is the tight Expanded that absorbs the
+                  // slack. The inner Wrap still bounds them, because two
+                  // localized labels can be wider than a narrow pane.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: pane.maxWidth * 0.62),
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        _MiniAction(
+                          icon: Icons.cloud_download_outlined,
+                          label: widget.fetching
+                              ? l10n.dictFetching
+                              : l10n.dictFetchAction,
+                          busy: widget.fetching,
+                          onTap: widget.fetching ? null : widget.onFetch,
+                        ),
+                        _MiniAction(
+                          icon: Icons.menu_book_outlined,
+                          label: l10n.tagWikiAction,
+                          onTap: () =>
+                              openExternalUrl(danbooruWikiUrl(widget.tag)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
           if (aliases.isNotEmpty) ...[
             const SizedBox(height: 12),

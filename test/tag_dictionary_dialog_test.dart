@@ -266,6 +266,27 @@ void main() {
     });
   });
 
+  testWidgets('the trailing actions keep the right edge', (tester) async {
+    await tester.runAsync(() => prepare());
+    await open(tester, initialTag: 'long_hair');
+
+    final surface = tester.getRect(find.byType(GlassSurface));
+    // The footer's own 12px of padding and nothing else. These used to be one
+    // flex child among two, which handed them half the band and left them
+    // aligned right *within that half* — the middle of the footer.
+    expect(
+      surface.right -
+          tester.getRect(find.widgetWithText(TextButton, 'Export')).right,
+      closeTo(12, 1),
+    );
+    // And the same shape one row up.
+    expect(
+      surface.right -
+          tester.getRect(find.widgetWithText(FilledButton, 'Save')).right,
+      closeTo(18, 1),
+    );
+  });
+
   testWidgets('the save row does not move as the line beside it changes', (
     tester,
   ) async {
