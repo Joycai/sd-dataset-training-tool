@@ -5,7 +5,7 @@
 /// `bump-version` skill so both files stay in lockstep.
 abstract final class AppInfo {
   /// Kept in sync with pubspec.yaml by the bump-version skill.
-  static const String version = '1.14.0';
+  static const String version = '1.15.0';
 
   static const String copyright = '© 2025-2026 Joycai';
   static const String license = 'GPL-3.0';
