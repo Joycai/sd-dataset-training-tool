@@ -1633,6 +1633,114 @@ class AppLocalizationsEn extends AppLocalizations {
   String get llmProfilesTitle => 'LLM Backends';
 
   @override
+  String get llmDetect => 'Detect';
+
+  @override
+  String get llmDetectTitle => 'Detect endpoint capabilities';
+
+  @override
+  String get llmDetectIntro =>
+      'Reads what the endpoint publishes about itself, then sends one small request that makes the server state its own limits. Nothing is written to your settings until you apply it.';
+
+  @override
+  String get llmDetectRun => 'Start';
+
+  @override
+  String get llmDetectRerun => 'Run again';
+
+  @override
+  String get llmDetectApply => 'Apply to settings';
+
+  @override
+  String get llmDetectRunning => 'Detecting…';
+
+  @override
+  String get llmDetectNothingFound =>
+      'The endpoint published no limits and did not state any. The values in the form are unchanged.';
+
+  @override
+  String llmDetectFoundContext(int tokens) {
+    return 'Context window: $tokens tokens';
+  }
+
+  @override
+  String llmDetectFoundOutput(int tokens) {
+    return 'Max output: $tokens tokens';
+  }
+
+  @override
+  String get llmDetectEvidenceListing => 'from the model listing';
+
+  @override
+  String get llmDetectEvidenceBackend => 'from the backend\'s own API';
+
+  @override
+  String get llmDetectEvidenceError =>
+      'stated by the server when refusing a request';
+
+  @override
+  String get llmDetectEvidenceMeasured => 'measured directly';
+
+  @override
+  String get llmDetectStepListing => 'Model listing';
+
+  @override
+  String get llmDetectStepBackendApi => 'Backend API';
+
+  @override
+  String get llmDetectStepErrorProbe => 'Limit probe';
+
+  @override
+  String get llmDetectStepCalibration => 'Token calibration';
+
+  @override
+  String get llmDetectStepTruncation => 'Silent truncation check';
+
+  @override
+  String get llmDetectStatusRunning => 'running';
+
+  @override
+  String get llmDetectStatusDone => 'done';
+
+  @override
+  String get llmDetectStatusSkipped => 'no result';
+
+  @override
+  String get llmDetectStatusFailed => 'failed';
+
+  @override
+  String get llmDetectTruncationOption => 'Also check for silent truncation';
+
+  @override
+  String llmDetectTruncationOptionDesc(int tokens) {
+    return 'Sends one large prompt and compares the token count the server reports back. This is the only way to catch a backend that accepts an over-long prompt and quietly drops part of it. Costs about $tokens input tokens.';
+  }
+
+  @override
+  String llmDetectTruncationDetected(int tokens) {
+    return 'Silent truncation: the server accepted the prompt but only counted $tokens tokens. Content past that point is dropped without an error.';
+  }
+
+  @override
+  String get llmDetectTruncationNotDetected =>
+      'No truncation seen at the size tested. That is not proof the endpoint is clean — some servers report the count from before truncating.';
+
+  @override
+  String get llmDetectNotes => 'Diagnostics';
+
+  @override
+  String get llmMeasuredBadge => 'Detected';
+
+  @override
+  String llmMeasuredSummary(String date, String context, String output) {
+    return 'Detected $date: context $context, max output $output';
+  }
+
+  @override
+  String get llmMeasuredTruncationWarning =>
+      'This endpoint was seen dropping part of an over-long prompt without reporting an error.';
+
+  @override
   String get llmProviderLabel => 'PROVIDER';
 
   @override

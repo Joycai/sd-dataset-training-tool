@@ -86,7 +86,9 @@ Future<List<TagGroupSuggestion>> suggestTagGroupsWithLlm({
   void Function(TagGroupBatchProblem problem, String reply)? onBatchProblem,
 }) async {
   if (tags.isEmpty) return const [];
-  final llm =
+  // Annotated, not inferred: both concrete clients implement two interfaces,
+  // so their least upper bound is no longer LlmClient.
+  final LlmClient llm =
       client ??
       (profile.kind == LlmApiKind.anthropic
           ? AnthropicClient()

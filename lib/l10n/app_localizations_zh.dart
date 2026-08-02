@@ -1584,6 +1584,111 @@ class AppLocalizationsZh extends AppLocalizations {
   String get llmProfilesTitle => 'LLM 后端';
 
   @override
+  String get llmDetect => '检测';
+
+  @override
+  String get llmDetectTitle => '检测端点能力';
+
+  @override
+  String get llmDetectIntro =>
+      '先读取端点自己公布的信息，再发一次很小的请求让服务端说出自己的上限。在你点击应用之前，不会改动任何设置。';
+
+  @override
+  String get llmDetectRun => '开始检测';
+
+  @override
+  String get llmDetectRerun => '重新检测';
+
+  @override
+  String get llmDetectApply => '应用到设置';
+
+  @override
+  String get llmDetectRunning => '检测中…';
+
+  @override
+  String get llmDetectNothingFound => '端点没有公布上限，也没有在报错中说明。表单里的值保持不变。';
+
+  @override
+  String llmDetectFoundContext(int tokens) {
+    return '上下文窗口：$tokens tokens';
+  }
+
+  @override
+  String llmDetectFoundOutput(int tokens) {
+    return '最大输出：$tokens tokens';
+  }
+
+  @override
+  String get llmDetectEvidenceListing => '来自模型列表';
+
+  @override
+  String get llmDetectEvidenceBackend => '来自后端自身接口';
+
+  @override
+  String get llmDetectEvidenceError => '服务端拒绝请求时自己说明的';
+
+  @override
+  String get llmDetectEvidenceMeasured => '实测得到';
+
+  @override
+  String get llmDetectStepListing => '模型列表';
+
+  @override
+  String get llmDetectStepBackendApi => '后端专有接口';
+
+  @override
+  String get llmDetectStepErrorProbe => '上限探针';
+
+  @override
+  String get llmDetectStepCalibration => 'Token 标定';
+
+  @override
+  String get llmDetectStepTruncation => '静默截断检测';
+
+  @override
+  String get llmDetectStatusRunning => '进行中';
+
+  @override
+  String get llmDetectStatusDone => '完成';
+
+  @override
+  String get llmDetectStatusSkipped => '无结果';
+
+  @override
+  String get llmDetectStatusFailed => '失败';
+
+  @override
+  String get llmDetectTruncationOption => '同时检测静默截断';
+
+  @override
+  String llmDetectTruncationOptionDesc(int tokens) {
+    return '发送一次大 prompt，比对服务端回报的 token 数。这是唯一能抓到「接收超长 prompt 却悄悄丢内容」的办法。约消耗 $tokens 输入 tokens。';
+  }
+
+  @override
+  String llmDetectTruncationDetected(int tokens) {
+    return '存在静默截断：服务端接收了 prompt，但只统计到 $tokens tokens。超出部分被丢弃且不报错。';
+  }
+
+  @override
+  String get llmDetectTruncationNotDetected =>
+      '在测试的尺寸下未发现截断。这不等于确认端点没问题——有的服务端回报的是截断前的计数。';
+
+  @override
+  String get llmDetectNotes => '诊断信息';
+
+  @override
+  String get llmMeasuredBadge => '已检测';
+
+  @override
+  String llmMeasuredSummary(String date, String context, String output) {
+    return '$date 检测：上下文 $context，最大输出 $output';
+  }
+
+  @override
+  String get llmMeasuredTruncationWarning => '该端点曾被观察到丢弃超长 prompt 的一部分且不报错。';
+
+  @override
   String get llmProviderLabel => 'PROVIDER';
 
   @override

@@ -9,6 +9,7 @@ import '../../services/llm/llm_client.dart';
 import '../../services/llm/openai_compat_client.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
+import 'llm_probe_dialog.dart';
 
 /// Management dialog for LLM backends, as a provider → model tree.
 ///
@@ -85,6 +86,9 @@ class _LlmProvidersDialogState extends State<_LlmProvidersDialog> {
   }
 
   LlmClient _clientFor(LlmApiKind kind) =>
+      kind == LlmApiKind.anthropic ? _anthropicClient : _openaiClient;
+
+  LlmEndpointInspector _inspectorFor(LlmApiKind kind) =>
       kind == LlmApiKind.anthropic ? _anthropicClient : _openaiClient;
 
   Future<void> _save(List<LlmProvider> next) =>
@@ -183,6 +187,27 @@ class _LlmProvidersDialogState extends State<_LlmProvidersDialog> {
           ? l10n.llmTestOk(watch.elapsedMilliseconds)
           : l10n.llmTestFailed(error);
     });
+  }
+
+  /// Detects what the endpoint actually accepts and, if the user applies the
+  /// result, writes it onto the model.
+  Future<void> _detect(LlmProvider provider, LlmModelConfig model) async {
+    setState(() => _probeResult = null);
+    final updated = await showLlmProbeDialog(
+      context,
+      provider: provider,
+      model: model,
+      inspector: _inspectorFor(provider.kind),
+    );
+    if (updated == null || !mounted) return;
+    await _replaceProvider(
+      provider.copyWith(
+        models: [
+          for (final m in provider.models)
+            if (m.id == updated.id) updated else m,
+        ],
+      ),
+    );
   }
 
   /// `GET /models` against the provider, then a filterable picker; the
@@ -338,14 +363,18 @@ class _LlmProvidersDialogState extends State<_LlmProvidersDialog> {
                                   if (model != null)
                                     _ModelForm(
                                       // Rebuild the form's controllers when
-                                      // the selection moves to another model.
+                                      // the selection moves to another model,
+                                      // or when a detection run rewrote the
+                                      // numbers behind the fields.
                                       key: ValueKey(
-                                        '${provider.id}/${model.id}',
+                                        '${provider.id}/${model.id}/'
+                                        '${model.measuredAt}',
                                       ),
                                       provider: provider,
                                       model: model,
                                       onFetchModels: () =>
                                           _fetchModels(provider, model),
+                                      onDetect: () => _detect(provider, model),
                                       onChanged: (updated) => _replaceProvider(
                                         provider.copyWith(
                                           models: [
@@ -968,6 +997,7 @@ class _ModelForm extends StatefulWidget {
     required this.model,
     required this.onChanged,
     required this.onFetchModels,
+    required this.onDetect,
     required this.onDelete,
   });
 
@@ -975,6 +1005,7 @@ class _ModelForm extends StatefulWidget {
   final LlmModelConfig model;
   final ValueChanged<LlmModelConfig> onChanged;
   final VoidCallback onFetchModels;
+  final VoidCallback onDetect;
   final VoidCallback onDelete;
 
   @override
@@ -1069,6 +1100,16 @@ class _ModelFormState extends State<_ModelForm> {
               ),
             ),
             const Spacer(),
+            TextButton.icon(
+              onPressed: widget.onDetect,
+              icon: const Icon(Icons.speed, size: 14),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                textStyle: const TextStyle(fontSize: AppText.secondary),
+              ),
+              label: Text(l10n.llmDetect),
+            ),
+            const SizedBox(width: 8),
             Text(
               _formatTokens(model.contextWindow),
               style: monoStyle(
@@ -1153,6 +1194,7 @@ class _ModelFormState extends State<_ModelForm> {
             ),
           ],
         ),
+        if (model.hasMeasurement) _MeasurementNote(model: model),
         _InlineSwitchRow(
           label: l10n.llmSupportsVision,
           description: l10n.llmSupportsVisionDesc,
@@ -1194,6 +1236,70 @@ class _ModelFormState extends State<_ModelForm> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// What the last detection run found, and when.
+///
+/// The timestamp is not decoration: the same model name behind a relay can
+/// route to a different upstream tomorrow, so a measurement is a reading from
+/// one moment rather than a property of the model.
+class _MeasurementNote extends StatelessWidget {
+  const _MeasurementNote({required this.model});
+
+  final LlmModelConfig model;
+
+  /// `2026-08-02T14:31:07.123` → `2026-08-02 14:31`.
+  static String _formatStamp(String iso) {
+    if (iso.length < 16) return iso;
+    return iso.substring(0, 16).replaceFirst('T', ' ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _MiniBadge(text: l10n.llmMeasuredBadge),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  l10n.llmMeasuredSummary(
+                    _formatStamp(model.measuredAt),
+                    model.measuredContextWindow > 0
+                        ? _formatTokens(model.measuredContextWindow)
+                        : '—',
+                    model.measuredMaxOutput > 0
+                        ? '${model.measuredMaxOutput}'
+                        : '—',
+                  ),
+                  style: TextStyle(
+                    fontSize: AppText.small,
+                    color: semantic.muted,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (model.silentTruncation)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                l10n.llmMeasuredTruncationWarning,
+                style: TextStyle(fontSize: AppText.small, color: scheme.error),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
