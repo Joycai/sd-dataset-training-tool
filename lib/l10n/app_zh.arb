@@ -844,6 +844,68 @@
   "dictFetchWriteAction": "写入词典",
   "dictFetchOpenAction": "查看该标签",
 
+  "dictDanbooruUpdateAction": "从 Danbooru 更新",
+  "dictDanbooruUpdateDone": "已从 Danbooru 更新 {tag}",
+  "@dictDanbooruUpdateDone": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+  "dictDanbooruMarkedMissing": "Danbooru 未收录“{tag}”——已标记，批量补全时会跳过",
+  "@dictDanbooruMarkedMissing": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+  "dictBatchAction": "Danbooru 批量补全",
+  "dictBatchTitle": "从 Danbooru 批量补全",
+  "dictBatchDesc": "为列表中还没问过 Danbooru 的标签逐个抓取别名与 wiki 摘要：别名并入词条的别名，wiki 摘要写入空白的注释——已有内容不会被覆盖。",
+  "dictBatchScopeNote": "对象是左侧列表当前显示的标签。",
+  "dictBatchPending": "待抓取 {count} 个标签",
+  "@dictBatchPending": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictBatchCached": "已有 Danbooru 资料 {count} 个",
+  "@dictBatchCached": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictBatchMissing": "已标记未收录 {count} 个——将跳过",
+  "@dictBatchMissing": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictBatchNothing": "列表中的标签都已有 Danbooru 资料。",
+  "dictBatchRateNote": "逐个抓取并在请求间稍作停顿，标签多时需要一些时间。",
+  "dictBatchStart": "开始补全",
+  "dictBatchStop": "停止",
+  "dictBatchRunning": "正在更新 {done}/{total}：{tag}",
+  "@dictBatchRunning": {
+    "placeholders": {
+      "done": { "type": "int" },
+      "total": { "type": "int" },
+      "tag": { "type": "String" }
+    }
+  },
+  "dictBatchSummary": "完成：更新 {updated} 个，未收录 {missing} 个，失败 {failed} 个",
+  "@dictBatchSummary": {
+    "placeholders": {
+      "updated": { "type": "int" },
+      "missing": { "type": "int" },
+      "failed": { "type": "int" }
+    }
+  },
+  "dictBatchStopped": "已中止：{error}",
+  "@dictBatchStopped": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
   "dataSection": "数据",
   "dataExportTitle": "导出数据",
   "dataExportDesc": "把 AI 后端配置、标签库和预置提示词存成一个文件",
@@ -868,13 +930,14 @@
     }
   },
   "dataSectionTagLibrary": "自定义标签库",
-  "dataSectionTagLibrarySummary": "{tags} 个标签 · {groups} 个分组 · {custom} 个自定义标签 · {translations} 条译文",
+  "dataSectionTagLibrarySummary": "{tags} 个标签 · {groups} 个分组 · {custom} 个自定义标签 · {translations} 条译文 · {records} 条 Danbooru 资料",
   "@dataSectionTagLibrarySummary": {
     "placeholders": {
       "tags": { "type": "int" },
       "groups": { "type": "int" },
       "custom": { "type": "int" },
-      "translations": { "type": "int" }
+      "translations": { "type": "int" },
+      "records": { "type": "int" }
     }
   },
   "dataSectionPresets": "预置提示词",
@@ -910,13 +973,14 @@
       "models": { "type": "int" }
     }
   },
-  "dataImportReportLibrary": "标签库：{tags} 个标签，{groups} 个分组，{custom} 个自定义标签，{translations} 条译文",
+  "dataImportReportLibrary": "标签库：{tags} 个标签，{groups} 个分组，{custom} 个自定义标签，{translations} 条译文，{records} 条 Danbooru 资料",
   "@dataImportReportLibrary": {
     "placeholders": {
       "tags": { "type": "int" },
       "groups": { "type": "int" },
       "custom": { "type": "int" },
-      "translations": { "type": "int" }
+      "translations": { "type": "int" },
+      "records": { "type": "int" }
     }
   },
   "dataImportReportPresets": "预置提示词：新增 {added} 条，更新 {updated} 条",

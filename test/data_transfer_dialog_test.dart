@@ -96,7 +96,10 @@ void main() {
 
     expect(find.text('1 backends · 2 models'), findsOneWidget);
     expect(
-      find.text('2 tags · 0 groups · 0 custom tags · 0 translations'),
+      find.text(
+        '2 tags · 0 groups · 0 custom tags · 0 translations '
+        '· 0 danbooru records',
+      ),
       findsOneWidget,
     );
     expect(find.text('1 presets'), findsOneWidget);

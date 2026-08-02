@@ -1122,6 +1122,68 @@
     }
   },
 
+  "dictDanbooruUpdateAction": "Update from danbooru",
+  "dictDanbooruUpdateDone": "Updated {tag} from danbooru",
+  "@dictDanbooruUpdateDone": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+  "dictDanbooruMarkedMissing": "danbooru has no tag called \"{tag}\" — marked, so batch updates skip it",
+  "@dictDanbooruMarkedMissing": {
+    "placeholders": {
+      "tag": { "type": "String" }
+    }
+  },
+  "dictBatchAction": "Danbooru batch update",
+  "dictBatchTitle": "Batch update from danbooru",
+  "dictBatchDesc": "Fetches other names and the wiki excerpt for every listed tag danbooru has not been asked about yet. Other names join the tag's aliases and the wiki excerpt fills an empty note — existing text is never overwritten.",
+  "dictBatchScopeNote": "Covers the tags the list on the left is currently showing.",
+  "dictBatchPending": "{count} tags to fetch",
+  "@dictBatchPending": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictBatchCached": "{count} already have danbooru info",
+  "@dictBatchCached": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictBatchMissing": "{count} marked as not on danbooru — skipped",
+  "@dictBatchMissing": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictBatchNothing": "Every listed tag already has danbooru info.",
+  "dictBatchRateNote": "Tags are fetched one at a time with a short pause between requests; a long list takes a while.",
+  "dictBatchStart": "Start",
+  "dictBatchStop": "Stop",
+  "dictBatchRunning": "Updating {done}/{total}: {tag}",
+  "@dictBatchRunning": {
+    "placeholders": {
+      "done": { "type": "int" },
+      "total": { "type": "int" },
+      "tag": { "type": "String" }
+    }
+  },
+  "dictBatchSummary": "Done: {updated} updated, {missing} not on danbooru, {failed} failed",
+  "@dictBatchSummary": {
+    "placeholders": {
+      "updated": { "type": "int" },
+      "missing": { "type": "int" },
+      "failed": { "type": "int" }
+    }
+  },
+  "dictBatchStopped": "Stopped: {error}",
+  "@dictBatchStopped": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+
   "dataSection": "Data",
   "dataExportTitle": "Export data",
   "dataExportDesc": "Save your AI backends, tag library and prompt presets to one file",
@@ -1146,13 +1208,14 @@
     }
   },
   "dataSectionTagLibrary": "Tag library",
-  "dataSectionTagLibrarySummary": "{tags} tags · {groups} groups · {custom} custom tags · {translations} translations",
+  "dataSectionTagLibrarySummary": "{tags} tags · {groups} groups · {custom} custom tags · {translations} translations · {records} danbooru records",
   "@dataSectionTagLibrarySummary": {
     "placeholders": {
       "tags": { "type": "int" },
       "groups": { "type": "int" },
       "custom": { "type": "int" },
-      "translations": { "type": "int" }
+      "translations": { "type": "int" },
+      "records": { "type": "int" }
     }
   },
   "dataSectionPresets": "Prompt presets",
@@ -1188,13 +1251,14 @@
       "models": { "type": "int" }
     }
   },
-  "dataImportReportLibrary": "Tag library: {tags} tags, {groups} groups, {custom} custom tags, {translations} translations",
+  "dataImportReportLibrary": "Tag library: {tags} tags, {groups} groups, {custom} custom tags, {translations} translations, {records} danbooru records",
   "@dataImportReportLibrary": {
     "placeholders": {
       "tags": { "type": "int" },
       "groups": { "type": "int" },
       "custom": { "type": "int" },
-      "translations": { "type": "int" }
+      "translations": { "type": "int" },
+      "records": { "type": "int" }
     }
   },
   "dataImportReportPresets": "Prompt presets: {added} added, {updated} updated",

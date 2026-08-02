@@ -14,6 +14,7 @@ import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/models/tag_dictionary.dart';
 import 'package:dataset_training_tool/models/tag_translation.dart';
 import 'package:dataset_training_tool/services/danbooru_api.dart';
+import 'package:dataset_training_tool/services/danbooru_meta_service.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/services/tag_dictionary_service.dart';
 import 'package:dataset_training_tool/services/tag_translation_service.dart';
@@ -28,26 +29,27 @@ long_hair,0,3000000,
 blue_eyes,0,2000000,
 ''';
 
-/// A danbooru that knows every tag it is asked about, echoing the name back.
+/// A danbooru that knows every tag it is asked about — except the ones in
+/// [unknown] — echoing the name back.
 ///
 /// Echoing matters: the dialog re-selects whatever the lookup resolved to, so a
 /// fake that always answered with the same tag would silently move the
 /// selection and make the "already in the dictionary" cases untestable.
-DanbooruApi _fakeApi() => DanbooruApi(
+DanbooruApi _fakeApi({Set<String> unknown = const {}}) => DanbooruApi(
   clientFactory: () => MockClient((request) async {
     if (request.url.path == '/tags.json') {
+      final name = request.url.queryParameters['search[name]'];
       return http.Response(
         jsonEncode([
-          {
-            'name': request.url.queryParameters['search[name]'],
-            'category': 4,
-            'post_count': 200000,
-          },
+          if (!unknown.contains(name))
+            {'name': name, 'category': 4, 'post_count': 200000},
         ]),
         200,
         headers: {'content-type': 'application/json; charset=utf-8'},
       );
     }
+    final page = request.url.pathSegments.last.replaceAll('.json', '');
+    if (unknown.contains(page)) return http.Response('', 404);
     return http.Response.bytes(
       utf8.encode(
         jsonEncode({
@@ -71,16 +73,21 @@ void main() {
   /// The workbench snapshot handed to the dialog; set by [open].
   TagDictionaryScope scope = const TagDictionaryScope();
 
+  /// Tags the fake danbooru claims not to have; set before [open].
+  Set<String> unknownTags = const {};
+
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     temp = await Directory.systemTemp.createTemp('dict_dialog_');
     openWith = null;
+    unknownTags = const {};
     appState = AppState(
       SettingsService(),
       tagDictionary: TagDictionaryService(storageDirectory: () async => temp),
       tagTranslations: TagTranslationService(
         storageDirectory: () async => temp,
       ),
+      danbooruMeta: DanbooruMetaService(storageDirectory: () async => temp),
     );
     await appState.loadSettings();
   });
@@ -123,8 +130,9 @@ void main() {
                   onPressed: () => showTagDictionaryDialog(
                     context,
                     initialTag: openWith,
-                    api: _fakeApi(),
+                    api: _fakeApi(unknown: unknownTags),
                     scope: scope,
+                    batchDelay: Duration.zero,
                   ),
                   child: const Text('open'),
                 ),
@@ -158,7 +166,7 @@ void main() {
     await tester.runAsync(() async {
       // The header actions are bare tap targets, not buttons: they sit beside
       // the tag name, where a Material button's padding would dominate.
-      await tester.tap(find.text('Fetch from danbooru'));
+      await tester.tap(find.text('Update from danbooru'));
       await tester.pump();
       await Future<void>.delayed(const Duration(milliseconds: 80));
     });
@@ -548,7 +556,9 @@ void main() {
       );
     });
 
-    testWidgets('a hand-added tag offers no lookup at all', (tester) async {
+    testWidgets('a hand-added tag offers the update but not the wiki link', (
+      tester,
+    ) async {
       await tester.runAsync(
         () => prepare(
           custom: const [
@@ -558,10 +568,169 @@ void main() {
       );
       await open(tester, initialTag: 'my_oc');
 
-      // danbooru has neither a record nor a wiki page for the user's own
-      // invention, so both the lookup and the wiki link would come back empty.
-      expect(find.text('Fetch from danbooru'), findsNothing);
+      // A collected dataset tag is usually a real danbooru tag, so the update
+      // stays offered; the wiki link waits until danbooru confirms the page
+      // can exist.
+      expect(find.text('Update from danbooru'), findsOneWidget);
       expect(find.text('Danbooru wiki'), findsNothing);
+    });
+  });
+
+  group('danbooru update', () {
+    testWidgets('writes other_names into a custom entry\'s aliases', (
+      tester,
+    ) async {
+      await tester.runAsync(
+        () => prepare(
+          custom: const [
+            TagDictionaryEntry(name: 'my_oc', category: TagCategory.character),
+          ],
+        ),
+      );
+      await open(tester, initialTag: 'my_oc');
+      await fetch(tester);
+
+      // Persisted into the entry itself, with danbooru's own count — not
+      // merely displayed for the session.
+      final entry = appState.tagDictionary.customEntries.single;
+      expect(entry.aliases, ['初音ミク']);
+      expect(entry.postCount, 200000);
+      // Confirmed on danbooru, so the wiki link is now offered too.
+      expect(find.text('Danbooru wiki'), findsOneWidget);
+    });
+
+    testWidgets('fills an empty note with the wiki excerpt', (tester) async {
+      await tester.runAsync(
+        () => prepare(
+          glossary: const [TagTranslation(tag: 'long_hair', text: '长发')],
+        ),
+      );
+      await open(tester, initialTag: 'long_hair');
+      await fetch(tester);
+
+      final entry = appState.tagTranslations.lookup('long_hair');
+      expect(entry?.note, 'The most famous vocaloid.');
+      // The note came from danbooru but the translation did not: a later
+      // "clear fetched translations" must not sweep this entry away.
+      expect(entry?.source, TagTranslationSource.manual);
+    });
+
+    testWidgets('never overwrites a note the user wrote', (tester) async {
+      await tester.runAsync(
+        () => prepare(
+          glossary: const [
+            TagTranslation(tag: 'long_hair', text: '长发', note: '手写注释'),
+          ],
+        ),
+      );
+      await open(tester, initialTag: 'long_hair');
+      await fetch(tester);
+
+      expect(appState.tagTranslations.lookup('long_hair')?.note, '手写注释');
+    });
+
+    testWidgets('a tag danbooru lacks is marked as missing', (tester) async {
+      unknownTags = {'my_oc'};
+      await tester.runAsync(
+        () => prepare(
+          custom: const [
+            TagDictionaryEntry(name: 'my_oc', category: TagCategory.character),
+          ],
+        ),
+      );
+      await open(tester, initialTag: 'my_oc');
+      await fetch(tester);
+
+      // The mark is the answer: recorded, so a batch run never asks again.
+      expect(appState.danbooruMeta.isMissing('my_oc'), isTrue);
+      expect(appState.tagDictionary.customEntries.single.aliases, isEmpty);
+    });
+
+    testWidgets('a recorded lookup renders next time without fetching', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        await prepare();
+        await appState.danbooruMeta.record(
+          const DanbooruTagInfo(
+            name: 'long_hair',
+            category: TagCategory.general,
+            postCount: 3000000,
+            otherNames: ['ロングヘア'],
+            wikiExcerpt: 'Hair below the shoulder blades.',
+            knownToDanbooru: true,
+            hasWiki: true,
+          ),
+        );
+      });
+      await open(tester, initialTag: 'long_hair');
+
+      // Straight from the store — no tap on the update action.
+      expect(find.text('ロングヘア'), findsOneWidget);
+      expect(find.text('Hair below the shoulder blades.'), findsOneWidget);
+    });
+  });
+
+  group('batch update', () {
+    testWidgets('fetches only unrecorded tags and marks the unknown ones', (
+      tester,
+    ) async {
+      unknownTags = {'prettysammy'};
+      await tester.runAsync(() async {
+        await prepare(
+          glossary: const [TagTranslation(tag: 'long_hair', text: '长发')],
+        );
+        // Already recorded: the batch must not ask danbooru about it again.
+        await appState.danbooruMeta.record(
+          const DanbooruTagInfo(name: '1girl', knownToDanbooru: true),
+        );
+      });
+      await open(
+        tester,
+        workbench: const TagDictionaryScope(
+          datasetTags: ['1girl', 'long_hair', 'prettysammy'],
+          datasetUsage: {'1girl': 40, 'long hair': 30, 'prettysammy': 12},
+          imageCount: 40,
+        ),
+      );
+
+      await tester.tap(find.text('Danbooru batch update'));
+      await tester.pumpAndSettle();
+      expect(find.text('2 tags to fetch'), findsOneWidget);
+
+      // The pane is a scrolling form and the button sits below the fold on
+      // the test surface.
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Start'));
+      await tester.pumpAndSettle();
+
+      // The whole run has to finish inside runAsync — its progress bar, like
+      // the single lookup's spinner, never lets pumpAndSettle settle.
+      await tester.runAsync(() async {
+        await tester.tap(find.widgetWithText(FilledButton, 'Start'));
+        for (
+          var i = 0;
+          i < 200 && !appState.danbooruMeta.has('prettysammy');
+          i++
+        ) {
+          await tester.pump();
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 60));
+      });
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Done: 1 updated, 1 not on danbooru, 0 failed'),
+        findsOneWidget,
+      );
+      // The real tag got the full treatment — note included — and the
+      // unknown one got its mark.
+      expect(
+        appState.tagTranslations.lookup('long_hair')?.note,
+        'The most famous vocaloid.',
+      );
+      expect(appState.danbooruMeta.isMissing('prettysammy'), isTrue);
+      expect(appState.danbooruMeta.lookup('1girl')?.otherNames, isEmpty);
     });
   });
 

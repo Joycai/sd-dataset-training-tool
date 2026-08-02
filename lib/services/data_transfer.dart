@@ -79,6 +79,9 @@ class DataTransfer {
       ungrouped: state.ungroupedTags,
       customTags: state.tagDictionary.customEntries,
       translations: translations,
+      // Rebuilding these means asking danbooru about every tag again, one
+      // request at a time — exactly the slow walk a backup exists to spare.
+      danbooruMeta: state.danbooruMeta.exportEntries(),
     );
   }
 
@@ -309,11 +312,17 @@ class DataTransfer {
       }
     }
 
+    final danbooruRecordsWritten = await state.danbooruMeta.importEntries(
+      library.danbooruMeta,
+      overwrite: mode == DataImportMode.overwrite,
+    );
+
     return DataImportReport(
       tagsAdded: tagsAdded,
       groupsCreated: groupsCreated,
       customTagsAdded: customTagsAdded,
       translationsWritten: translationsWritten,
+      danbooruRecordsWritten: danbooruRecordsWritten,
     );
   }
 
@@ -412,6 +421,8 @@ class DataTransfer {
       groupsCreated: a.groupsCreated + b.groupsCreated,
       customTagsAdded: a.customTagsAdded + b.customTagsAdded,
       translationsWritten: a.translationsWritten + b.translationsWritten,
+      danbooruRecordsWritten:
+          a.danbooruRecordsWritten + b.danbooruRecordsWritten,
       presetsAdded: a.presetsAdded + b.presetsAdded,
       presetsUpdated: a.presetsUpdated + b.presetsUpdated,
     );

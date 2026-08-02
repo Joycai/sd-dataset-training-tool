@@ -2011,6 +2011,74 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get dictDanbooruUpdateAction => '从 Danbooru 更新';
+
+  @override
+  String dictDanbooruUpdateDone(String tag) {
+    return '已从 Danbooru 更新 $tag';
+  }
+
+  @override
+  String dictDanbooruMarkedMissing(String tag) {
+    return 'Danbooru 未收录“$tag”——已标记，批量补全时会跳过';
+  }
+
+  @override
+  String get dictBatchAction => 'Danbooru 批量补全';
+
+  @override
+  String get dictBatchTitle => '从 Danbooru 批量补全';
+
+  @override
+  String get dictBatchDesc =>
+      '为列表中还没问过 Danbooru 的标签逐个抓取别名与 wiki 摘要：别名并入词条的别名，wiki 摘要写入空白的注释——已有内容不会被覆盖。';
+
+  @override
+  String get dictBatchScopeNote => '对象是左侧列表当前显示的标签。';
+
+  @override
+  String dictBatchPending(int count) {
+    return '待抓取 $count 个标签';
+  }
+
+  @override
+  String dictBatchCached(int count) {
+    return '已有 Danbooru 资料 $count 个';
+  }
+
+  @override
+  String dictBatchMissing(int count) {
+    return '已标记未收录 $count 个——将跳过';
+  }
+
+  @override
+  String get dictBatchNothing => '列表中的标签都已有 Danbooru 资料。';
+
+  @override
+  String get dictBatchRateNote => '逐个抓取并在请求间稍作停顿，标签多时需要一些时间。';
+
+  @override
+  String get dictBatchStart => '开始补全';
+
+  @override
+  String get dictBatchStop => '停止';
+
+  @override
+  String dictBatchRunning(int done, int total, String tag) {
+    return '正在更新 $done/$total：$tag';
+  }
+
+  @override
+  String dictBatchSummary(int updated, int missing, int failed) {
+    return '完成：更新 $updated 个，未收录 $missing 个，失败 $failed 个';
+  }
+
+  @override
+  String dictBatchStopped(String error) {
+    return '已中止：$error';
+  }
+
+  @override
   String get dataSection => '数据';
 
   @override
@@ -2066,8 +2134,9 @@ class AppLocalizationsZh extends AppLocalizations {
     int groups,
     int custom,
     int translations,
+    int records,
   ) {
-    return '$tags 个标签 · $groups 个分组 · $custom 个自定义标签 · $translations 条译文';
+    return '$tags 个标签 · $groups 个分组 · $custom 个自定义标签 · $translations 条译文 · $records 条 Danbooru 资料';
   }
 
   @override
@@ -2124,8 +2193,9 @@ class AppLocalizationsZh extends AppLocalizations {
     int groups,
     int custom,
     int translations,
+    int records,
   ) {
-    return '标签库：$tags 个标签，$groups 个分组，$custom 个自定义标签，$translations 条译文';
+    return '标签库：$tags 个标签，$groups 个分组，$custom 个自定义标签，$translations 条译文，$records 条 Danbooru 资料';
   }
 
   @override

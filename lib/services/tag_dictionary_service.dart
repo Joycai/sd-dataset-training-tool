@@ -464,6 +464,13 @@ class TagDictionaryService extends ChangeNotifier {
     ...?_index?.entries,
   ];
 
+  /// Whether the loaded dictionary itself — not the user's additions — covers
+  /// [tag]. The question a custom-entry write has to ask first, because
+  /// [setCustomEntries] drops any entry the dictionary covers: an update
+  /// "into" such an entry would actually delete it.
+  bool coveredByDictionary(String tag) =>
+      _index?.byKey.containsKey(tagLookupKey(tag)) ?? false;
+
   /// The dictionary entry for [tag], written in any caption style, or null
   /// when the tag is known to neither danbooru nor the user's own additions.
   ///
