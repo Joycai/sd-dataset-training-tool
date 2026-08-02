@@ -307,4 +307,100 @@ void main() {
     expect(appState.tagGroups.single.name, 'outfit');
     expect(g.id, appState.tagGroups.single.id);
   });
+
+  testWidgets('edit mode menu: select and deselect the clicked tag', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.checklist));
+    await tester.pumpAndSettle();
+
+    // Unselected: the menu offers "Select".
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Select'), findsOneWidget);
+    expect(find.text('Deselect'), findsNothing);
+    await tester.tap(find.text('Select'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('1 selected · right-click to send to a group'),
+      findsOneWidget,
+    );
+
+    // Now selected: the same menu item flips to "Deselect".
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Deselect'), findsOneWidget);
+    await tester.tap(find.text('Deselect'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Click to select, right-click to send to a group'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('edit mode menu: select all in group', (tester) async {
+    final g = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+    await appState.moveTagsToGroup(['alpha', 'beta'], g.id);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.checklist));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Select all in group'), findsOneWidget);
+    await tester.tap(find.text('Select all in group'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('2 selected · right-click to send to a group'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    "edit mode menu: 'select all in group' is absent for a lone tag",
+    (tester) async {
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pumpAndSettle();
+
+      // A group of exactly one tag has no siblings worth a batch-select.
+      final g = await appState.createTagGroup('solo', 0xFF6A9BDD);
+      await appState.moveTagsToGroup(['alpha'], g.id);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Select all in group'), findsNothing);
+    },
+  );
+
+  testWidgets('edit mode menu: remove selection from the library', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.checklist));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('alpha'));
+    await tester.tap(find.text('beta'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Remove from library'), findsOneWidget);
+    await tester.tap(find.text('Remove from library'));
+    await tester.pumpAndSettle();
+
+    expect(appState.commonTags, ['gamma']);
+  });
 }

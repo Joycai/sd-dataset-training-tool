@@ -623,6 +623,25 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String deleteTagConfirmButton(int count) {
+    return '删除（$count）';
+  }
+
+  @override
+  String get datasetTagSortAlphaTooltip => '按字母排序标签';
+
+  @override
+  String get datasetReorderMenuLabel => '为所有图片排序标签…';
+
+  @override
+  String get datasetReorderDialogTitle => '全局排序标签';
+
+  @override
+  String datasetReorderDialogContent(int count) {
+    return '将每张图片的标签顺序调整为与此列表一致，影响 $count 张图片。';
+  }
+
+  @override
   String get addTagsGlobalTooltip => '为所有图片添加标签…';
 
   @override
@@ -667,6 +686,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get replaceInputHint => '逗号分隔的标签';
+
+  @override
+  String replaceAffectedCount(int count) {
+    return '将影响 $count 张图片';
+  }
+
+  @override
+  String applyCountButton(int count) {
+    return '应用（$count）';
+  }
 
   @override
   String get apply => '应用';
@@ -768,6 +797,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String opInsertLabel(String tag) {
     return '在“$tag”旁追加';
   }
+
+  @override
+  String get opReorderLabel => '全局排序标签';
 
   @override
   String get tagLibraryTitle => '常用标签库';
@@ -887,6 +919,15 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get removeFromGroup => '移出分组';
+
+  @override
+  String get groupEditSelectAction => '选中';
+
+  @override
+  String get groupEditDeselectAction => '取消选中';
+
+  @override
+  String get groupEditSelectAllInGroupAction => '全选本组';
 
   @override
   String get editGroupMenu => '编辑分组…';

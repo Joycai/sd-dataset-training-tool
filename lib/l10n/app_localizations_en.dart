@@ -646,6 +646,25 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String deleteTagConfirmButton(int count) {
+    return 'Delete ($count)';
+  }
+
+  @override
+  String get datasetTagSortAlphaTooltip => 'Sort tags alphabetically';
+
+  @override
+  String get datasetReorderMenuLabel => 'Sort all images\' tags…';
+
+  @override
+  String get datasetReorderDialogTitle => 'Sort tags everywhere';
+
+  @override
+  String datasetReorderDialogContent(int count) {
+    return 'Reorders every image\'s tags to match the order shown in this list. Applies to $count images.';
+  }
+
+  @override
   String get addTagsGlobalTooltip => 'Add tags to all images…';
 
   @override
@@ -690,6 +709,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get replaceInputHint => 'Comma-separated tags';
+
+  @override
+  String replaceAffectedCount(int count) {
+    return 'Applies to $count images';
+  }
+
+  @override
+  String applyCountButton(int count) {
+    return 'Apply ($count)';
+  }
 
   @override
   String get apply => 'Apply';
@@ -791,6 +820,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String opInsertLabel(String tag) {
     return 'append next to \"$tag\"';
   }
+
+  @override
+  String get opReorderLabel => 'sort tags everywhere';
 
   @override
   String get tagLibraryTitle => 'Tag Library';
@@ -911,6 +943,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get removeFromGroup => 'Remove from group';
+
+  @override
+  String get groupEditSelectAction => 'Select';
+
+  @override
+  String get groupEditDeselectAction => 'Deselect';
+
+  @override
+  String get groupEditSelectAllInGroupAction => 'Select all in group';
 
   @override
   String get editGroupMenu => 'Edit group…';
