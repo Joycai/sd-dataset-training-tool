@@ -1669,6 +1669,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get llmDetectRunning => '检测中…';
 
   @override
+  String get llmDetectStop => '停止';
+
+  @override
   String get llmDetectNothingFound => '端点没有公布上限，也没有在报错中说明。表单里的值保持不变。';
 
   @override

@@ -52,6 +52,16 @@ AgentTool _echoTool() => AgentTool(
   handler: (args) async => toolOk({'echo': args['v']}),
 );
 
+AgentTool _writeTool() => AgentTool(
+  spec: const AgentToolSpec(
+    name: 'write',
+    description: 'writes something',
+    parametersSchema: {'type': 'object', 'properties': {}},
+  ),
+  isWrite: true,
+  handler: (args) async => toolOk({'wrote': true}),
+);
+
 void main() {
   test('text-only turn completes and records history', () async {
     final client = FakeLlmClient([
@@ -136,6 +146,45 @@ void main() {
     expect(done.reason, AgentStopReason.error);
     expect(client.calls, 3);
   });
+
+  test(
+    'three consecutive write rejections do not abort the run as an error',
+    () async {
+      // The user exercising the confirmation gate is not the same thing as
+      // the model failing three times in a row — rejecting a write must not
+      // read back as "stopped after 3 consecutive tool errors".
+      List<LlmStreamEvent> writeCall(String id) => [
+        ToolCallsReady([
+          ChatToolCall(id: id, name: 'write', argumentsJson: '{}'),
+        ]),
+        StreamDone(finishReason: 'tool_calls'),
+      ];
+      final client = FakeLlmClient([
+        writeCall('1'),
+        writeCall('2'),
+        writeCall('3'),
+        [TextDelta('ok, I will stop asking'), StreamDone(finishReason: 'stop')],
+      ]);
+      final session = AgentSession(
+        client: client,
+        registry: ToolRegistry([_writeTool()]),
+        profile: _profile,
+        systemPrompt: 'sys',
+        confirmWrite: (_, _) async => false,
+      );
+
+      final events = await session.run('go').toList();
+      final finishedResults = events
+          .whereType<AgentToolFinished>()
+          .map((e) => e.result)
+          .toList();
+      expect(finishedResults, hasLength(3));
+      expect(finishedResults.every((r) => r.isError), isTrue);
+      final done = events.last as AgentFinished;
+      expect(done.reason, AgentStopReason.completed);
+      expect(client.calls, 4);
+    },
+  );
 
   test('maxTurns caps a model that never stops calling tools', () async {
     final client = FakeLlmClient([

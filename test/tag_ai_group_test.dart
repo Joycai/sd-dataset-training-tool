@@ -11,14 +11,26 @@ import 'package:dataset_training_tool/services/tag_ai_group.dart';
 /// replies arrive in two deltas — a real stream never hands a JSON array over
 /// in one piece.
 class _FakeLlm implements LlmClient {
-  _FakeLlm(this.replies, {this.asToolCall = false, this.finishReason = ''});
+  _FakeLlm(
+    this.replies, {
+    this.asToolCall = false,
+    this.finishReason = '',
+    this.toolCallBatch,
+  });
 
   /// Answers via the `file_tags` tool call instead of assistant text.
   _FakeLlm.toolCall(List<String> replies) : this(replies, asToolCall: true);
 
+  /// Answers with several `file_tags` calls in the same turn, each carrying
+  /// one entry of [batch] — a relay splitting the answer across parallel
+  /// tool calls instead of a single one.
+  _FakeLlm.toolCallBatch(List<String> batch)
+    : this(const [], asToolCall: true, toolCallBatch: batch);
+
   final List<String> replies;
   final bool asToolCall;
   final String finishReason;
+  final List<String>? toolCallBatch;
   final List<List<ChatMessage>> sent = [];
   final List<LlmProviderProfile> profiles = [];
   final List<List<AgentToolSpec>> offeredTools = [];
@@ -31,6 +43,18 @@ class _FakeLlm implements LlmClient {
     List<AgentToolSpec> tools = const [],
     CancellationToken? cancel,
   }) async* {
+    final batch = toolCallBatch;
+    if (batch != null) {
+      sent.add(messages);
+      profiles.add(profile);
+      offeredTools.add(tools);
+      yield ToolCallsReady([
+        for (var i = 0; i < batch.length; i++)
+          ChatToolCall(id: 't$i', name: 'file_tags', argumentsJson: batch[i]),
+      ]);
+      yield StreamDone(finishReason: finishReason);
+      return;
+    }
     final reply = replies[sent.length.clamp(0, replies.length - 1)];
     sent.add(messages);
     profiles.add(profile);
@@ -184,6 +208,22 @@ void main() {
       },
     );
 
+    test(
+      'assignments split across parallel tool calls are all kept',
+      () async {
+        // A relay is free to answer with several parallel `file_tags` calls
+        // instead of the one the prompt asks for; every call's assignments
+        // must land, not just the first.
+        final llm = _FakeLlm.toolCallBatch([
+          '{"assignments":[{"tag":"boots","group":"鞋靴"}]}',
+          '{"assignments":[{"tag":"gloves","group":"服装"}]}',
+        ]);
+        final out = await ask(llm, tags: ['boots', 'gloves']);
+        expect(out.map((s) => s.tag), ['boots', 'gloves']);
+        expect(out.map((s) => s.group), ['鞋靴', '服装']);
+      },
+    );
+
     test('truncated-by-budget is reported as its own problem', () async {
       // finish_reason "length" means the answer ran out of output tokens —
       // the user can fix that, but only if we say so.
@@ -294,4 +334,30 @@ void main() {
     expect(await ask(llm, tags: const []), isEmpty);
     expect(llm.sent, isEmpty);
   });
+
+  test(
+    'cancelling after a batch completes stops the remaining ones',
+    () async {
+      // A dialog the user closed mid-run has no other way to stop the loop
+      // — without this, every remaining batch still goes out and spends
+      // tokens for a result nobody is reading anymore.
+      final llm = _FakeLlm([
+        '[{"tag":"a","group":"G"}]',
+        '[{"tag":"b","group":"G"}]',
+        '[{"tag":"c","group":"G"}]',
+      ]);
+      var cancelled = false;
+      final out = await suggestTagGroupsWithLlm(
+        profile: _profile,
+        tags: ['a', 'b', 'c'],
+        existingGroups: const [],
+        batchSize: 1,
+        client: llm,
+        isCancelled: () => cancelled,
+        onBatchDone: (_, _, _) => cancelled = true,
+      );
+      expect(out.map((s) => s.tag), ['a']);
+      expect(llm.sent, hasLength(1));
+    },
+  );
 }

@@ -1719,6 +1719,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get llmDetectRunning => 'Detecting…';
 
   @override
+  String get llmDetectStop => 'Stop';
+
+  @override
   String get llmDetectNothingFound =>
       'The endpoint published no limits and did not state any. The values in the form are unchanged.';
 

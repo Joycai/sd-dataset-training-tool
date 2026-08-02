@@ -2,8 +2,50 @@ import 'dart:convert';
 
 import 'package:dataset_training_tool/models/llm_models.dart';
 import 'package:dataset_training_tool/services/llm/endpoint_probe.dart';
+import 'package:dataset_training_tool/services/llm/endpoint_probe_service.dart';
 import 'package:dataset_training_tool/services/llm/llm_client.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+/// [listingContextLength] seeds `/models` with a `context_length` entry for
+/// the probed model, standing in for a relay whose catalogue disagrees with
+/// the configured window. Every `sendProbe` call is counted so a test can
+/// tell "the guard skipped before calibration" from "it proceeded".
+class _FakeInspector implements LlmEndpointInspector {
+  _FakeInspector({this.listingContextLength});
+
+  final int? listingContextLength;
+  int sendProbeCalls = 0;
+
+  @override
+  Future<List<Map<String, dynamic>>> listModelsDetailed(
+    LlmProviderProfile profile,
+  ) async {
+    final window = listingContextLength;
+    if (window == null) return const [];
+    return [
+      {'id': profile.model, 'context_length': window},
+    ];
+  }
+
+  @override
+  Future<ProbeResponse> sendProbe(
+    LlmProviderProfile profile, {
+    required List<ChatMessage> messages,
+    required int maxTokens,
+    Duration? timeout,
+  }) async {
+    sendProbeCalls++;
+    // The absurd max_tokens identifies the error-probe step; answer it with
+    // something that carries no limit evidence so it does not itself set
+    // report.contextWindow. Calibration calls (maxTokens: 1) get an ok reply
+    // with no usage, which is enough to prove they were reached without
+    // needing the whole calibration/truncation flow to succeed.
+    if (maxTokens != 1) {
+      return const ProbeResponse(statusCode: 429, message: 'rate limited');
+    }
+    return const ProbeResponse(statusCode: 200);
+  }
+}
 
 void main() {
   group('classifyFailure', () {
@@ -492,5 +534,59 @@ void main() {
       expect(decoded.hasMeasurement, isFalse);
       expect(decoded.silentTruncation, isFalse);
     });
+  });
+
+  group('EndpointProbeService.run truncation cost guard', () {
+    const provider = LlmProvider(
+      id: 'p',
+      name: 'Test',
+      kind: LlmApiKind.anthropic,
+      baseUrl: 'https://api.anthropic.com',
+    );
+
+    test(
+      'skips the truncation test when the detected window dwarfs the '
+      'configured one',
+      () async {
+        // The listing reports a window the user never saw an estimate for —
+        // spending at that size would bill for far more than the number
+        // they approved before starting the run.
+        const model = LlmModelConfig(id: 'm', modelId: 'x', contextWindow: 8192);
+        final inspector = _FakeInspector(listingContextLength: 1000000);
+        final report = await EndpointProbeService().run(
+          provider: provider,
+          model: model,
+          inspector: inspector,
+          includeTruncationTest: true,
+        );
+        expect(
+          report.notes.any((n) => n.contains('Truncation test skipped')),
+          isTrue,
+        );
+        // Only the error-probe step's request went out — calibration, which
+        // would spend real tokens at the claimed size, must never start.
+        expect(inspector.sendProbeCalls, 1);
+      },
+    );
+
+    test(
+      'runs the truncation test normally when the windows agree',
+      () async {
+        const model = LlmModelConfig(id: 'm', modelId: 'x', contextWindow: 100);
+        final inspector = _FakeInspector();
+        final report = await EndpointProbeService().run(
+          provider: provider,
+          model: model,
+          inspector: inspector,
+          includeTruncationTest: true,
+        );
+        expect(
+          report.notes.any((n) => n.contains('Truncation test skipped')),
+          isFalse,
+        );
+        // Calibration was attempted, not short-circuited by the guard.
+        expect(inspector.sendProbeCalls, greaterThan(1));
+      },
+    );
   });
 }
