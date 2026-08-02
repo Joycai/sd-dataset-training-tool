@@ -1,5 +1,5 @@
 ---
-name: sync-version
+name: bump-version
 description: 升级/同步 app 版本号的完整流程:版本号写在哪几处(含 pubspec、AppInfo、msix 打包配置)、semver 怎么定、如何校验三处一致。用户说"升版本"、"发新版本"、"改版本号"、"同步版本"、"bump version"、"打 msix 包"版本不对时使用。
 ---
 

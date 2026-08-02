@@ -1,6 +1,6 @@
 # Release pipeline: builds desktop bundles for Windows/macOS/Linux plus the
 # AiApiServer source package, then creates a GitHub Release tagged from the
-# version in pubspec.yaml (the single source of truth — see the sync-version
+# version in pubspec.yaml (the single source of truth — see the bump-version
 # skill in .claude/skills/).
 #
 # Trigger manually from the Actions tab once the version bump has landed on
@@ -40,7 +40,7 @@ jobs:
         run: |
           APP_VERSION=$(grep -oP "version = '\K[^']+" lib/app_info.dart)
           if [ "$APP_VERSION" != "${{ steps.read.outputs.version }}" ]; then
-            echo "::error::lib/app_info.dart ($APP_VERSION) != pubspec.yaml (${{ steps.read.outputs.version }}). Run the sync-version skill."
+            echo "::error::lib/app_info.dart ($APP_VERSION) != pubspec.yaml (${{ steps.read.outputs.version }}). Run the bump-version skill."
             exit 1
           fi
 
