@@ -111,6 +111,41 @@ void main() {
       expect(ops.undoLabel, 'delete b');
     });
 
+    test('mergeEverywhere collapses many tags into one, once', () async {
+      final result = await ops.mergeEverywhere(['b', 'c'], 'bc', label: 'm');
+
+      expect(result.changed, 2);
+      expect(await readCap('001'), 'a, bc');
+      expect(await readCap('002'), 'bc, d');
+      // One operation, not one per source: a six-way merge must not need six
+      // undos to take back.
+      expect(ops.undoLabel, 'm');
+      await ops.undo();
+      expect(await readCap('001'), 'a, b, c');
+      expect(ops.canUndo, isFalse);
+    });
+
+    test('mergeEverywhere keeps the target where it already was', () async {
+      // 001 is "a, b, c": merging c into a must not move a to the end.
+      final result = await ops.mergeEverywhere(['c'], 'a', label: 'm');
+      expect(result.changed, 2);
+      expect(await readCap('001'), 'a, b');
+      // 002 had no "a" at all, so the merged tag takes c's own position.
+      expect(await readCap('002'), 'b, a, d');
+    });
+
+    test('mergeEverywhere skips files without any source tag', () async {
+      final result = await ops.mergeEverywhere(['d'], 'dd', label: 'm');
+      expect(result.changed, 1);
+      expect(await readCap('001'), 'a, b, c');
+    });
+
+    test('mergeEverywhere refuses a degenerate merge', () async {
+      expect((await ops.mergeEverywhere(['a'], 'a', label: 'm')).changed, 0);
+      expect((await ops.mergeEverywhere(['a'], '  ', label: 'm')).changed, 0);
+      expect(ops.canUndo, isFalse);
+    });
+
     test('undo restores the exact on-disk text, redo re-applies', () async {
       await ops.deleteEverywhere('b', label: 'delete b');
 

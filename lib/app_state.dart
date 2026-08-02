@@ -107,6 +107,78 @@ class AppState extends ChangeNotifier {
     await _pruneGroups();
   }
 
+  /// Collapses [sources] into the single tag [target].
+  ///
+  /// Library-side only — the captions on disk are a separate, undoable
+  /// rewrite ([TagOps.mergeEverywhere]), because merging two near-duplicate
+  /// entries in the library is a reasonable thing to do *without* touching a
+  /// dataset that may not even be open.
+  ///
+  /// [target] lands where the first source sat, so a merge does not reshuffle
+  /// the library, and inherits that source's group. Sources that are not in
+  /// the library are ignored; a [target] that is already in the library keeps
+  /// its own position instead.
+  Future<void> mergeCommonTags(List<String> sources, String target) async {
+    final name = target.trim();
+    if (name.isEmpty) return;
+    final doomed = sources.where((t) => t != name).toSet();
+    final firstIndex = _commonTags.indexWhere(doomed.contains);
+    if (firstIndex < 0) return;
+    // The group the merged tag joins: the first source's, so a merge inside
+    // one group stays in it. Read before the removal empties the group.
+    final group = _tagToGroup[_commonTags[firstIndex]];
+    final hadTarget = _commonTags.contains(name);
+    _commonTags = [
+      for (var i = 0; i < _commonTags.length; i++)
+        if (i == firstIndex && !hadTarget)
+          name
+        else if (!doomed.contains(_commonTags[i]))
+          _commonTags[i],
+    ];
+    notifyListeners();
+    await _settingsService.saveCommonTags(_commonTags);
+    // Prune first: it drops the doomed tags from their groups. Then place the
+    // survivor, unless the target already had a group of its own.
+    await _pruneGroups();
+    if (!hadTarget && group != null) await moveTagsToGroup([name], group.id);
+  }
+
+  // --- Collapsed library sections ---
+  //
+  // Which groups are folded shut is a browsing preference, not library data:
+  // it survives restarts but never travels with an export.
+
+  Set<String> _collapsedGroups = {};
+
+  bool isTagGroupCollapsed(String id) => _collapsedGroups.contains(id);
+
+  /// Number of sections currently folded, for the "expand/collapse all" toggle.
+  int get collapsedTagGroupCount => _collapsedGroups.length;
+
+  Future<void> setTagGroupCollapsed(String id, bool collapsed) async {
+    if (collapsed ? !_collapsedGroups.add(id) : !_collapsedGroups.remove(id)) {
+      return;
+    }
+    notifyListeners();
+    await _settingsService.saveCollapsedTagGroups(_collapsedGroups.toList());
+  }
+
+  /// Folds or unfolds every section at once ([ids] must include the virtual
+  /// [kUngroupedSectionId] when it is on screen).
+  Future<void> setAllTagGroupsCollapsed(
+    Iterable<String> ids, {
+    required bool collapsed,
+  }) async {
+    final next = collapsed ? {..._collapsedGroups, ...ids} : <String>{};
+    if (next.length == _collapsedGroups.length &&
+        next.containsAll(_collapsedGroups)) {
+      return;
+    }
+    _collapsedGroups = next;
+    notifyListeners();
+    await _settingsService.saveCollapsedTagGroups(_collapsedGroups.toList());
+  }
+
   // --- Tag groups ---
   //
   // Groups reference library tags by value; membership is exclusive (a tag is
@@ -551,6 +623,8 @@ class AppState extends ChangeNotifier {
     _commonTags = await _settingsService.loadCommonTags();
     _tagGroups = await _settingsService.loadTagGroups();
     _rebuildTagToGroup();
+    _collapsedGroups = (await _settingsService.loadCollapsedTagGroups())
+        .toSet();
     _autoSave = await _settingsService.loadAutoSave();
     _llmProviders = decodeLlmProviders(
       await _settingsService.loadLlmProfilesJson() ?? '',

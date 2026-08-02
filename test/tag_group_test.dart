@@ -230,5 +230,78 @@ void main() {
       expect(reloaded.tagGroups.single.color, 0xFF9B84E0);
       expect(reloaded.groupOfTag('a')?.id, g.id);
     });
+
+    test('merging collapses tags where the first one sat', () async {
+      // Order matters: the library is browsed as a list, and a merge that
+      // moved the survivor to the end would shuffle the section it lives in.
+      await state.mergeCommonTags(['b', 'c'], 'bc');
+      expect(state.commonTags, ['a', 'bc', 'd']);
+    });
+
+    test('the merged tag inherits the first source group', () async {
+      final g = await state.createTagGroup('outfit', 1);
+      await state.moveTagsToGroup(['b'], g.id);
+
+      await state.mergeCommonTags(['b', 'c'], 'bc');
+
+      expect(state.groupOfTag('bc')?.id, g.id);
+      expect(state.tagGroups.single.tags, ['bc']);
+    });
+
+    test('merging into an existing tag keeps that tag where it is', () async {
+      await state.mergeCommonTags(['c', 'd'], 'a');
+      expect(state.commonTags, ['a', 'b']);
+    });
+
+    test(
+      'merging into a tag that already has a group leaves it there',
+      () async {
+        final target = await state.createTagGroup('target', 1);
+        final source = await state.createTagGroup('source', 2);
+        await state.moveTagsToGroup(['a'], target.id);
+        await state.moveTagsToGroup(['b'], source.id);
+
+        await state.mergeCommonTags(['b', 'c'], 'a');
+
+        expect(state.groupOfTag('a')?.id, target.id);
+        expect(
+          state.tagGroups.firstWhere((g) => g.id == source.id).tags,
+          isEmpty,
+        );
+      },
+    );
+
+    test('a merge naming only unknown tags changes nothing', () async {
+      await state.mergeCommonTags(['zzz'], 'x');
+      expect(state.commonTags, ['a', 'b', 'c', 'd']);
+    });
+
+    test('an empty target is refused', () async {
+      await state.mergeCommonTags(['a', 'b'], '   ');
+      expect(state.commonTags, ['a', 'b', 'c', 'd']);
+    });
+
+    test('collapsed sections persist across reload', () async {
+      final g = await state.createTagGroup('one', 1);
+      await state.setTagGroupCollapsed(g.id, true);
+      await state.setTagGroupCollapsed(kUngroupedSectionId, true);
+
+      final reloaded = AppState(SettingsService());
+      await reloaded.loadSettings();
+      expect(reloaded.isTagGroupCollapsed(g.id), isTrue);
+      expect(reloaded.isTagGroupCollapsed(kUngroupedSectionId), isTrue);
+    });
+
+    test('collapse-all folds every section, expand-all clears them', () async {
+      final g = await state.createTagGroup('one', 1);
+      await state.setAllTagGroupsCollapsed([
+        g.id,
+        kUngroupedSectionId,
+      ], collapsed: true);
+      expect(state.collapsedTagGroupCount, 2);
+
+      await state.setAllTagGroupsCollapsed(const [], collapsed: false);
+      expect(state.collapsedTagGroupCount, 0);
+    });
   });
 }

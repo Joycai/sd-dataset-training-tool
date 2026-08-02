@@ -29,6 +29,18 @@ class SettingsService {
     return json == null ? const [] : decodeTagGroups(json);
   }
 
+  /// Ids of the library sections the user has folded shut. The virtual
+  /// "ungrouped" section stores under [collapsedUngroupedId].
+  Future<void> saveCollapsedTagGroups(List<String> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('collapsedTagGroups', ids);
+  }
+
+  Future<List<String>> loadCollapsedTagGroups() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('collapsedTagGroups') ?? const [];
+  }
+
   // --- 其他设置 (保持不变) ---
   Future<void> resetSettings() async {
     final prefs = await SharedPreferences.getInstance();

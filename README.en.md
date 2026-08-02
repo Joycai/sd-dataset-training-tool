@@ -72,7 +72,14 @@ A chat panel that can operate on your whole dataset for you — open it with the
 
 #### Tag Library
 - **Common tag library**: import / incrementally add / export / clear — your standard tag set.
-- **Tag groups**: assign tags to custom-colored groups. In group-edit mode, up/down arrows step a group's position (with a slide animation), and tapping a group's color dot opens either a preset-swatch palette or a full color picker; import/export carries group info.
+- **Tag groups**: assign tags to custom-colored groups. In organize mode, up/down arrows step a group's position (with a slide animation), and tapping a group's color dot opens either a preset-swatch palette or a full color picker; import/export carries group info.
+- **Folding**: click a group header to fold or unfold it — folded state survives a restart. A toolbar button folds or unfolds everything at once. Each group shows **two rows** of tags at most; the rest hide behind "+N more" until you open them, so one 30-tag group cannot swallow the whole column.
+- **Per-group usage**: the header's "6/9 used" says how many of the group's tags are already on the current image.
+- **Status filter**: four pills slice the library by the current image — **All / Used / Unused / New** ("new" = on the image but not in the library).
+- **Current dataset only**: a switch that hides library tags this dataset never uses, and says how many it hid — a library shared across datasets does not have to be spread out in full every time.
+- **Chinese and pinyin search**: the filter matches the tag itself, its **translation**, and the translation's **full pinyin** (`长发` → `changfa`) and **initials** (`cf`).
+- **Organize mode**: the checklist icon turns clicks into selection (`Shift`-click for a range). A bottom bar offers **move to group / merge into one tag / delete**, and a selection can be **dragged straight onto any group header**. A merge optionally rewrites every caption in scope too — as one undoable operation.
+- **AI grouping**: when the ungrouped bucket piles up, the star button on its header asks the model for one "tag → group" proposal per tag (reusing your existing groups where it can). Accept them one at a time or all at once; nothing changes until you do.
 - **Smart comparison**: common tags **present** in the current image are highlighted green, **missing** ones orange; click to toggle.
 - **New tag discovery**: tags present in the image but not in the library show in gray — single-click to add them.
 

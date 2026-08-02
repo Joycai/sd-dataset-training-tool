@@ -1578,6 +1578,90 @@ abstract class AppLocalizations {
   /// **'The library is empty. Use the plus button to add tags.'**
   String get libraryEmpty;
 
+  /// No description provided for @libraryNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No tag matches the filter.'**
+  String get libraryNoMatches;
+
+  /// No description provided for @libraryStatusAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get libraryStatusAll;
+
+  /// No description provided for @libraryStatusUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Used'**
+  String get libraryStatusUsed;
+
+  /// No description provided for @libraryStatusUnused.
+  ///
+  /// In en, this message translates to:
+  /// **'Unused'**
+  String get libraryStatusUnused;
+
+  /// No description provided for @libraryStatusNew.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get libraryStatusNew;
+
+  /// No description provided for @libraryGroupUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'{used}/{total} used'**
+  String libraryGroupUsage(int used, int total);
+
+  /// No description provided for @libraryDatasetOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Current dataset only'**
+  String get libraryDatasetOnly;
+
+  /// No description provided for @libraryDatasetOnlyHidden.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} library tags hidden'**
+  String libraryDatasetOnlyHidden(int count);
+
+  /// No description provided for @libraryMoreTags.
+  ///
+  /// In en, this message translates to:
+  /// **'+{count} more'**
+  String libraryMoreTags(int count);
+
+  /// No description provided for @libraryShowLess.
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get libraryShowLess;
+
+  /// No description provided for @libraryCollapseAllTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse all groups'**
+  String get libraryCollapseAllTooltip;
+
+  /// No description provided for @libraryExpandAllTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand all groups'**
+  String get libraryExpandAllTooltip;
+
+  /// No description provided for @libraryBrowseHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Click a header to fold a group · rows are capped at two'**
+  String get libraryBrowseHint;
+
+  /// No description provided for @libraryUngroupedPending.
+  ///
+  /// In en, this message translates to:
+  /// **'needs filing'**
+  String get libraryUngroupedPending;
+
   /// No description provided for @moreActionsTooltip.
   ///
   /// In en, this message translates to:
@@ -1677,8 +1761,170 @@ abstract class AppLocalizations {
   /// No description provided for @groupEditModeTooltip.
   ///
   /// In en, this message translates to:
-  /// **'Group edit mode'**
+  /// **'Organize mode'**
   String get groupEditModeTooltip;
+
+  /// No description provided for @organizeModeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Organize mode'**
+  String get organizeModeTitle;
+
+  /// No description provided for @organizeModeDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get organizeModeDone;
+
+  /// No description provided for @organizeSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Nothing selected} =1{1 tag selected} other{{count} tags selected}}'**
+  String organizeSelectedCount(int count);
+
+  /// No description provided for @organizeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shift-click for a range · drag a selection onto any header to move it'**
+  String get organizeHint;
+
+  /// No description provided for @organizeMoveToGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to group'**
+  String get organizeMoveToGroup;
+
+  /// No description provided for @organizeMergeInto.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge into…'**
+  String get organizeMergeInto;
+
+  /// No description provided for @organizeDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get organizeDelete;
+
+  /// No description provided for @organizeDropHere.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag here, or use \"Move to group\"'**
+  String get organizeDropHere;
+
+  /// No description provided for @organizeDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {count} tags from the library?'**
+  String organizeDeleteConfirm(int count);
+
+  /// No description provided for @mergeTagsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge into one tag'**
+  String get mergeTagsTitle;
+
+  /// No description provided for @mergeTagsSources.
+  ///
+  /// In en, this message translates to:
+  /// **'Merging {count} tags'**
+  String mergeTagsSources(int count);
+
+  /// No description provided for @mergeTagsTargetLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Merged tag'**
+  String get mergeTagsTargetLabel;
+
+  /// No description provided for @mergeTagsRewriteCaptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewrite dataset captions too'**
+  String get mergeTagsRewriteCaptions;
+
+  /// No description provided for @mergeTagsRewriteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Replaces them in every caption of the current scope. Undoable.'**
+  String get mergeTagsRewriteHint;
+
+  /// No description provided for @mergeTagsSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Merged into \"{tag}\" · {files} captions rewritten'**
+  String mergeTagsSummary(String tag, int files);
+
+  /// No description provided for @opMergeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'merge into \"{tag}\"'**
+  String opMergeLabel(String tag);
+
+  /// No description provided for @aiGroupButton.
+  ///
+  /// In en, this message translates to:
+  /// **'AI grouping'**
+  String get aiGroupButton;
+
+  /// No description provided for @aiGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI grouping'**
+  String get aiGroupTitle;
+
+  /// No description provided for @aiGroupRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Asking the model… {done}/{total}'**
+  String aiGroupRunning(int done, int total);
+
+  /// No description provided for @aiGroupIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} suggestions. Confirm them one at a time, or accept all.'**
+  String aiGroupIntro(int count);
+
+  /// No description provided for @aiGroupAcceptAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept all ({count})'**
+  String aiGroupAcceptAll(int count);
+
+  /// No description provided for @aiGroupIgnoreAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignore all'**
+  String get aiGroupIgnoreAll;
+
+  /// No description provided for @aiGroupNewGroupBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'new'**
+  String get aiGroupNewGroupBadge;
+
+  /// No description provided for @aiGroupEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'The model had no usable suggestion for these tags.'**
+  String get aiGroupEmpty;
+
+  /// No description provided for @aiGroupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'AI grouping failed: {error}'**
+  String aiGroupFailed(String error);
+
+  /// No description provided for @aiGroupNoBackend.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure an AI backend in settings first.'**
+  String get aiGroupNoBackend;
+
+  /// No description provided for @aiGroupApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Filed {count} tags'**
+  String aiGroupApplied(int count);
 
   /// No description provided for @changeGroupColorTooltip.
   ///
@@ -1697,18 +1943,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Move group down'**
   String get moveGroupDownTooltip;
-
-  /// No description provided for @groupEditHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Click to select, right-click to send to a group'**
-  String get groupEditHint;
-
-  /// No description provided for @groupEditSelectedHint.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} selected · right-click to send to a group'**
-  String groupEditSelectedHint(int count);
 
   /// No description provided for @sendToGroup.
   ///

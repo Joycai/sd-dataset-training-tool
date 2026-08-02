@@ -61,11 +61,49 @@ Three tag areas appear below the tag view:
       - **Add (+)**: Opens a dialog for you to paste comma-separated text to **incrementally add** new common tags.
       - **Delete (Trash Can)**: First, **single-click** to select one or more common tags (selected tags get a highlighted border), then click this button to remove them from the common library.
       - **Import/Replace (Arrow)**: Opens a dialog for you to paste text to **completely replace** the current list of common tags.
-      - **Group-edit mode**: In edit mode, up/down arrows next to each group's header step it one position at a time through the global group order (with a slide animation); tapping a group's color dot opens either a preset-swatch palette or a full color picker.
+      - **Organize mode**: In organize mode, up/down arrows next to each group's header step it one position at a time through the global group order (with a slide animation); tapping a group's color dot opens either a preset-swatch palette or a full color picker. See "Living with a large library" below.
 
 3. **New Tags**
     - This area appears automatically if the current image's tags contain any that are **not** in your "Common Tags" library.
     - **Quick Add to Library**: **Single-click** a gray "New Tag" to instantly add it to your "Common Tags" library, helping you expand and maintain your master list.
+
+### Living with a large library
+
+Once the library passes a few dozen tags, one flat wall of chips stops being useful. The right column answers that in three layers: narrow it while browsing, move things in bulk while organizing, and — when there is no time to file anything — let the model propose a first pass.
+
+#### Browsing: fold, cap, filter
+
+- **Fold a group**: click its header. The folded state is **remembered across restarts**. The toolbar's fold icon collapses or expands every section at once.
+- **Two rows per group**: each group lays out at most two rows of tags; the rest go behind `+N more`. Open it to see the whole group, "Show less" to go back. This is **temporary** state, unlike folding — "let me see the rest" and "I never look at this group" are different statements.
+- **Per-group usage**: `6/9 used` in the header means 6 of that group's 9 tags are already on the **current image**. It describes the group, so a filter never makes it lie.
+- **Status filter**: four pills below the search box, all relative to the current image:
+  - **All** — no filtering.
+  - **Used** — only library tags the image already carries.
+  - **Unused** — only the ones it is missing.
+  - **New** — only tags the image has that the library does not (the same set as the "New Tags" block, in the same amber).
+- **Current dataset only**: hides library tags this dataset has never used and says how many it hid. A library shared across several datasets does not need to be spread out in full every time. The switch only appears once a dataset is open.
+- **Chinese / pinyin search**: besides the tag itself (`long hair` and `long_hair` are interchangeable), the filter matches its **translation**, the translation's **full pinyin**, and its **initials**. With "长发" stored for `long_hair`, any of `长发`, `changfa`, `chang fa` or `cf` finds it.
+
+#### Organize mode: moving things in bulk
+
+The checklist icon in the toolbar enters organize mode. Clicking a tag no longer applies it to the image — it selects it (a faint wash over the panel says the mode changed).
+
+- **Selecting**: click to toggle; hold `Shift` and click to take everything **from the last tag you clicked to this one**, across groups.
+- **The bottom bar**:
+  - **Move to group** — send the selection to a group in one step, or to a new group, or back out to ungrouped.
+  - **Merge into…** — collapse several near-duplicate or inconsistently spelled tags into one. The dialog lets you name the survivor (prefilled with the first selected tag) and offers **rewrite dataset captions too**: with it on, every caption in the current scope has those tags replaced by the merged one, as a **single** undoable operation. With it off, only the library changes.
+  - **Delete** — remove the selection from the library (the dataset is untouched).
+- **Drag to file**: drag a selection straight onto any group header and drop. Empty groups show a dashed drop zone.
+- **Right-click** still works on a single tag without disturbing the selection.
+
+#### AI grouping
+
+When ungrouped tags pile up, a star button (and a "needs filing" note) appears on the Ungrouped header. It hands those tags and your existing group names to the configured AI backend, which proposes one "tag → group" pairing per tag:
+
+- It **reuses your existing groups** wherever it can, and only invents a category when a batch really needs one (those are marked "new").
+- Every row is **confirmed separately** — a check accepts, a cross ignores — or use "Accept all" / "Ignore all".
+- **Nothing changes until you accept it.** The model never rewrites the library and leaves you to roll it back.
+- An AI backend has to be configured in Settings first; otherwise the button says so.
 
 ### Tag Autocomplete & Your Own Tags
 

@@ -14,6 +14,11 @@ const List<int> kTagGroupPresetColors = [
   0xFFB08A6A, // brown
 ];
 
+/// Section id of the virtual "ungrouped" bucket. It has no [TagGroup] of its
+/// own, but it folds shut and takes drops like any other section, so the
+/// collapse state and the drag targets need a key for it.
+const String kUngroupedSectionId = '__ungrouped';
+
 /// A named, colored group of library tags. Pure data — persistence is a JSON
 /// list handled by [encodeTagGroups] / [decodeTagGroups].
 ///
