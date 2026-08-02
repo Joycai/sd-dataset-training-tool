@@ -190,7 +190,10 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
     final dataset = context.watch<DatasetState>();
     final session = context.watch<EditorSession>();
     final ops = context.watch<TagOps>();
-    final dictionary = context.read<AppState>().tagDictionary;
+    // Watched, not read: recoloring a group while this tab is open should
+    // repaint its chips immediately.
+    final appState = context.watch<AppState>();
+    final dictionary = appState.tagDictionary;
 
     final allTags = dataset.datasetTags;
     final query = _filter.trim().toLowerCase();
@@ -319,6 +322,9 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
                                 unknown:
                                     dictionary.isReady &&
                                     dictionary.lookup(entry.tag) == null,
+                                groupColor: appState
+                                    .groupOfTag(entry.tag)
+                                    ?.color,
                                 enabled: session.hasImage && !ops.busy,
                                 onTap: () => session.toggleTag(entry.tag),
                                 onContextMenu: (position) =>
@@ -889,6 +895,7 @@ class _DatasetTagChip extends StatelessWidget {
     required this.enabled,
     required this.onTap,
     required this.onContextMenu,
+    this.groupColor,
   });
 
   final DatasetTag entry;
@@ -903,44 +910,57 @@ class _DatasetTagChip extends StatelessWidget {
   final VoidCallback onTap;
   final ValueChanged<Offset> onContextMenu;
 
+  /// Tint from the tag's library group — the same source the caption
+  /// editor's chips read — or null if it isn't in any group (or not in the
+  /// library at all).
+  final int? groupColor;
+
   @override
   Widget build(BuildContext context) {
     final semantic = context.semantic;
     final scheme = Theme.of(context).colorScheme;
+    final group = groupColor == null ? null : Color(groupColor!);
 
-    // Five states, five colours: excluded from the gallery reads as the
-    // destructive one, included is the accent, on-this-image stays green,
-    // a tag no dictionary knows is amber, and everything else is inventory in
-    // muted ink. The gallery states outrank "unknown" — they answer what the
-    // user is doing right now, while unknown is a standing property.
-    final Color accentOfState;
+    // The gallery states outrank everything else — they answer what the
+    // user is doing right now, not what the tag is. Below that, "applied"
+    // takes over the tag's own group color for its fill (an ungrouped tag
+    // falls back to the old green), while "unknown" keeps its own amber ring
+    // regardless of group, since it is warning about the tag itself. Either
+    // way "applied" gets a fixed-color checkmark: with the fill now able to
+    // take any group's hue, the check is what still reads the same on every
+    // one of them.
+    final Color fill;
+    final Color border;
+    final Color textColor;
     if (filtered) {
-      accentOfState = filterExclude ? scheme.error : scheme.primary;
+      final accent = filterExclude ? scheme.error : scheme.primary;
+      fill = Color.alphaBlend(accent.withAlpha(38), semantic.panel);
+      border = accent.withAlpha(128);
+      textColor = scheme.onSurface;
     } else if (applied) {
-      accentOfState = semantic.ok;
-    } else if (unknown) {
-      accentOfState = semantic.warn;
+      final accent = group ?? semantic.ok;
+      fill = Color.alphaBlend(accent.withAlpha(38), semantic.panel);
+      border = (unknown ? semantic.warn : accent).withAlpha(128);
+      textColor = scheme.onSurface;
     } else {
-      accentOfState = semantic.muted;
+      // Outline only, fill stays neutral: a grouped-but-unapplied tag is
+      // still ordinary inventory, and filling every chip in a group's color
+      // would bury "applied" as just another hue among many instead of the
+      // one elevated state.
+      fill = group == null
+          ? semantic.raised
+          : Color.alphaBlend(group.withAlpha(20), semantic.raised);
+      border = unknown
+          ? semantic.warn.withAlpha(105)
+          : (group?.withAlpha(140) ?? semantic.line);
+      textColor = semantic.muted;
     }
-    final tinted = filtered || applied;
 
     final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2.5),
       decoration: BoxDecoration(
-        color: tinted
-            ? Color.alphaBlend(accentOfState.withAlpha(38), semantic.panel)
-            : semantic.raised,
-        border: Border.all(
-          color: tinted
-              ? accentOfState.withAlpha(128)
-              : unknown
-              // An outline only: the tag is still ordinary inventory, and a
-              // filled amber chip on every fresh dataset would read as an
-              // error state.
-              ? semantic.warn.withAlpha(105)
-              : semantic.line,
-        ),
+        color: fill,
+        border: Border.all(color: border),
         borderRadius: BorderRadius.circular(AppRadii.pill),
       ),
       child: Row(
@@ -950,7 +970,7 @@ class _DatasetTagChip extends StatelessWidget {
             Icon(
               filterExclude ? Icons.block_outlined : Icons.filter_alt_outlined,
               size: 10,
-              color: accentOfState,
+              color: filterExclude ? scheme.error : scheme.primary,
             ),
             const SizedBox(width: 4),
           ] else if (applied) ...[
@@ -959,10 +979,7 @@ class _DatasetTagChip extends StatelessWidget {
           ],
           Text(
             entry.tag,
-            style: TextStyle(
-              fontSize: AppText.small,
-              color: tinted ? scheme.onSurface : semantic.muted,
-            ),
+            style: TextStyle(fontSize: AppText.small, color: textColor),
           ),
           TagGlossLabel(entry.tag),
           const SizedBox(width: 5),

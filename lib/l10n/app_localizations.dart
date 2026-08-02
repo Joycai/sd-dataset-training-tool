@@ -1143,7 +1143,7 @@ abstract class AppLocalizations {
   /// No description provided for @datasetTagsHint.
   ///
   /// In en, this message translates to:
-  /// **'Green = on the current image. Right-click for actions'**
+  /// **'✓ = on the current image. Right-click for actions'**
   String get datasetTagsHint;
 
   /// No description provided for @clearTagFilter.

@@ -602,7 +602,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get datasetTagsHint =>
-      'Green = on the current image. Right-click for actions';
+      '✓ = on the current image. Right-click for actions';
 
   @override
   String get clearTagFilter => 'Clear tag filter';

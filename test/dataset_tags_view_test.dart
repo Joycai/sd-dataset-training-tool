@@ -359,4 +359,64 @@ void main() {
     await tester.pumpAndSettle();
     expect(appState.commonTags, contains('beta'));
   });
+
+  BoxDecoration decorationOf(WidgetTester tester, String tag) {
+    final container = tester.widget<Container>(
+      find.ancestor(of: find.text(tag), matching: find.byType(Container)).first,
+    );
+    return container.decoration! as BoxDecoration;
+  }
+
+  testWidgets(
+    'applied dataset tags take their library group color instead of a '
+    'flat green',
+    (tester) async {
+      await appState.addCommonTags(['alpha']);
+      final group = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+      await appState.moveTagsToGroup(['alpha'], group.id);
+      await tester.runAsync(
+        () => session.load(File(p.join(tempDir.path, '001.png')), '.txt'),
+      );
+
+      await openDatasetTab(tester);
+
+      // 'alpha' and 'beta' are both applied (session is on 001.png, whose
+      // caption is "alpha, beta"); only 'alpha' is grouped.
+      final grouped = decorationOf(tester, 'alpha');
+      final ungrouped = decorationOf(tester, 'beta');
+      expect(
+        (grouped.border! as Border).top.color,
+        const Color(0xFF6A9BDD).withAlpha(128),
+      );
+      expect(
+        (ungrouped.border! as Border).top.color,
+        isNot((grouped.border! as Border).top.color),
+      );
+    },
+  );
+
+  testWidgets(
+    'a grouped tag not on the current image gets a colored outline, not a '
+    'filled chip',
+    (tester) async {
+      await appState.addCommonTags(['alpha']);
+      final group = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+      await appState.moveTagsToGroup(['alpha'], group.id);
+      // 002.png's caption is "beta" only — 'alpha' is in the dataset (via
+      // 001.txt) but not applied to this image.
+      await tester.runAsync(
+        () => session.load(File(p.join(tempDir.path, '002.png')), '.txt'),
+      );
+
+      await openDatasetTab(tester);
+
+      final decoration = decorationOf(tester, 'alpha');
+      // The "applied" branch tints at alpha 128; unapplied-but-grouped uses
+      // a distinct 140 so the two states never collide on the same value.
+      expect(
+        (decoration.border! as Border).top.color,
+        const Color(0xFF6A9BDD).withAlpha(140),
+      );
+    },
+  );
 }

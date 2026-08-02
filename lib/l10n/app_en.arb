@@ -297,7 +297,7 @@
   "rightTabDataset": "Dataset",
   "datasetTagsTitle": "Dataset Tags",
   "datasetTagsEmpty": "No tags in this dataset yet.",
-  "datasetTagsHint": "Green = on the current image. Right-click for actions",
+  "datasetTagsHint": "✓ = on the current image. Right-click for actions",
   "clearTagFilter": "Clear tag filter",
   "menuFilterInclude": "Only images with this tag",
   "menuFilterExclude": "Only images without this tag",

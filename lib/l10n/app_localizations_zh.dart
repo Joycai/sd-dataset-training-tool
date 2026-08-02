@@ -579,7 +579,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get datasetTagsEmpty => '数据集里还没有标签。';
 
   @override
-  String get datasetTagsHint => '绿色 = 当前图片包含，右键打开操作菜单';
+  String get datasetTagsHint => '✓ = 当前图片包含，右键打开操作菜单';
 
   @override
   String get clearTagFilter => '清除标签过滤';

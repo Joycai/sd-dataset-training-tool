@@ -211,7 +211,7 @@
   "rightTabDataset": "数据集",
   "datasetTagsTitle": "数据集标签",
   "datasetTagsEmpty": "数据集里还没有标签。",
-  "datasetTagsHint": "绿色 = 当前图片包含，右键打开操作菜单",
+  "datasetTagsHint": "✓ = 当前图片包含，右键打开操作菜单",
   "clearTagFilter": "清除标签过滤",
   "menuFilterInclude": "仅显示包含此标签的图片",
   "menuFilterExclude": "仅显示不包含此标签的图片",
