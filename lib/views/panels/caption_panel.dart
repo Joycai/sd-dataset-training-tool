@@ -10,6 +10,7 @@ import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
 import '../../state/shortcut_relay.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/platform_shortcuts.dart';
 import '../../widgets/json_caption_view.dart';
 import '../../widgets/panel_widgets.dart';
 import '../../widgets/tag_autocomplete_field.dart';
@@ -570,7 +571,7 @@ class _AiRunButton extends StatelessWidget {
     if (compact) {
       return IconButton(
         icon: icon,
-        tooltip: '$label (Ctrl+E)',
+        tooltip: '$label ($primaryModifierLabel+E)',
         onPressed: enabled ? onPressed : null,
         color: Theme.of(context).colorScheme.primary,
         visualDensity: VisualDensity.compact,
@@ -582,7 +583,7 @@ class _AiRunButton extends StatelessWidget {
     // The one filled, accented control in the editor: AI tagging is the
     // primary action of this toolbar.
     return Tooltip(
-      message: '$label (Ctrl+E)',
+      message: '$label ($primaryModifierLabel+E)',
       child: FilledButton.icon(
         onPressed: enabled ? onPressed : null,
         icon: icon,

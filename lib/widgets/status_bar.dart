@@ -6,6 +6,7 @@ import '../state/ai_tagger_state.dart';
 import '../state/dataset_state.dart';
 import '../state/editor_session.dart';
 import '../theme/app_theme.dart';
+import '../utils/platform_shortcuts.dart';
 
 /// Bottom status bar: how far the dataset is tagged, whether the tagger
 /// service is reachable, and the always-on shortcut reminder.
@@ -100,7 +101,7 @@ class StatusBar extends StatelessWidget {
           ),
           const SizedBox(width: 18),
           Text(
-            l10n.shortcutHints,
+            l10n.shortcutHints(primaryModifierLabel),
             style: monoStyle(
               context,
               size: AppText.small,

@@ -2103,8 +2103,8 @@ abstract class AppLocalizations {
   /// No description provided for @shortcutHints.
   ///
   /// In en, this message translates to:
-  /// **'Ctrl+S save · Ctrl+E AI tag · Ctrl+Z undo'**
-  String get shortcutHints;
+  /// **'{mod}+S save · {mod}+E AI tag · {mod}+Z undo'**
+  String shortcutHints(String mod);
 
   /// No description provided for @aiServiceConnected.
   ///
@@ -2147,6 +2147,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Dataset'**
   String get datasetSection;
+
+  /// No description provided for @shortcutsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortcuts'**
+  String get shortcutsSection;
+
+  /// No description provided for @shortcutsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Global keyboard shortcuts for the workbench.'**
+  String get shortcutsDesc;
+
+  /// No description provided for @shortcutFilterLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Focus tag filter'**
+  String get shortcutFilterLabel;
+
+  /// No description provided for @shortcutAiTagLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'AI tag current image'**
+  String get shortcutAiTagLabel;
+
+  /// No description provided for @shortcutNavigateImagesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous / next image'**
+  String get shortcutNavigateImagesLabel;
+
+  /// No description provided for @shortcutMoveAnchorLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Move insertion anchor'**
+  String get shortcutMoveAnchorLabel;
 
   /// No description provided for @dangerZone.
   ///

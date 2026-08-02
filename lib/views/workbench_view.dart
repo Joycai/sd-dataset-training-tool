@@ -17,6 +17,7 @@ import '../state/editor_session.dart';
 import '../state/shortcut_relay.dart';
 import '../state/tag_ops.dart';
 import '../state/workbench_layout.dart';
+import '../utils/platform_shortcuts.dart';
 import '../widgets/icon_nav_rail.dart';
 import '../widgets/resize_handle.dart';
 import '../widgets/status_bar.dart';
@@ -327,16 +328,16 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   // text editing (caret movement, the text field's own undo) and only fire
   // when focus is outside any text field.
   late final Map<SingleActivator, VoidCallback> _globalShortcuts = {
-    const SingleActivator(LogicalKeyboardKey.keyS, control: true):
-        _session.save,
-    const SingleActivator(LogicalKeyboardKey.keyF, control: true):
-        _libraryFilterFocus.requestFocus,
-    const SingleActivator(LogicalKeyboardKey.keyE, control: true): () =>
+    primaryShortcut(LogicalKeyboardKey.keyS): _session.save,
+    primaryShortcut(LogicalKeyboardKey.keyF): _libraryFilterFocus.requestFocus,
+    primaryShortcut(LogicalKeyboardKey.keyE): () =>
         _shortcutRelay.runAiForCurrentImage?.call(),
     // Global, not text-guarded: the question "what does this tag mean" comes
     // up mid-caption, with the cursor in the editor.
-    const SingleActivator(LogicalKeyboardKey.keyD, control: true):
-        _openDictionary,
+    primaryShortcut(LogicalKeyboardKey.keyD): _openDictionary,
+    // Same reasoning as the dictionary binding: asking the assistant a
+    // question mid-caption shouldn't require reaching for the mouse.
+    primaryShortcut(LogicalKeyboardKey.keyI): _toggleAgentPanel,
   };
 
   /// Opens the dictionary window.
@@ -362,10 +363,9 @@ class _WorkbenchViewState extends State<WorkbenchView> {
         _session.moveAnchor(-1),
     const SingleActivator(LogicalKeyboardKey.bracketRight): () =>
         _session.moveAnchor(1),
-    const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
-    const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true):
-        _redo,
-    const SingleActivator(LogicalKeyboardKey.keyY, control: true): _redo,
+    primaryShortcut(LogicalKeyboardKey.keyZ): _undo,
+    primaryShortcut(LogicalKeyboardKey.keyZ, shift: true): _redo,
+    primaryShortcut(LogicalKeyboardKey.keyY): _redo,
   };
 
   void _undo() {
