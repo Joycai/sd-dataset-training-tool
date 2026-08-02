@@ -3060,6 +3060,12 @@ abstract class AppLocalizations {
   /// **'Detecting…'**
   String get llmDetectRunning;
 
+  /// No description provided for @llmDetectStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get llmDetectStop;
+
   /// No description provided for @llmDetectNothingFound.
   ///
   /// In en, this message translates to:

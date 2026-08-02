@@ -169,6 +169,12 @@ class AgentSession {
         // the wire protocol history valid even on cancellation.
         for (final call in calls) {
           AgentToolResult result;
+          // A rejection is the user exercising the confirmation gate, not a
+          // failure — it must not push the run toward the 3-strikes abort
+          // below, or asking for confirmation becomes something that
+          // punishes saying no. It also does not reset the streak: a real
+          // error right before it should still count toward the next one.
+          var wasRejection = false;
           if (cancel.isCancelled) {
             result = toolError('cancelled by user');
           } else {
@@ -179,6 +185,7 @@ class AgentSession {
                 confirmWrite != null &&
                 !await confirmWrite!(tool, call)) {
               result = toolError('the user rejected this operation');
+              wasRejection = true;
             } else {
               result = await registry.dispatch(call.name, call.argumentsJson);
             }
@@ -192,9 +199,11 @@ class AgentSession {
               pinned: result.pinned,
             ),
           );
-          consecutiveToolErrors = result.isError
-              ? consecutiveToolErrors + 1
-              : 0;
+          if (!wasRejection) {
+            consecutiveToolErrors = result.isError
+                ? consecutiveToolErrors + 1
+                : 0;
+          }
         }
         if (cancel.isCancelled) {
           yield AgentFinished(AgentStopReason.cancelled);
@@ -313,8 +322,10 @@ Guidelines:
   claiming a dataset-wide sweep from memory.
 - When the user asks for changes, describe your plan briefly before acting,
   and report exact numbers (images affected) afterwards.
-- Every write operation you perform can be undone by the user (Ctrl+Z), and
-  may require their confirmation first.
+- Every write to a caption file can be undone by the user (Ctrl+Z), and may
+  require their confirmation first. Tag-library changes are not covered by
+  undo — remove_library_tags and delete_tag_group say so themselves and are
+  confirmation-gated because of it.
 - run_wd_tagger produces booru-style tags for images via the local tagger
   server. Results are returned to you, not written to disk — filter them,
   then apply with the write tools.

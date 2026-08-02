@@ -942,6 +942,7 @@
   "llmDetectRerun": "Run again",
   "llmDetectApply": "Apply to settings",
   "llmDetectRunning": "Detecting…",
+  "llmDetectStop": "Stop",
   "llmDetectNothingFound": "The endpoint published no limits and did not state any. The values in the form are unchanged.",
   "llmDetectFoundContext": "Context window: {tokens} tokens",
   "@llmDetectFoundContext": {

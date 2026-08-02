@@ -206,10 +206,34 @@ class EndpointProbeService {
     }
 
     // --- 4. Paid, opt-in: calibrate, then check for silent truncation ---
+    //
+    // The cost the user agreed to (shown before the run started) was
+    // estimated from the *configured* window. If the steps above just found
+    // a much bigger one — a listing reporting 1M against an 8K config is not
+    // a hypothetical — spending at the newly-claimed size would send a
+    // request the user never actually approved the price of.
+    final claimedWindow = report.contextWindow ?? model.contextWindow;
+    final approvedTokens = estimateTruncationTestTokens(model.contextWindow);
+    final actualTokens = estimateTruncationTestTokens(claimedWindow);
+    if (actualTokens > approvedTokens * 2) {
+      final detail =
+          'detected window is $claimedWindow tokens vs the configured '
+          '${model.contextWindow} — testing it would cost about '
+          '$actualTokens tokens, not the ~$approvedTokens shown before you '
+          'started this run';
+      step(ProbeStep.calibration, ProbeStepStatus.skipped, detail);
+      step(ProbeStep.truncationTest, ProbeStepStatus.skipped, detail);
+      report.notes.add(
+        'Truncation test skipped: $detail. Raise the configured context '
+        'window and rerun to test at the real size, or confirm manually.',
+      );
+      return report;
+    }
+
     await _runTruncationCheck(
       inspector: inspector,
       profile: profile,
-      claimedWindow: report.contextWindow ?? model.contextWindow,
+      claimedWindow: claimedWindow,
       report: report,
       step: step,
       cancelled: cancelled,

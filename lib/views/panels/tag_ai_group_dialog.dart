@@ -89,10 +89,22 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
   /// Guards the accept buttons while a group is being created and written.
   bool _applying = false;
 
+  /// Set from [dispose]: the Close action already lets the user leave mid-run
+  /// without waiting for it, but until this existed the batch loop never
+  /// found out and kept sending — and spending — every remaining batch after
+  /// nobody was looking at the dialog anymore.
+  bool _closed = false;
+
   @override
   void initState() {
     super.initState();
     _profileId = context.read<AppState>().activeLlmProfile?.id;
+  }
+
+  @override
+  void dispose() {
+    _closed = true;
+    super.dispose();
   }
 
   /// The profile the run will use, falling back to the active one when the
@@ -163,11 +175,13 @@ class _AiGroupingDialogState extends State<_AiGroupingDialog> {
               _appendLog(l10n.aiGroupLogBatchUnreadable, _LogLevel.warn);
           }
         },
+        isCancelled: () => !mounted || _closed,
       );
       if (!mounted) return;
       setState(() {
         _suggestions = result;
-        _totalBatches = (widget.tags.length / tagGroupBatchSize).ceil();
+        _totalBatches =
+            (widget.tags.length + tagGroupBatchSize - 1) ~/ tagGroupBatchSize;
         _log.add(_LogLine(l10n.aiGroupLogDone(result.length), _LogLevel.ok));
       });
     } on LlmException catch (e) {

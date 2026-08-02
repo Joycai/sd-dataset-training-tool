@@ -132,6 +132,12 @@ const Duration _idleTimeout = Duration(minutes: 5);
 /// failure; a batch that comes back unparseable is skipped, not fatal, so one
 /// bad answer does not discard the rest — but it is reported through
 /// [onBatchProblem] so an empty result can say why it is empty.
+///
+/// [isCancelled], when it starts returning true, stops the run before its
+/// next batch — the batch already in flight is allowed to finish and its
+/// suggestions are kept, but nothing further is sent. Without this a closed
+/// dialog has no way to stop the loop, and every remaining batch still goes
+/// out and spends tokens for a result nobody is looking at.
 Future<List<TagGroupSuggestion>> suggestTagGroupsWithLlm({
   required LlmProviderProfile profile,
   required List<String> tags,
@@ -144,6 +150,7 @@ Future<List<TagGroupSuggestion>> suggestTagGroupsWithLlm({
   void Function(int index, int batches, int size)? onBatchStart,
   void Function(int index, int batches, int placed)? onBatchDone,
   void Function(TagGroupBatchProblem problem, String reply)? onBatchProblem,
+  bool Function()? isCancelled,
 }) async {
   if (tags.isEmpty) return const [];
   // Annotated, not inferred: both concrete clients implement two interfaces,
@@ -157,9 +164,10 @@ Future<List<TagGroupSuggestion>> suggestTagGroupsWithLlm({
     maxOutputTokens: math.max(profile.maxOutputTokens, _minOutputTokens),
   );
   final out = <TagGroupSuggestion>[];
-  final batches = (tags.length / batchSize).ceil();
+  final batches = (tags.length + batchSize - 1) ~/ batchSize;
   try {
     for (var start = 0; start < tags.length; start += batchSize) {
+      if (isCancelled?.call() ?? false) break;
       final batch = tags.sublist(
         start,
         (start + batchSize).clamp(0, tags.length),
@@ -206,9 +214,11 @@ class _Answer {
     required this.finishReason,
   });
 
-  /// Arguments of the `file_tags` call, or empty when the model answered in
-  /// text (or not at all).
-  final String toolArguments;
+  /// Arguments of each `file_tags` call, one entry per call. A relay that
+  /// splits the assignments across parallel tool calls is not rare enough to
+  /// treat as one call's worth of arguments — every entry is decoded and
+  /// merged rather than only the first.
+  final List<String> toolArguments;
 
   /// Assistant text. The fallback channel, and what a model that ignored the
   /// tool answers with.
@@ -217,7 +227,8 @@ class _Answer {
   /// `finish_reason` from the stream: `length` means the budget ran out.
   final String finishReason;
 
-  bool get isEmpty => toolArguments.trim().isEmpty && text.trim().isEmpty;
+  bool get isEmpty =>
+      toolArguments.every((a) => a.trim().isEmpty) && text.trim().isEmpty;
 
   TagGroupBatchProblem get problem {
     if (finishReason == 'length') return TagGroupBatchProblem.truncated;
@@ -227,7 +238,10 @@ class _Answer {
   }
 
   /// What to show a human debugging a bad batch.
-  String get forDisplay => toolArguments.trim().isEmpty ? text : toolArguments;
+  String get forDisplay {
+    final nonEmpty = toolArguments.where((a) => a.trim().isNotEmpty);
+    return nonEmpty.isEmpty ? text : nonEmpty.join('\n');
+  }
 }
 
 Future<_Answer> _ask({
@@ -239,7 +253,7 @@ Future<_Answer> _ask({
   required String languageCode,
 }) async {
   final buffer = StringBuffer();
-  final arguments = StringBuffer();
+  final arguments = <String>[];
   var finishReason = '';
   final stream = llm.chat(
     profile: profile,
@@ -278,15 +292,18 @@ Future<_Answer> _ask({
       case ToolCallsReady(:final calls):
         for (final call in calls) {
           // Name-agnostic: a relay that renames or prefixes the call still
-          // carries the arguments, and this request offers exactly one tool.
-          arguments.write(call.argumentsJson);
+          // carries the arguments, and this request offers exactly one tool
+          // — but nothing stops a relay from splitting one answer across
+          // several parallel calls to it, so every call's arguments are kept
+          // separately rather than concatenated.
+          arguments.add(call.argumentsJson);
         }
       case StreamDone(finishReason: final reason):
         if (reason.isNotEmpty) finishReason = reason;
     }
   }
   return _Answer(
-    toolArguments: arguments.toString(),
+    toolArguments: arguments,
     text: buffer.toString(),
     finishReason: finishReason,
   );
@@ -337,12 +354,18 @@ List<TagGroupSuggestion> _parse(List<dynamic> decoded, List<String> batch) {
 /// or wraps them can produce the same envelope damage as prose, and there is
 /// no reason to be strict on one channel and forgiving on the other.
 List<dynamic>? _decodeItems(_Answer answer) {
-  for (final channel in [answer.toolArguments, answer.text]) {
-    if (channel.trim().isEmpty) continue;
-    final items = _decodeChannel(channel);
-    if (items != null) return items;
+  // Every tool call's arguments are decoded and merged — a relay that
+  // splits the assignments across parallel calls must not lose all but the
+  // first. Text is only consulted when no tool call decoded anything.
+  final merged = <dynamic>[];
+  for (final args in answer.toolArguments) {
+    if (args.trim().isEmpty) continue;
+    final items = _decodeChannel(args);
+    if (items != null) merged.addAll(items);
   }
-  return null;
+  if (merged.isNotEmpty) return merged;
+  if (answer.text.trim().isEmpty) return null;
+  return _decodeChannel(answer.text);
 }
 
 List<dynamic>? _decodeChannel(String answer) {
@@ -371,9 +394,10 @@ List<dynamic>? _decodeChannel(String answer) {
 /// Every `[open … close]` run in [text] whose brackets balance, outermost
 /// first, ignoring brackets inside JSON strings.
 ///
-/// A run that never closes (the truncated case) is yielded to the end of the
-/// text: it will not decode, but the object-level salvage runs over the same
-/// text and does not need it to.
+/// A run that never closes (the truncated case) yields nothing here — depth
+/// never returns to zero, so there is no slice to hand back. The object-level
+/// salvage scans the same text independently and does not depend on this
+/// function to cover that case.
 Iterable<String> _balancedSlices(String text, String open, String close) sync* {
   for (var i = 0; i < text.length; i++) {
     if (text[i] != open) continue;

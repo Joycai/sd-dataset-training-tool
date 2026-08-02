@@ -565,6 +565,7 @@
   "llmDetectRerun": "重新检测",
   "llmDetectApply": "应用到设置",
   "llmDetectRunning": "检测中…",
+  "llmDetectStop": "停止",
   "llmDetectNothingFound": "端点没有公布上限，也没有在报错中说明。表单里的值保持不变。",
   "llmDetectFoundContext": "上下文窗口：{tokens} tokens",
   "llmDetectFoundOutput": "最大输出：{tokens} tokens",

@@ -79,6 +79,9 @@ class _LlmProbeDialogState extends State<_LlmProbeDialog> {
   Future<void> _run() async {
     setState(() {
       _running = true;
+      // A prior run may have left this set from a stop the user issued —
+      // without resetting it, "stop, then run again" would exit immediately.
+      _cancelled = false;
       _finished = false;
       _report = null;
       _lines.clear();
@@ -112,6 +115,14 @@ class _LlmProbeDialogState extends State<_LlmProbeDialog> {
     });
   }
 
+  void _stop() {
+    // Not a pop: the run is mid-step and keeps going until it notices this
+    // and returns whatever it already collected — closing the dialog here
+    // would just orphan that in-flight future with no way back in to see
+    // the result.
+    setState(() => _cancelled = true);
+  }
+
   void _apply() {
     final report = _report;
     if (report == null) return;
@@ -119,11 +130,14 @@ class _LlmProbeDialogState extends State<_LlmProbeDialog> {
     final output = report.maxOutput;
     final updated = widget.model.copyWith(
       // Only what was actually found moves; a run that learned nothing about
-      // max output leaves the user's number alone.
+      // max output leaves the user's number alone. Same for the measurement
+      // record itself — a rerun that only re-confirmed the context window
+      // must not blank out a max-output figure an earlier run already
+      // measured.
       contextWindow: window,
       maxOutputTokens: output,
-      measuredContextWindow: window ?? 0,
-      measuredMaxOutput: output ?? 0,
+      measuredContextWindow: window ?? widget.model.measuredContextWindow,
+      measuredMaxOutput: output ?? widget.model.measuredMaxOutput,
       measuredAt: DateTime.now().toIso8601String(),
       silentTruncation: report.truncation == TruncationVerdict.detected,
     );
@@ -189,8 +203,8 @@ class _LlmProbeDialogState extends State<_LlmProbeDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: _running ? null : () => Navigator.of(context).pop(),
-          child: Text(l10n.cancel),
+          onPressed: _running ? _stop : () => Navigator.of(context).pop(),
+          child: Text(_running ? l10n.llmDetectStop : l10n.cancel),
         ),
         TextButton(
           onPressed: _running ? null : _run,
