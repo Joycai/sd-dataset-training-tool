@@ -25,6 +25,7 @@ import 'panels/agent_dock.dart';
 import 'panels/assets_panel.dart';
 import 'panels/caption_panel.dart';
 import 'panels/preview_panel.dart';
+import 'panels/tag_dictionary_dialog.dart';
 import 'panels/tag_library_panel.dart';
 
 /// The main editing surface: assets panel, inline preview + caption editor,
@@ -332,7 +333,24 @@ class _WorkbenchViewState extends State<WorkbenchView> {
         _libraryFilterFocus.requestFocus,
     const SingleActivator(LogicalKeyboardKey.keyE, control: true): () =>
         _shortcutRelay.runAiForCurrentImage?.call(),
+    // Global, not text-guarded: the question "what does this tag mean" comes
+    // up mid-caption, with the cursor in the editor.
+    const SingleActivator(LogicalKeyboardKey.keyD, control: true):
+        _openDictionary,
   };
+
+  /// Opens the dictionary window.
+  ///
+  /// The scope is handed over explicitly: this State's context sits above the
+  /// [MultiProvider] that `build` installs, so the dialog could not read the
+  /// dataset off it and would lose the per-image filter and the usage bar.
+  void _openDictionary() {
+    showTagDictionaryDialog(
+      context,
+      scope: tagDictionaryScope(dataset: _dataset, session: _session),
+    );
+  }
+
   late final Map<SingleActivator, VoidCallback> _nonTextShortcuts = {
     const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
         _dataset.selectByOffset(-1),

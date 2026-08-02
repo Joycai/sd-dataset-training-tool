@@ -594,13 +594,16 @@
   "tagGlossModeTooltip": "仅悬浮显示",
   "tagDictionaryManageTitle": "编辑词典",
   "tagDictionaryManageDesc": "翻译标签、添加 Danbooru 没有的标签、导入或导出译文",
+  "tagDictionaryOpenAction": "打开词典",
 
   "dictManagerTitle": "标签词典",
-  "dictManagerSubtitle": "{locale} · 已翻译 {count} 条",
-  "@dictManagerSubtitle": {
+  "dictManagerCounts": "{locale} · 内置 {builtin} 条，自定义 {custom} 条，已翻译 {translated} 条",
+  "@dictManagerCounts": {
     "placeholders": {
       "locale": { "type": "String" },
-      "count": { "type": "int" }
+      "builtin": { "type": "int" },
+      "custom": { "type": "int" },
+      "translated": { "type": "int" }
     }
   },
   "dictGlossaryError": "译文文件读取失败：{message}",
@@ -636,8 +639,6 @@
   "dictSourceLlm": "来自 AI 助手",
   "dictSourceDanbooru": "来自 Danbooru wiki",
   "dictRemoveCustomAction": "从词典移除",
-  "dictAddTagAction": "添加标签",
-  "dictAddTagTitle": "添加标签",
   "dictAddTagNameLabel": "标签名",
   "dictAddTagNameHint": "用 Danbooru 拼法，例如 my_character_(oc)",
   "dictAddTagCategoryLabel": "分类",
@@ -671,12 +672,109 @@
     }
   },
   "dictClearAiNone": "没有 AI 译文需要清除",
-  "dictFooterHint": "每种界面语言各有一份译文",
+  "dictFooterHint": "每种界面语言各有一份译文 · 自定义标签与译文只保存在本机",
+
+  "dictOpenTooltip": "打开标签词典",
+  "dictFilterAll": "全部",
+  "dictFilterThisImage": "本图 {count}",
+  "@dictFilterThisImage": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictFilterCustom": "自定义 {count}",
+  "@dictFilterCustom": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictUntranslated": "未翻译",
+  "dictNewTagAction": "新建标签",
+  "dictFetchSourceName": "Danbooru",
+  "dictOrderAlpha": "按字母 A–Z",
+  "dictOrderRelevance": "按匹配度",
+  "dictResultCount": "{count} 条结果",
+  "@dictResultCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictCustomEmpty": "还没有自定义标签。用「新建标签」加入内置库里没有的角色或私有标签。",
+  "dictUntranslatedEmpty": "没有待翻译的标签。",
+  "dictThisImageEmpty": "当前图片没有标签。",
+  "dictCollectAction": "收录",
+  "dictCollectedCount": "已收录 {count} 个标签",
+  "@dictCollectedCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictMissingTitle": "{count} 个标签不在词典中",
+  "@dictMissingTitle": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictMissingDesc": "它们只显示原文；收录后可以补译文，也会进入自动补全",
+  "dictMissingIgnore": "忽略",
+  "dictMissingCollectAll": "全部收录为自定义",
+  "dictMissingUsage": "{count} 张",
+  "@dictMissingUsage": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictMissingMore": "还有 {count} 个",
+  "@dictMissingMore": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictAliasesLabel": "别名",
+  "dictAliasesHint": "搜索这些写法也能命中本条",
+  "dictAiTranslateAction": "用 AI 翻译",
+  "dictAiTranslating": "翻译中…",
+  "dictAiTranslateFailed": "AI 翻译失败：{error}",
+  "@dictAiTranslateFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "dictRevertAction": "还原",
+  "dictSourceBecomes": "保存后转为「{source}」",
+  "@dictSourceBecomes": {
+    "placeholders": {
+      "source": { "type": "String" }
+    }
+  },
+  "dictUsageLabel": "在数据集中的用量",
+  "dictUsageValue": "{count} 张图 · 占 {percent}%",
+  "@dictUsageValue": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "percent": { "type": "int" }
+    }
+  },
+  "dictUnknownTagHint": "词典里没有这个标签",
+
+  "dictNewTagTitle": "新建自定义标签",
+  "dictNewTagDesc": "用于内置库里没有的角色、画风或私有标签",
+  "dictNewTagSpellingHint": "Danbooru 拼法：小写、下划线连接",
+  "dictNewTagSpellingPreview": "将存为 {name}",
+  "@dictNewTagSpellingPreview": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "dictNewTagAliasesLabel": "别名（可选，用逗号分隔）",
+  "dictNewTagAliasesHint": "prettysammy, sammy",
+  "dictNewTagAutocompleteTitle": "加入自动补全",
+  "dictNewTagAutocompleteDesc": "在标签输入框里和内置标签一起提示",
+  "dictNewTagExistsHint": "词典里已有同名标签时不会重复添加",
+  "dictNewTagSubmit": "添加",
 
   "dictFetchAction": "从 Danbooru 获取",
   "dictFetching": "获取中…",
-  "dictFetchPromptTooltip": "在 Danbooru 上查一个标签",
-  "dictFetchPromptTitle": "在 Danbooru 上查询",
   "dictFetchPromptLabel": "标签名或 Danbooru 地址",
   "dictFetchPromptHint": "long_hair，或从 Danbooru 复制的链接",
   "dictFetchPromptNote": "wiki 页面、投稿搜索、标签列表的地址都可以。只读取 Danbooru 的公开 API，不会向任何地方发送数据。",
@@ -711,6 +809,14 @@
       "tag": { "type": "String" }
     }
   },
+  "dictFetchPrivacyNote": "只读取公开 API，不上传任何数据",
+  "dictFetchLookupAction": "查询",
+  "dictFetchWillWrite": "将写入",
+  "dictFetchFieldPostCount": "投稿数",
+  "dictFetchKeepsEdits": "· 你已填写的译文与注释不会被覆盖",
+  "dictFetchAlreadyKnown": "词典里已经有这个标签了。",
+  "dictFetchWriteAction": "写入词典",
+  "dictFetchOpenAction": "查看该标签",
 
   "dataSection": "数据",
   "dataExportTitle": "导出数据",

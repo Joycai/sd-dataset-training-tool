@@ -1634,11 +1634,19 @@ class AppLocalizationsEn extends AppLocalizations {
       'Translate tags, add tags danbooru does not have, import or export a glossary';
 
   @override
+  String get tagDictionaryOpenAction => 'Open dictionary';
+
+  @override
   String get dictManagerTitle => 'Tag dictionary';
 
   @override
-  String dictManagerSubtitle(String locale, int count) {
-    return '$locale · $count translated';
+  String dictManagerCounts(
+    String locale,
+    int builtin,
+    int custom,
+    int translated,
+  ) {
+    return '$locale · $builtin built in, $custom added, $translated translated';
   }
 
   @override
@@ -1715,12 +1723,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dictRemoveCustomAction => 'Remove from dictionary';
 
   @override
-  String get dictAddTagAction => 'Add a tag';
-
-  @override
-  String get dictAddTagTitle => 'Add a tag';
-
-  @override
   String get dictAddTagNameLabel => 'Tag name';
 
   @override
@@ -1765,19 +1767,166 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dictClearAiNone => 'No assistant translations to clear';
 
   @override
-  String get dictFooterHint => 'One glossary per app language';
+  String get dictFooterHint =>
+      'One glossary per app language · added tags and translations stay on this machine';
+
+  @override
+  String get dictOpenTooltip => 'Open the tag dictionary';
+
+  @override
+  String get dictFilterAll => 'All';
+
+  @override
+  String dictFilterThisImage(int count) {
+    return 'This image $count';
+  }
+
+  @override
+  String dictFilterCustom(int count) {
+    return 'Added $count';
+  }
+
+  @override
+  String get dictUntranslated => 'Untranslated';
+
+  @override
+  String get dictNewTagAction => 'New tag';
+
+  @override
+  String get dictFetchSourceName => 'danbooru';
+
+  @override
+  String get dictOrderAlpha => 'A–Z';
+
+  @override
+  String get dictOrderRelevance => 'By relevance';
+
+  @override
+  String dictResultCount(int count) {
+    return '$count results';
+  }
+
+  @override
+  String get dictCustomEmpty =>
+      'No tags added yet. Use \"New tag\" for characters or private tags the built-in dictionary does not have.';
+
+  @override
+  String get dictUntranslatedEmpty => 'Nothing left to translate.';
+
+  @override
+  String get dictThisImageEmpty => 'The open image has no tags.';
+
+  @override
+  String get dictCollectAction => 'Add';
+
+  @override
+  String dictCollectedCount(int count) {
+    return 'Added $count tags to the dictionary';
+  }
+
+  @override
+  String dictMissingTitle(int count) {
+    return '$count tags are not in the dictionary';
+  }
+
+  @override
+  String get dictMissingDesc =>
+      'They render untranslated; adding them makes them translatable and completable';
+
+  @override
+  String get dictMissingIgnore => 'Ignore';
+
+  @override
+  String get dictMissingCollectAll => 'Add all as custom';
+
+  @override
+  String dictMissingUsage(int count) {
+    return '$count images';
+  }
+
+  @override
+  String dictMissingMore(int count) {
+    return '$count more';
+  }
+
+  @override
+  String get dictAliasesLabel => 'Aliases';
+
+  @override
+  String get dictAliasesHint =>
+      'searching these spellings finds this entry too';
+
+  @override
+  String get dictAiTranslateAction => 'Translate with AI';
+
+  @override
+  String get dictAiTranslating => 'Translating…';
+
+  @override
+  String dictAiTranslateFailed(String error) {
+    return 'AI translation failed: $error';
+  }
+
+  @override
+  String get dictRevertAction => 'Revert';
+
+  @override
+  String dictSourceBecomes(String source) {
+    return 'saving makes it \"$source\"';
+  }
+
+  @override
+  String get dictUsageLabel => 'Used in this dataset';
+
+  @override
+  String dictUsageValue(int count, int percent) {
+    return '$count images · $percent%';
+  }
+
+  @override
+  String get dictUnknownTagHint => 'not in the dictionary';
+
+  @override
+  String get dictNewTagTitle => 'New custom tag';
+
+  @override
+  String get dictNewTagDesc =>
+      'For characters, styles or private tags the built-in dictionary does not have';
+
+  @override
+  String get dictNewTagSpellingHint =>
+      'danbooru spelling: lower case, underscores';
+
+  @override
+  String dictNewTagSpellingPreview(String name) {
+    return 'stored as $name';
+  }
+
+  @override
+  String get dictNewTagAliasesLabel => 'Aliases (optional, comma separated)';
+
+  @override
+  String get dictNewTagAliasesHint => 'prettysammy, sammy';
+
+  @override
+  String get dictNewTagAutocompleteTitle => 'Offer in autocomplete';
+
+  @override
+  String get dictNewTagAutocompleteDesc =>
+      'Suggested alongside built-in tags in tag fields';
+
+  @override
+  String get dictNewTagExistsHint =>
+      'A tag the dictionary already has is not added twice';
+
+  @override
+  String get dictNewTagSubmit => 'Add';
 
   @override
   String get dictFetchAction => 'Fetch from danbooru';
 
   @override
   String get dictFetching => 'Fetching…';
-
-  @override
-  String get dictFetchPromptTooltip => 'Look a tag up on danbooru';
-
-  @override
-  String get dictFetchPromptTitle => 'Look up on danbooru';
 
   @override
   String get dictFetchPromptLabel => 'Tag name or danbooru URL';
@@ -1822,6 +1971,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dictFetchAddAction => 'Add to the dictionary';
+
+  @override
+  String get dictFetchPrivacyNote =>
+      'Reads the public API only; nothing is uploaded';
+
+  @override
+  String get dictFetchLookupAction => 'Look up';
+
+  @override
+  String get dictFetchWillWrite => 'Will write';
+
+  @override
+  String get dictFetchFieldPostCount => 'Post count';
+
+  @override
+  String get dictFetchKeepsEdits =>
+      '· your own translation and note are never overwritten';
+
+  @override
+  String get dictFetchAlreadyKnown => 'The dictionary already has this tag.';
+
+  @override
+  String get dictFetchWriteAction => 'Write to dictionary';
+
+  @override
+  String get dictFetchOpenAction => 'Go to the tag';
 
   @override
   String dictFetchAdded(String tag) {

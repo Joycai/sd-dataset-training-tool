@@ -273,6 +273,7 @@ class TagDictionaryService extends ChangeNotifier {
 
   List<TagDictionaryEntry> _customEntries = const [];
   _TagIndex? _customIndex;
+  _TagIndex? _customCompletionIndex;
 
   /// Tags the user added to the dictionary by hand, in the order they were
   /// added. Unlike the local vocabulary these are not derived from anything —
@@ -288,6 +289,7 @@ class TagDictionaryService extends ChangeNotifier {
       if (raw is! List) return;
       _customEntries = [for (final e in raw) ?TagDictionaryEntry.fromJson(e)];
       _customIndex = null;
+      _customCompletionIndex = null;
       _localIndex = null;
     } catch (e) {
       // A broken overlay must not cost the user their dictionary.
@@ -312,6 +314,7 @@ class TagDictionaryService extends ChangeNotifier {
           entry,
     ];
     _customIndex = null;
+    _customCompletionIndex = null;
     // "Local" means "covered by neither the dictionary nor this list".
     _localIndex = null;
     notifyListeners();
@@ -336,6 +339,29 @@ class TagDictionaryService extends ChangeNotifier {
     final sorted = [..._customEntries]
       ..sort((a, b) => b.postCount.compareTo(a.postCount));
     return _customIndex = _indexTagEntries(sorted);
+  }
+
+  /// The same list minus the entries the user excluded from completion.
+  ///
+  /// A second index rather than a filter over [_matches]'s output: that
+  /// function takes the best N hits and stops, so filtering afterwards would
+  /// silently shrink the custom slice whenever a hidden entry outranked a
+  /// visible one. When nothing is hidden — the overwhelmingly common case —
+  /// this *is* [_customIndexOrBuild], at no extra cost.
+  _TagIndex? get _customCompletionIndexOrBuild {
+    if (_customCompletionIndex != null) return _customCompletionIndex;
+    final all = _customIndexOrBuild;
+    if (all == null) return null;
+    final offered = [
+      for (final entry in _customEntries)
+        if (entry.autocomplete) entry,
+    ];
+    if (offered.length == _customEntries.length) {
+      return _customCompletionIndex = all;
+    }
+    if (offered.isEmpty) return null;
+    offered.sort((a, b) => b.postCount.compareTo(a.postCount));
+    return _customCompletionIndex = _indexTagEntries(offered);
   }
 
   // --- The user's own vocabulary ---------------------------------------
@@ -474,7 +500,7 @@ class TagDictionaryService extends ChangeNotifier {
     // outranks popularity — but never take more than half the list, or a
     // handful of them would hide danbooru entirely behind a shared prefix.
     final custom = _matches(
-      _customIndexOrBuild,
+      _customCompletionIndexOrBuild,
       key,
       (limit / 2).ceil(),
       TagSuggestionOrigin.custom,
@@ -492,10 +518,12 @@ class TagDictionaryService extends ChangeNotifier {
     final customKeys = {for (final hit in custom) tagLookupKey(hit.name)};
     // Only bites when a dictionary download has since added a tag the user had
     // already entered by hand; the addition wins until they prune it.
-    final dictionary =
-        _matches(_index, key, room - reserved, TagSuggestionOrigin.dictionary)
-            .where((hit) => !customKeys.contains(tagLookupKey(hit.name)))
-            .toList();
+    final dictionary = _matches(
+      _index,
+      key,
+      room - reserved,
+      TagSuggestionOrigin.dictionary,
+    ).where((hit) => !customKeys.contains(tagLookupKey(hit.name))).toList();
     return [...custom, ...dictionary, ...local.take(room - dictionary.length)];
   }
 

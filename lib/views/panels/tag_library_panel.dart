@@ -15,6 +15,7 @@ import '../../widgets/danbooru_tag_menu.dart';
 import '../../widgets/panel_widgets.dart';
 import '../../widgets/tag_gloss.dart';
 import 'dataset_tags_view.dart';
+import 'tag_dictionary_dialog.dart';
 import 'tag_group_dialog.dart';
 
 /// Right panel: two tabs sharing the column — the reusable tag library and
@@ -644,18 +645,35 @@ class _LibraryViewState extends State<_LibraryView> {
                 icon: Icons.add,
                 tooltip: l10n.addTagsTitle,
                 size: 16,
+                hitSize: 28,
                 onPressed: _showAddDialog,
               ),
               PanelIconButton(
                 icon: Icons.create_new_folder_outlined,
                 tooltip: l10n.newGroupTitle,
                 size: 16,
+                hitSize: 28,
                 onPressed: _createGroup,
+              ),
+              // The dictionary is one click from wherever tags are on screen,
+              // carrying whatever the user has typed into the filter: the
+              // moment a tag's meaning is unclear is the moment they are
+              // looking at it.
+              PanelIconButton(
+                icon: Icons.translate,
+                tooltip: l10n.dictOpenTooltip,
+                size: 16,
+                hitSize: 28,
+                onPressed: () => showTagDictionaryDialog(
+                  context,
+                  initialQuery: _filter.trim().isEmpty ? null : _filter,
+                ),
               ),
               PanelIconButton(
                 icon: Icons.checklist,
                 tooltip: l10n.groupEditModeTooltip,
                 size: 16,
+                hitSize: 28,
                 color: _groupEditMode ? scheme.primary : null,
                 onPressed: () => setState(() {
                   _groupEditMode = !_groupEditMode;
@@ -669,6 +687,7 @@ class _LibraryViewState extends State<_LibraryView> {
                   icon: Icons.more_horiz,
                   tooltip: l10n.moreActionsTooltip,
                   size: 16,
+                  hitSize: 28,
                   onPressed: () => _showMoreMenu(buttonContext),
                 ),
               ),

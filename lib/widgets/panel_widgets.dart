@@ -92,6 +92,7 @@ class PanelIconButton extends StatelessWidget {
     this.onPressed,
     this.color,
     this.size = 17,
+    this.hitSize,
   });
 
   final IconData icon;
@@ -99,6 +100,15 @@ class PanelIconButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final Color? color;
   final double size;
+
+  /// Exact square hit target, opting out of Material's padded tap target.
+  ///
+  /// The default (null) keeps the 40px Material minimum, which is right for
+  /// a header carrying two or three actions. Panel toolbars that put five
+  /// beside a search field pass a smaller one: at the 200px minimum panel
+  /// width, five padded targets leave the field nothing to shrink into and
+  /// the row overflows by a couple of pixels.
+  final double? hitSize;
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +118,17 @@ class PanelIconButton extends StatelessWidget {
       onPressed: onPressed,
       color: color ?? context.semantic.muted,
       visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+      constraints: BoxConstraints(
+        minWidth: hitSize ?? 30,
+        minHeight: hitSize ?? 30,
+      ),
+      // Only with an explicit hit size: the constraints above are a *minimum*,
+      // and Material's padded tap target otherwise wins at 40px regardless.
+      style: hitSize == null
+          ? null
+          : IconButton.styleFrom(
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
       padding: EdgeInsets.zero,
     );
   }

@@ -852,13 +852,16 @@
   "tagGlossModeTooltip": "On hover only",
   "tagDictionaryManageTitle": "Edit dictionary",
   "tagDictionaryManageDesc": "Translate tags, add tags danbooru does not have, import or export a glossary",
+  "tagDictionaryOpenAction": "Open dictionary",
 
   "dictManagerTitle": "Tag dictionary",
-  "dictManagerSubtitle": "{locale} · {count} translated",
-  "@dictManagerSubtitle": {
+  "dictManagerCounts": "{locale} · {builtin} built in, {custom} added, {translated} translated",
+  "@dictManagerCounts": {
     "placeholders": {
       "locale": { "type": "String" },
-      "count": { "type": "int" }
+      "builtin": { "type": "int" },
+      "custom": { "type": "int" },
+      "translated": { "type": "int" }
     }
   },
   "dictGlossaryError": "Glossary file could not be read: {message}",
@@ -894,8 +897,6 @@
   "dictSourceLlm": "From the assistant",
   "dictSourceDanbooru": "From the danbooru wiki",
   "dictRemoveCustomAction": "Remove from dictionary",
-  "dictAddTagAction": "Add a tag",
-  "dictAddTagTitle": "Add a tag",
   "dictAddTagNameLabel": "Tag name",
   "dictAddTagNameHint": "danbooru spelling, e.g. my_character_(oc)",
   "dictAddTagCategoryLabel": "Category",
@@ -929,12 +930,109 @@
     }
   },
   "dictClearAiNone": "No assistant translations to clear",
-  "dictFooterHint": "One glossary per app language",
+  "dictFooterHint": "One glossary per app language · added tags and translations stay on this machine",
+
+  "dictOpenTooltip": "Open the tag dictionary",
+  "dictFilterAll": "All",
+  "dictFilterThisImage": "This image {count}",
+  "@dictFilterThisImage": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictFilterCustom": "Added {count}",
+  "@dictFilterCustom": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictUntranslated": "Untranslated",
+  "dictNewTagAction": "New tag",
+  "dictFetchSourceName": "danbooru",
+  "dictOrderAlpha": "A–Z",
+  "dictOrderRelevance": "By relevance",
+  "dictResultCount": "{count} results",
+  "@dictResultCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictCustomEmpty": "No tags added yet. Use \"New tag\" for characters or private tags the built-in dictionary does not have.",
+  "dictUntranslatedEmpty": "Nothing left to translate.",
+  "dictThisImageEmpty": "The open image has no tags.",
+  "dictCollectAction": "Add",
+  "dictCollectedCount": "Added {count} tags to the dictionary",
+  "@dictCollectedCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictMissingTitle": "{count} tags are not in the dictionary",
+  "@dictMissingTitle": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictMissingDesc": "They render untranslated; adding them makes them translatable and completable",
+  "dictMissingIgnore": "Ignore",
+  "dictMissingCollectAll": "Add all as custom",
+  "dictMissingUsage": "{count} images",
+  "@dictMissingUsage": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictMissingMore": "{count} more",
+  "@dictMissingMore": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "dictAliasesLabel": "Aliases",
+  "dictAliasesHint": "searching these spellings finds this entry too",
+  "dictAiTranslateAction": "Translate with AI",
+  "dictAiTranslating": "Translating…",
+  "dictAiTranslateFailed": "AI translation failed: {error}",
+  "@dictAiTranslateFailed": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "dictRevertAction": "Revert",
+  "dictSourceBecomes": "saving makes it \"{source}\"",
+  "@dictSourceBecomes": {
+    "placeholders": {
+      "source": { "type": "String" }
+    }
+  },
+  "dictUsageLabel": "Used in this dataset",
+  "dictUsageValue": "{count} images · {percent}%",
+  "@dictUsageValue": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "percent": { "type": "int" }
+    }
+  },
+  "dictUnknownTagHint": "not in the dictionary",
+
+  "dictNewTagTitle": "New custom tag",
+  "dictNewTagDesc": "For characters, styles or private tags the built-in dictionary does not have",
+  "dictNewTagSpellingHint": "danbooru spelling: lower case, underscores",
+  "dictNewTagSpellingPreview": "stored as {name}",
+  "@dictNewTagSpellingPreview": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "dictNewTagAliasesLabel": "Aliases (optional, comma separated)",
+  "dictNewTagAliasesHint": "prettysammy, sammy",
+  "dictNewTagAutocompleteTitle": "Offer in autocomplete",
+  "dictNewTagAutocompleteDesc": "Suggested alongside built-in tags in tag fields",
+  "dictNewTagExistsHint": "A tag the dictionary already has is not added twice",
+  "dictNewTagSubmit": "Add",
 
   "dictFetchAction": "Fetch from danbooru",
   "dictFetching": "Fetching…",
-  "dictFetchPromptTooltip": "Look a tag up on danbooru",
-  "dictFetchPromptTitle": "Look up on danbooru",
   "dictFetchPromptLabel": "Tag name or danbooru URL",
   "dictFetchPromptHint": "long_hair, or a link you copied from danbooru",
   "dictFetchPromptNote": "A wiki page, a post search or a tag listing URL all work. Reads danbooru's public API — nothing is sent anywhere.",
@@ -963,6 +1061,14 @@
   "dictFetchUseAsNote": "Use as the note",
   "dictFetchNoWiki": "This tag has no wiki page.",
   "dictFetchAddAction": "Add to the dictionary",
+  "dictFetchPrivacyNote": "Reads the public API only; nothing is uploaded",
+  "dictFetchLookupAction": "Look up",
+  "dictFetchWillWrite": "Will write",
+  "dictFetchFieldPostCount": "Post count",
+  "dictFetchKeepsEdits": "· your own translation and note are never overwritten",
+  "dictFetchAlreadyKnown": "The dictionary already has this tag.",
+  "dictFetchWriteAction": "Write to dictionary",
+  "dictFetchOpenAction": "Go to the tag",
   "dictFetchAdded": "Added to the dictionary: {tag}",
   "@dictFetchAdded": {
     "placeholders": {

@@ -13,6 +13,7 @@ import 'tag_gloss.dart';
 const danbooruWikiMenuValue = 'danbooru.wiki';
 const danbooruPostsMenuValue = 'danbooru.posts';
 const danbooruTranslateMenuValue = 'danbooru.translate';
+const danbooruFetchMenuValue = 'danbooru.fetch';
 
 /// "What is this tag?" entries for any tag context menu.
 ///
@@ -69,14 +70,25 @@ List<PopupMenuEntry<String>> danbooruTagMenuItems(
       icon: Icons.image_search,
       label: l10n.tagPostsAction,
     ),
-    // The manager is also in settings, but this is where the question actually
-    // comes up: the moment a tag's meaning is unclear is the moment the user is
-    // looking at it.
+    const PopupMenuDivider(height: 9),
+    // The dictionary is reachable from the rail too, but this is where the
+    // question actually comes up: the moment a tag's meaning is unclear is the
+    // moment the user is looking at it.
     panelMenuItem(
       context: context,
       value: danbooruTranslateMenuValue,
       icon: Icons.translate,
       label: gloss == null ? l10n.tagTranslateAction : l10n.tagEditTranslation,
+    ),
+    // The same destination, one step further along: for a tag nobody has
+    // glossed yet, danbooru's own `other_names` are usually the answer, and
+    // making the user open the dictionary and press fetch is a step that
+    // carries no decision.
+    panelMenuItem(
+      context: context,
+      value: danbooruFetchMenuValue,
+      icon: Icons.cloud_download_outlined,
+      label: l10n.dictFetchAction,
     ),
   ];
 }
@@ -97,6 +109,13 @@ Future<bool> handleDanbooruTagMenuAction(
       return true;
     case danbooruTranslateMenuValue:
       await showTagDictionaryDialog(context, initialTag: tag);
+      return true;
+    case danbooruFetchMenuValue:
+      await showTagDictionaryDialog(
+        context,
+        initialTag: tag,
+        fetchOnOpen: true,
+      );
       return true;
   }
   return false;
