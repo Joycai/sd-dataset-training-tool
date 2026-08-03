@@ -2598,11 +2598,17 @@ abstract class AppLocalizations {
   /// **'Switched to \"{name}\" — the next message starts a new conversation, without the context above.'**
   String agentProfileSwitchedNotice(String name);
 
-  /// No description provided for @agentErrorNotice.
+  /// No description provided for @agentErrorTitle.
   ///
   /// In en, this message translates to:
-  /// **'Error: {message}'**
-  String agentErrorNotice(String message);
+  /// **'The request failed'**
+  String get agentErrorTitle;
+
+  /// No description provided for @agentRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get agentRetry;
 
   /// No description provided for @agentTurnLimitTitle.
   ///

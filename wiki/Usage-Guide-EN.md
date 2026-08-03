@@ -204,6 +204,10 @@ Settings let you cap how many tokens a single conversation can spend (500K / 1M 
 
 One request runs for at most 24 model turns. Working through a dataset one image at a time costs a turn per image, so long jobs reach that ceiling legitimately — instead of stopping there, the assistant asks whether to keep going. Choose **Continue** for another 24 turns, **Stop here** to end the request, or type a reply to continue with extra instructions (e.g. "skip the ones already done"), which the assistant reads before its next turn. It asks again at every ceiling, so an unattended loop can never run away; the token budget above still applies throughout.
 
+### When a Request Fails
+
+A timeout, an unreachable host or an error from the API ends the run with a card in the transcript: the title says the request failed, below it is the server's own message (selectable, so you can paste it into a bug report), and — when sending the same thing again could plausibly work — a **Try again** button. Retrying resumes the conversation rather than restarting it: a sweep that timed out on its fortieth image picks up at the fortieth, with every tool result it had already earned. The failed attempt stays in the transcript as a record; only the button goes. Failures that repeating cannot fix (the token budget, three tool errors in a row) get the same card without a button — those need a new instruction, not the same one again.
+
 ### Follows the Subdirectory Scope
 
 Switch to a subdirectory on the left and the assistant's visibility and edits narrow to that folder too, so it can't accidentally touch the rest of the dataset — it also reports in its results whether it ran against "the whole dataset" or just a subdirectory.

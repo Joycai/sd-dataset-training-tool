@@ -823,12 +823,8 @@
       "name": { "type": "String" }
     }
   },
-  "agentErrorNotice": "Error: {message}",
-  "@agentErrorNotice": {
-    "placeholders": {
-      "message": { "type": "String" }
-    }
-  },
+  "agentErrorTitle": "The request failed",
+  "agentRetry": "Try again",
   "agentTurnLimitTitle": "Keep going?",
   "agentTurnLimitBody": "The assistant has run {count} turns for this request — one per image when it works through a dataset one by one. Continue, or stop here?",
   "@agentTurnLimitBody": {

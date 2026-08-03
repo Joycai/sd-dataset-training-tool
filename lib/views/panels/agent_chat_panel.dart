@@ -165,8 +165,15 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
                   controller: _scroll,
                   padding: const EdgeInsets.fromLTRB(10, 10, 10, 4),
                   itemCount: chat.entries.length,
-                  itemBuilder: (context, index) =>
-                      _EntryRow(entry: chat.entries[index]),
+                  itemBuilder: (context, index) => _EntryRow(
+                    entry: chat.entries[index],
+                    // Only the failure at the end of the transcript can be
+                    // retried: anything above it has been overtaken by
+                    // whatever the conversation did next.
+                    onRetry: index == chat.entries.length - 1 && chat.canRetry
+                        ? chat.retry
+                        : null,
+                  ),
                 )
               : _NoProfileHint(),
         ),
@@ -655,9 +662,13 @@ class _NoProfileHint extends StatelessWidget {
 }
 
 class _EntryRow extends StatelessWidget {
-  const _EntryRow({required this.entry});
+  const _EntryRow({required this.entry, this.onRetry});
 
   final AgentChatEntry entry;
+
+  /// Non-null on a failed run the user can send again; the error card turns
+  /// it into a button.
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -694,6 +705,10 @@ class _EntryRow extends StatelessWidget {
       case AgentEntryKind.rules:
         return _RulesCard(rules: entry.rules!);
       case AgentEntryKind.notice:
+        // A failure is the one notice the user may have to act on, and its
+        // text is whatever the server said — a stack of it, sometimes. It
+        // gets a card of its own rather than a centered line of italics.
+        if (entry.isError) return _ErrorCard(entry: entry, onRetry: onRetry);
         final text = switch (entry.noticeType) {
           AgentNoticeType.cancelled => l10n.agentStoppedNotice,
           AgentNoticeType.reset => l10n.agentSessionResetNotice,
@@ -704,7 +719,7 @@ class _EntryRow extends StatelessWidget {
           AgentNoticeType.turnLimitContinued =>
             l10n.agentTurnLimitContinuedNotice(int.tryParse(entry.text) ?? 0),
           AgentNoticeType.turnLimitStopped => l10n.agentTurnLimitStoppedNotice,
-          AgentNoticeType.error || null => l10n.agentErrorNotice(entry.text),
+          AgentNoticeType.error || null => entry.text,
         };
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -714,11 +729,82 @@ class _EntryRow extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontStyle: FontStyle.italic,
-              color: entry.isError ? scheme.error : semantic.muted,
+              color: semantic.muted,
             ),
           ),
         );
     }
+  }
+}
+
+/// A run that ended in a failure: what went wrong, and — when sending the
+/// same request again could work — the button that does it.
+///
+/// The retry resumes the conversation rather than restarting it, so a sweep
+/// that timed out on its fortieth image does not redo the first thirty-nine.
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({required this.entry, this.onRetry});
+
+  final AgentChatEntry entry;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8, right: 12),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: scheme.error.withAlpha(16),
+        border: Border.all(color: scheme.error.withAlpha(90)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.error_outline, size: 14, color: scheme.error),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  l10n.agentErrorTitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: scheme.error,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // Selectable: an API error body is something the user pastes into a
+          // provider's support form or an issue.
+          SelectableText(
+            entry.text,
+            style: const TextStyle(fontSize: 12, height: 1.4),
+          ),
+          if (onRetry != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  textStyle: const TextStyle(fontSize: 11.5),
+                ),
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh, size: 14),
+                label: Text(l10n.agentRetry),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 
