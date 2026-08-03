@@ -379,6 +379,11 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
     ),
     handler: (args) async {
       final tag = requireString(args, 'tag');
+      final json = _jsonActiveType(
+        deps,
+        'Use edit_json_captions with remove: ["$tag"].',
+      );
+      if (json != null) return json;
       return _batchResult(
         await tagOps.deleteEverywhere(tag, label: 'AI: remove "$tag"'),
         scope: scopeLabel(deps.dataset),
@@ -408,6 +413,11 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
     handler: (args) async {
       final tag = requireString(args, 'tag');
       final replacement = requireString(args, 'replacement');
+      final json = _jsonActiveType(
+        deps,
+        'Use edit_json_captions with rename: {"$tag": "$replacement"}.',
+      );
+      if (json != null) return json;
       return _batchResult(
         await tagOps.replaceEverywhere(
           tag,
@@ -448,6 +458,15 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
       final anchor = requireString(args, 'anchor_tag');
       final tags = requireStringList(args, 'tags', maxLength: 50);
       final after = optBool(args, 'after', fallback: true);
+      // A JSON caption has no single tag sequence to anchor into: the tags
+      // sit in fields. Adding to the right field is the equivalent, and
+      // restructure_json_captions orders inside it.
+      final json = _jsonActiveType(
+        deps,
+        'Use edit_json_captions "add" to put the tags in the right field, '
+        'then restructure_json_captions "tag_priority" to order them.',
+      );
+      if (json != null) return json;
       return _batchResult(
         await tagOps.insertBeside(
           anchor,
@@ -502,6 +521,12 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
       final index = args['index'] == null
           ? null
           : optInt(args, 'index', fallback: 0, min: 0);
+      final json = _jsonActiveType(
+        deps,
+        'Use edit_json_captions "add", which names the field each tag goes '
+        'into instead of a position.',
+      );
+      if (json != null) return json;
       final files = filterDatasetFiles(
         deps.dataset,
         include: optStringList(args, 'include_tags'),
@@ -580,6 +605,12 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
       if (unlisted != null && unlisted != 'end' && unlisted != 'start') {
         return toolError('"unlisted" must be either "end" or "start"');
       }
+      final json = _jsonActiveType(
+        deps,
+        'Use restructure_json_captions "tag_priority", which orders the tags '
+        'inside each field.',
+      );
+      if (json != null) return json;
       final files = filterDatasetFiles(
         deps.dataset,
         include: optStringList(args, 'include_tags'),
@@ -848,6 +879,22 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
 /// [scope] travels with every success: the user can narrow the app to one
 /// subdirectory mid-conversation, and a model working from a stale overview
 /// would otherwise report a folder-wide sweep as a dataset-wide one.
+/// The refusal every tag-level batch tool owes a JSON active type.
+///
+/// [TagOps] already stops these rewrites — a flat tag list cannot be joined
+/// back into a document — but it stops them as a per-file failure with no way
+/// forward. Saying it up front, and naming the tool that does the same job on
+/// a JSON caption, is the difference between the model retrying the same call
+/// and the model getting the work done.
+AgentToolResult? _jsonActiveType(DatasetToolsDeps deps, String instead) {
+  if (deps.dataset.captionFormat != CaptionFormat.json) return null;
+  return toolError(
+    'nothing was written: the active caption type '
+    '("${deps.dataset.captionExtension}") is JSON, whose tags live inside a '
+    'document this tool cannot rebuild. $instead',
+  );
+}
+
 AgentToolResult _batchResult(
   BatchRewriteResult result, {
   required String scope,

@@ -46,6 +46,11 @@ List<AgentTool> buildJsonCaptionTools(DatasetToolsDeps deps, TagOps tagOps) => [
     spec: _restructureSpec,
     handler: guardBusy(tagOps, (args) => _restructure(deps, tagOps, args)),
   ),
+  AgentTool(
+    isWrite: true,
+    spec: _editSpec,
+    handler: guardBusy(tagOps, (args) => _edit(deps, tagOps, args)),
+  ),
 ];
 
 // --- inspect_json_captions ----------------------------------------------
@@ -361,6 +366,505 @@ const AgentToolSpec _restructureSpec = AgentToolSpec(
     'required': ['extension', 'fields', 'unassigned_field'],
   },
 );
+
+// --- edit_json_captions --------------------------------------------------
+
+const AgentToolSpec _editSpec = AgentToolSpec(
+  name: 'edit_json_captions',
+  description:
+      'Add, remove and rename TAGS inside MANY JSON captions in one call — '
+      'the tool for "delete this tag everywhere", "rename this tag", "give '
+      'every image this tag" when the caption type is JSON. The tag-level '
+      'batch tools (remove_tag_everywhere, add_tags_everywhere, …) refuse a '
+      'JSON caption because they would flatten the document into a comma '
+      'line; this one edits the tags in place and leaves the document\'s '
+      'shape — its keys, their order, and every value no rule touches — '
+      'exactly as it was. Never loop write_caption_file over a dataset to '
+      'do this. Rules are dataset-wide and matching folds case and '
+      'underscore/space style, so "long_hair" and "Long Hair" are the same '
+      'tag. The result reports every tag added, removed and renamed with '
+      'how many captions it came out of, so the edit can be audited from '
+      'one answer. Use restructure_json_captions instead to move tags '
+      'between fields, reorder or rename FIELDS, or write a fixed value '
+      'into one. Rewrites the type in place, the active one included. '
+      'Undoable as one operation.',
+  parametersSchema: {
+    'type': 'object',
+    'properties': {
+      'extension': {
+        'type': 'string',
+        'description':
+            'the caption type to edit; its configured format must be JSON '
+            '(e.g. ".json")',
+      },
+      'add': {
+        'type': 'object',
+        'description':
+            'field name → tags to append to that field, e.g. '
+            '{"appearance": ["blonde hair"], "tags": ["solo"]}. A tag the '
+            'field already carries is not duplicated. Only top-level ARRAY '
+            'fields take additions: a document that holds something else '
+            'under that name is reported instead of written, and a document '
+            'missing the key gets it created as an array at the end. Use '
+            'restructure_json_captions constants to set a scalar field.',
+      },
+      'remove': {
+        'type': 'array',
+        'items': {'type': 'string'},
+        'description':
+            'tags to delete wherever they occur in the document; a string '
+            'field that held nothing else is left as "", never deleted',
+      },
+      'rename': {
+        'type': 'object',
+        'description':
+            'tag → replacement tag, applied wherever the tag occurs. A '
+            'rename that lands on a tag the same field already carries '
+            'merges into it instead of duplicating. Renaming to a different '
+            'spelling of the same tag ("long_hair" → "long hair") is a '
+            'legitimate respelling. Use remove to delete a tag, not a '
+            'rename to an empty string.',
+      },
+      'skip_fields': {
+        'type': 'array',
+        'items': {'type': 'string'},
+        'description':
+            'key names left completely untouched wherever they occur — use '
+            'it for fields that hold prose rather than tags (e.g. "nl"), '
+            'whose sentences would otherwise be read with the tag grammar',
+      },
+      'include_tags': {
+        'type': 'array',
+        'items': {'type': 'string'},
+      },
+      'exclude_tags': {
+        'type': 'array',
+        'items': {'type': 'string'},
+      },
+      'name_query': {'type': 'string'},
+    },
+    'required': ['extension'],
+  },
+);
+
+/// The validated dataset-wide edit: which tags go, which get another
+/// spelling, which arrive, and what is off limits.
+class _EditRules {
+  _EditRules({
+    required this.remove,
+    required this.rename,
+    required this.add,
+    required this.skipFields,
+  });
+
+  /// Folded tags to delete.
+  final Set<String> remove;
+
+  /// Folded tag → its replacement, spelled as the caller wrote it.
+  final Map<String, String> rename;
+
+  /// Top-level array field → the tags appended to it, in order.
+  final Map<String, List<String>> add;
+
+  /// Key names skipped wherever they occur — the same "invisible subtree"
+  /// rule [jsonCaptionTags] reads with.
+  final Set<String> skipFields;
+
+  bool get isEmpty => remove.isEmpty && rename.isEmpty && add.isEmpty;
+}
+
+typedef _RulesResult = ({AgentToolResult? error, _EditRules? rules});
+
+_RulesResult _buildEditRules(Map<String, dynamic> args) {
+  _RulesResult fail(String message) => (error: toolError(message), rules: null);
+
+  final skipFields = optStringList(args, 'skip_fields').toSet();
+
+  final remove = <String, String>{};
+  for (final tag in optStringList(args, 'remove')) {
+    if (tag.trim().isEmpty) return fail('"remove" holds an empty tag');
+    remove[tagLookupKey(tag)] = tag;
+  }
+
+  final rawRename = args['rename'] ?? const <String, dynamic>{};
+  if (rawRename is! Map) {
+    return fail('"rename" must be an object mapping tags to their replacement');
+  }
+  final rename = <String, String>{};
+  for (final entry in rawRename.entries) {
+    final from = entry.key;
+    final to = entry.value;
+    if (from is! String || to is! String) {
+      return fail('"rename" must map tag strings to tag strings');
+    }
+    if (from.trim().isEmpty || to.trim().isEmpty) {
+      return fail('"rename" holds an empty tag; use "remove" to delete one');
+    }
+    final key = tagLookupKey(from);
+    // A tag that is both removed and renamed has no defined outcome, and
+    // guessing one would quietly do half of what was asked.
+    if (remove.containsKey(key)) {
+      return fail('"$from" is in both "remove" and "rename" — pick one');
+    }
+    final previous = rename[key];
+    if (previous != null && previous != to) {
+      return fail('rename: "$from" is renamed to both "$previous" and "$to"');
+    }
+    // JSON captions carry plain parentheses; the backslashes are plain-text
+    // caption syntax and would be written into the document verbatim.
+    rename[key] = unescapeTagParens(to);
+  }
+
+  final rawAdd = args['add'] ?? const <String, dynamic>{};
+  if (rawAdd is! Map) {
+    return fail('"add" must be an object mapping field names to tag arrays');
+  }
+  final add = <String, List<String>>{};
+  for (final entry in rawAdd.entries) {
+    final field = entry.key;
+    if (field is! String || field.trim().isEmpty) {
+      return fail('"add" needs a non-empty field name');
+    }
+    if (skipFields.contains(field)) {
+      return fail('add: "$field" is also in skip_fields — pick one');
+    }
+    final value = entry.value;
+    final tags = value is String ? [value] : value;
+    if (tags is! List || tags.any((e) => e is! String)) {
+      return fail('add: "$field" must map to an array of tags');
+    }
+    final seen = <String>{};
+    final list = <String>[];
+    for (final tag in tags.cast<String>()) {
+      if (tag.trim().isEmpty) return fail('add: "$field" holds an empty tag');
+      final key = tagLookupKey(tag);
+      if (remove.containsKey(key) || rename.containsKey(key)) {
+        return fail(
+          'add: "$tag" is also named in "remove" or "rename" — the two rules '
+          'would fight over it',
+        );
+      }
+      if (seen.add(key)) list.add(unescapeTagParens(tag));
+    }
+    if (list.isEmpty) return fail('add: "$field" has no tags');
+    add[field] = list;
+  }
+
+  return (
+    error: null,
+    rules: _EditRules(
+      remove: remove.keys.toSet(),
+      rename: rename,
+      add: add,
+      skipFields: skipFields,
+    ),
+  );
+}
+
+typedef _EditResult = ({String? error, dynamic document});
+
+/// Applies the rules to one decoded document.
+///
+/// The document is rewritten node by node rather than reassembled from a
+/// declared shape: every key keeps its place and every value no rule matches
+/// comes out byte-identical, which is what makes this safe to run over a
+/// dataset whose JSON layout the model has never seen in full.
+_EditResult _editDocument(
+  _EditRules rules,
+  dynamic decoded, {
+  required void Function(String tag) onRemoved,
+  required void Function(String tag) onRenamed,
+  required void Function(String field, String tag) onAdded,
+  required void Function(String field) onFieldCreated,
+}) {
+  String editText(String text) {
+    if (rules.remove.isEmpty && rules.rename.isEmpty) return text;
+    final tags = parseTagText(text);
+    if (tags.isEmpty) return text;
+    var touched = false;
+    final kept = <String>[];
+    for (final tag in tags) {
+      final key = tagLookupKey(tag);
+      if (rules.remove.contains(key)) {
+        onRemoved(tag);
+        touched = true;
+        continue;
+      }
+      final replacement = rules.rename[key];
+      if (replacement != null && replacement != tag) {
+        onRenamed(tag);
+        touched = true;
+        kept.add(replacement);
+        continue;
+      }
+      kept.add(tag);
+    }
+    // A leaf no rule matched is returned as it was read. Prose that happens
+    // to sit in a tag field must not be re-joined into tag grammar just
+    // because the walk passed over it.
+    return touched ? kept.join(', ') : text;
+  }
+
+  dynamic walk(dynamic node) {
+    if (node is String) return editText(node);
+    if (node is List) {
+      final out = <dynamic>[];
+      final seen = <String>{};
+      for (final element in node) {
+        final edited = walk(element);
+        if (element is String && edited is String) {
+          // Only a rule can empty a leaf; an element that arrived empty
+          // stays, so the tool never quietly compacts what it was not asked
+          // to touch.
+          if (edited.trim().isEmpty) {
+            if (element.trim().isNotEmpty) continue;
+          } else if (!seen.add(tagLookupKey(edited)) && edited != element) {
+            // A rename landed on a tag this array already carries: merge
+            // into it rather than write the tag twice. A duplicate that was
+            // already in the file is left alone.
+            continue;
+          }
+        }
+        out.add(edited);
+      }
+      return out;
+    }
+    if (node is Map) {
+      final out = <String, dynamic>{};
+      node.forEach((key, value) {
+        final name = '$key';
+        out[name] = rules.skipFields.contains(name) ? value : walk(value);
+      });
+      return out;
+    }
+    return node;
+  }
+
+  final edited = walk(decoded);
+  if (rules.add.isEmpty) return (error: null, document: edited);
+  if (edited is! Map<String, dynamic>) {
+    return (
+      error:
+          'skipped, "add" needs an object document and this one is a '
+          '${edited is List ? 'array' : 'scalar'}',
+      document: null,
+    );
+  }
+  for (final entry in rules.add.entries) {
+    final field = entry.key;
+    if (!edited.containsKey(field)) {
+      edited[field] = [...entry.value];
+      onFieldCreated(field);
+      for (final tag in entry.value) {
+        onAdded(field, tag);
+      }
+      continue;
+    }
+    final current = edited[field];
+    // Appending into a scalar is almost always a mis-aimed rule, and turning
+    // "1girl" into a list behind the caller's back would be worse than
+    // saying so.
+    if (current is! List) {
+      return (
+        error:
+            'skipped, the field "$field" holds '
+            '${current is String ? 'a string' : 'a ${current.runtimeType}'}, '
+            'not an array — only array fields take "add"',
+        document: null,
+      );
+    }
+    final seen = <String>{
+      for (final element in current)
+        if (element is String)
+          for (final tag in parseTagText(element)) tagLookupKey(tag),
+    };
+    for (final tag in entry.value) {
+      if (!seen.add(tagLookupKey(tag))) continue;
+      current.add(tag);
+      onAdded(field, tag);
+    }
+  }
+  return (error: null, document: edited);
+}
+
+Future<AgentToolResult> _edit(
+  DatasetToolsDeps deps,
+  TagOps tagOps,
+  Map<String, dynamic> args,
+) async {
+  final root = deps.rootDir();
+  if (root == null) return toolError('no dataset directory is open');
+  final d = deps.dataset;
+  final types = deps.captionTypes();
+  final requested = requireString(args, 'extension');
+  final type = findCaptionType(types, requested);
+  if (type == null) return toolError(unknownCaptionType(requested, types));
+  if (type.format != CaptionFormat.json) {
+    return toolError(
+      'the caption type "${type.extension}" is configured as '
+      '${type.format.name}, not JSON — for a tag-list type use the tag tools '
+      '(remove_tag_everywhere, add_tags_everywhere, replace_tag_everywhere) '
+      'or convert_captions_to_tags',
+    );
+  }
+
+  // The rules are validated in full before anything touches the disk: a
+  // contradictory rule must fail the whole call, never image #57 of a sweep.
+  final built = _buildEditRules(args);
+  if (built.error != null) return built.error!;
+  final rules = built.rules!;
+  if (rules.isEmpty) {
+    return toolError(
+      'nothing to do: give at least one of "add", "remove" or "rename"',
+    );
+  }
+
+  final files = filterDatasetFiles(
+    d,
+    include: optStringList(args, 'include_tags'),
+    exclude: optStringList(args, 'exclude_tags'),
+    untaggedOnly: false,
+    nameQuery: optString(args, 'name_query')?.toLowerCase(),
+  );
+
+  const encoder = JsonEncoder.withIndent('  ');
+  var written = 0;
+  var unchanged = 0;
+  var skippedNoCaption = 0;
+  var fieldsCreated = 0;
+  final failures = <({String path, String error})>[];
+  final removed = <String, int>{};
+  final renamed = <String, int>{};
+  final added = <String, int>{};
+  final edits = <CaptionEdit>[];
+
+  for (final f in files) {
+    final rel = p.relative(f.path, from: root);
+    final file = File(captionVariantPath(f.path, type));
+    String before;
+    try {
+      if (!await file.exists()) {
+        skippedNoCaption++;
+        continue;
+      }
+      before = await file.readAsString();
+    } catch (e) {
+      failures.add((path: rel, error: 'cannot read: $e'));
+      continue;
+    }
+    if (before.trim().isEmpty) {
+      skippedNoCaption++;
+      continue;
+    }
+    dynamic decoded;
+    try {
+      decoded = jsonDecode(before);
+    } on FormatException catch (e) {
+      failures.add((path: rel, error: 'not valid JSON — ${e.message}'));
+      continue;
+    }
+
+    // Counted per caption, not per occurrence, and only once the write
+    // lands: a rule that fired into a document this image then failed on
+    // must not show up as work done.
+    final removedHere = <String>{};
+    final renamedHere = <String>{};
+    final addedHere = <String>{};
+    var createdHere = 0;
+    final result = _editDocument(
+      rules,
+      decoded,
+      onRemoved: removedHere.add,
+      onRenamed: renamedHere.add,
+      onAdded: (field, tag) => addedHere.add('$field: $tag'),
+      onFieldCreated: (_) => createdHere++,
+    );
+    if (result.error != null) {
+      failures.add((path: rel, error: result.error!));
+      continue;
+    }
+
+    final text = encoder.convert(result.document);
+    if (text == before) {
+      unchanged++;
+      continue;
+    }
+    try {
+      await file.writeAsString(text);
+    } catch (e) {
+      failures.add((path: rel, error: 'cannot write: $e'));
+      continue;
+    }
+    written++;
+    for (final tag in removedHere) {
+      removed[tag] = (removed[tag] ?? 0) + 1;
+    }
+    for (final tag in renamedHere) {
+      renamed[tag] = (renamed[tag] ?? 0) + 1;
+    }
+    for (final entry in addedHere) {
+      added[entry] = (added[entry] ?? 0) + 1;
+    }
+    fieldsCreated += createdHere;
+    edits.add(
+      CaptionEdit(
+        imagePath: f.path,
+        captionPath: file.path,
+        before: before,
+        after: text,
+      ),
+    );
+  }
+
+  if (edits.isNotEmpty) {
+    tagOps.pushOperation(
+      TagOperation(
+        label: 'AI: edit ${edits.length} ${type.extension} captions',
+        edits: edits,
+      ),
+      // The type may well be the active one — the gallery and the tag index
+      // have to follow the edit rather than keep the old documents.
+      syncActiveCaptions: true,
+    );
+  }
+
+  if (written == 0 && failures.isNotEmpty) {
+    return toolError(
+      'nothing was written: ${failures.length} image(s) failed — '
+      '${failures.take(_failureSample).map((f) => '${f.path}: ${f.error}').join('; ')}'
+      '${failures.length > _failureSample ? '; …' : ''}',
+    );
+  }
+  return toolOk({
+    'scope': scopeLabel(d),
+    'extension': type.extension,
+    'written': written,
+    'unchanged': unchanged,
+    'skipped_without_caption': skippedNoCaption,
+    // Keyed by the tag as it was spelled in the document, so a rule that
+    // never fired is visible by its absence — it probably names a tag the
+    // dataset does not carry, or one that sits in a skipped field.
+    'added_tags': _topCounts(added),
+    'removed_tags': _topCounts(removed),
+    'renamed_tags': _topCounts(renamed),
+    if (fieldsCreated > 0) 'fields_created': fieldsCreated,
+    if (failures.isNotEmpty) ...{
+      'failed_images': failures.length,
+      'failures': [
+        for (final f in failures.take(_failureSample))
+          {'path': f.path, 'error': f.error},
+      ],
+      'failures_truncated': failures.length > _failureSample,
+    },
+  });
+}
+
+/// The busiest rules first, capped: an audit trail, not a full index.
+Map<String, int> _topCounts(Map<String, int> counts, {int limit = 60}) {
+  final entries = counts.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  return {for (final e in entries.take(limit)) e.key: e.value};
+}
 
 /// The validated target shape: which fields exist, in what order, what each
 /// one is, and where its content comes from.

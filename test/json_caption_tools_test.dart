@@ -407,7 +407,163 @@ void main() {
     });
   });
 
+  group('edit_json_captions', () {
+    test('adds, removes and renames tags while the shape stays put', () async {
+      final out = await call('edit_json_captions', {
+        'extension': '.json',
+        'remove': ['masterpiece'],
+        'rename': {'1girl': '1boy'},
+        'add': {
+          'tags': ['solo'],
+        },
+      });
+      expect(out['written'], 2);
+      expect(out['skipped_without_caption'], 1);
+      // Counted per caption: "masterpiece" is only in 001.
+      expect(out['removed_tags'], {'masterpiece': 1});
+      expect(out['renamed_tags'], {'1girl': 2});
+      expect(out['added_tags'], {'tags: solo': 2});
+
+      final one = jsonDecode(await readCap('001')) as Map<String, dynamic>;
+      expect(one.keys.toList(), ['chara', 'quality', 'tags', 'nl']);
+      expect(one['quality'], ['best quality']);
+      expect(one['tags'], ['1boy', 'smile', 'long hair', 'solo']);
+      // No rule matched the prose leaf, so it comes out byte-identical
+      // rather than re-joined through the tag grammar.
+      expect(one['nl'], 'A girl smiling at the camera.');
+      expect(jsonDecode(await readCap('002'))['tags'], [
+        '1boy',
+        'blonde hair',
+        'solo',
+      ]);
+
+      // The active type was rewritten in place: the index has to follow.
+      expect(dataset.tagsOf(img('001')), contains('1boy'));
+      expect(dataset.tagsOf(img('001')), isNot(contains('1girl')));
+      expect(dataset.tagsOf(img('001')), isNot(contains('masterpiece')));
+
+      expect(tagOps.undoLabel, startsWith('AI: edit'));
+      final undo = await tagOps.undo();
+      expect(undo.failed, 0);
+      expect(jsonDecode(await readCap('001'))['tags'], [
+        '1girl',
+        'smile',
+        'long hair',
+      ]);
+      expect(dataset.tagsOf(img('001')), contains('1girl'));
+    });
+
+    test('a rename onto a tag the field already has merges into it', () async {
+      final out = await call('edit_json_captions', {
+        'extension': '.json',
+        'rename': {'long hair': 'smile'},
+      });
+      expect(out['written'], 1);
+      expect(jsonDecode(await readCap('001'))['tags'], ['1girl', 'smile']);
+    });
+
+    test('a missing add target is created, a non-array one is reported',
+        () async {
+      final created = await call('edit_json_captions', {
+        'extension': '.json',
+        'add': {
+          'environment': ['outdoors'],
+        },
+      });
+      expect(created['written'], 2);
+      expect(created['fields_created'], 2);
+      final one = jsonDecode(await readCap('001')) as Map<String, dynamic>;
+      expect(one.keys.toList(), ['chara', 'quality', 'tags', 'nl', 'environment']);
+      expect(one['environment'], ['outdoors']);
+
+      final scalar = await call('edit_json_captions', {
+        'extension': '.json',
+        'add': {
+          'nl': ['outdoors'],
+        },
+      });
+      expect(scalar['error'], contains('not an array'));
+      expect(jsonDecode(await readCap('001'))['nl'], isA<String>());
+    });
+
+    test('skip_fields keeps a prose field out of the tag grammar', () async {
+      final hit = await call('edit_json_captions', {
+        'extension': '.json',
+        'remove': ['A blonde girl.'],
+      });
+      expect(hit['written'], 1);
+      expect(jsonDecode(await readCap('002'))['nl'], '');
+      await tagOps.undo();
+
+      final skipped = await call('edit_json_captions', {
+        'extension': '.json',
+        'remove': ['A blonde girl.'],
+        'skip_fields': ['nl'],
+      });
+      expect(skipped['written'], 0);
+      expect(jsonDecode(await readCap('002'))['nl'], 'A blonde girl.');
+    });
+
+    test('contradictory rules fail the call before anything is written',
+        () async {
+      final both = await call('edit_json_captions', {
+        'extension': '.json',
+        'remove': ['1girl'],
+        'rename': {'1girl': '1boy'},
+      });
+      expect(both['error'], contains('pick one'));
+
+      final fighting = await call('edit_json_captions', {
+        'extension': '.json',
+        'remove': ['solo'],
+        'add': {
+          'tags': ['solo'],
+        },
+      });
+      expect(fighting['error'], contains('fight over it'));
+
+      final nothing = await call('edit_json_captions', {'extension': '.json'});
+      expect(nothing['error'], contains('nothing to do'));
+
+      final tagList = await call('edit_json_captions', {
+        'extension': '.txt',
+        'remove': ['1girl'],
+      });
+      expect(tagList['error'], contains('remove_tag_everywhere'));
+
+      expect(jsonDecode(await readCap('001'))['tags'], [
+        '1girl',
+        'smile',
+        'long hair',
+      ]);
+    });
+  });
+
   group('JSON guards on the tag tools', () {
+    test('the tag sweeps name the tool that can do the job', () async {
+      final removed = await call('remove_tag_everywhere', {'tag': '1girl'});
+      expect(removed['error'], contains('edit_json_captions'));
+      final replaced = await call('replace_tag_everywhere', {
+        'tag': '1girl',
+        'replacement': '1boy',
+      });
+      expect(replaced['error'], contains('edit_json_captions'));
+      final added = await call('add_tags_everywhere', {
+        'tags': ['solo'],
+      });
+      expect(added['error'], contains('edit_json_captions'));
+      final sorted = await call('sort_captions_everywhere', {
+        'priority': ['1girl'],
+      });
+      expect(sorted['error'], contains('restructure_json_captions'));
+      // Every one of them refused before writing: the documents are intact.
+      expect(jsonDecode(await readCap('001'))['tags'], [
+        '1girl',
+        'smile',
+        'long hair',
+      ]);
+    });
+
     test('reorder_caption refuses a JSON active type', () async {
       final out = await call('reorder_caption', {
         'path': '001.png',
