@@ -573,5 +573,23 @@ void main() {
       expect(constantTarget.text, contains('constant'));
       expect(File(cap('001', '.json')).existsSync(), isFalse);
     });
+
+    test('an undeclared constant is dropped and reported, not fatal', () async {
+      final out = await call('convert_captions_to_json', {
+        ...animaArgs,
+        'constants': {
+          'quality': [''],
+          'artist': '',
+          'nl': '',
+          'reason': 'because',
+        },
+      });
+      expect(out['written'], 2);
+      expect(out['ignored_constants'], ['reason']);
+      final decoded =
+          jsonDecode(await File(cap('001', '.json')).readAsString()) as Map;
+      expect(decoded.containsKey('reason'), isFalse);
+      expect(decoded['quality'], ['']);
+    });
   });
 }

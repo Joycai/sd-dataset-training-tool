@@ -325,7 +325,9 @@ const AgentToolSpec _restructureSpec = AgentToolSpec(
         'description':
             'field name → fixed JSON value written verbatim into every '
             'document (e.g. {"artist": ""}); such a field takes no tags '
-            'and is excluded from the lossless check.',
+            'and is excluded from the lossless check. Only names declared '
+            'in "fields" belong here — any other key is dropped and listed '
+            'back as ignored_constants.',
       },
       'unassigned_field': {
         'type': 'string',
@@ -376,6 +378,7 @@ class _Shape {
     required this.priorityRank,
     required this.priorityLength,
     required this.dropEmpty,
+    required this.ignoredConstants,
   }) : preservedKeys = preserveSource.values.toSet(),
        untaggedFields = {...constants.keys, ...preserveSource.keys};
 
@@ -396,6 +399,9 @@ class _Shape {
   final Map<String, int> priorityRank;
   final int priorityLength;
   final bool dropEmpty;
+
+  /// "constants" keys that name no declared field; dropped, not fatal.
+  final List<String> ignoredConstants;
 
   /// The old keys whose values are copied verbatim; excluded from the tag
   /// comparison on the source side.
@@ -568,6 +574,7 @@ Future<AgentToolResult> _restructure(
       ],
       'failures_truncated': failures.length > _failureSample,
     },
+    if (s.ignoredConstants.isNotEmpty) 'ignored_constants': s.ignoredConstants,
     'unrouted_keys_seen': unroutedKeys.toList(),
     'unassigned_tags_seen': unassignedList.take(_maxUnassignedSample).toList(),
     if (unassignedList.length > _maxUnassignedSample)
@@ -612,10 +619,15 @@ _ShapeResult _buildShape(Map<String, dynamic> args) {
     return fail('"constants" must be an object mapping field names to values');
   }
   final constants = <String, dynamic>{};
+  // Same tolerance as convert_captions_to_json: an undeclared key is the
+  // model annotating a free-form object, and it must not cost the caller the
+  // whole declaration. Dropped, then reported as "ignored_constants".
+  final ignoredConstants = <String>[];
   for (final entry in rawConstants.entries) {
     final name = entry.key;
     if (name is! String || !kinds.containsKey(name)) {
-      return fail('constant "$name" is not a declared field');
+      ignoredConstants.add('${entry.key}');
+      continue;
     }
     if (kinds[name] == 'preserve') {
       return fail(
@@ -757,6 +769,7 @@ _ShapeResult _buildShape(Map<String, dynamic> args) {
       priorityRank: rank,
       priorityLength: priority.length,
       dropEmpty: optBool(args, 'drop_empty'),
+      ignoredConstants: ignoredConstants,
     ),
   );
 }
