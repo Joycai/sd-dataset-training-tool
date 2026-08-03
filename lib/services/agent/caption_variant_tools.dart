@@ -488,7 +488,9 @@ List<AgentTool> buildCaptionVariantTools(
             'description':
                 'field name → fixed JSON value written verbatim for '
                 'every image (e.g. {"quality": [""], "artist": "", '
-                '"nl": ""}); such a field takes no tags',
+                '"nl": ""}); such a field takes no tags. Only names '
+                'declared in "fields" belong here — any other key is '
+                'dropped and listed back as ignored_constants.',
           },
           'assign': {
             'type': 'object',
@@ -607,10 +609,18 @@ List<AgentTool> buildCaptionVariantTools(
         );
       }
       final constants = <String, dynamic>{};
+      // A free-form object invites the model to slip in a key that explains
+      // itself ("reason", "note"). Failing the call over one would throw away
+      // an assignment covering the dataset's whole tag vocabulary, so an
+      // undeclared key is dropped and reported instead: a mistyped field name
+      // then surfaces as an empty field plus "ignored_constants", not as a
+      // lost sweep the model has to re-emit in full.
+      final ignoredConstants = <String>[];
       for (final entry in rawConstants.entries) {
         final name = entry.key;
         if (name is! String || !fieldKinds.containsKey(name)) {
-          return toolError('constant "$name" is not a declared field');
+          ignoredConstants.add('${entry.key}');
+          continue;
         }
         constants[name] = entry.value;
       }
@@ -872,6 +882,7 @@ List<AgentTool> buildCaptionVariantTools(
           ],
           'failures_truncated': failures.length > sample,
         },
+        if (ignoredConstants.isNotEmpty) 'ignored_constants': ignoredConstants,
         'unassigned_tags_seen': unassignedList.take(unassignedSample).toList(),
         if (unassignedList.length > unassignedSample)
           'unassigned_tags_truncated': true,
