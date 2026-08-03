@@ -299,6 +299,8 @@ String buildAgentSystemPrompt({
   String? captionTypesSummary,
   bool jsonToolsEnabled = false,
   bool visionEnabled = false,
+  bool libraryToolsEnabled = true,
+  bool translationToolsEnabled = true,
 }) {
   final captionTypesGuideline = captionTypesSummary == null
       ? ''
@@ -349,6 +351,38 @@ String buildAgentSystemPrompt({
             'reorder_caption cannot touch a JSON caption at all — they have '
             'no document\n  to write back.'
       : '';
+  // The optional tool packs describe themselves only when they are actually
+  // registered: telling the model about organize_tag_library when it has no
+  // such tool buys nothing but a refusal it has to discover the hard way.
+  final libraryGuideline = libraryToolsEnabled
+      ? '\n- The tag library is the user\'s own curated tag set, shown as '
+            'named colored\n  groups in the app\'s library panel — it is not '
+            'the dataset. Read it with\n  get_tag_library and change it with '
+            'organize_tag_library (file tags into\n  groups), '
+            'add_library_tags, update_tag_group (rename / recolor a group),\n'
+            '  reorder_tag_groups and delete_tag_group. When\n  asked to tidy '
+            'or categorize the library, send the whole plan as ONE\n  '
+            'organize_tag_library call carrying every group with its tags, up '
+            'to\n  $maxAssignmentsPerCall groups and $maxLibraryTagsPerCall '
+            'tags per group;\n  never one call per tag. Reuse the group names '
+            'that already exist and keep\n  the number of new ones small. '
+            'None of this touches a caption file, so a\n  library change '
+            'never alters the dataset — and none of it is covered by\n  undo, '
+            'which is why remove_library_tags and delete_tag_group are '
+            'confirmation-gated.'
+      : '';
+  final glossaryGuideline = translationToolsEnabled
+      ? '\n- The tag glossary is display-only: translations are shown beside '
+            'tags in\n  the app\'s UI and never written into a caption. There '
+            'is one glossary per\n  app language and the tools report which '
+            'is active, so translate into that\n  language. Find the work '
+            'with list_tag_translations (dataset tags, busiest\n  first) and '
+            'write it back in batches of up to $maxTranslationEntries with\n  '
+            'write_tag_translations — never one call per tag. For characters,'
+            '\n  copyrights and artists call fetch_danbooru_tag first and take '
+            'the name\n  from other_names: those are proper names you must '
+            'not invent. Ordinary\n  descriptive tags need no lookup.'
+      : '';
   final visionGuideline = visionEnabled
       ? '\n- view_image lets you actually see images (max 4 per call, '
             'downscaled).\n  It is token-expensive: spot-check individual '
@@ -389,32 +423,10 @@ Guidelines:
 - When the user asks for changes, describe your plan briefly before acting,
   and report exact numbers (images affected) afterwards.
 - Every write to a caption file can be undone by the user (Ctrl+Z), and may
-  require their confirmation first. Tag-library changes are not covered by
-  undo — remove_library_tags and delete_tag_group say so themselves and are
-  confirmation-gated because of it.
+  require their confirmation first.
 - run_wd_tagger produces booru-style tags for images via the local tagger
   server. Results are returned to you, not written to disk — filter them,
-  then apply with the write tools.
-- The tag library is the user's own curated tag set, shown as named colored
-  groups in the app's library panel — it is not the dataset. Read it with
-  get_tag_library and change it with organize_tag_library (file tags into
-  groups), add_library_tags, update_tag_group (rename / recolor a group),
-  reorder_tag_groups and delete_tag_group. When
-  asked to tidy or categorize the library, send the whole plan as ONE
-  organize_tag_library call carrying every group with its tags, up to
-  $maxAssignmentsPerCall groups and $maxLibraryTagsPerCall tags per group;
-  never one call per tag. Reuse the group names that already exist and keep
-  the number of new ones small. None of this touches a caption file, so a
-  library change never alters the dataset.
-- The tag glossary is display-only: translations are shown beside tags in
-  the app's UI and never written into a caption. There is one glossary per
-  app language and the tools report which is active, so translate into that
-  language. Find the work with list_tag_translations (dataset tags, busiest
-  first) and write it back in batches of up to $maxTranslationEntries with
-  write_tag_translations — never one call per tag. For characters,
-  copyrights and artists call fetch_danbooru_tag first and take the name
-  from other_names: those are proper names you must not invent. Ordinary
-  descriptive tags need no lookup.$captionTypesGuideline$jsonGuideline$visionGuideline
+  then apply with the write tools.$libraryGuideline$glossaryGuideline$captionTypesGuideline$jsonGuideline$visionGuideline
 - When you need the user to make a decision mid-task, call the ask_user
   tool with short concrete options instead of ending your reply with an
   open question — that keeps the task running once they answer.

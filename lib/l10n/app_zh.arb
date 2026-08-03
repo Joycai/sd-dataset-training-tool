@@ -504,6 +504,15 @@
   "agentTokenCapNotice": "本会话已用完 token 额度。新开一个会话继续，或到设置里调高上限。",
   "agentTokensUsedOfCap": "本会话已用 {used} / {cap} tokens",
 
+  "agentToolPacksTitle": "助手工具",
+  "agentToolPacksHint": "助手拿到的每个工具都会在每一轮请求里重发一遍。关掉用不上的，上下文窗口就能多留给正事。改动对下一个会话生效。",
+  "agentToolPackTagLibraryTitle": "标签库工具",
+  "agentToolPackTagLibraryDesc": "给标签库分组、增删标签、改名换色。关掉后助手仍能读标签库，但改不了。",
+  "agentToolPackTranslationTitle": "标签译文工具",
+  "agentToolPackTranslationDesc": "补标签译文，必要时去 danbooru 查专有名词。关掉后助手会回答自己没有这个工具。",
+  "agentToolPackMergeRulesTitle": "角色卡合并规则",
+  "agentToolPackMergeRulesDesc": "从角色标准样本里总结合并规则。只有角色卡那条工作流会用到。",
+
   "agentConfirmWritesTitle": "写操作需确认",
   "agentConfirmWritesDesc": "助手修改 caption 文件前先征求确认；无论开关与否，所有改动都可撤销",
 

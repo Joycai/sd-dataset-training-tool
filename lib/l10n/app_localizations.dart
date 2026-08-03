@@ -2706,6 +2706,54 @@ abstract class AppLocalizations {
   /// **'{used} / {cap} tokens used this conversation'**
   String agentTokensUsedOfCap(int used, int cap);
 
+  /// No description provided for @agentToolPacksTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant tools'**
+  String get agentToolPacksTitle;
+
+  /// No description provided for @agentToolPacksHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Every tool the assistant is given is re-sent on each turn. Switching off the ones you never ask for leaves more of the context window for the actual work. Changes apply to the next conversation.'**
+  String get agentToolPacksHint;
+
+  /// No description provided for @agentToolPackTagLibraryTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag library tools'**
+  String get agentToolPackTagLibraryTitle;
+
+  /// No description provided for @agentToolPackTagLibraryDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'File, add, remove and recolor tag library groups. Switched off, the assistant can still read the library but not change it.'**
+  String get agentToolPackTagLibraryDesc;
+
+  /// No description provided for @agentToolPackTranslationTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tag translation tools'**
+  String get agentToolPackTranslationTitle;
+
+  /// No description provided for @agentToolPackTranslationDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in the tag glossary, looking proper names up on danbooru. Switched off, the assistant will say it has no such tool.'**
+  String get agentToolPackTranslationDesc;
+
+  /// No description provided for @agentToolPackMergeRulesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Character sheet rules'**
+  String get agentToolPackMergeRulesTitle;
+
+  /// No description provided for @agentToolPackMergeRulesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Propose merge rules from a character\'s reference images. Only the character sheet workflow uses this.'**
+  String get agentToolPackMergeRulesDesc;
+
   /// No description provided for @agentConfirmWritesTitle.
   ///
   /// In en, this message translates to:

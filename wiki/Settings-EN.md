@@ -48,6 +48,7 @@ Click the **settings icon** in the top-right corner of the main interface to acc
   - **Session token budget**: how many tokens a single conversation can spend — 500K / 1M / 2M / 5M, or 0 for unlimited (default 1M). Every turn resends the full history, so batch work burns through it fast; once hit, start a new conversation. Changing this only affects the *next* session you start.
   - **Whether write tools require confirmation**: on by default (each write is confirmed individually), can be switched to auto-approve everything.
   - **Prompt preset management**: add, edit, or remove the saved prompts available from the panel's bookmark-icon menu.
+  - **Assistant tools**: switches for three optional tool groups — **tag library tools** (on by default), **tag translation tools** (off), and **character sheet rules** (off). Every tool the assistant is given has its definition resent on *every* turn, so a group you never use is a standing cost: these three come to roughly 2,400 tokens, which is significant on an 8K/32K-window model. Switching a group off means the assistant no longer has those tools and is not told they exist (it will simply say it cannot do that); the corresponding panels keep working by hand. Applies to the next session you start.
 
 - **Export / Import Data**
   - Under the **Data** group in the sidebar: packs the settings you built up by hand into one JSON file, so a new machine or a reinstall can pick up where you left off.
