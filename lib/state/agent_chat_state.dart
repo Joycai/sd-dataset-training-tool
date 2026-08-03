@@ -51,11 +51,15 @@ class AgentChatEntry {
     running = true;
   }
 
-  AgentChatEntry.notice(AgentNoticeType type, [String message = ''])
-    : kind = AgentEntryKind.notice {
+  AgentChatEntry.notice(
+    AgentNoticeType type, [
+    String message = '',
+    bool canRetry = false,
+  ]) : kind = AgentEntryKind.notice {
     noticeType = type;
     text = message;
     isError = type == AgentNoticeType.error;
+    retryable = canRetry;
   }
 
   AgentChatEntry.rules(CharacterMergeRules proposed)
@@ -75,6 +79,11 @@ class AgentChatEntry {
   String toolResult = '';
   bool running = false;
   bool isError = false;
+
+  /// Error notices only: the run died on something worth trying again, and
+  /// the card offers the button. Cleared once retried so the row stays in the
+  /// transcript as a record of the failed attempt without a live button.
+  bool retryable = false;
 }
 
 /// A write tool call waiting for the user's go-ahead; the panel renders it
@@ -217,10 +226,32 @@ class AgentChatState extends ChangeNotifier {
 
     _busy = true;
     entries.add(AgentChatEntry.user(display ?? text));
-    AgentChatEntry? assistant;
     _touch();
+    await _consume(_session!.run(text));
+  }
+
+  /// Whether the transcript ends in a failure the panel can offer to retry.
+  bool get canRetry => !_busy && entries.isNotEmpty && entries.last.retryable;
+
+  /// Sends the failed request again, with the conversation exactly as it was
+  /// — no new user message, so a run that died three tool calls in picks up
+  /// there rather than starting the task over.
+  Future<void> retry() async {
+    if (!canRetry) return;
+    final session = _session;
+    if (session == null) return;
+    // The notice stays as the record of the failed attempt; only its button
+    // goes, so a second failure gets its own row and its own button.
+    entries.last.retryable = false;
+    _busy = true;
+    _touch();
+    await _consume(session.resume());
+  }
+
+  Future<void> _consume(Stream<AgentUiEvent> events) async {
+    AgentChatEntry? assistant;
     try {
-      await for (final event in _session!.run(text)) {
+      await for (final event in events) {
         switch (event) {
           case AgentTextDelta(:final text):
             if (assistant == null) {
@@ -242,8 +273,8 @@ class AgentChatState extends ChangeNotifier {
             entry.running = false;
             entry.toolResult = result.text;
             entry.isError = result.isError;
-          case AgentFinished(:final reason, :final message):
-            _onFinished(reason, message);
+          case AgentFinished(:final reason, :final message, :final retryable):
+            _onFinished(reason, message, retryable);
         }
         _touch();
       }
@@ -257,7 +288,7 @@ class AgentChatState extends ChangeNotifier {
     }
   }
 
-  void _onFinished(AgentStopReason reason, String? message) {
+  void _onFinished(AgentStopReason reason, String? message, bool retryable) {
     switch (reason) {
       case AgentStopReason.completed:
         break;
@@ -274,7 +305,11 @@ class AgentChatState extends ChangeNotifier {
         entries.add(AgentChatEntry.notice(AgentNoticeType.turnLimitStopped));
       case AgentStopReason.error:
         entries.add(
-          AgentChatEntry.notice(AgentNoticeType.error, message ?? reason.name),
+          AgentChatEntry.notice(
+            AgentNoticeType.error,
+            message ?? reason.name,
+            retryable,
+          ),
         );
     }
   }
@@ -476,11 +511,10 @@ class AgentChatState extends ChangeNotifier {
                   '${t.label} (${t.extension}'
                       '${switch (t.format) {
                         CaptionFormat.tags => '',
-                        CaptionFormat.animaTag =>
-                          ', anima tag format: comma-separated tags, then a '
-                              'period, then one natural-language sentence '
-                              '("1girl, smile. A girl smiles.") — the '
-                              'sentence is never a tag and always last',
+                        CaptionFormat.animaTag => ', anima tag format: comma-separated tags, then a '
+                            'period, then one natural-language sentence '
+                            '("1girl, smile. A girl smiles.") — the '
+                            'sentence is never a tag and always last',
                         CaptionFormat.json => ', json format',
                         CaptionFormat.prose => ', natural-language prose',
                       }})'

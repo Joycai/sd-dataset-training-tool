@@ -1458,9 +1458,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String agentErrorNotice(String message) {
-    return 'Error: $message';
-  }
+  String get agentErrorTitle => 'The request failed';
+
+  @override
+  String get agentRetry => 'Try again';
 
   @override
   String get agentTurnLimitTitle => 'Keep going?';

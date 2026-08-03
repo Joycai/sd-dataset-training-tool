@@ -1419,9 +1419,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String agentErrorNotice(String message) {
-    return '出错：$message';
-  }
+  String get agentErrorTitle => '请求失败';
+
+  @override
+  String get agentRetry => '重试';
 
   @override
   String get agentTurnLimitTitle => '要继续吗？';

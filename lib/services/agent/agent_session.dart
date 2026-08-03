@@ -36,10 +36,16 @@ class AgentToolFinished extends AgentUiEvent {
 }
 
 class AgentFinished extends AgentUiEvent {
-  AgentFinished(this.reason, [this.message]);
+  AgentFinished(this.reason, [this.message, this.retryable = false]);
 
   final AgentStopReason reason;
   final String? message;
+
+  /// Whether sending the same request again could plausibly work — true for
+  /// transport and API failures, which are the ones that happen to a run that
+  /// was otherwise fine. A cap or a loop guard is not retryable: the request
+  /// was received, and repeating it changes nothing.
+  final bool retryable;
 }
 
 /// The user's answer when a run reaches its turn limit and asks whether to
@@ -110,10 +116,31 @@ class AgentSession {
       yield AgentFinished(AgentStopReason.error, 'session is busy');
       return;
     }
+    history.add(ChatMessage.user(userInput));
+    yield* _loop();
+  }
+
+  /// Picks the run back up where a failed model call left it, with no new
+  /// user message. A turn that throws never reaches [history] — the failure
+  /// happens before the assistant message is appended — so the request that
+  /// goes back on the wire is the one that failed, tool results and all.
+  Stream<AgentUiEvent> resume() async* {
+    if (_busy) {
+      yield AgentFinished(AgentStopReason.error, 'session is busy');
+      return;
+    }
+    // Nothing but the system prompt: there is no request to repeat.
+    if (history.length < 2) {
+      yield AgentFinished(AgentStopReason.completed);
+      return;
+    }
+    yield* _loop();
+  }
+
+  Stream<AgentUiEvent> _loop() async* {
     _busy = true;
     final cancel = _cancel = CancellationToken();
     try {
-      history.add(ChatMessage.user(userInput));
       var consecutiveToolErrors = 0;
 
       var turnBudget = maxTurnsPerRun;
@@ -170,11 +197,11 @@ class AgentSession {
             }
           }
         } on LlmException catch (e) {
+          final cancelled = cancel.isCancelled;
           yield AgentFinished(
-            cancel.isCancelled
-                ? AgentStopReason.cancelled
-                : AgentStopReason.error,
+            cancelled ? AgentStopReason.cancelled : AgentStopReason.error,
             e.message,
+            !cancelled,
           );
           return;
         }
