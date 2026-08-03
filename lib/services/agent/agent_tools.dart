@@ -8,6 +8,7 @@ library;
 import 'dart:convert';
 
 import '../../models/llm_models.dart';
+import 'context_budget.dart';
 
 export '../../models/llm_models.dart' show AgentToolSpec;
 
@@ -69,6 +70,28 @@ class ToolRegistry {
   List<AgentToolSpec> get specs => [for (final t in _byName.values) t.spec];
 
   AgentTool? find(String name) => _byName[name];
+
+  /// Estimated tokens the tool schemas occupy in *every* request.
+  ///
+  /// The registry is re-sent whole on each turn, so this is a fixed toll on
+  /// the context window — currently a few thousand tokens, which is a quarter
+  /// of a 32K window. [ContextBudget] has no other way to see it: it only
+  /// walks the history, so without this the budget over-estimates the room
+  /// left by exactly this much and compaction fires far too late.
+  ///
+  /// Computed once: the registry is immutable, and the estimate walks every
+  /// schema.
+  late final int schemaTokens = _byName.values.fold(0, (sum, tool) {
+    // Mirrors the wire shape the clients build (name + description +
+    // parameters, wrapped per provider); the wrapper is a handful of tokens
+    // per tool, which the +8 covers.
+    final payload = jsonEncode({
+      'name': tool.spec.name,
+      'description': tool.spec.description,
+      'parameters': tool.spec.parametersSchema,
+    });
+    return sum + ContextBudget.estimateText(payload) + 8;
+  });
 
   /// Parses [argumentsJson] and runs the tool. Returns an error result on
   /// unknown tool / malformed arguments / handler exception.
