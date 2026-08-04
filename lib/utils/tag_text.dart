@@ -14,22 +14,31 @@ List<String> parseTagText(String text) {
       .toList();
 }
 
-/// Where prose caption text breaks into segments: a run of `,`/`.` followed
-/// by whitespace or the end of the text (so `1.5` and `no.7` stay whole),
-/// or a run of full-width `，`/`。` anywhere (Chinese prose has no spaces).
-final RegExp _sentenceBreak = RegExp(r'[,.]+(?=\s|$)|[，。]+');
+/// Where prose caption text breaks into segments: a run of `.` followed by
+/// whitespace or the end of the text (so `1.5` and `no.7` stay whole), or a
+/// run of full-width `。` anywhere (Chinese prose has no spaces).
+///
+/// Commas are deliberately *not* breaks. A caption written for training
+/// carries `.` and `,` and little else, so breaking on commas amounts to
+/// cutting at every one of them: a captioner's `A girl with long hair,
+/// smiling, stands indoors.` came out as three fragments, which is the tag
+/// grammar wearing a different name. A segment here is a sentence.
+final RegExp _sentenceBreak = RegExp(r'\.+(?=\s|$)|。+');
 
 /// The prose counterpart of [parseTagText]: splits natural-language caption
-/// text into sentence segments for the tag view. Each segment keeps its
-/// trailing punctuation, which is what lets [joinCaptionText] reassemble the
-/// caption without inventing or dropping delimiters. Exact duplicate
-/// segments collapse, mirroring the tag grammar.
+/// text into sentences for the segment view. Each one keeps its trailing
+/// punctuation, which is what lets [joinCaptionText] reassemble the caption
+/// without inventing or dropping delimiters.
+///
+/// Unlike the tag grammar this does **not** de-duplicate. Two identical tags
+/// on one image are one tag; two identical sentences in a paragraph are two
+/// sentences, and collapsing them made the segment view a lossy round trip —
+/// editing any segment wrote the paragraph back one sentence short.
 List<String> parseSentenceText(String text) {
-  final seen = <String>{};
   final out = <String>[];
   void add(String raw) {
     final segment = raw.trim();
-    if (segment.isNotEmpty && seen.add(segment)) out.add(segment);
+    if (segment.isNotEmpty) out.add(segment);
   }
 
   var start = 0;
