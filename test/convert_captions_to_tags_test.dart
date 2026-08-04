@@ -110,7 +110,7 @@ void main() {
       final out = await call('convert_captions_to_tags', {
         'source_extension': '.atxt',
         'target_extension': '.txt',
-        'drop': ['newest', 'safe'],
+        'remove': ['newest', 'safe'],
         'rename': {'@my artist': 'my artist'},
         'spacing': 'spaces',
         'parentheses': 'escape',
@@ -138,16 +138,16 @@ void main() {
       final out = await call('convert_captions_to_tags', {
         'source_extension': '.atxt',
         'target_extension': '.txt',
-        'drop': ['newest', 'safe', 'nonexistent tag'],
+        'remove': ['newest', 'safe', 'nonexistent tag'],
         'rename': {'@my artist': 'my artist'},
       });
 
-      expect(out['dropped_tags'], {'newest': 2, 'safe': 2});
+      expect(out['removed_tags'], {'newest': 2, 'safe': 2});
       expect(out['renamed_tags'], {'@my artist': 1});
       // A rule that matched nothing is visible by its absence, so a typo in
       // the drop list cannot pass as "there were none".
       expect(
-        (out['dropped_tags'] as Map).containsKey('nonexistent tag'),
+        (out['removed_tags'] as Map).containsKey('nonexistent tag'),
         false,
       );
     });
@@ -165,7 +165,7 @@ void main() {
       await call('convert_captions_to_tags', {
         'source_extension': '.atxt',
         'target_extension': '.txt',
-        'drop': ['newest', 'safe'],
+        'remove': ['newest', 'safe'],
         // "1girl" is both prepended and named in priority, and the caption
         // already carries it: it must appear exactly once, at the front.
         'prepend': ['1girl'],

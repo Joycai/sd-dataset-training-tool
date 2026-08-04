@@ -844,7 +844,7 @@ Future<AgentToolResult> _edit(
     'extension': type.extension,
     'written': written,
     'unchanged': unchanged,
-    'skipped_without_caption': skippedNoCaption,
+    'skipped_uncaptioned': skippedNoCaption,
     // Keyed by the tag as it was spelled in the document, so a rule that
     // never fired is visible by its absence — it probably names a tag the
     // dataset does not carry, or one that sits in a skipped field.
@@ -1074,7 +1074,7 @@ Future<AgentToolResult> _restructure(
     'extension': type.extension,
     'written': written,
     'unchanged': unchanged,
-    'skipped_without_caption': skippedNoCaption,
+    'skipped_uncaptioned': skippedNoCaption,
     if (nonObjectRoots > 0) 'non_object_documents': nonObjectRoots,
     if (failures.isNotEmpty) ...{
       'failed_images': failures.length,
