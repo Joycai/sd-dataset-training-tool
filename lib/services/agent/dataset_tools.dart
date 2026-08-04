@@ -444,6 +444,7 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
           label: 'AI: sort caption tags',
         ),
         scope: scopeLabel(deps.dataset),
+        root: deps.rootDir(),
         extra: {'scanned_files': files.length},
       );
     },
@@ -686,16 +687,6 @@ List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
   ),
 ];
 
-/// Reports a dataset-wide rewrite back to the model.
-///
-/// A sweep skips caption files it cannot read or write instead of aborting,
-/// so the skipped ones must be named here: reporting only `changed_files`
-/// would let a sweep that failed on every file read as "nothing matched".
-/// Nothing written *and* files failed is an error, not a no-op.
-///
-/// [scope] travels with every success: the user can narrow the app to one
-/// subdirectory mid-conversation, and a model working from a stale overview
-/// would otherwise report a folder-wide sweep as a dataset-wide one.
 /// The refusal every tag-level batch tool owes a JSON active type.
 ///
 /// [TagOps] already stops these rewrites — a flat tag list cannot be joined
@@ -712,13 +703,31 @@ AgentToolResult? _jsonActiveType(DatasetToolsDeps deps, String instead) {
   );
 }
 
+/// Reports a dataset-wide rewrite back to the model.
+///
+/// The shape is the shared one: `written` / `failed_images` / `failures`,
+/// the same keys `edit_captions`, the converters and the JSON sweeps report.
+/// It used to say `changed_files` / `failed_files` / `caption_file` instead —
+/// a second vocabulary for the same three facts, which a model has to learn
+/// twice and can read as a different outcome.
+///
+/// A sweep skips caption files it cannot read or write instead of aborting,
+/// so the skipped ones must be named here: reporting only the written count
+/// would let a sweep that failed on every file read as "nothing matched".
+/// Nothing written *and* files failed is an error, not a no-op.
+///
+/// [scope] travels with every success: the user can narrow the app to one
+/// subdirectory mid-conversation, and a model working from a stale overview
+/// would otherwise report a folder-wide sweep as a dataset-wide one. [root]
+/// only shapes how a failing path is spelled, so it may be null.
 AgentToolResult _batchResult(
   BatchRewriteResult result, {
   required String scope,
+  required String? root,
   Map<String, dynamic> extra = const {},
 }) {
   if (result.failures.isEmpty) {
-    return toolOk({'changed_files': result.changed, 'scope': scope, ...extra});
+    return toolOk({'written': result.changed, 'scope': scope, ...extra});
   }
   const sample = 5;
   if (result.changed == 0) {
@@ -730,12 +739,17 @@ AgentToolResult _batchResult(
     );
   }
   return toolOk({
-    'changed_files': result.changed,
+    'written': result.changed,
     'scope': scope,
-    'failed_files': result.failed,
+    'failed_images': result.failed,
     'failures': [
       for (final f in result.failures.take(sample))
-        {'caption_file': p.basename(f.captionPath), 'error': f.error},
+        {
+          'path': root == null
+              ? p.basename(f.captionPath)
+              : p.relative(f.captionPath, from: root),
+          'error': f.error,
+        },
     ],
     'failures_truncated': result.failed > sample,
     ...extra,

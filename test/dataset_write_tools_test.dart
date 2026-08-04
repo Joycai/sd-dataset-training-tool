@@ -442,7 +442,7 @@ void main() {
         'keep_first': 1,
       });
       // 001 reordered; 002 has no "smile" so it was already in this order.
-      expect(out['changed_files'], 1);
+      expect(out['written'], 1);
       expect(out['scanned_files'], 3);
       expect(await readCap('001'), 'trigger, smile, 1girl, watermark');
       expect(await readCap('002'), 'trigger, 1girl, watermark');
@@ -452,6 +452,29 @@ void main() {
       // One undo puts the whole batch back.
       await tagOps.undo();
       expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
+    });
+
+    test('every batch write reports the same shape', () async {
+      await blockCaption('003');
+      // Two tools, two code paths (TagOps' batch rewrite and the standalone
+      // sweep), one vocabulary. The retired keys were changed_files /
+      // failed_files / caption_file — a second name for each of these facts,
+      // which a model has to learn twice and can read as a different outcome.
+      final sorted = await call('sort_captions_everywhere', {
+        'priority': ['smile', '1girl'],
+        'keep_first': 1,
+      });
+      expect(sorted.keys, containsAll(['written', 'scope']));
+      expect(sorted.keys, isNot(contains('changed_files')));
+
+      final edited = await call('edit_captions', {
+        'add': ['masterpiece'],
+      });
+      expect(edited.keys, containsAll(['written', 'scope', 'failed_images']));
+      expect(edited.keys, isNot(contains('failed_files')));
+      // A failure names a path, never a bare "caption_file" basename.
+      final failure = (edited['failures'] as List).single as Map;
+      expect(failure.keys, containsAll(['path', 'error']));
     });
 
     test('sort_captions_everywhere never changes the tag set', () async {
@@ -543,7 +566,7 @@ void main() {
         'keep_first': 1,
         'name_query': 'batch_',
       });
-      expect(out['changed_files'], 150);
+      expect(out['written'], 150);
       expect(await readCap('batch_0'), 'trigger, 1girl, watermark');
       expect(await readCap('batch_149'), 'trigger, 1girl, watermark');
 

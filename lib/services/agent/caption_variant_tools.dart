@@ -914,13 +914,13 @@ AgentTool _convertCaptionsToTags(
         'another (WD14 tags ⇄ Anima Tag) in one call — always prefer '
         'this over looping write_caption_file, which costs a round '
         'trip per image to apply rules you already decided once. You '
-        'give the rules once: drop tags, rename tags, normalise '
+        'give the rules once: remove tags, rename tags, normalise '
         'spelling, order by priority, prepend a trigger word. Nothing '
         'is invented — every output tag comes from the source or from '
         'prepend. An Anima Tag source\'s trailing sentence is carried '
         'over when the target is Anima Tag too, and dropped (and '
         'counted in the result) when the target is plain tags. The '
-        'result reports each dropped and renamed tag with how many '
+        'result reports each removed and renamed tag with how many '
         'captions it came out of, so the whole conversion can be '
         'audited from one answer. The target may be the active type. '
         'Images that already have a non-empty target file are skipped '
@@ -938,19 +938,21 @@ AgentTool _convertCaptionsToTags(
               'the tag-list caption type to write (e.g. ".txt"); may '
               'be the active type, but not the source',
         },
-        'drop': {
+        'remove': {
           'type': 'array',
           'items': {'type': 'string'},
           'description':
               'tags to remove entirely (quality, rating, year, meta…); '
-              'matching folds case and underscore/space style',
+              'matching folds case and underscore/space style. Same '
+              'rule as edit_captions "remove".',
         },
         'rename': {
           'type': 'object',
           'description':
               'tag → replacement tag, e.g. mapping "@wlop" to "wlop". '
               'Matching folds case and underscore/space style. Use '
-              'drop to remove a tag, not a rename to an empty string.',
+              'remove to delete a tag, not a rename to an empty '
+              'string. Same rule as edit_captions "rename".',
         },
         'spacing': {
           'type': 'string',
@@ -983,7 +985,8 @@ AgentTool _convertCaptionsToTags(
           'description':
               'tags to put at the very front of every caption, in this '
               'order — the LoRA trigger word. A caption that already '
-              'has one gets it moved, not duplicated.',
+              'has one gets it MOVED there, not duplicated — which is '
+              'why this is not edit_captions "add".',
         },
         'include_tags': {
           'type': 'array',
@@ -1058,7 +1061,7 @@ AgentTool _convertCaptionsToTags(
     }
 
     final drop = {
-      for (final tag in optStringList(args, 'drop', maxLength: 500))
+      for (final tag in optStringList(args, 'remove', maxLength: 500))
         tagLookupKey(tag),
     };
     final rawRename = args['rename'] ?? const <String, dynamic>{};
@@ -1075,7 +1078,9 @@ AgentTool _convertCaptionsToTags(
         return toolError('"rename" must map tag strings to tag strings');
       }
       if (to.trim().isEmpty) {
-        return toolError('rename: "$from" → "" — use drop to remove a tag');
+        return toolError(
+          'rename: "$from" → "" — use remove to delete a tag',
+        );
       }
       rename[tagLookupKey(from)] = to.trim();
     }
@@ -1264,9 +1269,10 @@ AgentTool _convertCaptionsToTags(
       if (carriedDescriptions > 0) 'descriptions_carried': carriedDescriptions,
       if (droppedDescriptions > 0) 'descriptions_dropped': droppedDescriptions,
       // Keyed by the tag as it was spelled in the source, so an entry
-      // that never fired is visible by its absence — a drop rule with no
-      // count matched nothing and probably names a tag that is not there.
-      'dropped_tags': _topCounts(dropped),
+      // that never fired is visible by its absence — a remove rule with
+      // no count matched nothing and probably names a tag that is not
+      // there.
+      'removed_tags': _topCounts(dropped),
       'renamed_tags': _topCounts(renamed),
       if (failures.isNotEmpty) ...{
         'failed_images': failures.length,

@@ -420,7 +420,7 @@ void main() {
         },
       });
       expect(out['written'], 2);
-      expect(out['skipped_without_caption'], 1);
+      expect(out['skipped_uncaptioned'], 1);
       // Counted per caption: "masterpiece" is only in 001.
       expect(out['removed_tags'], {'masterpiece': 1});
       expect(out['renamed_tags'], {'1girl': 2});
