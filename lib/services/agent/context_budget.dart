@@ -8,6 +8,7 @@ class ContextBudget {
   ContextBudget({
     required this.contextWindow,
     required this.maxOutputTokens,
+    this.toolSchemaTokens = 0,
     this.safetyMargin = 1024,
     this.protectedTail = 8,
   });
@@ -15,16 +16,26 @@ class ContextBudget {
   final int contextWindow;
   final int maxOutputTokens;
 
-  /// Extra headroom subtracted from the window: local estimation error,
-  /// protocol overhead, tool schemas.
+  /// What the tool schemas cost in every request (`ToolRegistry.schemaTokens`).
+  ///
+  /// They are not part of the history, so [estimate] can never see them —
+  /// they come off the top of the window instead. Leaving this at 0 is what
+  /// made a full registry (a few thousand tokens, a quarter of a 32K window)
+  /// invisible to the budget, so compaction fired long after the request had
+  /// already outgrown the window.
+  final int toolSchemaTokens;
+
+  /// Extra headroom subtracted from the window: local estimation error and
+  /// protocol overhead.
   final int safetyMargin;
 
   /// The most recent N messages are never folded (≈ the last 4 rounds).
   final int protectedTail;
 
-  int get inputBudget => (contextWindow - maxOutputTokens - safetyMargin)
-      .clamp(1024, 1 << 31)
-      .toInt();
+  int get inputBudget =>
+      (contextWindow - maxOutputTokens - toolSchemaTokens - safetyMargin)
+          .clamp(1024, 1 << 31)
+          .toInt();
 
   /// Estimated tokens for one image content part (768px JPEG, base64).
   static const imageTokens = 1600;

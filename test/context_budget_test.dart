@@ -34,6 +34,35 @@ void main() {
     });
   });
 
+  group('inputBudget', () {
+    test('tool schemas come off the top of the window', () {
+      const window = 32768;
+      const output = 4096;
+      final without = ContextBudget(
+        contextWindow: window,
+        maxOutputTokens: output,
+      );
+      final with_ = ContextBudget(
+        contextWindow: window,
+        maxOutputTokens: output,
+        toolSchemaTokens: 9000,
+      );
+      expect(without.inputBudget - with_.inputBudget, 9000);
+      // The whole point: a registry this size is a quarter of the window, and
+      // the old budget could not see a token of it.
+      expect(with_.inputBudget, window - output - 9000 - 1024);
+    });
+
+    test('a registry bigger than the window still leaves a floor', () {
+      final budget = ContextBudget(
+        contextWindow: 8192,
+        maxOutputTokens: 4096,
+        toolSchemaTokens: 9000,
+      );
+      expect(budget.inputBudget, 1024);
+    });
+  });
+
   group('compact', () {
     ChatMessage tool(String text, String id) =>
         ChatMessage.toolResult(toolCallId: id, text: text);

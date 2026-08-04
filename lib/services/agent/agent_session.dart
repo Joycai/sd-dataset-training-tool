@@ -73,6 +73,7 @@ class AgentSession {
   }) : budget = ContextBudget(
          contextWindow: profile.contextWindow,
          maxOutputTokens: profile.maxOutputTokens,
+         toolSchemaTokens: registry.schemaTokens,
        ),
        history = [ChatMessage.system(systemPrompt)];
 

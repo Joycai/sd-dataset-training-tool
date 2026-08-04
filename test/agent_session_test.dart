@@ -63,6 +63,34 @@ AgentTool _writeTool() => AgentTool(
 );
 
 void main() {
+  test('the session budget subtracts the registry it was built with', () {
+    // A big schema stands in for the real registry (a few thousand tokens).
+    final fat = AgentTool(
+      spec: AgentToolSpec(
+        name: 'fat',
+        description: 'x' * 4000,
+        parametersSchema: const {'type': 'object', 'properties': {}},
+      ),
+      handler: (args) async => toolOk(const {}),
+    );
+    final lean = ToolRegistry([_echoTool()]);
+    final heavy = ToolRegistry([_echoTool(), fat]);
+    expect(heavy.schemaTokens - lean.schemaTokens, greaterThan(900));
+
+    AgentSession session(ToolRegistry registry) => AgentSession(
+      client: FakeLlmClient(const []),
+      registry: registry,
+      profile: _profile,
+      systemPrompt: 'sys',
+    );
+    // Schemas are re-sent every turn but never appear in the history, so the
+    // only place they can be accounted for is the budget's ceiling.
+    expect(
+      session(lean).budget.inputBudget - session(heavy).budget.inputBudget,
+      heavy.schemaTokens - lean.schemaTokens,
+    );
+  });
+
   test('text-only turn completes and records history', () async {
     final client = FakeLlmClient([
       [TextDelta('hi '), TextDelta('there'), StreamDone(finishReason: 'stop')],
