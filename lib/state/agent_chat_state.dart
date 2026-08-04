@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../app_state.dart';
+import '../models/agent_tool_pack.dart';
 import '../models/caption_type.dart';
 import '../models/llm_models.dart';
 import '../models/merge_rules.dart';
@@ -425,7 +426,13 @@ class AgentChatState extends ChangeNotifier {
     return stored;
   }
 
-  AgentSession _createSession(LlmProviderProfile profile) {
+  /// The tools the next conversation with [profile] would be handed.
+  ///
+  /// Split out of [_createSession] so the gating — which caption formats and
+  /// which optional packs earn a place — can be asserted without standing up
+  /// a whole session.
+  @visibleForTesting
+  ToolRegistry buildRegistry(LlmProviderProfile profile) {
     final deps = DatasetToolsDeps(
       dataset: dataset,
       rootDir: () => app.browsingDirectory,
@@ -442,6 +449,51 @@ class AgentChatState extends ChangeNotifier {
     final structuredTypes = app.enabledCaptionTypes.any(
       (t) => !t.format.isTagList,
     );
+    final jsonTypes = app.enabledCaptionTypes.any(
+      (t) => t.format == CaptionFormat.json,
+    );
+    return ToolRegistry([
+      ...buildReadOnlyTools(deps),
+      ...buildWriteTools(deps, tagOps),
+      if (multiType || structuredTypes)
+        ...buildCaptionVariantTools(deps, tagOps),
+      if (jsonTypes) ...buildJsonCaptionTools(deps, tagOps),
+      ...buildTaggerTools(deps, aiTagger),
+      if (profile.supportsVision) ...buildVisionTools(deps),
+      // Optional packs. Their schemas ride along on every single turn, so a
+      // pack the user never asks for is a standing tax on the context window,
+      // not a one-off — see AgentToolPack.
+      if (app.isAgentToolPackEnabled(AgentToolPack.mergeRules))
+        ...buildMergeRuleTools(_saveMergeRules),
+      if (app.isAgentToolPackEnabled(AgentToolPack.tagLibrary))
+        ...buildTagLibraryTools(
+          TagLibraryToolsDeps(
+            libraryTags: () => app.commonTags,
+            tagGroups: () => app.tagGroups,
+            addTags: app.addCommonTags,
+            removeTags: app.removeCommonTags,
+            createGroup: app.createTagGroup,
+            updateGroup: app.updateTagGroup,
+            deleteGroup: app.deleteTagGroup,
+            reorderGroups: app.setTagGroupOrder,
+            moveTags: app.moveTagsToGroup,
+          ),
+        ),
+      if (app.isAgentToolPackEnabled(AgentToolPack.tagTranslation))
+        ...buildTagTranslationTools(
+          TagTranslationToolsDeps(
+            glossary: app.tagTranslations,
+            dictionary: app.tagDictionary,
+            dataset: dataset,
+            libraryTags: () => app.commonTags,
+          ),
+        ),
+      _buildAskUserTool(),
+    ]);
+  }
+
+  AgentSession _createSession(LlmProviderProfile profile) {
+    final multiType = app.enabledCaptionTypes.length > 1;
     // Any non-default format has to reach the prompt even when it is the only
     // type: an Anima Tag caption written with the plain tag grammar loses its
     // natural-language tail, and the model can only know that from here.
@@ -451,38 +503,6 @@ class AgentChatState extends ChangeNotifier {
     final jsonTypes = app.enabledCaptionTypes.any(
       (t) => t.format == CaptionFormat.json,
     );
-    final registry = ToolRegistry([
-      ...buildReadOnlyTools(deps),
-      ...buildWriteTools(deps, tagOps),
-      if (multiType || structuredTypes)
-        ...buildCaptionVariantTools(deps, tagOps),
-      if (jsonTypes) ...buildJsonCaptionTools(deps, tagOps),
-      ...buildTaggerTools(deps, aiTagger),
-      if (profile.supportsVision) ...buildVisionTools(deps),
-      ...buildMergeRuleTools(_saveMergeRules),
-      ...buildTagLibraryTools(
-        TagLibraryToolsDeps(
-          libraryTags: () => app.commonTags,
-          tagGroups: () => app.tagGroups,
-          addTags: app.addCommonTags,
-          removeTags: app.removeCommonTags,
-          createGroup: app.createTagGroup,
-          updateGroup: app.updateTagGroup,
-          deleteGroup: app.deleteTagGroup,
-          reorderGroups: app.setTagGroupOrder,
-          moveTags: app.moveTagsToGroup,
-        ),
-      ),
-      ...buildTagTranslationTools(
-        TagTranslationToolsDeps(
-          glossary: app.tagTranslations,
-          dictionary: app.tagDictionary,
-          dataset: dataset,
-          libraryTags: () => app.commonTags,
-        ),
-      ),
-      _buildAskUserTool(),
-    ]);
     final root = app.browsingDirectory;
     final scope = dataset.activeSubdirectory;
     final summary = root == null
@@ -496,7 +516,7 @@ class AgentChatState extends ChangeNotifier {
                         '"${scope.isEmpty ? '.' : scope}" only'}';
     return AgentSession(
       client: _clients[profile.kind]!,
-      registry: registry,
+      registry: buildRegistry(profile),
       profile: profile,
       sessionTokenCap: app.agentSessionTokenCap,
       systemPrompt: buildAgentSystemPrompt(
@@ -523,6 +543,12 @@ class AgentChatState extends ChangeNotifier {
             : null,
         jsonToolsEnabled: jsonTypes,
         visionEnabled: profile.supportsVision,
+        libraryToolsEnabled: app.isAgentToolPackEnabled(
+          AgentToolPack.tagLibrary,
+        ),
+        translationToolsEnabled: app.isAgentToolPackEnabled(
+          AgentToolPack.tagTranslation,
+        ),
       ),
       confirmWrite: _confirmWrite,
       confirmContinue: _confirmContinue,

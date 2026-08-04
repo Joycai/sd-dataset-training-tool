@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import 'models/agent_tool_pack.dart';
 import 'models/caption_type.dart';
 import 'models/llm_models.dart';
 import 'models/merge_rules.dart';
@@ -610,6 +611,27 @@ class AppState extends ChangeNotifier {
     await _settingsService.saveAgentSessionTokenCap(next);
   }
 
+  /// Which optional assistant tool groups are handed to the model. Applies to
+  /// the next conversation, not one already running — the registry is fixed
+  /// when a session is built.
+  Set<AgentToolPack> _agentToolPacks = AgentToolPack.defaults;
+  Set<AgentToolPack> get agentToolPacks => _agentToolPacks;
+
+  bool isAgentToolPackEnabled(AgentToolPack pack) =>
+      _agentToolPacks.contains(pack);
+
+  Future<void> updateAgentToolPack(AgentToolPack pack, bool enabled) async {
+    if (_agentToolPacks.contains(pack) == enabled) return;
+    _agentToolPacks = {
+      for (final p in AgentToolPack.values)
+        if (p == pack ? enabled : _agentToolPacks.contains(p)) p,
+    };
+    notifyListeners();
+    await _settingsService.saveAgentToolPacks([
+      for (final p in _agentToolPacks) p.id,
+    ]);
+  }
+
   // --- Other states remain unchanged ---
   Future<void> loadSettings() async {
     _locale = await _settingsService.loadLocale();
@@ -653,6 +675,9 @@ class AppState extends ChangeNotifier {
     _llmActiveProfileId = await _settingsService.loadLlmActiveProfileId();
     _agentConfirmWrites = await _settingsService.loadAgentConfirmWrites();
     _agentSessionTokenCap = await _settingsService.loadAgentSessionTokenCap();
+    _agentToolPacks = AgentToolPack.decode(
+      await _settingsService.loadAgentToolPacks(),
+    );
     _promptPresets = decodePromptPresets(
       await _settingsService.loadAgentPromptPresetsJson() ?? '',
     );

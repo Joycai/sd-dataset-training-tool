@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../app_info.dart';
 import '../app_state.dart';
 import '../l10n/app_localizations.dart';
+import '../models/agent_tool_pack.dart';
 import '../models/llm_models.dart';
 import '../models/tag_translation.dart';
 import '../services/font_service.dart';
@@ -460,7 +461,7 @@ class _SettingsViewState extends State<SettingsView> {
                     ],
                   ),
                 ],
-                if (_section == _SettingsSection.assistant)
+                if (_section == _SettingsSection.assistant) ...[
                   _SettingsCard(
                     children: [
                       _SettingsRow(
@@ -564,6 +565,30 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10, left: 2),
+                    child: Text(
+                      l10n.agentToolPacksHint,
+                      style: TextStyle(fontSize: 12, color: semantic.muted),
+                    ),
+                  ),
+                  _SettingsCard(
+                    title: l10n.agentToolPacksTitle,
+                    children: [
+                      for (final pack in AgentToolPack.values)
+                        _SettingsRow(
+                          title: _toolPackTitle(l10n, pack),
+                          description: _toolPackDesc(l10n, pack),
+                          control: AppSwitch(
+                            value: appState.isAgentToolPackEnabled(pack),
+                            onChanged: (value) =>
+                                appState.updateAgentToolPack(pack, value),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
                 if (_section == _SettingsSection.data)
                   _SettingsCard(
                     children: [
@@ -787,6 +812,23 @@ String _formatTokenCap(AppLocalizations l10n, int value) {
   final millions = value / 1000000;
   return '${millions.toStringAsFixed(value % 1000000 == 0 ? 0 : 1)}M';
 }
+
+/// Switch labels for the optional assistant tool groups. A switch on the enum
+/// rather than a field on it: the strings are localized, and the model layer
+/// has no business importing l10n.
+String _toolPackTitle(AppLocalizations l10n, AgentToolPack pack) =>
+    switch (pack) {
+      AgentToolPack.tagLibrary => l10n.agentToolPackTagLibraryTitle,
+      AgentToolPack.tagTranslation => l10n.agentToolPackTranslationTitle,
+      AgentToolPack.mergeRules => l10n.agentToolPackMergeRulesTitle,
+    };
+
+String _toolPackDesc(AppLocalizations l10n, AgentToolPack pack) =>
+    switch (pack) {
+      AgentToolPack.tagLibrary => l10n.agentToolPackTagLibraryDesc,
+      AgentToolPack.tagTranslation => l10n.agentToolPackTranslationDesc,
+      AgentToolPack.mergeRules => l10n.agentToolPackMergeRulesDesc,
+    };
 
 enum _SettingsSection { appearance, dataset, shortcuts, assistant, data, about }
 

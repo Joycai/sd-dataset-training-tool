@@ -859,6 +859,15 @@
     }
   },
 
+  "agentToolPacksTitle": "Assistant tools",
+  "agentToolPacksHint": "Every tool the assistant is given is re-sent on each turn. Switching off the ones you never ask for leaves more of the context window for the actual work. Changes apply to the next conversation.",
+  "agentToolPackTagLibraryTitle": "Tag library tools",
+  "agentToolPackTagLibraryDesc": "File, add, remove and recolor tag library groups. Switched off, the assistant can still read the library but not change it.",
+  "agentToolPackTranslationTitle": "Tag translation tools",
+  "agentToolPackTranslationDesc": "Fill in the tag glossary, looking proper names up on danbooru. Switched off, the assistant will say it has no such tool.",
+  "agentToolPackMergeRulesTitle": "Character sheet rules",
+  "agentToolPackMergeRulesDesc": "Propose merge rules from a character's reference images. Only the character sheet workflow uses this.",
+
   "agentConfirmWritesTitle": "Confirm writes",
   "agentConfirmWritesDesc": "Ask before the assistant modifies caption files; every change stays undoable either way",
 

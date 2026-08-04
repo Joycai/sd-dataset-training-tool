@@ -390,6 +390,18 @@ class SettingsService {
     return prefs.getInt('agentSessionTokenCap') ?? 1000000;
   }
 
+  /// 助手可选工具组（见 models/agent_tool_pack.dart）。存的是「开着的」id
+  /// 列表：缺键表示首次运行，用默认值；空列表表示用户真的全关了。
+  Future<void> saveAgentToolPacks(List<String> ids) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('agentToolPacks', ids);
+  }
+
+  Future<List<String>?> loadAgentToolPacks() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList('agentToolPacks');
+  }
+
   static const double defaultAgentPanelWidth = 340;
 
   /// Height of the floating assistant. Width alone is not enough once the

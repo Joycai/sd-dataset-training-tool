@@ -1522,6 +1522,34 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get agentToolPacksTitle => 'Assistant tools';
+
+  @override
+  String get agentToolPacksHint =>
+      'Every tool the assistant is given is re-sent on each turn. Switching off the ones you never ask for leaves more of the context window for the actual work. Changes apply to the next conversation.';
+
+  @override
+  String get agentToolPackTagLibraryTitle => 'Tag library tools';
+
+  @override
+  String get agentToolPackTagLibraryDesc =>
+      'File, add, remove and recolor tag library groups. Switched off, the assistant can still read the library but not change it.';
+
+  @override
+  String get agentToolPackTranslationTitle => 'Tag translation tools';
+
+  @override
+  String get agentToolPackTranslationDesc =>
+      'Fill in the tag glossary, looking proper names up on danbooru. Switched off, the assistant will say it has no such tool.';
+
+  @override
+  String get agentToolPackMergeRulesTitle => 'Character sheet rules';
+
+  @override
+  String get agentToolPackMergeRulesDesc =>
+      'Propose merge rules from a character\'s reference images. Only the character sheet workflow uses this.';
+
+  @override
   String get agentConfirmWritesTitle => 'Confirm writes';
 
   @override

@@ -1480,6 +1480,33 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get agentToolPacksTitle => '助手工具';
+
+  @override
+  String get agentToolPacksHint =>
+      '助手拿到的每个工具都会在每一轮请求里重发一遍。关掉用不上的，上下文窗口就能多留给正事。改动对下一个会话生效。';
+
+  @override
+  String get agentToolPackTagLibraryTitle => '标签库工具';
+
+  @override
+  String get agentToolPackTagLibraryDesc =>
+      '给标签库分组、增删标签、改名换色。关掉后助手仍能读标签库，但改不了。';
+
+  @override
+  String get agentToolPackTranslationTitle => '标签译文工具';
+
+  @override
+  String get agentToolPackTranslationDesc =>
+      '补标签译文，必要时去 danbooru 查专有名词。关掉后助手会回答自己没有这个工具。';
+
+  @override
+  String get agentToolPackMergeRulesTitle => '角色卡合并规则';
+
+  @override
+  String get agentToolPackMergeRulesDesc => '从角色标准样本里总结合并规则。只有角色卡那条工作流会用到。';
+
+  @override
   String get agentConfirmWritesTitle => '写操作需确认';
 
   @override
