@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:dataset_training_tool/services/agent/agent_tools.dart';
+import 'package:dataset_training_tool/services/agent/caption_edit_tools.dart';
 import 'package:dataset_training_tool/services/agent/dataset_tools.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
@@ -62,6 +63,7 @@ void main() {
     registry = ToolRegistry([
       ...buildReadOnlyTools(deps),
       ...buildWriteTools(deps, tagOps),
+      ...buildCaptionEditTools(deps, tagOps),
     ]);
   });
 
@@ -130,30 +132,113 @@ void main() {
   });
 
   group('write tools', () {
-    test('remove_tag_everywhere sweeps the dataset and is undoable', () async {
-      final out = await call('remove_tag_everywhere', {'tag': 'watermark'});
-      expect(out['changed_files'], 2);
+    test('edit_captions removes a tag across the dataset, undoably', () async {
+      final out = await call('edit_captions', {
+        'remove': ['watermark'],
+      });
+      expect(out['written'], 2);
+      expect(out['removed_tags'], {'watermark': 2});
       expect(await readCap('001'), 'trigger, 1girl, smile');
       expect(tagOps.undoLabel, startsWith('AI:'));
+
+      await tagOps.undo();
+      expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
+      expect(dataset.tagsOf(img('001')), contains('watermark'));
     });
 
-    test('replace_tag_everywhere de-duplicates in place', () async {
-      final out = await call('replace_tag_everywhere', {
-        'tag': '1girl',
-        'replacement': '1woman',
+    test('edit_captions renames in place, folding case', () async {
+      final out = await call('edit_captions', {
+        'rename': {'1GIRL': '1woman'},
       });
-      expect(out['changed_files'], 2);
+      expect(out['written'], 2);
+      // Keyed by the spelling on disk, not the one the rule was written with.
+      expect(out['renamed_tags'], {'1girl': 2});
       expect(await readCap('002'), 'trigger, 1woman, watermark');
     });
 
-    test('add_tags_everywhere respects filters and creates captions', () async {
-      final out = await call('add_tags_everywhere', {
-        'tags': ['masterpiece'],
+    test('edit_captions rename onto an existing tag merges', () async {
+      await call('edit_captions', {
+        'rename': {'smile': 'watermark'},
+      });
+      // 001 had both; the renamed one merges into the tag already there
+      // rather than being written twice.
+      expect(await readCap('001'), 'trigger, 1girl, watermark');
+    });
+
+    test('edit_captions respects filters and creates missing captions',
+        () async {
+      final out = await call('edit_captions', {
+        'add': ['masterpiece'],
         'untagged_only': true,
       });
-      expect(out['changed_files'], 1);
+      expect(out['written'], 1);
+      expect(out['added_tags'], {'masterpiece': 1});
       expect(await readCap('003'), 'masterpiece');
       expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
+    });
+
+    test('edit_captions places added tags by index or anchor', () async {
+      await call('edit_captions', {
+        'add': ['masterpiece'],
+        'add_index': 0,
+        'name_query': '001',
+      });
+      expect(
+        await readCap('001'),
+        'masterpiece, trigger, 1girl, smile, watermark',
+      );
+
+      await call('edit_captions', {
+        'add': ['best quality'],
+        'add_anchor': 'trigger',
+        'add_after': false,
+      });
+      expect(await readCap('002'), 'best quality, trigger, 1girl, watermark');
+      // 003 has no caption and so no anchor: nothing was added to it.
+      expect(File(cap('003')).existsSync(), isFalse);
+    });
+
+    test('edit_captions applies all three rules in one undoable pass',
+        () async {
+      final out = await call('edit_captions', {
+        'remove': ['watermark'],
+        'rename': {'1girl': '1woman'},
+        'add': ['masterpiece'],
+      });
+      expect(out['written'], 3);
+      expect(await readCap('001'), 'trigger, 1woman, smile, masterpiece');
+      expect(await readCap('003'), 'masterpiece');
+
+      await tagOps.undo();
+      expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
+      expect(await readCap('003'), '');
+    });
+
+    test('edit_captions rejects contradictory rules before writing', () async {
+      final both = await call('edit_captions', {
+        'remove': ['1girl'],
+        'rename': {'1girl': '1woman'},
+      });
+      expect(both['error'], contains('pick one'));
+
+      final fighting = await call('edit_captions', {
+        'add': ['smile'],
+        'remove': ['smile'],
+      });
+      expect(fighting['error'], contains('fight over it'));
+
+      final nothing = await call('edit_captions');
+      expect(nothing['error'], contains('nothing to do'));
+
+      final placed = await call('edit_captions', {
+        'add': ['x'],
+        'add_index': 0,
+        'add_anchor': 'trigger',
+      });
+      expect(placed['error'], contains('not both'));
+
+      expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
+      expect(tagOps.canUndo, isFalse);
     });
 
     test('write_caption rewrites one image via relative path', () async {
@@ -229,15 +314,15 @@ void main() {
       },
     );
 
-    test('add_tags_everywhere reports the files it could not write', () async {
+    test('edit_captions reports the files it could not write', () async {
       await blockCaption('003');
-      final out = await call('add_tags_everywhere', {
-        'tags': ['masterpiece'],
+      final out = await call('edit_captions', {
+        'add': ['masterpiece'],
       });
-      expect(out['changed_files'], 2);
+      expect(out['written'], 2);
       // The skipped file is named rather than silently dropped.
-      expect(out['failed_files'], 1);
-      expect((out['failures'] as List).single['caption_file'], '003.txt');
+      expect(out['failed_images'], 1);
+      expect((out['failures'] as List).single['path'], '003.png');
       expect(await readCap('001'), endsWith('masterpiece'));
     });
 
@@ -253,9 +338,9 @@ void main() {
         captionExtension: '.txt',
       );
       final result = await registry.dispatch(
-        'add_tags_everywhere',
+        'edit_captions',
         jsonEncode({
-          'tags': ['masterpiece'],
+          'add': ['masterpiece'],
         }),
       );
       expect(result.isError, isTrue);
@@ -487,7 +572,9 @@ void main() {
       expect(await readCap('001'), 'trigger, 1girl, watermark');
 
       // An AI operation undoes fine.
-      await call('remove_tag_everywhere', {'tag': 'watermark'});
+      await call('edit_captions', {
+        'remove': ['watermark'],
+      });
       final out = await call('undo_last_operation');
       expect(out['undone'], startsWith('AI:'));
       expect(await readCap('001'), 'trigger, 1girl, watermark');

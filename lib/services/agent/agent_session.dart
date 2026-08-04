@@ -346,11 +346,9 @@ String buildAgentSystemPrompt({
             'edit_json_captions does: give the\n  rules once (add tags to a '
             'named field, remove tags, rename tags) and it\n  edits every '
             'document in place, leaving the keys, their order and every '
-            'value\n  no rule touches exactly as they were. The tag sweeps '
-            '(remove_tag_everywhere,\n  add_tags_everywhere, '
-            'replace_tag_everywhere, sort_captions_everywhere) and\n  '
-            'reorder_caption cannot touch a JSON caption at all — they have '
-            'no document\n  to write back.'
+            'value\n  no rule touches exactly as they were. edit_captions, '
+            'sort_captions_everywhere\n  and reorder_caption cannot touch a '
+            'JSON caption at all — they have no document\n  to write back.'
       : '';
   // The optional tool packs describe themselves only when they are actually
   // registered: telling the model about organize_tag_library when it has no
@@ -412,9 +410,14 @@ Guidelines:
   images means a hundred chances to mistype one and lose the run.
   reorder_caption is for a single image whose order a priority list cannot
   express; re-read it with read_captions immediately before, and copy the
-  tags from that result rather than from memory. Reach for write_caption
-  only when the tags themselves change, and pass expect_same_tags when they
-  should not.
+  tags from that result rather than from memory.
+- Changing which tags captions carry — deleting a tag everywhere, renaming
+  one, giving every image a tag — is ONE call to edit_captions with add /
+  remove / rename rules, narrowed by the same filters list_images takes. It
+  is the counterpart of edit_json_captions and takes the same three rules.
+  Matching folds case and underscore/space style. write_caption is for a
+  single image whose new tag list no rule can express; pass expect_same_tags
+  when the tags should not change at all.
 - The user can narrow the app to one subdirectory of the dataset. While a
   scope is active every tool — listing, statistics, and the "everywhere"
   writes — sees only that folder, and paths outside it do not resolve at

@@ -9,6 +9,7 @@ import '../models/llm_models.dart';
 import '../models/merge_rules.dart';
 import '../services/agent/agent_session.dart';
 import '../services/agent/agent_tools.dart';
+import '../services/agent/caption_edit_tools.dart';
 import '../services/agent/caption_variant_tools.dart';
 import '../services/agent/character_sheet.dart';
 import '../services/agent/dataset_tools.dart';
@@ -455,6 +456,10 @@ class AgentChatState extends ChangeNotifier {
     return ToolRegistry([
       ...buildReadOnlyTools(deps),
       ...buildWriteTools(deps, tagOps),
+      // Unconditional despite living beside the variant tools: editing tags in
+      // bulk is core, and it takes an extension only so a non-active type is
+      // reachable too.
+      ...buildCaptionEditTools(deps, tagOps),
       if (multiType || structuredTypes)
         ...buildCaptionVariantTools(deps, tagOps),
       if (jsonTypes) ...buildJsonCaptionTools(deps, tagOps),

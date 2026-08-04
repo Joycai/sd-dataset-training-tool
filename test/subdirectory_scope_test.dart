@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:dataset_training_tool/services/agent/agent_tools.dart';
+import 'package:dataset_training_tool/services/agent/caption_edit_tools.dart';
 import 'package:dataset_training_tool/services/agent/dataset_tools.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
@@ -218,6 +219,7 @@ void main() {
       registry = ToolRegistry([
         ...buildReadOnlyTools(deps),
         ...buildWriteTools(deps, tagOps),
+        ...buildCaptionEditTools(deps, tagOps),
       ]);
     });
 
@@ -269,9 +271,11 @@ void main() {
 
     test('a batch write sweeps the scope and reports it', () async {
       dataset.setSubdirectory('10_a');
-      final result = await call('remove_tag_everywhere', {'tag': 'shared'});
+      final result = await call('edit_captions', {
+        'remove': ['shared'],
+      });
 
-      expect(result['changed_files'], 2);
+      expect(result['written'], 2);
       expect(result['scope'], 'subdirectory "10_a" only');
       expect(await readCap(p.join('20_b', 'b1.png')), 'shared, beta');
     });
