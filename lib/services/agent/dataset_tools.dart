@@ -101,10 +101,17 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
           'Tags across the dataset (or the active subdirectory scope) '
           'with how many images carry each, as [tag, count] pairs. The '
           'primary way to understand the tag vocabulary — prefer this '
-          'over reading captions image by image.',
+          'over reading captions image by image. Pass query to search '
+          'instead of paging: it keeps only the tags containing that '
+          'substring, case-insensitively.',
       parametersSchema: {
         'type': 'object',
         'properties': {
+          'query': {
+            'type': 'string',
+            'description':
+                'case-insensitive substring; omit for the whole vocabulary',
+          },
           'sort': {
             'type': 'string',
             'enum': ['count', 'alpha'],
@@ -124,49 +131,29 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
       final sort = optString(args, 'sort') ?? 'count';
       final limit = optInt(args, 'limit', fallback: 200, min: 1, max: 1000);
       final offset = optInt(args, 'offset', fallback: 0, min: 0);
+      // A search was its own tool until it turned out to be this filter and
+      // nothing else — same source, same pairs, same paging.
+      final query = optString(args, 'query')?.toLowerCase();
       var tags = deps.dataset.datasetTags;
+      if (query != null) {
+        tags = [
+          for (final t in tags)
+            if (t.tag.toLowerCase().contains(query)) t,
+        ];
+      }
       if (sort == 'alpha') {
         tags = [...tags]
           ..sort((a, b) => a.tag.toLowerCase().compareTo(b.tag.toLowerCase()));
       }
       final page = tags.skip(offset).take(limit).toList();
       return toolOk({
+        'query': ?query,
         'total_unique': tags.length,
         'offset': offset,
         'returned': page.length,
         'truncated': offset + page.length < tags.length,
         'tags': [
           for (final t in page) [t.tag, t.count],
-        ],
-      });
-    },
-  ),
-  AgentTool(
-    spec: const AgentToolSpec(
-      name: 'search_tags',
-      description:
-          'Case-insensitive substring search over the dataset tag list. '
-          'Returns [tag, image_count] pairs.',
-      parametersSchema: {
-        'type': 'object',
-        'properties': {
-          'query': {'type': 'string'},
-          'limit': {'type': 'integer', 'description': 'default 50, max 200'},
-        },
-        'required': ['query'],
-      },
-    ),
-    handler: (args) async {
-      final query = requireString(args, 'query').toLowerCase();
-      final limit = optInt(args, 'limit', fallback: 50, min: 1, max: 200);
-      final matches = deps.dataset.datasetTags
-          .where((t) => t.tag.toLowerCase().contains(query))
-          .toList();
-      return toolOk({
-        'total_matches': matches.length,
-        'truncated': matches.length > limit,
-        'tags': [
-          for (final t in matches.take(limit)) [t.tag, t.count],
         ],
       });
     },
@@ -299,8 +286,8 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
           'them. Useful as the normalization target when cleaning dataset '
           'tags, and as the starting point for tidying the library itself — '
           'organize_tag_library files these tags into groups, '
-          'add_library_tags extends it, update_tag_group and '
-          'reorder_tag_groups change how the groups themselves look.',
+          'add_library_tags extends it, and manage_tag_groups renames, '
+          'recolors, reorders or deletes the groups themselves.',
       parametersSchema: {'type': 'object', 'properties': {}},
     ),
     handler: (args) async {

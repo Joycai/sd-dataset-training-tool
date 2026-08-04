@@ -140,13 +140,13 @@ void main() {
           jsonEncode(spec.parametersSchema).length,
     );
 
-    test('switching the library pack off drops six tools and their bulk', () {
+    test('switching the library pack off drops its tools and their bulk', () {
       final before = chat.buildRegistry(_profile);
       final withLibrary = weight(before);
 
       appState.updateAgentToolPack(AgentToolPack.tagLibrary, false);
       final after = chat.buildRegistry(_profile);
-      expect(before.specs.length - after.specs.length, 6);
+      expect(before.specs.length - after.specs.length, 4);
       // The whole point of the gate: less re-sent on every single turn.
       expect(withLibrary - weight(after), greaterThan(2000));
       expect(names(), isNot(contains('organize_tag_library')));

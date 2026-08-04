@@ -294,10 +294,18 @@ void main() {
     });
   });
 
-  test('remove_library_tags is gated as a write tool', () {
+  test('only the destructive calls are gated', () {
     expect(registry.find('remove_library_tags')!.isWrite, isTrue);
-    expect(registry.find('delete_tag_group')!.isWrite, isTrue);
     expect(registry.find('organize_tag_library')!.isWrite, isFalse);
+    // manage_tag_groups is gated per action: deleting a group is the one
+    // call in it with no undo, and a prompt on every rename would train the
+    // user to click through the one that mattered.
+    final groups = registry.find('manage_tag_groups')!;
+    expect(groups.needsConfirmation('{"action":"delete"}'), isTrue);
+    expect(groups.needsConfirmation('{"action":"update"}'), isFalse);
+    expect(groups.needsConfirmation('{"action":"reorder"}'), isFalse);
+    // Arguments nobody can read are not assumed harmless.
+    expect(groups.needsConfirmation('{not json'), isTrue);
   });
 
   test(
@@ -330,7 +338,8 @@ void main() {
           },
         ],
       });
-      final out = await call('update_tag_group', {
+      final out = await call('manage_tag_groups', {
+        'action': 'update',
         'group': '服装',
         'new_name': '衣物',
       });
@@ -342,7 +351,7 @@ void main() {
       await library.create('服装', 0);
       await library.create('背景', 0);
       final result = await registry.dispatch(
-        'update_tag_group',
+        'manage_tag_groups',
         jsonEncode({'group': '背景', 'new_name': '服装'}),
       );
       expect(result.isError, isTrue);
@@ -351,7 +360,8 @@ void main() {
 
     test('a preset color name recolors the group', () async {
       await library.create('服装', kTagGroupPresetColors.first);
-      final out = await call('update_tag_group', {
+      final out = await call('manage_tag_groups', {
+        'action': 'update',
         'group': '服装',
         'color': 'Orange',
       });
@@ -363,13 +373,15 @@ void main() {
 
     test('hex works, and 6 digits stay opaque', () async {
       await library.create('服装', 0);
-      await call('update_tag_group', {'group': '服装', 'color': '#123456'});
+      await call('manage_tag_groups', {
+        'action': 'update','group': '服装', 'color': '#123456'});
       expect(library.named('服装')!.color, 0xFF123456);
     });
 
     test('name and color change together in one call', () async {
       await library.create('服装', 0);
-      await call('update_tag_group', {
+      await call('manage_tag_groups', {
+        'action': 'update',
         'group': '服装',
         'new_name': '衣物',
         'color': 'mint',
@@ -380,7 +392,7 @@ void main() {
     test('a color that is neither preset nor hex is refused', () async {
       await library.create('服装', 0xFF000001);
       final result = await registry.dispatch(
-        'update_tag_group',
+        'manage_tag_groups',
         jsonEncode({'group': '服装', 'color': 'chartreuse'}),
       );
       expect(result.isError, isTrue);
@@ -390,7 +402,7 @@ void main() {
     test('an edit that changes nothing is rejected', () async {
       await library.create('服装', 0);
       final result = await registry.dispatch(
-        'update_tag_group',
+        'manage_tag_groups',
         jsonEncode({'group': '服装'}),
       );
       expect(result.isError, isTrue);
@@ -405,7 +417,8 @@ void main() {
           },
         ],
       });
-      final out = await call('delete_tag_group', {'group': '服装'});
+      final out = await call('manage_tag_groups', {
+        'action': 'delete','group': '服装'});
       expect(out['tags_returned_to_ungrouped'], 1);
       expect(library.groups, isEmpty);
       expect(library.tags, contains('boots'));
@@ -414,14 +427,14 @@ void main() {
 
     test('an unknown group name comes back as an error, not a crash', () async {
       final result = await registry.dispatch(
-        'delete_tag_group',
+        'manage_tag_groups',
         jsonEncode({'group': 'nope'}),
       );
       expect(result.isError, isTrue);
     });
   });
 
-  group('reorder_tag_groups', () {
+  group('manage_tag_groups reorder', () {
     setUp(() async {
       for (final name in ['服装', '背景', '身材外貌']) {
         await library.create(name, 0);
@@ -431,7 +444,8 @@ void main() {
     List<String> order() => [for (final g in library.groups) g.name];
 
     test('a full order is applied as given', () async {
-      final out = await call('reorder_tag_groups', {
+      final out = await call('manage_tag_groups', {
+        'action': 'reorder',
         'order': ['身材外貌', '服装', '背景'],
       });
       expect(order(), ['身材外貌', '服装', '背景']);
@@ -439,14 +453,16 @@ void main() {
     });
 
     test('a partial order lifts the named groups to the top', () async {
-      await call('reorder_tag_groups', {
+      await call('manage_tag_groups', {
+        'action': 'reorder',
         'order': ['身材外貌'],
       });
       expect(order(), ['身材外貌', '服装', '背景']);
     });
 
     test('unknown names are reported, and the rest still moves', () async {
-      final out = await call('reorder_tag_groups', {
+      final out = await call('manage_tag_groups', {
+        'action': 'reorder',
         'order': ['背景', '幻想分组'],
       });
       expect(out['no_such_group'], ['幻想分组']);
@@ -454,7 +470,8 @@ void main() {
     });
 
     test('a name listed twice is reported, not applied twice', () async {
-      final out = await call('reorder_tag_groups', {
+      final out = await call('manage_tag_groups', {
+        'action': 'reorder',
         'order': ['背景', '服装', '背景'],
       });
       expect(out['listed_twice'], ['背景']);
@@ -470,7 +487,8 @@ void main() {
           },
         ],
       });
-      await call('reorder_tag_groups', {
+      await call('manage_tag_groups', {
+        'action': 'reorder',
         'order': ['背景', '服装'],
       });
       expect(library.named('服装')!.tags, ['boots']);
@@ -479,7 +497,7 @@ void main() {
 
     test('an order naming no existing group is an error', () async {
       final result = await registry.dispatch(
-        'reorder_tag_groups',
+        'manage_tag_groups',
         jsonEncode({
           'order': ['nope'],
         }),
