@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import 'package:dataset_training_tool/models/caption_type.dart';
 import 'package:dataset_training_tool/services/agent/agent_tools.dart';
+import 'package:dataset_training_tool/services/agent/caption_edit_tools.dart';
 import 'package:dataset_training_tool/services/agent/caption_variant_tools.dart';
 import 'package:dataset_training_tool/services/agent/dataset_tools.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
@@ -95,6 +96,7 @@ void main() {
     );
     registry = ToolRegistry([
       ...buildReadOnlyTools(deps),
+      ...buildCaptionEditTools(deps, tagOps),
       ...buildCaptionVariantTools(deps, tagOps),
     ]);
   });
@@ -502,6 +504,57 @@ void main() {
         'target_extension': '.json',
       });
       expect(out['error'], contains('convert_captions_to_json'));
+    });
+  });
+
+  group('edit_captions on a prose type', () {
+    setUp(() async {
+      await File(cap('001', '.ntxt')).writeAsString(
+        'A girl with long hair, smiling, stands indoors. '
+        'She wears a red hat.',
+      );
+      await File(
+        cap('002', '.ntxt'),
+      ).writeAsString('A boy runs outdoors. She wears a red hat.');
+    });
+
+    test('the parts are whole sentences, commas and all', () async {
+      final out = await call('edit_captions', {
+        'extension': '.ntxt',
+        // The whole sentence, punctuation included — a clause would match
+        // nothing now that a comma is not a break.
+        'remove': ['She wears a red hat.'],
+      });
+      expect(out['written'], 2);
+      expect(out['removed_tags'], {'She wears a red hat.': 2});
+      expect(
+        await read('001', '.ntxt'),
+        'A girl with long hair, smiling, stands indoors.',
+      );
+      expect(await read('002', '.ntxt'), 'A boy runs outdoors.');
+    });
+
+    test('a rule naming a clause matches nothing', () async {
+      final out = await call('edit_captions', {
+        'extension': '.ntxt',
+        'remove': ['smiling'],
+      });
+      expect(out['written'], 0);
+      expect(out['removed_tags'], isEmpty);
+      expect(await read('001', '.ntxt'), contains('smiling'));
+    });
+
+    test('a sentence can be replaced or appended whole', () async {
+      await call('edit_captions', {
+        'extension': '.ntxt',
+        'rename': {'A boy runs outdoors.': 'A boy runs in a field.'},
+        'add': ['The light is warm.'],
+        'name_query': '002',
+      });
+      expect(
+        await read('002', '.ntxt'),
+        'A boy runs in a field. She wears a red hat. The light is warm.',
+      );
     });
   });
 }

@@ -172,18 +172,18 @@ void main() {
 
     // The tab and the counter both speak prose.
     expect(find.text('Sentences'), findsOneWidget);
-    expect(find.text('3 sentences'), findsOneWidget);
+    expect(find.text('2 sentences'), findsOneWidget);
     expect(find.text('Type a sentence and press Enter'), findsOneWidget);
 
-    // Each segment is its own row, with its punctuation intact.
+    // Each sentence is its own row, with its punctuation intact — and the
+    // comma inside one does not start a second row.
     expect(find.text('A girl smiles.'), findsOneWidget);
-    expect(find.text('She wears a red hat,'), findsOneWidget);
-    expect(find.text('outdoors.'), findsOneWidget);
+    expect(find.text('She wears a red hat, outdoors.'), findsOneWidget);
 
     // And the rows drive the same session the text tab writes to.
-    session.removeTag('She wears a red hat,');
+    session.removeTag('She wears a red hat, outdoors.');
     await tester.pump();
-    expect(session.captionController.text, 'A girl smiles. outdoors.');
-    expect(find.text('She wears a red hat,'), findsNothing);
+    expect(session.captionController.text, 'A girl smiles.');
+    expect(find.text('She wears a red hat, outdoors.'), findsNothing);
   });
 }

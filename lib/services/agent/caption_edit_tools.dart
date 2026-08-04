@@ -60,8 +60,11 @@ const AgentToolSpec _spec = AgentToolSpec(
       'Sorting is a different job — use sort_captions_everywhere. For a '
       'JSON caption type use edit_json_captions, which is this tool\'s '
       'counterpart and takes the same add / remove / rename rules. An Anima '
-      'Tag caption\'s trailing sentence is never touched. Undoable as one '
-      'operation.',
+      'Tag caption\'s trailing sentence is never touched. On a '
+      'natural-language (prose) type there are no tags: the parts are whole '
+      'SENTENCES, so a rule has to name one exactly, punctuation and all '
+      '("She wears a red hat, outdoors."), and a rule naming a tag matches '
+      'nothing. Undoable as one operation.',
   parametersSchema: {
     'type': 'object',
     'properties': {

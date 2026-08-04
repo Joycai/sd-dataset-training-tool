@@ -20,10 +20,19 @@ const _pngBytes = [
 
 void main() {
   group('parseSentenceText', () {
-    test('segments by , and . keeping the punctuation', () {
+    test('segments by sentence, keeping the punctuation', () {
       expect(
         parseSentenceText('A girl smiling. She has long hair, and a hat.'),
-        ['A girl smiling.', 'She has long hair,', 'and a hat.'],
+        ['A girl smiling.', 'She has long hair, and a hat.'],
+      );
+    });
+
+    test('commas inside a sentence are not breaks', () {
+      // What a captioning model actually writes. Breaking here would cut it
+      // into clauses — the tag grammar wearing a different name.
+      expect(
+        parseSentenceText('A girl with long hair, smiling, stands indoors.'),
+        ['A girl with long hair, smiling, stands indoors.'],
       );
     });
 
@@ -41,12 +50,26 @@ void main() {
       ]);
     });
 
-    test('splits full-width punctuation without needing spaces', () {
-      expect(parseSentenceText('她是女孩，戴着帽子。在雨中。'), ['她是女孩，', '戴着帽子。', '在雨中。']);
+    test('splits full-width 。 without needing spaces, but not ，', () {
+      expect(parseSentenceText('她是女孩，戴着帽子。在雨中。'), ['她是女孩，戴着帽子。', '在雨中。']);
     });
 
-    test('exact duplicate segments collapse', () {
-      expect(parseSentenceText('A cat. A cat. A dog.'), ['A cat.', 'A dog.']);
+    test('a repeated sentence is kept, not collapsed', () {
+      // Two identical tags on one image are one tag; two identical sentences
+      // in a paragraph are two sentences. Collapsing them made the segment
+      // view a lossy round trip.
+      expect(parseSentenceText('A cat. A cat. A dog.'), [
+        'A cat.',
+        'A cat.',
+        'A dog.',
+      ]);
+      expect(
+        joinCaptionText(
+          parseSentenceText('A cat. A cat. A dog.'),
+          format: CaptionFormat.prose,
+        ),
+        'A cat. A cat. A dog.',
+      );
     });
   });
 
@@ -121,8 +144,7 @@ void main() {
       expect(dataset.captionFormat, CaptionFormat.prose);
       expect(dataset.tagsOf(p.join(tempDir.path, '001.png')), [
         'A girl smiling.',
-        'She wears a red hat,',
-        'outdoors.',
+        'She wears a red hat, outdoors.',
       ]);
     });
 
@@ -137,17 +159,16 @@ void main() {
       );
       expect(session.tags, [
         'A girl smiling.',
-        'She wears a red hat,',
-        'outdoors.',
+        'She wears a red hat, outdoors.',
       ]);
 
-      session.removeTag('She wears a red hat,');
-      expect(session.captionController.text, 'A girl smiling. outdoors.');
+      session.removeTag('She wears a red hat, outdoors.');
+      expect(session.captionController.text, 'A girl smiling.');
 
       await session.save();
       expect(
         await File(p.join(tempDir.path, '001.ntxt')).readAsString(),
-        'A girl smiling. outdoors.',
+        'A girl smiling.',
       );
     });
   });
