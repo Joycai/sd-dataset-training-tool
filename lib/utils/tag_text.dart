@@ -156,6 +156,68 @@ List<String> jsonCaptionTags(
   return out;
 }
 
+/// Flattens a decoded JSON caption into an ordered tag line — the way back
+/// from a JSON caption type to a plain tag list.
+///
+/// [fields] names the top-level keys whose tags come first, in that order.
+/// A key it does not name still contributes its tags, appended after the
+/// ordered ones and reported in `unlisted`: dropping a tag for going
+/// unlisted is exactly the silent loss the JSON tools exist to prevent, so
+/// the only way to lose one here is to ask, via [skipFields].
+///
+/// [nlField] is pulled out whole rather than split: a prose sentence read
+/// with the tag grammar becomes a handful of comma-shaped fragments, which
+/// is what a caption converted "back" most often gets wrong. It is returned
+/// separately so the caller can decide whether the target format has
+/// anywhere to put it.
+({List<String> tags, String? nl, Set<String> unlisted, int skipped})
+flattenJsonCaption(
+  dynamic decoded, {
+  List<String> fields = const [],
+  String? nlField,
+  Set<String> skipFields = const {},
+}) {
+  if (decoded is! Map) {
+    // No keys to order by; everything the document carries comes out as it
+    // was walked.
+    return (
+      tags: jsonCaptionTags(decoded, ignoreKeys: skipFields),
+      nl: null,
+      unlisted: const {},
+      skipped: 0,
+    );
+  }
+
+  var skipped = 0;
+  for (final entry in decoded.entries) {
+    if (skipFields.contains('${entry.key}')) {
+      skipped += jsonCaptionTags(entry.value).length;
+    }
+  }
+
+  String? nl;
+  if (nlField != null) {
+    final value = decoded[nlField];
+    if (value is String && value.trim().isNotEmpty) nl = value.trim();
+  }
+
+  final taken = <String>{?nlField, ...skipFields};
+  final tags = <String>[];
+  for (final field in fields) {
+    if (!taken.add(field)) continue;
+    if (!decoded.containsKey(field)) continue;
+    tags.addAll(jsonCaptionTags(decoded[field], ignoreKeys: skipFields));
+  }
+  final unlisted = <String>{};
+  decoded.forEach((key, value) {
+    final name = '$key';
+    if (!taken.add(name)) return;
+    unlisted.add(name);
+    tags.addAll(jsonCaptionTags(value, ignoreKeys: skipFields));
+  });
+  return (tags: tags, nl: nl, unlisted: unlisted, skipped: skipped);
+}
+
 /// Joins parsed caption parts back into file text. Tags join with `", "`;
 /// prose segments carry their own punctuation, so they join with a plain
 /// space — omitted after full-width punctuation, which no space follows.
