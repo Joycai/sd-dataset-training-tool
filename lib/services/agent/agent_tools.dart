@@ -51,6 +51,7 @@ class AgentTool {
     required this.spec,
     required this.handler,
     this.isWrite = false,
+    this.confirmWhen,
   });
 
   final AgentToolSpec spec;
@@ -59,6 +60,36 @@ class AgentTool {
   /// Write tools mutate caption files; the session may gate them behind a
   /// user confirmation (Phase 2).
   final bool isWrite;
+
+  /// For a tool where only *some* calls destroy something: given the decoded
+  /// arguments, whether this particular call needs the user's confirmation.
+  /// Null means every call does.
+  ///
+  /// Without this a tool that merges a destructive action with harmless ones
+  /// has to be gated as a whole, and renaming a group would prompt as loudly
+  /// as deleting one — which is how confirmation fatigue starts, and how a
+  /// user ends up clicking through the one prompt that mattered.
+  final bool Function(Map<String, dynamic> args)? confirmWhen;
+
+  /// Whether [argumentsJson] describes a call the user has to approve.
+  ///
+  /// Arguments that do not parse count as needing confirmation: dispatch
+  /// rejects them a moment later anyway, and guessing "harmless" about a call
+  /// nobody can read is the wrong way to be wrong.
+  bool needsConfirmation(String argumentsJson) {
+    if (!isWrite) return false;
+    final predicate = confirmWhen;
+    if (predicate == null) return true;
+    try {
+      final decoded = argumentsJson.trim().isEmpty
+          ? <String, dynamic>{}
+          : jsonDecode(argumentsJson);
+      if (decoded is! Map<String, dynamic>) return true;
+      return predicate(decoded);
+    } on FormatException {
+      return true;
+    }
+  }
 }
 
 class ToolRegistry {

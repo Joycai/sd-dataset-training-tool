@@ -12,7 +12,7 @@
 /// keep working by hand.
 enum AgentToolPack {
   /// `organize_tag_library`, `add_library_tags`, `remove_library_tags`,
-  /// `update_tag_group`, `reorder_tag_groups`, `delete_tag_group`.
+  /// `manage_tag_groups`.
   ///
   /// On by default: "help me tidy my tag library" is a common ask, and the
   /// case where the library is still empty is exactly the one where the user

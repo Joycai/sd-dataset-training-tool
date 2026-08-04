@@ -449,150 +449,145 @@ List<AgentTool> buildTagLibraryTools(TagLibraryToolsDeps deps) {
     ),
 
     AgentTool(
+      // Only the delete needs the user's blessing. Gating the whole tool
+      // would prompt as loudly for a rename, and a prompt that fires for
+      // everything stops being read.
+      isWrite: true,
+      confirmWhen: (args) => optString(args, 'action') == 'delete',
       spec: AgentToolSpec(
-        name: 'update_tag_group',
+        name: 'manage_tag_groups',
         description:
-            'Rename a group in the tag library and/or change its color. Its '
-            'tags stay where they are — this never re-files anything.\n'
-            'Pass "new_name", "color", or both.',
+            'Change the groups of the tag library themselves — rename one, '
+            'recolor it, set the order they appear in, or delete one. Tags '
+            'and group membership are never touched here: use '
+            'organize_tag_library to move tags between groups.\n'
+            'Pick one "action" per call.',
         parametersSchema: {
           'type': 'object',
           'properties': {
-            'group': {'type': 'string', 'description': 'Current name.'},
-            'new_name': {'type': 'string'},
+            'action': {
+              'type': 'string',
+              'enum': ['update', 'reorder', 'delete'],
+              'description':
+                  '"update": rename and/or recolor the group named by '
+                  '"group". "reorder": set the panel order from "order". '
+                  '"delete": remove the group named by "group" — its tags '
+                  'fall back to the ungrouped bucket, and there is no undo, '
+                  'so only do it when the user has said so.',
+            },
+            'group': {
+              'type': 'string',
+              'description': 'for update / delete: the group\'s current name',
+            },
+            'new_name': {'type': 'string', 'description': 'for update'},
             'color': {
               'type': 'string',
               'description':
-                  'One of ${kTagGroupColorNames.keys.join(', ')}, or a hex '
-                  'value like "#6A9BDD". Group colors are only a visual aid '
-                  'in the panel; pick one that reads as the group\'s theme '
-                  'and keep sibling groups distinguishable.',
+                  'for update: one of ${kTagGroupColorNames.keys.join(', ')}, '
+                  'or a hex value like "#6A9BDD". Group colors are only a '
+                  'visual aid in the panel; pick one that reads as the '
+                  'group\'s theme and keep sibling groups distinguishable.',
             },
-          },
-          'required': ['group'],
-        },
-      ),
-      handler: (args) async {
-        final name = requireString(args, 'group');
-        final next = optString(args, 'new_name');
-        final rawColor = optString(args, 'color');
-        if (next == null && rawColor == null) {
-          throw ToolArgError(
-            'nothing to change: pass "new_name", "color", or both',
-          );
-        }
-        final color = rawColor == null ? null : parseTagGroupColor(rawColor);
-        final group = findGroup(name);
-        if (group == null) {
-          return toolError(
-            'no group named "$name"; existing groups: '
-            '${deps.tagGroups().map((g) => g.name).join(', ')}',
-          );
-        }
-        if (next != null) {
-          final clash = findGroup(next);
-          if (clash != null && clash.id != group.id) {
-            return toolError(
-              'a group named "${clash.name}" already exists; move the tags '
-              'into it with organize_tag_library instead of renaming',
-            );
-          }
-        }
-        await deps.updateGroup(group.id, name: next, color: color);
-        return toolOk({
-          'group': group.name,
-          'renamed_to': ?next,
-          if (color != null) 'color': formatTagGroupColor(color),
-          'tags': group.tags.length,
-        });
-      },
-    ),
-
-    AgentTool(
-      spec: const AgentToolSpec(
-        name: 'reorder_tag_groups',
-        description:
-            'Set the order the groups appear in, top to bottom, in the tag '
-            'library panel. Send the full order in ONE call.\n'
-            'Groups you leave out keep their relative order behind the ones '
-            'you list, so naming a single group lifts it to the top. Tags '
-            'and group membership are untouched.',
-        parametersSchema: {
-          'type': 'object',
-          'properties': {
             'order': {
               'type': 'array',
               'items': {'type': 'string'},
               'description':
-                  'Existing group names, in the order they should appear. '
-                  'Names that match no group are reported back and skipped.',
+                  'for reorder: existing group names, top to bottom, in ONE '
+                  'call. Groups left out keep their relative order behind '
+                  'the ones listed, so naming a single group lifts it to the '
+                  'top. Names matching no group are reported back and '
+                  'skipped.',
             },
           },
-          'required': ['order'],
+          'required': ['action'],
         },
       ),
       handler: (args) async {
-        final asked = requireStringList(args, 'order');
-        final ids = <String>[];
-        final seen = <String>{};
-        final unknown = <String>[];
-        final duplicates = <String>[];
-        for (final name in asked) {
-          final group = findGroup(name);
-          if (group == null) {
-            unknown.add(name);
-          } else if (!seen.add(group.id)) {
-            duplicates.add(name);
-          } else {
-            ids.add(group.id);
-          }
-        }
-        if (ids.isEmpty) {
-          return toolError(
-            'none of these names match a group; existing groups: '
-            '${deps.tagGroups().map((g) => g.name).join(', ')}',
-          );
-        }
-        await deps.reorderGroups(ids);
-        return toolOk({
-          'order': [for (final g in deps.tagGroups()) g.name],
-          if (unknown.isNotEmpty) 'no_such_group': unknown,
-          if (duplicates.isNotEmpty) 'listed_twice': duplicates,
-        });
-      },
-    ),
+        final action = requireString(args, 'action');
+        AgentToolResult noSuchGroup(String name) => toolError(
+          'no group named "$name"; existing groups: '
+          '${deps.tagGroups().map((g) => g.name).join(', ')}',
+        );
 
-    AgentTool(
-      isWrite: true,
-      spec: const AgentToolSpec(
-        name: 'delete_tag_group',
-        description:
-            'Delete a group from the tag library. Its tags are kept — they '
-            'fall back to the ungrouped bucket. Only the grouping is lost, '
-            'and there is no undo for it.',
-        parametersSchema: {
-          'type': 'object',
-          'properties': {
-            'group': {'type': 'string'},
-          },
-          'required': ['group'],
-        },
-      ),
-      handler: (args) async {
-        final name = requireString(args, 'group');
-        final group = findGroup(name);
-        if (group == null) {
-          return toolError(
-            'no group named "$name"; existing groups: '
-            '${deps.tagGroups().map((g) => g.name).join(', ')}',
-          );
+        switch (action) {
+          case 'update':
+            final name = requireString(args, 'group');
+            final next = optString(args, 'new_name');
+            final rawColor = optString(args, 'color');
+            if (next == null && rawColor == null) {
+              throw ToolArgError(
+                'nothing to change: pass "new_name", "color", or both',
+              );
+            }
+            final color = rawColor == null
+                ? null
+                : parseTagGroupColor(rawColor);
+            final group = findGroup(name);
+            if (group == null) return noSuchGroup(name);
+            if (next != null) {
+              final clash = findGroup(next);
+              if (clash != null && clash.id != group.id) {
+                return toolError(
+                  'a group named "${clash.name}" already exists; move the '
+                  'tags into it with organize_tag_library instead of '
+                  'renaming',
+                );
+              }
+            }
+            await deps.updateGroup(group.id, name: next, color: color);
+            return toolOk({
+              'group': group.name,
+              'renamed_to': ?next,
+              if (color != null) 'color': formatTagGroupColor(color),
+              'tags': group.tags.length,
+            });
+
+          case 'reorder':
+            final asked = requireStringList(args, 'order');
+            final ids = <String>[];
+            final seen = <String>{};
+            final unknown = <String>[];
+            final duplicates = <String>[];
+            for (final name in asked) {
+              final group = findGroup(name);
+              if (group == null) {
+                unknown.add(name);
+              } else if (!seen.add(group.id)) {
+                duplicates.add(name);
+              } else {
+                ids.add(group.id);
+              }
+            }
+            if (ids.isEmpty) {
+              return toolError(
+                'none of these names match a group; existing groups: '
+                '${deps.tagGroups().map((g) => g.name).join(', ')}',
+              );
+            }
+            await deps.reorderGroups(ids);
+            return toolOk({
+              'order': [for (final g in deps.tagGroups()) g.name],
+              if (unknown.isNotEmpty) 'no_such_group': unknown,
+              if (duplicates.isNotEmpty) 'listed_twice': duplicates,
+            });
+
+          case 'delete':
+            final name = requireString(args, 'group');
+            final group = findGroup(name);
+            if (group == null) return noSuchGroup(name);
+            await deps.deleteGroup(group.id);
+            return toolOk({
+              'deleted': group.name,
+              'tags_returned_to_ungrouped': group.tags.length,
+              'library': librarySummary(),
+            });
+
+          default:
+            return toolError(
+              '"action" must be "update", "reorder" or "delete"; got '
+              '"$action"',
+            );
         }
-        await deps.deleteGroup(group.id);
-        return toolOk({
-          'deleted': group.name,
-          'tags_returned_to_ungrouped': group.tags.length,
-          'library': librarySummary(),
-        });
       },
     ),
   ];

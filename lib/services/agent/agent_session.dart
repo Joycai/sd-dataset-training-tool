@@ -244,7 +244,7 @@ class AgentSession {
             yield AgentToolStarted(call);
             final tool = registry.find(call.name);
             if (tool != null &&
-                tool.isWrite &&
+                tool.needsConfirmation(call.argumentsJson) &&
                 confirmWrite != null &&
                 !await confirmWrite!(tool, call)) {
               result = toolError('the user rejected this operation');
@@ -358,8 +358,8 @@ String buildAgentSystemPrompt({
             'named colored\n  groups in the app\'s library panel — it is not '
             'the dataset. Read it with\n  get_tag_library and change it with '
             'organize_tag_library (file tags into\n  groups), '
-            'add_library_tags, update_tag_group (rename / recolor a group),\n'
-            '  reorder_tag_groups and delete_tag_group. When\n  asked to tidy '
+            'add_library_tags, and manage_tag_groups (rename, recolor,\n'
+            '  reorder or delete a group). When\n  asked to tidy '
             'or categorize the library, send the whole plan as ONE\n  '
             'organize_tag_library call carrying every group with its tags, up '
             'to\n  $maxAssignmentsPerCall groups and $maxLibraryTagsPerCall '
@@ -367,8 +367,8 @@ String buildAgentSystemPrompt({
             'that already exist and keep\n  the number of new ones small. '
             'None of this touches a caption file, so a\n  library change '
             'never alters the dataset — and none of it is covered by\n  undo, '
-            'which is why remove_library_tags and delete_tag_group are '
-            'confirmation-gated.'
+            'which is why remove_library_tags and the delete action of\n  '
+            'manage_tag_groups are confirmation-gated.'
       : '';
   final glossaryGuideline = translationToolsEnabled
       ? '\n- The tag glossary is display-only: translations are shown beside '

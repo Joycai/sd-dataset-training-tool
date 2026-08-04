@@ -86,9 +86,9 @@ void main() {
     });
 
     test('argument validation errors are reported to the model', () async {
-      final result = await registry.dispatch('search_tags', '{}');
+      final result = await registry.dispatch('read_captions', '{}');
       expect(result.isError, isTrue);
-      expect(result.text, contains('query'));
+      expect(result.text, contains('paths'));
     });
   });
 
@@ -114,9 +114,19 @@ void main() {
       expect(out['truncated'], isTrue);
     });
 
-    test('search_tags matches case-insensitively', () async {
-      final out = await call('search_tags', {'query': 'HAIR'});
+    test('get_tag_stats query matches case-insensitively', () async {
+      final out = await call('get_tag_stats', {'query': 'HAIR'});
       expect((out['tags'] as List).single, ['long hair', 1]);
+      // The count is of matches, not of the whole vocabulary — a search was
+      // its own tool until it turned out to be exactly this filter.
+      expect(out['total_unique'], 1);
+      expect(out['query'], 'hair');
+    });
+
+    test('get_tag_stats without a query is unfiltered', () async {
+      final out = await call('get_tag_stats');
+      expect(out.containsKey('query'), isFalse);
+      expect(out['total_unique'], 4);
     });
 
     test('list_images filters by include/exclude/untagged', () async {
