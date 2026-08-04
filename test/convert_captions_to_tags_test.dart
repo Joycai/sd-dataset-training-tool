@@ -325,4 +325,183 @@ void main() {
       expect(out['error'], contains('only applies to an Anima Tag source'));
     });
   });
+
+  group('convert_captions_to_tags from a JSON source', () {
+    // The Anima simplified shape, as convert_captions_to_json writes it.
+    Future<void> writeJson(String name, Map<String, Object?> doc) => File(
+      cap(name, '.json'),
+    ).writeAsString(const JsonEncoder.withIndent('  ').convert(doc));
+
+    setUp(() async {
+      await writeJson('001', {
+        'quality': 'newest, safe',
+        'count': '1girl',
+        'character': 'hatsune miku (racing)',
+        'artist': '@my artist',
+        'appearance': ['long hair', 'blue eyes'],
+        'tags': ['smile'],
+        'environment': ['indoors'],
+        'nl': 'A girl smiles, indoors.',
+      });
+      await writeJson('002', {
+        'quality': 'newest, safe',
+        'count': '1boy',
+        'character': '',
+        'artist': '',
+        'appearance': ['short hair'],
+        'tags': [],
+        'environment': [],
+        'nl': '',
+      });
+    });
+
+    const order = [
+      'quality',
+      'count',
+      'character',
+      'artist',
+      'appearance',
+      'tags',
+      'environment',
+    ];
+
+    test('flattens the document into the declared key order', () async {
+      final out = await call('convert_captions_to_tags', {
+        'source_extension': '.json',
+        'target_extension': '.txt',
+        'fields': order,
+        'nl_field': 'nl',
+      });
+      expect(out['written'], 2);
+      // Key order is the declared one, and the prose field never became tags.
+      expect(
+        await read('001', '.txt'),
+        'newest, safe, 1girl, hatsune miku (racing), @my artist, long hair, '
+        'blue eyes, smile, indoors',
+      );
+      // The description had nowhere to go in a plain tag list — dropped, and
+      // counted rather than silently lost.
+      expect(out['descriptions_dropped'], 1);
+      expect(out.containsKey('unlisted_keys_seen'), isFalse);
+    });
+
+    test('the round trip back to WD14 applies the same rules', () async {
+      final out = await call('convert_captions_to_tags', {
+        'source_extension': '.json',
+        'target_extension': '.txt',
+        'fields': order,
+        'nl_field': 'nl',
+        // What "back to WD14 for training" actually means: no quality/meta
+        // vocabulary, no @ on the artist, and parentheses escaped because
+        // bare ones are prompt attention syntax in a text caption.
+        'remove': ['newest', 'safe'],
+        'rename': {'@my artist': 'my artist'},
+        'parentheses': 'escape',
+        'spacing': 'underscores',
+        'prepend': ['trigger'],
+      });
+      expect(out['written'], 2);
+      expect(out['removed_tags'], {'newest': 2, 'safe': 2});
+      expect(
+        await read('001', '.txt'),
+        r'trigger, 1girl, hatsune_miku_\(racing\), my_artist, long_hair, '
+        r'blue_eyes, smile, indoors',
+      );
+    });
+
+    test('an unlisted key keeps its tags and is named', () async {
+      final out = await call('convert_captions_to_tags', {
+        'source_extension': '.json',
+        'target_extension': '.txt',
+        'fields': const ['count', 'appearance'],
+        'nl_field': 'nl',
+      });
+      // Nothing is dropped for going unlisted — the rest is appended and
+      // reported, so a field order that missed something is visible.
+      expect(out['unlisted_keys_seen'], [
+        'quality',
+        'character',
+        'artist',
+        'tags',
+        'environment',
+      ]);
+      // The two declared fields lead; everything else follows in document
+      // order behind them.
+      expect(
+        await read('001', '.txt'),
+        '1girl, long hair, blue eyes, newest, safe, hatsune miku (racing), '
+        '@my artist, smile, indoors',
+      );
+    });
+
+    test('skip_fields drops tags on purpose and counts them', () async {
+      final out = await call('convert_captions_to_tags', {
+        'source_extension': '.json',
+        'target_extension': '.txt',
+        'fields': order,
+        'nl_field': 'nl',
+        'skip_fields': ['quality', 'artist'],
+      });
+      // 001: newest, safe, @my artist = 3; 002: newest, safe = 2.
+      expect(out['tags_skipped_by_field'], 5);
+      expect(await read('001', '.txt'), isNot(contains('newest')));
+      expect(await read('001', '.txt'), isNot(contains('artist')));
+    });
+
+    test('an Anima Tag target takes the prose field as its tail', () async {
+      await call('convert_captions_to_tags', {
+        'source_extension': '.json',
+        'target_extension': '.atxt',
+        'fields': order,
+        'nl_field': 'nl',
+        'overwrite': true,
+      });
+      expect(
+        await read('001', '.atxt'),
+        endsWith('. A girl smiles, indoors.'),
+      );
+    });
+
+    test('without nl_field the sentence is comma-split into tags', () async {
+      await call('convert_captions_to_tags', {
+        'source_extension': '.json',
+        'target_extension': '.txt',
+        'fields': order,
+      });
+      // Exactly the failure nl_field exists to prevent, and why the tool
+      // says so: the sentence arrives as two bogus tags.
+      expect(await read('001', '.txt'), endsWith('A girl smiles, indoors.'));
+    });
+
+    test('a document that does not parse fails only its own image', () async {
+      await File(cap('002', '.json')).writeAsString('{broken');
+      final out = await call('convert_captions_to_tags', {
+        'source_extension': '.json',
+        'target_extension': '.txt',
+        'fields': order,
+        'nl_field': 'nl',
+      });
+      expect(out['written'], 1);
+      expect(out['failed_images'], 1);
+      expect((out['failures'] as List).single['error'], contains('not valid'));
+      expect(File(cap('001', '.txt')).existsSync(), isTrue);
+    });
+
+    test('the JSON knobs are refused for a tag-list source', () async {
+      final out = await call('convert_captions_to_tags', {
+        'source_extension': '.atxt',
+        'target_extension': '.txt',
+        'fields': order,
+      });
+      expect(out['error'], contains('only apply to a JSON source'));
+    });
+
+    test('a JSON target still points at the other tools', () async {
+      final out = await call('convert_captions_to_tags', {
+        'source_extension': '.atxt',
+        'target_extension': '.json',
+      });
+      expect(out['error'], contains('convert_captions_to_json'));
+    });
+  });
 }

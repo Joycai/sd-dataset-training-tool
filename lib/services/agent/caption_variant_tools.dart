@@ -910,14 +910,20 @@ AgentTool _convertCaptionsToTags(
   spec: const AgentToolSpec(
     name: 'convert_captions_to_tags',
     description:
-        'Convert MANY captions from one tag-list caption type into '
-        'another (WD14 tags ⇄ Anima Tag) in one call — always prefer '
+        'Convert MANY captions into a tag-list caption type in one call '
+        '— WD14 tags ⇄ Anima Tag, and JSON → either. This is the way '
+        'back from a JSON caption type to plain tags, e.g. to train a '
+        'LoRA on a dataset captioned as Anima JSON: give "fields" and '
+        'the document is flattened into a tag line in that key order. '
+        'Always prefer '
         'this over looping write_caption_file, which costs a round '
         'trip per image to apply rules you already decided once. You '
         'give the rules once: remove tags, rename tags, normalise '
         'spelling, order by priority, prepend a trigger word. Nothing '
         'is invented — every output tag comes from the source or from '
-        'prepend. An Anima Tag source\'s trailing sentence is carried '
+        'prepend. A JSON source\'s prose field goes in nl_field, or its '
+        'sentence is comma-split into bogus tags. An Anima Tag '
+        'source\'s trailing sentence is carried '
         'over when the target is Anima Tag too, and dropped (and '
         'counted in the result) when the target is plain tags. The '
         'result reports each removed and renamed tag with how many '
@@ -930,7 +936,37 @@ AgentTool _convertCaptionsToTags(
       'properties': {
         'source_extension': {
           'type': 'string',
-          'description': 'the tag-list caption type to read (e.g. ".atxt")',
+          'description':
+              'the caption type to read: a tag-list one (e.g. ".atxt") or '
+              'a JSON one (e.g. ".json")',
+        },
+        'fields': {
+          'type': 'array',
+          'items': {'type': 'string'},
+          'description':
+              'JSON sources only: top-level keys in the order their tags '
+              'should appear in the tag line (e.g. ["quality", "count", '
+              '"character", "artist", "appearance", "tags", '
+              '"environment"]). Keys you leave out still contribute their '
+              'tags, appended at the end, and the result names them — a '
+              'tag is never dropped for going unlisted. Plan the list from '
+              'inspect_json_captions.',
+        },
+        'nl_field': {
+          'type': 'string',
+          'description':
+              'JSON sources only: the key holding a natural-language '
+              'sentence rather than tags. It becomes the Anima Tag tail '
+              'when the target is Anima Tag, and is dropped (and counted) '
+              'when the target is plain tags. Without it that sentence is '
+              'comma-split and written out as tags.',
+        },
+        'skip_fields': {
+          'type': 'array',
+          'items': {'type': 'string'},
+          'description':
+              'JSON sources only: keys to ignore completely, at any depth. '
+              'Their tags are dropped and counted.',
         },
         'target_extension': {
           'type': 'string',
@@ -1031,15 +1067,38 @@ AgentTool _convertCaptionsToTags(
         unknownCaptionType(requireString(args, 'target_extension'), types),
       );
     }
-    for (final type in [source, target]) {
-      if (!type.format.isTagList) {
-        return toolError(
-          'both types must be tag-list caption types (WD14 tags or '
-          'Anima Tag); "${type.extension}" is ${type.format.name}'
-          '${type.format == CaptionFormat.json ? ' — use convert_captions_to_json or '
-                    'restructure_json_captions for JSON' : ''}',
-        );
-      }
+    if (!target.format.isTagList) {
+      return toolError(
+        'the target must be a tag-list caption type (WD14 tags or Anima '
+        'Tag); "${target.extension}" is ${target.format.name}'
+        '${target.format == CaptionFormat.json ? ' — use '
+                  'convert_captions_to_json to go the other way, or '
+                  'restructure_json_captions to reshape JSON in place' : ''}',
+      );
+    }
+    final jsonSource = source.format == CaptionFormat.json;
+    if (!source.format.isTagList && !jsonSource) {
+      return toolError(
+        'the source must be a tag-list or JSON caption type; '
+        '"${source.extension}" is ${source.format.name}',
+      );
+    }
+    // The three JSON-only knobs are refused for a tag-list source rather
+    // than ignored: a model that passed them believes something about this
+    // call that is not true.
+    final fieldOrder = optStringList(args, 'fields', maxLength: 100);
+    final nlField = optString(args, 'nl_field');
+    final skipFields = optStringList(args, 'skip_fields', maxLength: 100)
+        .toSet();
+    if (!jsonSource &&
+        (fieldOrder.isNotEmpty || nlField != null || skipFields.isNotEmpty)) {
+      return toolError(
+        'fields / nl_field / skip_fields only apply to a JSON source; '
+        '"${source.extension}" is ${source.format.name}',
+      );
+    }
+    if (nlField != null && skipFields.contains(nlField)) {
+      return toolError('nl_field "$nlField" is also in skip_fields');
     }
     if (source.extension == target.extension) {
       return toolError(
@@ -1134,30 +1193,76 @@ AgentTool _convertCaptionsToTags(
     final renamed = <String, int>{};
     final failures = <({String path, String error})>[];
     final edits = <CaptionEdit>[];
+    // JSON sources only: keys whose tags came along without being placed,
+    // and how many tags skip_fields swallowed. Both are reported so a field
+    // order that missed something is visible instead of silent.
+    final unlistedKeys = <String>{};
+    var skippedFieldTags = 0;
 
     for (final f in files) {
       final rel = p.relative(f.path, from: root);
 
-      List<String> parts;
-      if (source.extension == d.captionExtension) {
-        parts = d.tagsOf(f.path);
-      } else {
+      ({List<String> tags, String? nl}) split;
+      if (jsonSource) {
+        // Always from disk, even when the JSON type is the active one: the
+        // tag index's view of a JSON caption is a deduped flat list with no
+        // key order and no prose field — exactly what fields and nl_field
+        // exist to preserve.
+        String text;
         try {
           final sourceFile = File(captionVariantPath(f.path, source));
-          parts = await sourceFile.exists()
-              ? parseCaptionText(
-                  await sourceFile.readAsString(),
-                  format: source.format,
-                )
-              : const [];
+          text = await sourceFile.exists()
+              ? await sourceFile.readAsString()
+              : '';
         } catch (e) {
           failures.add((path: rel, error: 'cannot read source: $e'));
           continue;
         }
+        if (text.trim().isEmpty) {
+          skippedUncaptioned++;
+          continue;
+        }
+        dynamic decoded;
+        try {
+          decoded = jsonDecode(text);
+        } on FormatException catch (e) {
+          failures.add((
+            path: rel,
+            error: 'source is not valid JSON — ${e.message}',
+          ));
+          continue;
+        }
+        final flat = flattenJsonCaption(
+          decoded,
+          fields: fieldOrder,
+          nlField: nlField,
+          skipFields: skipFields,
+        );
+        unlistedKeys.addAll(flat.unlisted);
+        skippedFieldTags += flat.skipped;
+        split = (tags: flat.tags, nl: flat.nl);
+      } else {
+        List<String> parts;
+        if (source.extension == d.captionExtension) {
+          parts = d.tagsOf(f.path);
+        } else {
+          try {
+            final sourceFile = File(captionVariantPath(f.path, source));
+            parts = await sourceFile.exists()
+                ? parseCaptionText(
+                    await sourceFile.readAsString(),
+                    format: source.format,
+                  )
+                : const [];
+          } catch (e) {
+            failures.add((path: rel, error: 'cannot read source: $e'));
+            continue;
+          }
+        }
+        split = source.format == CaptionFormat.animaTag
+            ? splitAnimaParts(parts)
+            : (tags: parts, nl: null);
       }
-      final split = source.format == CaptionFormat.animaTag
-          ? splitAnimaParts(parts)
-          : (tags: parts, nl: null);
       if (split.tags.isEmpty && split.nl == null) {
         skippedUncaptioned++;
         continue;
@@ -1274,6 +1379,8 @@ AgentTool _convertCaptionsToTags(
       // there.
       'removed_tags': _topCounts(dropped),
       'renamed_tags': _topCounts(renamed),
+      if (unlistedKeys.isNotEmpty) 'unlisted_keys_seen': unlistedKeys.toList(),
+      if (skippedFieldTags > 0) 'tags_skipped_by_field': skippedFieldTags,
       if (failures.isNotEmpty) ...{
         'failed_images': failures.length,
         'failures': [

@@ -322,9 +322,14 @@ String buildAgentSystemPrompt({
             'caption type use\n  convert_captions_to_json: define the field '
             'layout and a tag→field\n  assignment once and the tool '
             'assembles every image\'s JSON itself —\n  never loop '
-            'write_caption_file over a dataset. JSON values carry plain\n  '
-            'parentheses; caption-style \\( escaping never belongs in them '
-            '(the\n  converter strips it automatically). Whether a type '
+            'write_caption_file over a dataset. The way back is\n  '
+            'convert_captions_to_tags with the JSON type as the source: give '
+            '"fields"\n  to flatten each document into a tag line in that key '
+            'order, and nl_field\n  for the prose key, or its sentence is '
+            'comma-split into bogus tags. JSON\n  values carry plain '
+            'parentheses; caption-style \\( escaping never belongs '
+            'in\n  them (the converter strips it going in and can escape it '
+            'coming back out).\n  Whether a type '
             'holds tags, JSON or\n  natural language is its configured '
             'format (shown in the overview), not\n  its file extension.';
   final jsonGuideline = jsonToolsEnabled
