@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import 'package:dataset_training_tool/models/caption_type.dart';
 import 'package:dataset_training_tool/services/agent/agent_tools.dart';
+import 'package:dataset_training_tool/services/agent/caption_edit_tools.dart';
 import 'package:dataset_training_tool/services/agent/caption_variant_tools.dart';
 import 'package:dataset_training_tool/services/agent/dataset_tools.dart';
 import 'package:dataset_training_tool/services/agent/json_caption_tools.dart';
@@ -96,6 +97,7 @@ void main() {
     registry = ToolRegistry([
       ...buildReadOnlyTools(deps),
       ...buildWriteTools(deps, tagOps),
+      ...buildCaptionEditTools(deps, tagOps),
       ...buildCaptionVariantTools(deps, tagOps),
       ...buildJsonCaptionTools(deps, tagOps),
     ]);
@@ -529,7 +531,7 @@ void main() {
         'extension': '.txt',
         'remove': ['1girl'],
       });
-      expect(tagList['error'], contains('remove_tag_everywhere'));
+      expect(tagList['error'], contains('edit_captions'));
 
       expect(jsonDecode(await readCap('001'))['tags'], [
         '1girl',
@@ -541,17 +543,11 @@ void main() {
 
   group('JSON guards on the tag tools', () {
     test('the tag sweeps name the tool that can do the job', () async {
-      final removed = await call('remove_tag_everywhere', {'tag': '1girl'});
-      expect(removed['error'], contains('edit_json_captions'));
-      final replaced = await call('replace_tag_everywhere', {
-        'tag': '1girl',
-        'replacement': '1boy',
+      final edited = await call('edit_captions', {
+        'remove': ['1girl'],
+        'add': ['solo'],
       });
-      expect(replaced['error'], contains('edit_json_captions'));
-      final added = await call('add_tags_everywhere', {
-        'tags': ['solo'],
-      });
-      expect(added['error'], contains('edit_json_captions'));
+      expect(edited['error'], contains('edit_json_captions'));
       final sorted = await call('sort_captions_everywhere', {
         'priority': ['1girl'],
       });

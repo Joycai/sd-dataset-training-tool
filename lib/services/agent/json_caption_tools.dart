@@ -377,8 +377,8 @@ const AgentToolSpec _editSpec = AgentToolSpec(
       'Add, remove and rename TAGS inside MANY JSON captions in one call — '
       'the tool for "delete this tag everywhere", "rename this tag", "give '
       'every image this tag" when the caption type is JSON. The tag-level '
-      'batch tools (remove_tag_everywhere, add_tags_everywhere, …) refuse a '
-      'JSON caption because they would flatten the document into a comma '
+      'batch editor (edit_captions) refuses a '
+      'JSON caption because it would flatten the document into a comma '
       'line; this one edits the tags in place and leaves the document\'s '
       'shape — its keys, their order, and every value no rule touches — '
       'exactly as it was. Never loop write_caption_file over a dataset to '
@@ -705,7 +705,7 @@ Future<AgentToolResult> _edit(
     return toolError(
       'the caption type "${type.extension}" is configured as '
       '${type.format.name}, not JSON — for a tag-list type use the tag tools '
-      '(remove_tag_everywhere, add_tags_everywhere, replace_tag_everywhere) '
+      '(edit_captions, sort_captions_everywhere) '
       'or convert_captions_to_tags',
     );
   }
@@ -728,6 +728,8 @@ Future<AgentToolResult> _edit(
     untaggedOnly: false,
     nameQuery: optString(args, 'name_query')?.toLowerCase(),
   );
+
+  if (type.extension == d.captionExtension) await tagOps.beforeMutate?.call();
 
   const encoder = JsonEncoder.withIndent('  ');
   var written = 0;
@@ -949,6 +951,10 @@ Future<AgentToolResult> _restructure(
     untaggedOnly: false,
     nameQuery: optString(args, 'name_query')?.toLowerCase(),
   );
+
+  // The editor's pending edits would otherwise be written over this sweep's
+  // result a moment later — the same flush every TagOps mutation does.
+  if (type.extension == d.captionExtension) await tagOps.beforeMutate?.call();
 
   const encoder = JsonEncoder.withIndent('  ');
   var written = 0;
