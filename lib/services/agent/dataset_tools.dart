@@ -348,6 +348,29 @@ AgentToolHandler guardBusy(TagOps tagOps, AgentToolHandler inner) =>
       return inner(args);
     };
 
+/// Like [guardBusy], but holds [TagOps.busy] for [inner]'s entire run
+/// instead of only checking it on entry — for handlers that write files
+/// directly (their own `File.writeAsString` loop plus a [TagOps.pushOperation]
+/// at the end) rather than going through [TagOps.rewriteOne]/[TagOps]'s
+/// batch rewrites, which already lock internally. Without this, [TagOps.busy]
+/// stays false for the whole sweep, so the UI's undo/redo (gated on
+/// [TagOps.canUndo]/[TagOps.canRedo], which only check [TagOps.busy]) stays
+/// enabled and can run concurrently with a mid-sweep batch write, corrupting
+/// both the files and the undo stack. Do not use this to wrap a handler that
+/// itself calls [TagOps.rewriteOne] or another [TagOps] batch method — those
+/// would see the lock already held and silently no-op.
+AgentToolHandler guardBusyExclusive(TagOps tagOps, AgentToolHandler inner) =>
+    (args) async {
+      final result = await tagOps.runExclusive(() => inner(args));
+      if (result == null) {
+        return toolError(
+          'another caption operation is still running; nothing was '
+          'written — wait and retry',
+        );
+      }
+      return result;
+    };
+
 List<AgentTool> _writeTools(DatasetToolsDeps deps, TagOps tagOps) => [
   AgentTool(
     isWrite: true,

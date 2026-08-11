@@ -160,6 +160,25 @@ class TagOps extends ChangeNotifier {
   String? get undoLabel => _undoStack.isEmpty ? null : _undoStack.last.label;
   String? get redoLabel => _redoStack.isEmpty ? null : _redoStack.last.label;
 
+  /// Runs [body] with [busy] held for its entire duration, so a caller that
+  /// writes files itself — bypassing [rewriteOne]/[_rewriteAll], which lock
+  /// internally — still blocks undo/redo and every other sweep for as long
+  /// as it runs. Returns null when already busy; the caller decides how to
+  /// report that. Do not call this around code that itself calls into
+  /// [rewriteOne]/[_rewriteAll]/[undo]/[redo]: those check [busy] on entry
+  /// and would see the lock already held and silently no-op.
+  Future<T?> runExclusive<T>(Future<T> Function() body) async {
+    if (_busy) return null;
+    _busy = true;
+    notifyListeners();
+    try {
+      return await body();
+    } finally {
+      _busy = false;
+      notifyListeners();
+    }
+  }
+
   /// Dropped when the dataset directory changes: the snapshots would point at
   /// files of the previous dataset.
   void clearHistory() {

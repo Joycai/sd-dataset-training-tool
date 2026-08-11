@@ -146,6 +146,34 @@ void main() {
       expect(dataset.tagsOf(img('001')), contains('watermark'));
     });
 
+    test(
+      'edit_captions holds TagOps.busy for the whole sweep, not just on '
+      'entry',
+      () async {
+        // edit_captions writes files itself instead of going through
+        // TagOps.rewriteOne/_rewriteAll, so nothing else marks TagOps busy
+        // for it. Without the fix, TagOps.busy stayed false for the whole
+        // call, so canUndo/canRedo (what gates the UI's undo/redo buttons)
+        // stayed true and a concurrent undo could race a mid-sweep write.
+        // Seed undo history first — an empty stack would make canUndo false
+        // regardless of busy, which would not exercise the fix.
+        await tagOps.rewriteOne(img('003'), 'seed', label: 'seed');
+        expect(tagOps.canUndo, isTrue);
+
+        final future = registry.dispatch(
+          'edit_captions',
+          jsonEncode({
+            'remove': ['watermark'],
+          }),
+        );
+        expect(tagOps.busy, isTrue);
+        expect(tagOps.canUndo, isFalse);
+        await future;
+        expect(tagOps.busy, isFalse);
+        expect(tagOps.canUndo, isTrue);
+      },
+    );
+
     test('edit_captions renames in place, folding case', () async {
       final out = await call('edit_captions', {
         'rename': {'1GIRL': '1woman'},

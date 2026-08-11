@@ -44,12 +44,15 @@ List<AgentTool> buildJsonCaptionTools(DatasetToolsDeps deps, TagOps tagOps) => [
   AgentTool(
     isWrite: true,
     spec: _restructureSpec,
-    handler: guardBusy(tagOps, (args) => _restructure(deps, tagOps, args)),
+    handler: guardBusyExclusive(
+      tagOps,
+      (args) => _restructure(deps, tagOps, args),
+    ),
   ),
   AgentTool(
     isWrite: true,
     spec: _editSpec,
-    handler: guardBusy(tagOps, (args) => _edit(deps, tagOps, args)),
+    handler: guardBusyExclusive(tagOps, (args) => _edit(deps, tagOps, args)),
   ),
 ];
 

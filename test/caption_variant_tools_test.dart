@@ -198,6 +198,39 @@ void main() {
       expect(await File(cap('002', '.txt')).readAsString(), 'trigger, 1boy');
     });
 
+    test(
+      'two concurrent non-active-type writes to the same file do not race '
+      '— one wins, one is refused',
+      () async {
+        // This branch writes the variant file itself instead of going
+        // through TagOps.rewriteOne (only the active-type branch does), so
+        // before the fix nothing held TagOps.busy for it and two overlapping
+        // calls could both "succeed": last write on disk wins silently, and
+        // both push a TagOperation onto the undo stack from a `before`
+        // snapshot the other call had already invalidated. Dispatching both
+        // without awaiting exercises that overlap; whichever one reaches
+        // TagOps.runExclusive first must make the other bounce off busy.
+        final results = await Future.wait([
+          call('write_caption_file', {
+            'path': '002.png',
+            'extension': '.ntxt',
+            'text': 'A boy standing.',
+          }),
+          call('write_caption_file', {
+            'path': '002.png',
+            'extension': '.ntxt',
+            'text': 'A different boy.',
+          }),
+        ]);
+        final errors = results.where((r) => r.containsKey('error')).toList();
+        final writes = results.where((r) => r['written'] == true).toList();
+        expect(errors, hasLength(1));
+        expect(writes, hasLength(1));
+        expect(errors.single['error'], contains('still running'));
+        expect(tagOps.undoLabel, 'AI: write 002.ntxt');
+      },
+    );
+
     test('identical content reports unchanged without history', () async {
       final out = await call('write_caption_file', {
         'path': '001.png',
