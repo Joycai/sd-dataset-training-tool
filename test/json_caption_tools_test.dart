@@ -455,6 +455,35 @@ void main() {
       expect(dataset.tagsOf(img('001')), contains('1girl'));
     });
 
+    test(
+      'holds TagOps.busy for the whole sweep, not just on entry',
+      () async {
+        // edit_json_captions writes files itself instead of going through
+        // TagOps.rewriteOne/_rewriteAll, so nothing else marks TagOps busy
+        // for it. Without the fix, TagOps.busy stayed false for the whole
+        // call, so the UI's undo/redo (gated on canUndo/canRedo, which only
+        // check TagOps.busy) could run concurrently with this sweep and
+        // race it. Not awaiting the dispatch lets us observe the lock while
+        // the sweep is still in flight. Seed undo history first — an empty
+        // stack would make canUndo false regardless of busy.
+        await tagOps.rewriteOne(img('003'), 'seed', label: 'seed');
+        expect(tagOps.canUndo, isTrue);
+
+        final future = registry.dispatch(
+          'edit_json_captions',
+          jsonEncode({
+            'extension': '.json',
+            'remove': ['masterpiece'],
+          }),
+        );
+        expect(tagOps.busy, isTrue);
+        expect(tagOps.canUndo, isFalse);
+        await future;
+        expect(tagOps.busy, isFalse);
+        expect(tagOps.canUndo, isTrue);
+      },
+    );
+
     test('a rename onto a tag the field already has merges into it', () async {
       final out = await call('edit_json_captions', {
         'extension': '.json',

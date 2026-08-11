@@ -393,32 +393,43 @@ List<AgentTool> buildCaptionVariantTools(
           'tags_verified': ?verifiedTags,
         });
       }
-      try {
-        await file.writeAsString(text);
-      } catch (e) {
-        return toolError(
-          'nothing was written for $rel: cannot write "$captionPath": $e',
+      // This branch writes the file itself instead of going through
+      // TagOps.rewriteOne (that path is taken above for the active type),
+      // so nothing holds TagOps.busy for the write — without runExclusive
+      // the UI's undo/redo stays enabled and could pop the stack mid-write.
+      final result = await tagOps.runExclusive(() async {
+        try {
+          await file.writeAsString(text);
+        } catch (e) {
+          return toolError(
+            'nothing was written for $rel: cannot write "$captionPath": $e',
+          );
+        }
+        tagOps.pushOperation(
+          TagOperation(
+            label: 'AI: write ${p.basename(captionPath)}',
+            edits: [
+              CaptionEdit(
+                imagePath: key,
+                captionPath: captionPath,
+                before: before,
+                after: text,
+              ),
+            ],
+          ),
         );
-      }
-      tagOps.pushOperation(
-        TagOperation(
-          label: 'AI: write ${p.basename(captionPath)}',
-          edits: [
-            CaptionEdit(
-              imagePath: key,
-              captionPath: captionPath,
-              before: before,
-              after: text,
-            ),
-          ],
-        ),
-      );
-      return toolOk({
-        'extension': type.extension,
-        'written': true,
-        'unchanged': false,
-        'tags_verified': ?verifiedTags,
+        return toolOk({
+          'extension': type.extension,
+          'written': true,
+          'unchanged': false,
+          'tags_verified': ?verifiedTags,
+        });
       });
+      return result ??
+          toolError(
+            'another caption operation is still running; nothing was '
+            'written — wait and retry',
+          );
     }),
   ),
   AgentTool(
@@ -529,7 +540,7 @@ List<AgentTool> buildCaptionVariantTools(
         ],
       },
     ),
-    handler: guardBusy(tagOps, (args) async {
+    handler: guardBusyExclusive(tagOps, (args) async {
       final root = deps.rootDir();
       if (root == null) return toolError('no dataset directory is open');
       final types = deps.captionTypes();
@@ -1043,7 +1054,7 @@ AgentTool _convertCaptionsToTags(
       'required': ['source_extension', 'target_extension'],
     },
   ),
-  handler: guardBusy(tagOps, (args) async {
+  handler: guardBusyExclusive(tagOps, (args) async {
     final root = deps.rootDir();
     if (root == null) return toolError('no dataset directory is open');
     final types = deps.captionTypes();

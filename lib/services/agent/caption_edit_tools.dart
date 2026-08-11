@@ -41,7 +41,7 @@ List<AgentTool> buildCaptionEditTools(DatasetToolsDeps deps, TagOps tagOps) => [
   AgentTool(
     isWrite: true,
     spec: _spec,
-    handler: guardBusy(tagOps, (args) => _edit(deps, tagOps, args)),
+    handler: guardBusyExclusive(tagOps, (args) => _edit(deps, tagOps, args)),
   ),
 ];
 
