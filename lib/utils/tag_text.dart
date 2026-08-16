@@ -217,6 +217,29 @@ flattenJsonCaption(
   String? nlField,
   Set<String> skipFields = const {},
 }) {
+  // What skipFields swallowed, counted the same way jsonCaptionTags drops
+  // it: at any depth. Counting only the top-level keys reported 0 for a
+  // nested skip field whose tags really were dropped, which is exactly
+  // backwards for a number whose whole job is to make the drop visible.
+  var skipped = 0;
+  void countSkipped(dynamic node) {
+    if (node is List) {
+      node.forEach(countSkipped);
+    } else if (node is Map) {
+      node.forEach((key, value) {
+        // Everything under a skipped key is skipped, nested skip fields
+        // included, so it is counted here and not descended into twice.
+        if (skipFields.contains('$key')) {
+          skipped += jsonCaptionTags(value).length;
+        } else {
+          countSkipped(value);
+        }
+      });
+    }
+  }
+
+  countSkipped(decoded);
+
   if (decoded is! Map) {
     // No keys to order by; everything the document carries comes out as it
     // was walked.
@@ -224,15 +247,8 @@ flattenJsonCaption(
       tags: jsonCaptionTags(decoded, ignoreKeys: skipFields),
       nl: null,
       unlisted: const {},
-      skipped: 0,
+      skipped: skipped,
     );
-  }
-
-  var skipped = 0;
-  for (final entry in decoded.entries) {
-    if (skipFields.contains('${entry.key}')) {
-      skipped += jsonCaptionTags(entry.value).length;
-    }
   }
 
   String? nl;

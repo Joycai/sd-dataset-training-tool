@@ -214,12 +214,37 @@ class EditorSession extends ChangeNotifier {
   /// serialized back into their document, so every mutator below bails.
   bool get tagsEditable => _format != CaptionFormat.json;
 
+  /// Whether two identical parts mean the same thing twice. They do for
+  /// tags — an image either carries `1girl` or it does not — so the tag
+  /// paths fold duplicates away. A paragraph may legitimately repeat a
+  /// sentence, and [parseSentenceText] keeps both, so prose must not.
+  bool get _duplicatesCollapse => _format != CaptionFormat.prose;
+
+  /// Removes every part equal to [tag].
+  ///
+  /// By value, because that is what a tag is: the caller has a tag name, not
+  /// a row. For prose — where the same sentence can appear twice and the
+  /// caller means one of them — use [removeSentenceAt].
   void removeTag(String tag) {
     if (!tagsEditable) return;
     if (!_tags.contains(tag)) return;
     // The anchor memory intentionally survives: this image just falls back
     // to appending, and the next image containing the tag re-activates it.
     _tags = _tags.where((t) => t != tag).toList();
+    _writeTagsToText();
+  }
+
+  /// Removes the part at [index] and nothing else — the delete a *row* owns.
+  ///
+  /// The sentence view deletes through this rather than [removeTag]: a
+  /// paragraph that says the same thing twice would otherwise lose both rows
+  /// to one click, since [removeTag] matches by value.
+  void removeSentenceAt(int index) {
+    if (!tagsEditable || index < 0 || index >= _tags.length) return;
+    final removed = _tags[index];
+    _tags = [..._tags]..removeAt(index);
+    // The anchor is a name; it only stops resolving if no copy is left.
+    if (removed == _anchorTag && !_tags.contains(removed)) _anchorTag = null;
     _writeTagsToText();
   }
 
@@ -277,9 +302,17 @@ class EditorSession extends ChangeNotifier {
         : _parseFragment(replacement);
     final next = [..._tags];
     next.removeAt(index);
-    // Re-de-duplicate against the remaining tags.
-    final seen = next.toSet();
-    final inserted = parts.where(seen.add).toList();
+    // Re-de-duplicate against the remaining tags — but only where duplicates
+    // are meaningless. Two identical tags on one image are one tag; two
+    // identical sentences in a paragraph are two sentences, and folding the
+    // edited one away would silently drop the row the user just typed into.
+    final List<String> inserted;
+    if (_duplicatesCollapse) {
+      final seen = next.toSet();
+      inserted = parts.where(seen.add).toList();
+    } else {
+      inserted = parts;
+    }
     next.insertAll(index, inserted);
     _tags = next;
     // Renaming the anchored tag keeps the anchor on its successor.

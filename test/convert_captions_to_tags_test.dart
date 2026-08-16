@@ -450,6 +450,37 @@ void main() {
       expect(await read('001', '.txt'), isNot(contains('artist')));
     });
 
+    test('a nested skip field is counted, not just dropped', () async {
+      // skip_fields is documented as ignoring a key "at any depth", and the
+      // drop already worked at any depth — only the counter looked at the
+      // top level, so a nested skip reported 0 tags skipped while quietly
+      // dropping them. That is backwards for the one number that exists to
+      // make the drop auditable.
+      await writeJson('001', {
+        'count': '1girl',
+        'meta': {
+          'internal_note': ['scratch', 'wip'],
+          'tags': ['smile'],
+        },
+      });
+      await writeJson('002', {'count': '1boy'});
+
+      final out = await call('convert_captions_to_tags', {
+        'source_extension': '.json',
+        'target_extension': '.txt',
+        'fields': ['count'],
+        'skip_fields': ['internal_note'],
+        'overwrite': true,
+      });
+
+      expect(out['tags_skipped_by_field'], 2);
+      final written = await read('001', '.txt');
+      expect(written, isNot(contains('scratch')));
+      expect(written, isNot(contains('wip')));
+      // The sibling under the same nested object still comes through.
+      expect(written, contains('smile'));
+    });
+
     test('an Anima Tag target takes the prose field as its tail', () async {
       await call('convert_captions_to_tags', {
         'source_extension': '.json',

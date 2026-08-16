@@ -48,10 +48,34 @@ class ContextBudget {
   /// The most recent N messages are never folded (≈ the last 4 rounds).
   final int protectedTail;
 
+  /// The floor [inputBudget] clamps to: below this there is no conversation
+  /// left to fit, only a window that cannot seat one.
+  static const _minInputBudget = 1024;
+
+  int get _rawInputBudget =>
+      contextWindow - maxOutputTokens - toolSchemaTokens - safetyMargin;
+
+  /// Room left for the history once the reply reservation, the tool schemas
+  /// and the safety margin come off the window.
+  ///
+  /// Clamped so compaction always has a target to aim at. When the clamp is
+  /// what produced the number that target is a fiction — see
+  /// [windowExhausted].
   int get inputBudget =>
-      (contextWindow - maxOutputTokens - toolSchemaTokens - safetyMargin)
-          .clamp(1024, 1 << 31)
-          .toInt();
+      _rawInputBudget.clamp(_minInputBudget, 1 << 31).toInt();
+
+  /// True when the window has no room for history at all: the reply
+  /// reservation, the tool schemas and the safety margin already claim all of
+  /// it.
+  ///
+  /// Reachable on a small local model once several tool packs are switched
+  /// on — the schemas alone can be a quarter of a 32K window. The clamp above
+  /// would otherwise hand compaction a 1024-token target that a short history
+  /// clears, reporting a request that cannot fit as fitting, which is exactly
+  /// what [CompactResult.stillOverBudget] exists to prevent. Folding cannot
+  /// help either, so [compact] reports it instead of shredding the history
+  /// against a target it can never reach.
+  bool get windowExhausted => _rawInputBudget <= 0;
 
   /// Estimated tokens for one image content part (768px JPEG, base64).
   static const imageTokens = 1600;
@@ -128,8 +152,14 @@ class ContextBudget {
     CompactResult result() => (
       folded: folded,
       imagesDropped: imagesDropped,
-      stillOverBudget: estimate(history) > inputBudget,
+      stillOverBudget: windowExhausted || estimate(history) > inputBudget,
     );
+
+    // The image cap above still applies — it bounds request bytes and is
+    // worth doing whatever the token maths says. Folding is not: no history
+    // is small enough to rescue a window this size, and the passes below
+    // would elide every foldable message to prove it.
+    if (windowExhausted) return result();
 
     if (estimate(history) <= inputBudget) return result();
 
