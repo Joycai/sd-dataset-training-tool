@@ -719,6 +719,12 @@ class _EntryRow extends StatelessWidget {
           AgentNoticeType.turnLimitContinued =>
             l10n.agentTurnLimitContinuedNotice(int.tryParse(entry.text) ?? 0),
           AgentNoticeType.turnLimitStopped => l10n.agentTurnLimitStoppedNotice,
+          AgentNoticeType.outputTruncated => l10n.agentOutputTruncatedNotice,
+          AgentNoticeType.contextCompacted => l10n.agentContextCompactedNotice(
+            int.tryParse(entry.text) ?? 0,
+          ),
+          AgentNoticeType.contextOverBudget =>
+            l10n.agentContextOverBudgetNotice,
           AgentNoticeType.error || null => entry.text,
         };
         return Padding(

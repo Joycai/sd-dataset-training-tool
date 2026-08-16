@@ -3,6 +3,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import '../../models/llm_models.dart';
 import '../llm/llm_client.dart';
@@ -33,6 +34,29 @@ class AgentToolFinished extends AgentUiEvent {
 
   final ChatToolCall call;
   final AgentToolResult result;
+}
+
+/// The model's reply was cut off by the output token limit (`max_tokens`).
+/// Without this the truncated prose renders as a complete answer, and a
+/// truncated tool call dies as "invalid JSON" — both misread the budget
+/// running out as something else.
+class AgentOutputTruncated extends AgentUiEvent {}
+
+/// History was compacted before this turn's request. Folding is invisible on
+/// the wire — the model just stops knowing things — so the transcript is the
+/// only place it can be made visible.
+class AgentContextCompacted extends AgentUiEvent {
+  AgentContextCompacted(this.folded, this.imagesDropped, this.stillOverBudget);
+
+  /// Messages whose bodies were replaced with elision placeholders.
+  final int folded;
+
+  /// Images replaced with placeholders by the unconditional cap.
+  final int imagesDropped;
+
+  /// Even fully folded the history exceeds the budget; the request that
+  /// follows is over-long and may be rejected or truncated by the endpoint.
+  final bool stillOverBudget;
 }
 
 class AgentFinished extends AgentUiEvent {
@@ -71,11 +95,25 @@ class AgentSession {
     this.confirmWrite,
     this.confirmContinue,
   }) : budget = ContextBudget(
-         contextWindow: profile.contextWindow,
+         contextWindow: _effectiveWindow(profile),
          maxOutputTokens: profile.maxOutputTokens,
          toolSchemaTokens: registry.schemaTokens,
        ),
        history = [ChatMessage.system(systemPrompt)];
+
+  /// The window the budget plans against. The user-entered value rules —
+  /// detection proposes, only the user applies — with one exception: an
+  /// endpoint the probe caught silently truncating. There the measured
+  /// window (when one exists) caps the declared one, because over-budgeting
+  /// against such an endpoint does not fail, it quietly mangles the context.
+  static int _effectiveWindow(LlmProviderProfile profile) {
+    if (!profile.silentTruncation || profile.measuredContextWindow <= 0) {
+      return profile.contextWindow;
+    }
+    return profile.measuredContextWindow < profile.contextWindow
+        ? profile.measuredContextWindow
+        : profile.contextWindow;
+  }
 
   final LlmClient client;
   final ToolRegistry registry;
@@ -175,11 +213,34 @@ class AgentSession {
           );
           return;
         }
-        budget.compact(history);
+        final compaction = budget.compact(history);
+        if (compaction.folded > 0 ||
+            compaction.imagesDropped > 0 ||
+            compaction.stillOverBudget) {
+          yield AgentContextCompacted(
+            compaction.folded,
+            compaction.imagesDropped,
+            compaction.stillOverBudget,
+          );
+        }
+        if (compaction.stillOverBudget && profile.silentTruncation) {
+          // This endpoint is known to accept an over-long prompt and drop
+          // part of it without saying so. Sending would not fail — it would
+          // hand the model a context that differs from the history we hold,
+          // which is strictly worse than stopping here.
+          yield AgentFinished(
+            AgentStopReason.error,
+            'the conversation no longer fits this endpoint\'s context '
+            'window, and the endpoint is known to truncate over-long '
+            'requests silently; start a new conversation',
+          );
+          return;
+        }
 
         final textBuffer = StringBuffer();
         var calls = const <ChatToolCall>[];
         TokenUsage? usage;
+        var finishReason = '';
         try {
           await for (final event in client.chat(
             profile: profile,
@@ -193,8 +254,9 @@ class AgentSession {
                 yield AgentTextDelta(text);
               case ToolCallsReady(calls: final ready):
                 calls = ready;
-              case StreamDone(usage: final u):
+              case StreamDone(usage: final u, finishReason: final reason):
                 usage = u;
+                finishReason = reason;
             }
           }
         } on LlmException catch (e) {
@@ -219,6 +281,12 @@ class AgentSession {
           return;
         }
 
+        // `length` is the OpenAI-family name, `max_tokens` the Anthropic
+        // one; both clients pass theirs through verbatim.
+        final truncated =
+            finishReason == 'length' || finishReason == 'max_tokens';
+        if (truncated) yield AgentOutputTruncated();
+
         history.add(
           ChatMessage.assistant(textBuffer.toString(), toolCalls: calls),
         );
@@ -237,18 +305,32 @@ class AgentSession {
           // below, or asking for confirmation becomes something that
           // punishes saying no. It also does not reset the streak: a real
           // error right before it should still count toward the next one.
-          var wasRejection = false;
+          // A call cut off by the output limit is excluded the same way:
+          // the cause is the budget, not the model misbehaving, and three
+          // truncations in a row should read "raise max_tokens", not
+          // "the model failed".
+          var excludedFromStreak = false;
           if (cancel.isCancelled) {
             result = toolError('cancelled by user');
           } else {
             yield AgentToolStarted(call);
             final tool = registry.find(call.name);
-            if (tool != null &&
+            if (truncated && !_parsesAsJsonObject(call.argumentsJson)) {
+              // Checked before the confirmation gate: a write tool's
+              // needsConfirmation treats unreadable arguments as "ask", and
+              // prompting the user to approve a half-arrived call is noise.
+              result = toolError(
+                'the arguments of this call were cut off by the output '
+                'token limit (max_tokens=${profile.maxOutputTokens}); '
+                'split the work into smaller calls',
+              );
+              excludedFromStreak = true;
+            } else if (tool != null &&
                 tool.needsConfirmation(call.argumentsJson) &&
                 confirmWrite != null &&
                 !await confirmWrite!(tool, call)) {
               result = toolError('the user rejected this operation');
-              wasRejection = true;
+              excludedFromStreak = true;
             } else {
               result = await registry.dispatch(call.name, call.argumentsJson);
             }
@@ -262,7 +344,7 @@ class AgentSession {
               pinned: result.pinned,
             ),
           );
-          if (!wasRejection) {
+          if (!excludedFromStreak) {
             consecutiveToolErrors = result.isError
                 ? consecutiveToolErrors + 1
                 : 0;
@@ -283,6 +365,19 @@ class AgentSession {
     } finally {
       _busy = false;
       _cancel = null;
+    }
+  }
+
+  /// Whether [argumentsJson] would survive [ToolRegistry.dispatch]'s parse.
+  /// Mirrors its rules: empty means `{}`, anything else must decode to an
+  /// object.
+  static bool _parsesAsJsonObject(String argumentsJson) {
+    final trimmed = argumentsJson.trim();
+    if (trimmed.isEmpty) return true;
+    try {
+      return jsonDecode(trimmed) is Map<String, dynamic>;
+    } on FormatException {
+      return false;
     }
   }
 }

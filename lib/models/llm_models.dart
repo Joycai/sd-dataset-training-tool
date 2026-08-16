@@ -41,6 +41,8 @@ class LlmProviderProfile {
     this.contextWindow = 32768,
     this.maxOutputTokens = 4096,
     this.temperature = 0.7,
+    this.measuredContextWindow = 0,
+    this.silentTruncation = false,
   });
 
   final String id;
@@ -67,6 +69,18 @@ class LlmProviderProfile {
   final int maxOutputTokens;
   final double temperature;
 
+  /// Context window the capability probe measured, 0 when never detected.
+  /// Carried from [LlmModelConfig.measuredContextWindow] by
+  /// [LlmProvider.resolve]; not persisted here (the model config owns it).
+  final int measuredContextWindow;
+
+  /// The probe caught this endpoint accepting an over-long prompt and
+  /// quietly dropping part of it. When set, the session budgets against
+  /// [measuredContextWindow] (if known) rather than the declared window, and
+  /// refuses to send a request that still does not fit — a silently mangled
+  /// context is worse than a visible stop.
+  final bool silentTruncation;
+
   LlmProviderProfile copyWith({
     String? name,
     LlmApiKind? kind,
@@ -77,6 +91,8 @@ class LlmProviderProfile {
     int? contextWindow,
     int? maxOutputTokens,
     double? temperature,
+    int? measuredContextWindow,
+    bool? silentTruncation,
   }) => LlmProviderProfile(
     id: id,
     name: name ?? this.name,
@@ -88,6 +104,8 @@ class LlmProviderProfile {
     contextWindow: contextWindow ?? this.contextWindow,
     maxOutputTokens: maxOutputTokens ?? this.maxOutputTokens,
     temperature: temperature ?? this.temperature,
+    measuredContextWindow: measuredContextWindow ?? this.measuredContextWindow,
+    silentTruncation: silentTruncation ?? this.silentTruncation,
   );
 
   Map<String, dynamic> toJson() => {
@@ -353,6 +371,8 @@ class LlmProvider {
     contextWindow: model.contextWindow,
     maxOutputTokens: model.maxOutputTokens,
     temperature: model.temperature,
+    measuredContextWindow: model.measuredContextWindow,
+    silentTruncation: model.silentTruncation,
   );
 
   Map<String, dynamic> toJson() => {

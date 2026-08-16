@@ -4,6 +4,22 @@ library;
 
 import '../../models/llm_models.dart';
 
+/// What one [ContextBudget.compact] pass did, so the session can tell the
+/// user about it. Folding history is invisible on the wire — the request
+/// still returns 200 — so the only place it can become visible is here.
+typedef CompactResult = ({
+  /// Messages whose bodies were replaced with an elision placeholder.
+  int folded,
+
+  /// Image parts replaced with a text placeholder by the unconditional cap.
+  int imagesDropped,
+
+  /// True when even after folding everything foldable the history still
+  /// exceeds the input budget. The request that follows is over-long; on an
+  /// endpoint known to truncate silently it must not be sent at all.
+  bool stillOverBudget,
+});
+
 class ContextBudget {
   ContextBudget({
     required this.contextWindow,
@@ -39,6 +55,18 @@ class ContextBudget {
 
   /// Estimated tokens for one image content part (768px JPEG, base64).
   static const imageTokens = 1600;
+
+  /// Hard cap on images kept in the history, newest first.
+  ///
+  /// Unconditional — it runs even when the token budget shows plenty of
+  /// room. [estimate] prices an image at [imageTokens] flat, which tracks the
+  /// provider's billing, but on the wire each one is a 768px base64 JPEG
+  /// measured in hundreds of KB and it persists across turns. Counting only
+  /// tokens, a session that keeps calling view_image grows a request body no
+  /// endpoint accepts while the estimate still reads as fine. Tool-attached
+  /// and user-attached images count the same: both are base64 on the wire,
+  /// and capping only one kind lets the other walk around the cap.
+  static const maxImages = 4;
 
   /// Deliberately over-estimates by ~10%: running out of window mid-stream
   /// is an error, trimming early merely loses a little history.
@@ -78,10 +106,12 @@ class ContextBudget {
     return (ascii + 3) ~/ 4 + (other * 10 + 16) ~/ 17;
   }
 
-  /// Shrinks [history] in place until it fits [inputBudget].
+  /// Shrinks [history] in place until it fits [inputBudget], and reports
+  /// what it did.
   ///
-  /// Priority: (1) fold old *unpinned* tool results, (2) fold old
-  /// user/assistant text, (3) fold pinned tool results as a last resort.
+  /// Pass 0 caps images at [maxImages] unconditionally (see there). Then,
+  /// only when over budget: (1) fold old *unpinned* tool results, (2) fold
+  /// old user/assistant text, (3) fold pinned tool results as a last resort.
   /// The system prompt (index 0), the last [protectedTail] messages, and
   /// message *structure* (roles, tool_call ids) are always preserved so the
   /// wire protocols stay valid.
@@ -91,8 +121,17 @@ class ContextBudget {
   /// memory — it invents tags and drops real ones. Deferring those bodies
   /// keeps the source of truth in context for as long as the window allows;
   /// pass 3 still guarantees the history shrinks when it must.
-  void compact(List<ChatMessage> history) {
-    if (estimate(history) <= inputBudget) return;
+  CompactResult compact(List<ChatMessage> history) {
+    final imagesDropped = _capImages(history);
+    var folded = 0;
+
+    CompactResult result() => (
+      folded: folded,
+      imagesDropped: imagesDropped,
+      stillOverBudget: estimate(history) > inputBudget,
+    );
+
+    if (estimate(history) <= inputBudget) return result();
 
     bool isProtected(int i) => i == 0 || i >= history.length - protectedTail;
 
@@ -105,13 +144,14 @@ class ContextBudget {
           continue;
         }
         _elide(m, 'tool result');
+        folded++;
         if (estimate(history) <= inputBudget) return true;
       }
       return false;
     }
 
     // Pass 1: elide unpinned tool result bodies, oldest first.
-    if (foldToolResults(pinned: false)) return;
+    if (foldToolResults(pinned: false)) return result();
 
     // Pass 2: fold old user/assistant turns, oldest first.
     for (var i = 0; i < history.length; i++) {
@@ -120,11 +160,45 @@ class ContextBudget {
       if (m.role == ChatRole.tool || m.role == ChatRole.system) continue;
       if (_isElided(m)) continue;
       _elide(m, m.role == ChatRole.user ? 'user message' : 'assistant message');
-      if (estimate(history) <= inputBudget) return;
+      folded++;
+      if (estimate(history) <= inputBudget) return result();
     }
 
     // Pass 3: nothing cheap is left — the pinned bodies go too.
     foldToolResults(pinned: true);
+    return result();
+  }
+
+  /// Replaces all but the newest [maxImages] image parts with a text
+  /// placeholder, oldest first. Text parts of the same message survive.
+  /// Runs regardless of the token budget — see [maxImages] for why. Even the
+  /// protected tail is not exempt: the cap bounds request *bytes*, and a
+  /// recent message's image weighs the same as an old one's.
+  int _capImages(List<ChatMessage> history) {
+    var total = 0;
+    for (final m in history) {
+      total += m.imageCount;
+    }
+    var toDrop = total - maxImages;
+    if (toDrop <= 0) return 0;
+    final dropped = toDrop;
+    for (final m in history) {
+      if (toDrop == 0) break;
+      if (m.imageCount == 0) continue;
+      final parts = <ChatContentPart>[];
+      for (final p in m.parts) {
+        if (p.isImage && toDrop > 0) {
+          toDrop--;
+          parts.add(
+            const ChatContentPart.text('[image dropped to bound request size]'),
+          );
+        } else {
+          parts.add(p);
+        }
+      }
+      m.parts = parts;
+    }
+    return dropped;
   }
 
   static const _elidedPrefix = '[elided ';

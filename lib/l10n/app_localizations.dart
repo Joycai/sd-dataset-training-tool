@@ -2652,6 +2652,24 @@ abstract class AppLocalizations {
   /// **'Stopped at the turn limit. Send a message to pick the task back up.'**
   String get agentTurnLimitStoppedNotice;
 
+  /// No description provided for @agentOutputTruncatedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'The reply was cut off by the output token limit. Raise the model\'s max output tokens in Settings if this keeps happening.'**
+  String get agentOutputTruncatedNotice;
+
+  /// No description provided for @agentContextCompactedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Folded {count} earlier item(s) to fit the model\'s context window; the assistant may no longer recall their details.'**
+  String agentContextCompactedNotice(int count);
+
+  /// No description provided for @agentContextOverBudgetNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'The conversation no longer fits the model\'s context window even after folding. The request was sent anyway and may fail — consider starting a new conversation.'**
+  String get agentContextOverBudgetNotice;
+
   /// No description provided for @agentConfirmTitle.
   ///
   /// In en, this message translates to:

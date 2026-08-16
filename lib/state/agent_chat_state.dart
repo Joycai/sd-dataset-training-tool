@@ -36,6 +36,17 @@ enum AgentNoticeType {
   profileSwitched,
   turnLimitStopped,
   turnLimitContinued,
+
+  /// The model's reply was cut off by the output token limit.
+  outputTruncated,
+
+  /// Old history was folded to fit the context window ([AgentChatEntry.text]
+  /// carries the folded count).
+  contextCompacted,
+
+  /// Even fully folded the history exceeds the window; the request went out
+  /// over-long (endpoints known to truncate silently stop the run instead).
+  contextOverBudget,
 }
 
 /// One row in the chat transcript. Mutable: assistant text streams in and
@@ -275,6 +286,30 @@ class AgentChatState extends ChangeNotifier {
             entry.running = false;
             entry.toolResult = result.text;
             entry.isError = result.isError;
+          case AgentOutputTruncated():
+            assistant = null;
+            entries.add(AgentChatEntry.notice(AgentNoticeType.outputTruncated));
+          case AgentContextCompacted(
+            :final folded,
+            :final imagesDropped,
+            :final stillOverBudget,
+          ):
+            assistant = null;
+            if (folded > 0 || imagesDropped > 0) {
+              entries.add(
+                AgentChatEntry.notice(
+                  AgentNoticeType.contextCompacted,
+                  '${folded + imagesDropped}',
+                ),
+              );
+            }
+            // The silent-truncation case ends the run with an error instead,
+            // so this row only ever means "sent anyway, may be rejected".
+            if (stillOverBudget) {
+              entries.add(
+                AgentChatEntry.notice(AgentNoticeType.contextOverBudget),
+              );
+            }
           case AgentFinished(:final reason, :final message, :final retryable):
             _onFinished(reason, message, retryable);
         }

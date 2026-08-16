@@ -170,5 +170,89 @@ void main() {
       expect(history[2].text, startsWith('[elided'));
       expect(history[3].text, 'tail');
     });
+
+    test('reports what it did', () {
+      final budget = ContextBudget(
+        contextWindow: 2048,
+        maxOutputTokens: 512,
+        protectedTail: 1,
+      );
+      final history = [
+        ChatMessage.system('sys'),
+        ChatMessage.user('question'),
+        tool('x' * 8000, '1'),
+        ChatMessage.user('tail'),
+      ];
+      final result = budget.compact(history);
+      expect(result.folded, 1);
+      expect(result.imagesDropped, 0);
+      expect(result.stillOverBudget, isFalse);
+
+      final calm = budget.compact(history);
+      expect(calm.folded, 0);
+      expect(calm.stillOverBudget, isFalse);
+    });
+
+    test('admits defeat when folding is not enough', () {
+      final budget = ContextBudget(
+        contextWindow: 1,
+        maxOutputTokens: 1,
+        protectedTail: 1,
+      );
+      // Only protected messages: nothing foldable, still over.
+      final history = [
+        ChatMessage.system('s' * 50000),
+        ChatMessage.user('tail ${'u' * 50000}'),
+      ];
+      final result = budget.compact(history);
+      expect(result.folded, 0);
+      expect(result.stillOverBudget, isTrue);
+    });
+  });
+
+  group('image cap', () {
+    ChatMessage imageMsg(int images, {String text = 'seen'}) => ChatMessage(
+      role: ChatRole.user,
+      parts: [
+        ChatContentPart.text(text),
+        for (var i = 0; i < images; i++)
+          ChatContentPart.image(Uint8List.fromList([1, 2, 3])),
+      ],
+    );
+
+    test('caps images at maxImages even when the budget is roomy', () {
+      final budget = ContextBudget(
+        contextWindow: 1000000, // tokens are not the constraint here
+        maxOutputTokens: 4096,
+      );
+      final history = [
+        ChatMessage.system('sys'),
+        imageMsg(3, text: 'old'),
+        imageMsg(3, text: 'new'),
+      ];
+      final result = budget.compact(history);
+      expect(result.imagesDropped, 2);
+      expect(
+        history.fold<int>(0, (sum, m) => sum + m.imageCount),
+        ContextBudget.maxImages,
+      );
+      // Oldest images went first; the newest message keeps all of its own.
+      expect(history[1].imageCount, 1);
+      expect(history[2].imageCount, 3);
+      // Text parts survive, dropped images leave a placeholder.
+      expect(history[1].text, contains('old'));
+      expect(history[1].text, contains('[image dropped'));
+    });
+
+    test('leaves histories at or under the cap alone', () {
+      final budget = ContextBudget(
+        contextWindow: 1000000,
+        maxOutputTokens: 4096,
+      );
+      final history = [ChatMessage.system('sys'), imageMsg(4)];
+      final result = budget.compact(history);
+      expect(result.imagesDropped, 0);
+      expect(history[1].imageCount, 4);
+    });
   });
 }

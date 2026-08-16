@@ -383,4 +383,157 @@ void main() {
     expect((events.last as AgentFinished).reason, AgentStopReason.completed);
     expect(client.calls, 2);
   });
+
+  test('a prose turn cut off by the output limit is flagged', () async {
+    final client = FakeLlmClient([
+      [TextDelta('half an ans'), StreamDone(finishReason: 'length')],
+    ]);
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+    );
+
+    final events = await session.run('go').toList();
+    expect(events.whereType<AgentOutputTruncated>(), hasLength(1));
+    // Still an answer, just a marked one.
+    expect((events.last as AgentFinished).reason, AgentStopReason.completed);
+  });
+
+  test('anthropic max_tokens counts as truncation too', () async {
+    final client = FakeLlmClient([
+      [TextDelta('half'), StreamDone(finishReason: 'max_tokens')],
+    ]);
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+    );
+
+    final events = await session.run('go').toList();
+    expect(events.whereType<AgentOutputTruncated>(), hasLength(1));
+  });
+
+  test('a truncated tool call names the budget, not bad JSON', () async {
+    final client = FakeLlmClient([
+      [
+        // Arguments cut mid-string by the output limit.
+        ToolCallsReady(const [
+          ChatToolCall(id: 'c1', name: 'echo', argumentsJson: '{"v": "trun'),
+        ]),
+        StreamDone(finishReason: 'length'),
+      ],
+      [TextDelta('recovered'), StreamDone(finishReason: 'stop')],
+    ]);
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+    );
+
+    final events = await session.run('go').toList();
+    final finished = events.whereType<AgentToolFinished>().single;
+    expect(finished.result.isError, isTrue);
+    expect(finished.result.text, contains('output token limit'));
+    expect(finished.result.text, isNot(contains('invalid JSON')));
+    // The result message still pairs with the call.
+    final toolMsg = session.history.firstWhere(
+      (m) => m.role == ChatRole.tool,
+    );
+    expect(toolMsg.toolCallId, 'c1');
+  });
+
+  test('truncated calls do not feed the 3-strikes abort', () async {
+    final client = FakeLlmClient([
+      for (var i = 0; i < 4; i++)
+        [
+          ToolCallsReady([
+            ChatToolCall(id: 'c$i', name: 'echo', argumentsJson: '{"v": "cut'),
+          ]),
+          StreamDone(finishReason: 'length'),
+        ],
+      [TextDelta('done'), StreamDone(finishReason: 'stop')],
+    ]);
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+    );
+
+    final events = await session.run('go').toList();
+    // Four truncated calls in a row and the run still reaches the answer.
+    expect((events.last as AgentFinished).reason, AgentStopReason.completed);
+    expect(client.calls, 5);
+  });
+
+  test(
+    'a silently-truncating endpoint stops instead of sending over-long',
+    () async {
+      final client = FakeLlmClient([
+        [TextDelta('never'), StreamDone(finishReason: 'stop')],
+      ]);
+      final session = AgentSession(
+        client: client,
+        registry: ToolRegistry([_echoTool()]),
+        // Window so small even the seed does not fit once folded.
+        profile: _profile.copyWith(
+          contextWindow: 1,
+          maxOutputTokens: 1,
+          silentTruncation: true,
+        ),
+        systemPrompt: 'sys ${'x' * 40000}',
+      );
+
+      final events = await session.run('u ${'y' * 40000}').toList();
+      final done = events.last as AgentFinished;
+      expect(done.reason, AgentStopReason.error);
+      expect(done.message, contains('truncate'));
+      expect(client.calls, 0); // the doomed request never went out
+      expect(
+        events.whereType<AgentContextCompacted>().single.stillOverBudget,
+        isTrue,
+      );
+    },
+  );
+
+  test('the measured window caps a silently-truncating endpoint', () {
+    AgentSession session(LlmProviderProfile profile) => AgentSession(
+      client: FakeLlmClient(const []),
+      registry: ToolRegistry(const []),
+      profile: profile,
+      systemPrompt: 'sys',
+    );
+    final declared = session(_profile.copyWith(contextWindow: 32768));
+    // Measured-but-clean endpoints keep the user's value: detection
+    // proposes, only the user applies.
+    final clean = session(
+      _profile.copyWith(contextWindow: 32768, measuredContextWindow: 8000),
+    );
+    expect(clean.budget.inputBudget, declared.budget.inputBudget);
+    // A silently-truncating endpoint budgets against the measurement.
+    final lying = session(
+      _profile.copyWith(
+        contextWindow: 32768,
+        measuredContextWindow: 8000,
+        silentTruncation: true,
+      ),
+    );
+    expect(
+      declared.budget.inputBudget - lying.budget.inputBudget,
+      32768 - 8000,
+    );
+    // A measurement larger than the declared window never widens it.
+    final wider = session(
+      _profile.copyWith(
+        contextWindow: 32768,
+        measuredContextWindow: 64000,
+        silentTruncation: true,
+      ),
+    );
+    expect(wider.budget.inputBudget, declared.budget.inputBudget);
+  });
 }

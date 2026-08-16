@@ -116,6 +116,25 @@ void main() {
       // With siblings, the label says which model it is.
       expect(second.name, 'OpenAI · Mini');
     });
+
+    test('probe findings travel with the profile', () {
+      final base = decodeLlmProviders(_legacyJson).first;
+      final provider = base.copyWith(
+        models: [
+          base.models.single.copyWith(
+            measuredContextWindow: 8000,
+            silentTruncation: true,
+          ),
+        ],
+      );
+      final resolved = provider.resolve(provider.models.single);
+      // The session can only act on what resolve() carries over: a probe
+      // finding left behind here is a probe that ran for nothing.
+      expect(resolved.measuredContextWindow, 8000);
+      expect(resolved.silentTruncation, isTrue);
+      // The user-entered window is untouched — detection proposes.
+      expect(resolved.contextWindow, 128000);
+    });
   });
 
   group('AppState', () {
