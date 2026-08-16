@@ -17,11 +17,15 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
     this.connectTimeout = const Duration(seconds: 30),
     this.idleTimeout = const Duration(seconds: 120),
     this.apiVersion = '2023-06-01',
-  });
+    http.Client Function()? clientFactory,
+  }) : _clientFactory = clientFactory ?? http.Client.new;
 
   final Duration connectTimeout;
   final Duration idleTimeout;
   final String apiVersion;
+
+  /// Injection point for tests (`MockClient`); production uses the default.
+  final http.Client Function() _clientFactory;
 
   Uri _url(LlmProviderProfile profile, String path) {
     var base = profile.baseUrl.trim();
@@ -53,20 +57,32 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
         .where((m) => m.role == ChatRole.system)
         .map((m) => m.text)
         .join('\n\n');
+    // Prompt-cache breakpoints on the static prefix: the last tool schema
+    // and the system block. An agent run re-sends the same system prompt and
+    // ~30 tool schemas every turn (up to 24 turns), which is exactly the
+    // payload shape caching pays for. Below the model's minimum cacheable
+    // length the marker is accepted and simply does nothing. The moving
+    // breakpoint that would also cache the growing history is deliberately
+    // not attempted here.
+    const cacheControl = {'type': 'ephemeral'};
     return {
       'model': profile.model,
       'max_tokens': maxTokensOverride ?? profile.maxOutputTokens,
       'temperature': profile.temperature.clamp(0.0, 1.0),
       'stream': stream,
-      if (system.isNotEmpty) 'system': system,
+      if (system.isNotEmpty)
+        'system': [
+          {'type': 'text', 'text': system, 'cache_control': cacheControl},
+        ],
       'messages': _convertMessages(messages),
       if (tools.isNotEmpty)
         'tools': [
-          for (final t in tools)
+          for (final (i, t) in tools.indexed)
             {
               'name': t.name,
               'description': t.description,
               'input_schema': t.parametersSchema,
+              if (i == tools.length - 1) 'cache_control': cacheControl,
             },
         ],
     };
@@ -185,8 +201,10 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
     List<AgentToolSpec> tools = const [],
     CancellationToken? cancel,
   }) async* {
-    final client = http.Client();
-    cancel?.onCancel(client.close);
+    final client = _clientFactory();
+    // The token outlives this turn's client by the whole run; without the
+    // unregistration a 24-turn run leaves 24 dead listeners on it.
+    final unregister = cancel?.onCancel(client.close);
     try {
       final body = _buildBody(profile, messages, tools, stream: true);
       final resp = await _send(client, profile, body);
@@ -202,6 +220,8 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
       var stopReason = '';
       var inputTokens = 0;
       var outputTokens = 0;
+      var cacheReadTokens = 0;
+      var cacheWriteTokens = 0;
 
       final events = sseDataEvents(resp.stream).timeout(
         idleTimeout,
@@ -229,7 +249,15 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
             case 'message_start':
               final usage = (obj['message'] as Map<String, dynamic>?)?['usage'];
               if (usage is Map<String, dynamic>) {
+                // Anthropic's input_tokens EXCLUDES the cache counters;
+                // TokenUsage.prompt means the full context, so they are
+                // summed back in when the stream ends.
                 inputTokens = (usage['input_tokens'] as num?)?.toInt() ?? 0;
+                cacheReadTokens =
+                    (usage['cache_read_input_tokens'] as num?)?.toInt() ?? 0;
+                cacheWriteTokens =
+                    (usage['cache_creation_input_tokens'] as num?)?.toInt() ??
+                    0;
               }
             case 'content_block_start':
               final index = (obj['index'] as num?)?.toInt() ?? 0;
@@ -249,6 +277,14 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
               if (delta['type'] == 'text_delta') {
                 final text = delta['text'];
                 if (text is String && text.isNotEmpty) yield TextDelta(text);
+              } else if (delta['type'] == 'thinking_delta') {
+                // Extended thinking is never requested by this client, but a
+                // relay may switch it on server-side; showing the stream
+                // beats displaying a stalled connection while it thinks.
+                final text = delta['thinking'];
+                if (text is String && text.isNotEmpty) {
+                  yield ReasoningDelta(text);
+                }
               } else if (delta['type'] == 'input_json_delta') {
                 blocks[index]?.json.write(delta['partial_json'] ?? '');
               }
@@ -293,7 +329,12 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
       if (calls.isNotEmpty) yield ToolCallsReady(calls);
       yield StreamDone(
         finishReason: stopReason == 'tool_use' ? 'tool_calls' : stopReason,
-        usage: TokenUsage(prompt: inputTokens, completion: outputTokens),
+        usage: TokenUsage(
+          prompt: inputTokens + cacheReadTokens + cacheWriteTokens,
+          completion: outputTokens,
+          cacheRead: cacheReadTokens,
+          cacheWrite: cacheWriteTokens,
+        ),
       );
     } on LlmException {
       if (cancel?.isCancelled ?? false) return;
@@ -302,6 +343,7 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
       if (cancel?.isCancelled ?? false) return;
       throw LlmException('Network error: ${e.message}');
     } finally {
+      unregister?.call();
       client.close();
     }
   }
@@ -310,7 +352,7 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
 
   @override
   Future<String?> probe(LlmProviderProfile profile) async {
-    final client = http.Client();
+    final client = _clientFactory();
     try {
       final body = _buildBody(
         profile,
@@ -357,7 +399,7 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
   Future<List<Map<String, dynamic>>> listModelsDetailed(
     LlmProviderProfile profile,
   ) async {
-    final client = http.Client();
+    final client = _clientFactory();
     try {
       final resp = await client
           .get(_url(profile, '/models'), headers: _headers(profile))
@@ -400,7 +442,7 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
     required int maxTokens,
     Duration? timeout,
   }) async {
-    final client = http.Client();
+    final client = _clientFactory();
     try {
       final body = _buildBody(
         profile,

@@ -25,7 +25,7 @@ import 'ai_tagger_state.dart';
 import 'dataset_state.dart';
 import 'tag_ops.dart';
 
-enum AgentEntryKind { user, assistant, tool, notice, rules }
+enum AgentEntryKind { user, assistant, tool, notice, rules, reasoning }
 
 /// What a notice row represents; the panel maps these to localized text.
 enum AgentNoticeType {
@@ -36,6 +36,17 @@ enum AgentNoticeType {
   profileSwitched,
   turnLimitStopped,
   turnLimitContinued,
+
+  /// The model's reply was cut off by the output token limit.
+  outputTruncated,
+
+  /// Old history was folded to fit the context window ([AgentChatEntry.text]
+  /// carries the folded count).
+  contextCompacted,
+
+  /// Even fully folded the history exceeds the window; the request went out
+  /// over-long (endpoints known to truncate silently stop the run instead).
+  contextOverBudget,
 }
 
 /// One row in the chat transcript. Mutable: assistant text streams in and
@@ -68,6 +79,10 @@ class AgentChatEntry {
     : kind = AgentEntryKind.rules {
     rules = proposed;
   }
+
+  /// The model's reasoning stream for one turn; text accumulates like an
+  /// assistant bubble but renders as a collapsed muted block.
+  AgentChatEntry.reasoning() : kind = AgentEntryKind.reasoning;
 
   final AgentEntryKind kind;
   AgentNoticeType? noticeType;
@@ -158,6 +173,17 @@ class AgentChatState extends ChangeNotifier {
 
   bool get busy => _busy;
   int get totalTokens => _session?.totalUsage.total ?? 0;
+
+  /// What the conversation has cost so far at the model's configured rates,
+  /// in whatever currency the user typed them in; null when no pricing is
+  /// tracked. This is the read side of [LlmPricing] — without it the rates
+  /// in Settings are write-only.
+  double? get estimatedCost {
+    final session = _session;
+    final pricing = session?.profile.pricing;
+    if (session == null || pricing == null || pricing.isEmpty) return null;
+    return pricing.costOf(session.totalUsage);
+  }
 
   /// The cap the running conversation was created with — changing the
   /// setting mid-conversation must not make the footer disagree with the
@@ -252,29 +278,65 @@ class AgentChatState extends ChangeNotifier {
 
   Future<void> _consume(Stream<AgentUiEvent> events) async {
     AgentChatEntry? assistant;
+    AgentChatEntry? reasoning;
+    // The entry AgentToolStarted created, held directly: execution is
+    // serial, so the finished event always belongs to it. Searching the
+    // transcript by name instead would need a fallback, and any fallback
+    // writes the result onto some unrelated row.
+    AgentChatEntry? runningTool;
     try {
       await for (final event in events) {
         switch (event) {
           case AgentTextDelta(:final text):
+            reasoning = null; // answer text ends the thinking block
             if (assistant == null) {
               assistant = AgentChatEntry.assistant();
               entries.add(assistant);
             }
             assistant.text += text;
+          case AgentReasoningDelta(:final text):
+            if (reasoning == null) {
+              reasoning = AgentChatEntry.reasoning();
+              entries.add(reasoning);
+            }
+            reasoning.text += text;
           case AgentToolStarted(:final call):
             assistant = null; // next text delta starts a new bubble
-            entries.add(AgentChatEntry.tool(call));
-          case AgentToolFinished(:final call, :final result):
-            final entry = entries.lastWhere(
-              (e) =>
-                  e.kind == AgentEntryKind.tool &&
-                  e.running &&
-                  e.toolName == call.name,
-              orElse: () => entries.last,
-            );
-            entry.running = false;
-            entry.toolResult = result.text;
-            entry.isError = result.isError;
+            reasoning = null;
+            runningTool = AgentChatEntry.tool(call);
+            entries.add(runningTool);
+          case AgentToolFinished(:final result):
+            final entry = runningTool;
+            runningTool = null;
+            if (entry != null) {
+              entry.running = false;
+              entry.toolResult = result.text;
+              entry.isError = result.isError;
+            }
+          case AgentOutputTruncated():
+            assistant = null;
+            entries.add(AgentChatEntry.notice(AgentNoticeType.outputTruncated));
+          case AgentContextCompacted(
+            :final folded,
+            :final imagesDropped,
+            :final stillOverBudget,
+          ):
+            assistant = null;
+            if (folded > 0 || imagesDropped > 0) {
+              entries.add(
+                AgentChatEntry.notice(
+                  AgentNoticeType.contextCompacted,
+                  '${folded + imagesDropped}',
+                ),
+              );
+            }
+            // The silent-truncation case ends the run with an error instead,
+            // so this row only ever means "sent anyway, may be rejected".
+            if (stillOverBudget) {
+              entries.add(
+                AgentChatEntry.notice(AgentNoticeType.contextOverBudget),
+              );
+            }
           case AgentFinished(:final reason, :final message, :final retryable):
             _onFinished(reason, message, retryable);
         }

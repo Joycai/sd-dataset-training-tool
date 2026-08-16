@@ -234,7 +234,8 @@ void main() {
     final events = await session.run('loop').toList();
     final done = events.last as AgentFinished;
     expect(done.reason, AgentStopReason.maxTurns);
-    expect(client.calls, 4);
+    // 4 working turns + the tool-less wind-down summary.
+    expect(client.calls, 5);
   });
 
   test(
@@ -264,7 +265,8 @@ void main() {
       final events = await session.run('loop').toList();
       expect(asked, [4]);
       expect((events.last as AgentFinished).reason, AgentStopReason.maxTurns);
-      expect(client.calls, 4);
+      // 4 working turns + the tool-less wind-down summary.
+      expect(client.calls, 5);
     },
   );
 
@@ -294,7 +296,8 @@ void main() {
     final events = await session.run('loop').toList();
     expect(asked, [3, 6]);
     expect((events.last as AgentFinished).reason, AgentStopReason.maxTurns);
-    expect(client.calls, 6);
+    // 6 working turns + the tool-less wind-down summary.
+    expect(client.calls, 7);
   });
 
   test('a note typed on the continue card reaches the model', () async {
@@ -382,5 +385,241 @@ void main() {
     final events = await session.run('two').toList();
     expect((events.last as AgentFinished).reason, AgentStopReason.completed);
     expect(client.calls, 2);
+  });
+
+  test('a prose turn cut off by the output limit is flagged', () async {
+    final client = FakeLlmClient([
+      [TextDelta('half an ans'), StreamDone(finishReason: 'length')],
+    ]);
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+    );
+
+    final events = await session.run('go').toList();
+    expect(events.whereType<AgentOutputTruncated>(), hasLength(1));
+    // Still an answer, just a marked one.
+    expect((events.last as AgentFinished).reason, AgentStopReason.completed);
+  });
+
+  test('anthropic max_tokens counts as truncation too', () async {
+    final client = FakeLlmClient([
+      [TextDelta('half'), StreamDone(finishReason: 'max_tokens')],
+    ]);
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+    );
+
+    final events = await session.run('go').toList();
+    expect(events.whereType<AgentOutputTruncated>(), hasLength(1));
+  });
+
+  test('a truncated tool call names the budget, not bad JSON', () async {
+    final client = FakeLlmClient([
+      [
+        // Arguments cut mid-string by the output limit.
+        ToolCallsReady(const [
+          ChatToolCall(id: 'c1', name: 'echo', argumentsJson: '{"v": "trun'),
+        ]),
+        StreamDone(finishReason: 'length'),
+      ],
+      [TextDelta('recovered'), StreamDone(finishReason: 'stop')],
+    ]);
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+    );
+
+    final events = await session.run('go').toList();
+    final finished = events.whereType<AgentToolFinished>().single;
+    expect(finished.result.isError, isTrue);
+    expect(finished.result.text, contains('output token limit'));
+    expect(finished.result.text, isNot(contains('invalid JSON')));
+    // The result message still pairs with the call.
+    final toolMsg = session.history.firstWhere(
+      (m) => m.role == ChatRole.tool,
+    );
+    expect(toolMsg.toolCallId, 'c1');
+  });
+
+  test('truncated calls do not feed the 3-strikes abort', () async {
+    final client = FakeLlmClient([
+      for (var i = 0; i < 4; i++)
+        [
+          ToolCallsReady([
+            ChatToolCall(id: 'c$i', name: 'echo', argumentsJson: '{"v": "cut'),
+          ]),
+          StreamDone(finishReason: 'length'),
+        ],
+      [TextDelta('done'), StreamDone(finishReason: 'stop')],
+    ]);
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+    );
+
+    final events = await session.run('go').toList();
+    // Four truncated calls in a row and the run still reaches the answer.
+    expect((events.last as AgentFinished).reason, AgentStopReason.completed);
+    expect(client.calls, 5);
+  });
+
+  test(
+    'a silently-truncating endpoint stops instead of sending over-long',
+    () async {
+      final client = FakeLlmClient([
+        [TextDelta('never'), StreamDone(finishReason: 'stop')],
+      ]);
+      final session = AgentSession(
+        client: client,
+        registry: ToolRegistry([_echoTool()]),
+        // Window so small even the seed does not fit once folded.
+        profile: _profile.copyWith(
+          contextWindow: 1,
+          maxOutputTokens: 1,
+          silentTruncation: true,
+        ),
+        systemPrompt: 'sys ${'x' * 40000}',
+      );
+
+      final events = await session.run('u ${'y' * 40000}').toList();
+      final done = events.last as AgentFinished;
+      expect(done.reason, AgentStopReason.error);
+      expect(done.message, contains('truncate'));
+      expect(client.calls, 0); // the doomed request never went out
+      expect(
+        events.whereType<AgentContextCompacted>().single.stillOverBudget,
+        isTrue,
+      );
+    },
+  );
+
+  test('stopping at the limit still yields a wind-down summary', () async {
+    final client = FakeLlmClient([
+      [
+        ToolCallsReady([
+          const ChatToolCall(id: 'c', name: 'echo', argumentsJson: '{"v":1}'),
+        ]),
+        StreamDone(finishReason: 'tool_calls'),
+      ],
+      [TextDelta('tagged 3 of 9; the rest remain'), StreamDone()],
+    ]);
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+      maxTurnsPerRun: 1,
+      confirmContinue: (_) async => null, // "stop here"
+    );
+
+    final events = await session.run('sweep').toList();
+    expect((events.last as AgentFinished).reason, AgentStopReason.maxTurns);
+    // The summary streamed to the transcript and entered history…
+    expect(
+      events.whereType<AgentTextDelta>().map((e) => e.text).join(),
+      contains('the rest remain'),
+    );
+    expect(session.history.last.text, contains('the rest remain'));
+    // …but its one-shot instruction was withdrawn: nothing in history tells
+    // the model "do not call tools" forever after.
+    expect(
+      session.history.any((m) => m.text.contains('Do not call tools')),
+      isFalse,
+    );
+  });
+
+  test('an empty turn ends retryable with clean history', () async {
+    final client = FakeLlmClient([
+      [StreamDone(finishReason: 'length')], // all budget spent thinking
+      [TextDelta('recovered'), StreamDone(finishReason: 'stop')],
+    ]);
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+    );
+
+    final events = await session.run('go').toList();
+    final done = events.last as AgentFinished;
+    expect(done.reason, AgentStopReason.error);
+    expect(done.message, contains('output budget'));
+    expect(done.retryable, isTrue);
+    // The empty turn never reached history…
+    expect(session.history.last.role, ChatRole.user);
+    // …so resume re-sends the same request and can succeed.
+    final retried = await session.resume().toList();
+    expect((retried.last as AgentFinished).reason, AgentStopReason.completed);
+  });
+
+  test('reasoning deltas pass through without touching history', () async {
+    final client = FakeLlmClient([
+      [
+        ReasoningDelta('hmm, tags first'),
+        TextDelta('answer'),
+        StreamDone(finishReason: 'stop'),
+      ],
+    ]);
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+    );
+
+    final events = await session.run('go').toList();
+    expect(
+      events.whereType<AgentReasoningDelta>().map((e) => e.text).join(),
+      'hmm, tags first',
+    );
+    // Thinking is display-only: the history carries only the answer.
+    expect(session.history.last.text, 'answer');
+  });
+
+  test('the measured window caps a silently-truncating endpoint', () {
+    AgentSession session(LlmProviderProfile profile) => AgentSession(
+      client: FakeLlmClient(const []),
+      registry: ToolRegistry(const []),
+      profile: profile,
+      systemPrompt: 'sys',
+    );
+    final declared = session(_profile.copyWith(contextWindow: 32768));
+    // Measured-but-clean endpoints keep the user's value: detection
+    // proposes, only the user applies.
+    final clean = session(
+      _profile.copyWith(contextWindow: 32768, measuredContextWindow: 8000),
+    );
+    expect(clean.budget.inputBudget, declared.budget.inputBudget);
+    // A silently-truncating endpoint budgets against the measurement.
+    final lying = session(
+      _profile.copyWith(
+        contextWindow: 32768,
+        measuredContextWindow: 8000,
+        silentTruncation: true,
+      ),
+    );
+    expect(
+      declared.budget.inputBudget - lying.budget.inputBudget,
+      32768 - 8000,
+    );
+    // A measurement larger than the declared window never widens it.
+    final wider = session(
+      _profile.copyWith(
+        contextWindow: 32768,
+        measuredContextWindow: 64000,
+        silentTruncation: true,
+      ),
+    );
+    expect(wider.budget.inputBudget, declared.budget.inputBudget);
   });
 }

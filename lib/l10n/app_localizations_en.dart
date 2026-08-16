@@ -1491,6 +1491,22 @@ class AppLocalizationsEn extends AppLocalizations {
       'Stopped at the turn limit. Send a message to pick the task back up.';
 
   @override
+  String get agentOutputTruncatedNotice =>
+      'The reply was cut off by the output token limit. Raise the model\'s max output tokens in Settings if this keeps happening.';
+
+  @override
+  String agentContextCompactedNotice(int count) {
+    return 'Folded $count earlier item(s) to fit the model\'s context window; the assistant may no longer recall their details.';
+  }
+
+  @override
+  String get agentContextOverBudgetNotice =>
+      'The conversation no longer fits the model\'s context window even after folding. The request was sent anyway and may fail — consider starting a new conversation.';
+
+  @override
+  String get agentReasoningLabel => 'Thinking';
+
+  @override
   String get agentConfirmTitle => 'The assistant wants to modify captions';
 
   @override

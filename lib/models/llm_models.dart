@@ -41,6 +41,9 @@ class LlmProviderProfile {
     this.contextWindow = 32768,
     this.maxOutputTokens = 4096,
     this.temperature = 0.7,
+    this.measuredContextWindow = 0,
+    this.silentTruncation = false,
+    this.pricing,
   });
 
   final String id;
@@ -67,6 +70,23 @@ class LlmProviderProfile {
   final int maxOutputTokens;
   final double temperature;
 
+  /// Context window the capability probe measured, 0 when never detected.
+  /// Carried from [LlmModelConfig.measuredContextWindow] by
+  /// [LlmProvider.resolve]; not persisted here (the model config owns it).
+  final int measuredContextWindow;
+
+  /// The probe caught this endpoint accepting an over-long prompt and
+  /// quietly dropping part of it. When set, the session budgets against
+  /// [measuredContextWindow] (if known) rather than the declared window, and
+  /// refuses to send a request that still does not fit — a silently mangled
+  /// context is worse than a visible stop.
+  final bool silentTruncation;
+
+  /// Per-Mtoken rates for cost display; null when the user tracks none.
+  /// Carried from [LlmModelConfig.pricing] by [LlmProvider.resolve], not
+  /// persisted here.
+  final LlmPricing? pricing;
+
   LlmProviderProfile copyWith({
     String? name,
     LlmApiKind? kind,
@@ -77,6 +97,9 @@ class LlmProviderProfile {
     int? contextWindow,
     int? maxOutputTokens,
     double? temperature,
+    int? measuredContextWindow,
+    bool? silentTruncation,
+    LlmPricing? pricing,
   }) => LlmProviderProfile(
     id: id,
     name: name ?? this.name,
@@ -88,6 +111,9 @@ class LlmProviderProfile {
     contextWindow: contextWindow ?? this.contextWindow,
     maxOutputTokens: maxOutputTokens ?? this.maxOutputTokens,
     temperature: temperature ?? this.temperature,
+    measuredContextWindow: measuredContextWindow ?? this.measuredContextWindow,
+    silentTruncation: silentTruncation ?? this.silentTruncation,
+    pricing: pricing ?? this.pricing,
   );
 
   Map<String, dynamic> toJson() => {
@@ -157,6 +183,18 @@ class LlmPricing {
 
   bool get isEmpty =>
       input == 0 && output == 0 && cacheRead == 0 && cacheWrite == 0;
+
+  /// What [usage] costs at these rates, in the same currency the user typed
+  /// the per-Mtoken prices in. Cached input is billed at the cache rates and
+  /// subtracted from the fresh-input portion.
+  double costOf(TokenUsage usage) {
+    final fresh = usage.prompt - usage.cacheRead - usage.cacheWrite;
+    return ((fresh > 0 ? fresh : 0) * input +
+            usage.cacheRead * cacheRead +
+            usage.cacheWrite * cacheWrite +
+            usage.completion * output) /
+        1e6;
+  }
 
   LlmPricing copyWith({
     double? input,
@@ -353,6 +391,9 @@ class LlmProvider {
     contextWindow: model.contextWindow,
     maxOutputTokens: model.maxOutputTokens,
     temperature: model.temperature,
+    measuredContextWindow: model.measuredContextWindow,
+    silentTruncation: model.silentTruncation,
+    pricing: model.pricing,
   );
 
   Map<String, dynamic> toJson() => {
@@ -530,16 +571,36 @@ class AgentToolSpec {
 // --- Stream events ----------------------------------------------------
 
 class TokenUsage {
-  const TokenUsage({this.prompt = 0, this.completion = 0});
+  const TokenUsage({
+    this.prompt = 0,
+    this.completion = 0,
+    this.cacheRead = 0,
+    this.cacheWrite = 0,
+  });
 
+  /// The full input context, cached parts included. The clients normalize
+  /// both protocols to this: OpenAI's `prompt_tokens` already includes its
+  /// cached subset, while Anthropic reports uncached input and the cache
+  /// counters separately — there the client sums them into [prompt] so the
+  /// two protocols mean the same thing here.
   final int prompt;
+
   final int completion;
+
+  /// Portion of [prompt] served from a prompt cache (billed cheaper).
+  final int cacheRead;
+
+  /// Portion of [prompt] that wrote a cache entry (Anthropic bills this
+  /// separately; always 0 on OpenAI-compatible backends).
+  final int cacheWrite;
 
   int get total => prompt + completion;
 
   TokenUsage operator +(TokenUsage other) => TokenUsage(
     prompt: prompt + other.prompt,
     completion: completion + other.completion,
+    cacheRead: cacheRead + other.cacheRead,
+    cacheWrite: cacheWrite + other.cacheWrite,
   );
 }
 
@@ -547,6 +608,17 @@ sealed class LlmStreamEvent {}
 
 class TextDelta extends LlmStreamEvent {
   TextDelta(this.text);
+
+  final String text;
+}
+
+/// A fragment of the model's reasoning/thinking stream (`reasoning_content`
+/// on OpenAI-compatible relays, `thinking_delta` on Anthropic). Display
+/// only — never part of the answer and never re-sent. Consuming it matters
+/// beyond display: a reasoning model can think for minutes, and a UI that
+/// drops these fragments shows a dead connection the whole time.
+class ReasoningDelta extends LlmStreamEvent {
+  ReasoningDelta(this.text);
 
   final String text;
 }

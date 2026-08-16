@@ -1450,6 +1450,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentTurnLimitStoppedNotice => '已在轮次上限处停止。发条消息可以接着做。';
 
   @override
+  String get agentOutputTruncatedNotice =>
+      '这条回复被输出 token 上限截断了。如果经常出现，可到设置里调高模型的最大输出 tokens。';
+
+  @override
+  String agentContextCompactedNotice(int count) {
+    return '为放进上下文窗口，已折叠 $count 条较早的内容；助手可能不再记得其中细节。';
+  }
+
+  @override
+  String get agentContextOverBudgetNotice =>
+      '即使折叠后，会话仍超出模型的上下文窗口。请求已照常发出，可能失败——建议新开一个会话。';
+
+  @override
+  String get agentReasoningLabel => '思考过程';
+
+  @override
   String get agentConfirmTitle => '助手请求修改 caption';
 
   @override

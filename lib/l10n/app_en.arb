@@ -842,6 +842,15 @@
     }
   },
   "agentTurnLimitStoppedNotice": "Stopped at the turn limit. Send a message to pick the task back up.",
+  "agentOutputTruncatedNotice": "The reply was cut off by the output token limit. Raise the model's max output tokens in Settings if this keeps happening.",
+  "agentContextCompactedNotice": "Folded {count} earlier item(s) to fit the model's context window; the assistant may no longer recall their details.",
+  "@agentContextCompactedNotice": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "agentContextOverBudgetNotice": "The conversation no longer fits the model's context window even after folding. The request was sent anyway and may fail — consider starting a new conversation.",
+  "agentReasoningLabel": "Thinking",
 
   "agentConfirmTitle": "The assistant wants to modify captions",
   "agentConfirmAllow": "Allow",

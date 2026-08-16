@@ -702,6 +702,8 @@ class _EntryRow extends StatelessWidget {
         );
       case AgentEntryKind.tool:
         return _ToolCard(entry: entry);
+      case AgentEntryKind.reasoning:
+        return _ReasoningCard(entry: entry);
       case AgentEntryKind.rules:
         return _RulesCard(rules: entry.rules!);
       case AgentEntryKind.notice:
@@ -719,6 +721,12 @@ class _EntryRow extends StatelessWidget {
           AgentNoticeType.turnLimitContinued =>
             l10n.agentTurnLimitContinuedNotice(int.tryParse(entry.text) ?? 0),
           AgentNoticeType.turnLimitStopped => l10n.agentTurnLimitStoppedNotice,
+          AgentNoticeType.outputTruncated => l10n.agentOutputTruncatedNotice,
+          AgentNoticeType.contextCompacted => l10n.agentContextCompactedNotice(
+            int.tryParse(entry.text) ?? 0,
+          ),
+          AgentNoticeType.contextOverBudget =>
+            l10n.agentContextOverBudgetNotice,
           AgentNoticeType.error || null => entry.text,
         };
         return Padding(
@@ -809,6 +817,70 @@ class _ErrorCard extends StatelessWidget {
 }
 
 /// A collapsed one-line tool call; expands to show arguments and result.
+/// The model's reasoning stream for one turn: a muted, collapsed line the
+/// user can expand. It exists so a thinking model streams *something* —
+/// minutes of silent "Thinking…" reads as a dead connection — while keeping
+/// the reasoning visually subordinate to the answer.
+class _ReasoningCard extends StatefulWidget {
+  const _ReasoningCard({required this.entry});
+
+  final AgentChatEntry entry;
+
+  @override
+  State<_ReasoningCard> createState() => _ReasoningCardState();
+}
+
+class _ReasoningCardState extends State<_ReasoningCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final semantic = context.semantic;
+    final muted = TextStyle(
+      fontSize: 11,
+      fontStyle: FontStyle.italic,
+      color: semantic.muted,
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, right: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(AppRadii.control),
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.psychology_outlined,
+                      size: 13, color: semantic.muted),
+                  const SizedBox(width: 5),
+                  Text(l10n.agentReasoningLabel, style: muted),
+                  const SizedBox(width: 3),
+                  Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 13,
+                    color: semantic.muted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded)
+            Padding(
+              padding: const EdgeInsets.only(left: 4, top: 2),
+              child: SelectableText(widget.entry.text, style: muted),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ToolCard extends StatefulWidget {
   const _ToolCard({required this.entry});
 
@@ -1338,6 +1410,7 @@ class _InputFooter extends StatelessWidget {
     final cap = chat.tokenCap;
     final used = chat.totalTokens;
     final nearCap = cap > 0 && used >= cap * 0.8;
+    final cost = chat.estimatedCost;
 
     final hint = Text(
       l10n.agentKeyHint,
@@ -1366,9 +1439,14 @@ class _InputFooter extends StatelessWidget {
           children: [
             Flexible(
               child: Text(
-                cap > 0
-                    ? l10n.agentTokensUsedOfCap(used, cap)
-                    : l10n.agentTokensUsed(used),
+                (cap > 0
+                        ? l10n.agentTokensUsedOfCap(used, cap)
+                        : l10n.agentTokensUsed(used)) +
+                    // The currency is whichever one the user typed the
+                    // per-Mtoken rates in, so no symbol is attached.
+                    (cost == null
+                        ? ''
+                        : ' · ≈${cost < 0.01 ? cost.toStringAsFixed(4) : cost.toStringAsFixed(2)}'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: monoStyle(
