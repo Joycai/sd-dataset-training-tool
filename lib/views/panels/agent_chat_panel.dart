@@ -1344,6 +1344,7 @@ class _InputFooter extends StatelessWidget {
     final cap = chat.tokenCap;
     final used = chat.totalTokens;
     final nearCap = cap > 0 && used >= cap * 0.8;
+    final cost = chat.estimatedCost;
 
     final hint = Text(
       l10n.agentKeyHint,
@@ -1372,9 +1373,14 @@ class _InputFooter extends StatelessWidget {
           children: [
             Flexible(
               child: Text(
-                cap > 0
-                    ? l10n.agentTokensUsedOfCap(used, cap)
-                    : l10n.agentTokensUsed(used),
+                (cap > 0
+                        ? l10n.agentTokensUsedOfCap(used, cap)
+                        : l10n.agentTokensUsed(used)) +
+                    // The currency is whichever one the user typed the
+                    // per-Mtoken rates in, so no symbol is attached.
+                    (cost == null
+                        ? ''
+                        : ' · ≈${cost < 0.01 ? cost.toStringAsFixed(4) : cost.toStringAsFixed(2)}'),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: monoStyle(

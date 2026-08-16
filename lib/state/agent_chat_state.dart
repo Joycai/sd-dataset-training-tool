@@ -170,6 +170,17 @@ class AgentChatState extends ChangeNotifier {
   bool get busy => _busy;
   int get totalTokens => _session?.totalUsage.total ?? 0;
 
+  /// What the conversation has cost so far at the model's configured rates,
+  /// in whatever currency the user typed them in; null when no pricing is
+  /// tracked. This is the read side of [LlmPricing] — without it the rates
+  /// in Settings are write-only.
+  double? get estimatedCost {
+    final session = _session;
+    final pricing = session?.profile.pricing;
+    if (session == null || pricing == null || pricing.isEmpty) return null;
+    return pricing.costOf(session.totalUsage);
+  }
+
   /// The cap the running conversation was created with — changing the
   /// setting mid-conversation must not make the footer disagree with the
   /// session that is actually enforcing it. 0 = uncapped.

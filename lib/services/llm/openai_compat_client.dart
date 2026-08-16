@@ -14,11 +14,18 @@ import '../../models/llm_models.dart';
 import 'llm_client.dart';
 import 'sse.dart';
 
+/// A request-shape adjustment some endpoint has demanded via a 4xx. Kept per
+/// profile once it works, so the next turn sends the accepted shape directly
+/// instead of paying a doomed round-trip per turn — an agent run re-sends
+/// the request up to 24 times.
+enum _BodyRepair { renameMaxTokens, dropStreamOptions, dropTemperature }
+
 class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
   OpenAiCompatClient({
     this.connectTimeout = const Duration(seconds: 30),
     this.idleTimeout = const Duration(seconds: 120),
-  });
+    http.Client Function()? clientFactory,
+  }) : _clientFactory = clientFactory ?? http.Client.new;
 
   /// Timeout for connecting + response headers (first byte).
   final Duration connectTimeout;
@@ -26,6 +33,14 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
   /// Max silence between stream events. Generous: relays queue requests and
   /// Ollama may load a model on first use.
   final Duration idleTimeout;
+
+  /// Injection point for tests (`MockClient`); production uses the default.
+  final http.Client Function() _clientFactory;
+
+  /// Repairs proven to work, by profile id. In-memory only: the client
+  /// instance lives as long as the app, and a relay's parameter tastes are
+  /// re-discoverable at the cost of one extra round-trip after a restart.
+  final Map<String, Set<_BodyRepair>> _knownRepairs = {};
 
   Uri _url(LlmProviderProfile profile, String path) {
     var base = profile.baseUrl.trim();
@@ -51,26 +66,29 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
     List<AgentToolSpec> tools, {
     required bool stream,
     int? maxTokensOverride,
-  }) => {
-    'model': profile.model,
-    'messages': _convertMessages(messages),
-    'stream': stream,
-    if (stream) 'stream_options': {'include_usage': true},
-    'max_tokens': maxTokensOverride ?? profile.maxOutputTokens,
-    'temperature': profile.temperature,
-    if (tools.isNotEmpty)
-      'tools': [
-        for (final t in tools)
-          {
-            'type': 'function',
-            'function': {
-              'name': t.name,
-              'description': t.description,
-              'parameters': t.parametersSchema,
+  }) => _applyRepairs(
+    {
+      'model': profile.model,
+      'messages': _convertMessages(messages),
+      'stream': stream,
+      if (stream) 'stream_options': {'include_usage': true},
+      'max_tokens': maxTokensOverride ?? profile.maxOutputTokens,
+      'temperature': profile.temperature,
+      if (tools.isNotEmpty)
+        'tools': [
+          for (final t in tools)
+            {
+              'type': 'function',
+              'function': {
+                'name': t.name,
+                'description': t.description,
+                'parameters': t.parametersSchema,
+              },
             },
-          },
-      ],
-  };
+        ],
+    },
+    _knownRepairs[profile.id] ?? const {},
+  );
 
   List<Map<String, dynamic>> _convertMessages(List<ChatMessage> messages) {
     final out = <Map<String, dynamic>>[];
@@ -148,26 +166,45 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
     },
   };
 
+  /// Which repairs a 4xx response's error text calls for on [body]. Empty
+  /// means nothing matches and a retry would be pointless.
+  static Set<_BodyRepair> _repairsFor(Map<String, dynamic> body, String error) {
+    final e = error.toLowerCase();
+    return {
+      if (e.contains('max_completion_tokens') && body.containsKey('max_tokens'))
+        _BodyRepair.renameMaxTokens,
+      if (e.contains('stream_options') && body.containsKey('stream_options'))
+        _BodyRepair.dropStreamOptions,
+      if (e.contains('temperature') && body.containsKey('temperature'))
+        _BodyRepair.dropTemperature,
+    };
+  }
+
+  static Map<String, dynamic> _applyRepairs(
+    Map<String, dynamic> body,
+    Set<_BodyRepair> repairs,
+  ) {
+    if (repairs.isEmpty) return body;
+    final next = Map<String, dynamic>.from(body);
+    if (repairs.contains(_BodyRepair.renameMaxTokens) &&
+        next.containsKey('max_tokens')) {
+      next['max_completion_tokens'] = next.remove('max_tokens');
+    }
+    if (repairs.contains(_BodyRepair.dropStreamOptions)) {
+      next.remove('stream_options');
+    }
+    if (repairs.contains(_BodyRepair.dropTemperature)) {
+      next.remove('temperature');
+    }
+    return next;
+  }
+
   /// One-shot compatibility repair for a 4xx response: strips or renames the
   /// parameters the server complained about. Returns null when nothing in
   /// the body matches, meaning a retry would be pointless.
   Map<String, dynamic>? _adjustBody(Map<String, dynamic> body, String error) {
-    final e = error.toLowerCase();
-    var changed = false;
-    final next = Map<String, dynamic>.from(body);
-    if (e.contains('max_completion_tokens') && next.containsKey('max_tokens')) {
-      next['max_completion_tokens'] = next.remove('max_tokens');
-      changed = true;
-    }
-    if (e.contains('stream_options') && next.containsKey('stream_options')) {
-      next.remove('stream_options');
-      changed = true;
-    }
-    if (e.contains('temperature') && next.containsKey('temperature')) {
-      next.remove('temperature');
-      changed = true;
-    }
-    return changed ? next : null;
+    final repairs = _repairsFor(body, error);
+    return repairs.isEmpty ? null : _applyRepairs(body, repairs);
   }
 
   // --- Transport --------------------------------------------------------
@@ -204,7 +241,9 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
   }
 
   /// Sends [body], transparently retrying once with adjusted parameters when
-  /// the server rejects a request shape (see [_adjustBody]).
+  /// the server rejects a request shape (see [_repairsFor]). A repair that
+  /// works is remembered for the profile, so later requests (every further
+  /// turn of an agent run) send the accepted shape on the first try.
   Future<http.StreamedResponse> _sendWithRepair(
     http.Client client,
     LlmProviderProfile profile,
@@ -214,10 +253,13 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
     if (resp.statusCode >= 200 && resp.statusCode < 300) return resp;
     final error = await _readBody(resp);
     if (resp.statusCode >= 400 && resp.statusCode < 500) {
-      final adjusted = _adjustBody(body, error);
-      if (adjusted != null) {
-        resp = await _send(client, profile, adjusted);
-        if (resp.statusCode >= 200 && resp.statusCode < 300) return resp;
+      final repairs = _repairsFor(body, error);
+      if (repairs.isNotEmpty) {
+        resp = await _send(client, profile, _applyRepairs(body, repairs));
+        if (resp.statusCode >= 200 && resp.statusCode < 300) {
+          _knownRepairs.putIfAbsent(profile.id, () => {}).addAll(repairs);
+          return resp;
+        }
         throw LlmException(
           'Server returned HTTP ${resp.statusCode}: '
           '${_truncate(await _readBody(resp))}',
@@ -241,7 +283,7 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
     List<AgentToolSpec> tools = const [],
     CancellationToken? cancel,
   }) async* {
-    final client = http.Client();
+    final client = _clientFactory();
     cancel?.onCancel(client.close);
     try {
       final body = _buildBody(profile, messages, tools, stream: true);
@@ -276,9 +318,15 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
           }
           final u = obj['usage'];
           if (u is Map<String, dynamic>) {
+            // `prompt_tokens` already includes the cached subset reported
+            // under prompt_tokens_details, so no summing here.
+            final details = u['prompt_tokens_details'];
             usage = TokenUsage(
               prompt: (u['prompt_tokens'] as num?)?.toInt() ?? 0,
               completion: (u['completion_tokens'] as num?)?.toInt() ?? 0,
+              cacheRead: details is Map<String, dynamic>
+                  ? (details['cached_tokens'] as num?)?.toInt() ?? 0
+                  : 0,
             );
           }
           final choices = obj['choices'];
@@ -329,7 +377,7 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
 
   @override
   Future<String?> probe(LlmProviderProfile profile) async {
-    final client = http.Client();
+    final client = _clientFactory();
     try {
       final body = _buildBody(
         profile,
@@ -375,7 +423,7 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
   Future<List<Map<String, dynamic>>> listModelsDetailed(
     LlmProviderProfile profile,
   ) async {
-    final client = http.Client();
+    final client = _clientFactory();
     try {
       final resp = await client
           .get(_url(profile, '/models'), headers: _headers(profile))
@@ -416,7 +464,7 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
     required int maxTokens,
     Duration? timeout,
   }) async {
-    final client = http.Client();
+    final client = _clientFactory();
     try {
       var body =
           _buildBody(
