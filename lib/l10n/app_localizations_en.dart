@@ -565,6 +565,25 @@ class AppLocalizationsEn extends AppLocalizations {
       'AI results replace each image\'s existing tags; configure below which existing tags survive.';
 
   @override
+  String get batchTagProseTitle => 'Batch AI description';
+
+  @override
+  String get batchTagProseNote =>
+      'The active caption type is prose, so this runs a natural-language caption model over every image.';
+
+  @override
+  String get batchTagModeAppendProseDesc =>
+      'The description is appended to each image\'s existing sentences; sentences already there are not repeated.';
+
+  @override
+  String get batchTagModeOverwriteProseDesc =>
+      'The description replaces each image\'s caption entirely.';
+
+  @override
+  String get batchTagJsonUnsupported =>
+      'The active caption type is JSON. Batch tagging would flatten each document into a comma-separated line, so it is not available here — use the assistant\'s JSON caption tools instead.';
+
+  @override
   String get batchTagPreservedLabel => 'Preserved tags';
 
   @override

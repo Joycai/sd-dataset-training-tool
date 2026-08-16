@@ -261,10 +261,7 @@ class AiTaggerState extends ChangeNotifier {
         image,
         models: [AiModelRequest(modelName: model)],
       );
-      return resp.allTags
-          .map((t) => t.trim())
-          .where((t) => t.isNotEmpty)
-          .join(' ');
+      return resp.description;
     } on AiTaggerException catch (e) {
       _lastError = e.message;
       return null;

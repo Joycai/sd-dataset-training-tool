@@ -55,6 +55,7 @@ The main interface is a "browse → preview/edit → tag management" three-colum
 - **Model picker**: grouped by purpose, with server-provided metadata badges (size, language, capabilities).
 - **Tunable parameters** (e.g. threshold) before running.
 - **Batch tagging**: run over the whole directory (or the current filtered subset) serially, with **overwrite** and **append** modes, plus a **Sheet mode** that applies a saved "character sheet" rule set (see "Character Sheet skill" below). Comes with progress display and undo.
+- **Batch description**: when the active caption type is prose, the same entry point runs a natural-language caption model instead — overwrite replaces the whole caption, append adds the sentences it does not already carry. An image the model answers nothing for is counted as failed rather than emptied. JSON types have no batch run at all (it would flatten each document into a tag line); the dialog says so and points at the assistant's JSON tools.
 - **Batch recognize-only**: run recognition only — results land in each image's compare mode for per-image review before applying.
 
 ### AI Assistant

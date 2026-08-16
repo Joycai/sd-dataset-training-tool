@@ -266,9 +266,22 @@ class BatchTagState extends ChangeNotifier {
     await _settings.saveBatchTagBlacklist(tags);
   }
 
+  /// The mode a run would actually use. Prose captions are described by a
+  /// caption model rather than tagged, and neither of the two tag-only modes
+  /// has a meaning there: compare mode diffs tag sets, and a character sheet
+  /// is a rule set over tags. Both fall back to append instead of refusing —
+  /// the persisted choice is kept for whenever a tag type is active again.
+  BatchTagMode get effectiveMode {
+    if (dataset.captionFormat != CaptionFormat.prose) return _mode;
+    return _mode == BatchTagMode.overwrite ? _mode : BatchTagMode.append;
+  }
+
+  /// Whether this run writes a caption model's description instead of tags.
+  bool get describing => dataset.captionFormat == CaptionFormat.prose;
+
   /// The config assembled from the persisted fields.
   BatchTagConfig get config => BatchTagConfig(
-    mode: _mode,
+    mode: effectiveMode,
     preservedTags: _preservedTags,
     keepFirstN: _keepFirstN,
     blacklist: _blacklist,
@@ -285,8 +298,9 @@ class BatchTagState extends ChangeNotifier {
   }
 
   /// Interrogates and rewrites [files] sequentially. Returns false when a run
-  /// is already active, [files] is empty, or no model is selected (the latter
-  /// also sets [lastError] via the AI state's own message conventions).
+  /// is already active, [files] is empty, no model is selected, or the active
+  /// caption type rules the run out (see below) — the last case leaves the
+  /// reason in [lastError].
   ///
   /// [operationLabel] is the localized undo-history label for this run.
   Future<bool> run({
@@ -296,6 +310,33 @@ class BatchTagState extends ChangeNotifier {
     if (_running || files.isEmpty) return false;
     final model = ai.modelName;
     if (model == null) return false;
+    // A JSON document cannot be rebuilt from a flat result: the merge below
+    // would comma-split the document and write the pieces back as a tag
+    // line, destroying every caption it touched. The dialog disables the
+    // start button for JSON; this is the backstop.
+    if (dataset.captionFormat == CaptionFormat.json) {
+      _lastError =
+          'the active caption type is JSON; batch tagging needs a '
+          'tag-style or prose caption type';
+      notifyListeners();
+      return false;
+    }
+    final describeRun = describing;
+    // Prose is written by a caption model. A booru tagger's answer would land
+    // there as sentences, which is exactly the corruption this run is meant
+    // to avoid — refuse instead. A server that reports no model category
+    // (older AiApiServer) is trusted, same as the single-image path.
+    final info = ai.selectedModel;
+    if (describeRun &&
+        info != null &&
+        info.category.isNotEmpty &&
+        info.category != 'caption') {
+      _lastError =
+          'the selected model outputs tags, not sentences; pick a '
+          'natural-language caption model';
+      notifyListeners();
+      return false;
+    }
     final runConfig = config;
     // A character-sheet run with no rule set has nothing to apply; failing
     // here beats rewriting every caption to the empty string.
@@ -340,10 +381,35 @@ class BatchTagState extends ChangeNotifier {
             ai.serverUrl,
             file,
             models: [
-              AiModelRequest.wd(modelName: model, threshold: requestThreshold),
+              // Caption models have no threshold to filter by; sending the
+              // tagger's would be meaningless at best.
+              if (describeRun)
+                AiModelRequest(modelName: model)
+              else
+                AiModelRequest.wd(
+                  modelName: model,
+                  threshold: requestThreshold,
+                ),
             ],
           );
-          if (recognizeOnly) {
+          if (describeRun) {
+            final description = resp.description.trim();
+            // Overwriting a caption with an empty answer would erase it, and
+            // "appended nothing" is not a success either — report it as a
+            // failed file and leave the caption alone.
+            if (description.isEmpty) {
+              throw AiTaggerException('The model returned no description.');
+            }
+            final edit = await _applyDescription(
+              file.path,
+              description,
+              runConfig,
+            );
+            if (edit != null) {
+              edits.add(edit);
+              _changed++;
+            }
+          } else if (recognizeOnly) {
             // Feed the single-image cache; [changed] counts cached results.
             ai.storeResult(file.path, resp);
             _changed++;
@@ -386,6 +452,47 @@ class BatchTagState extends ChangeNotifier {
     return true;
   }
 
+  /// Writes a caption model's [description] into the prose caption file of
+  /// [imagePath]; returns the resulting edit, or null when the caption did
+  /// not change. A missing caption file counts as an empty one and is created
+  /// on write.
+  ///
+  /// Overwrite replaces the whole caption — the tag-only "preserved tags" and
+  /// keep-first-N settings have no counterpart here and are not consulted.
+  /// Append adds the sentences the caption does not already carry: a re-run
+  /// over a described dataset then changes nothing instead of writing the
+  /// same paragraph twice.
+  Future<CaptionEdit?> _applyDescription(
+    String imagePath,
+    String description,
+    BatchTagConfig runConfig,
+  ) async {
+    final captionPath = dataset.captionPathFor(imagePath);
+    final captionFile = File(captionPath);
+    var before = '';
+    if (await captionFile.exists()) {
+      before = await captionFile.readAsString();
+    }
+    final described = parseSentenceText(description);
+    final List<String> next;
+    if (runConfig.mode == BatchTagMode.overwrite) {
+      next = described;
+    } else {
+      final current = parseSentenceText(before);
+      final seen = current.toSet();
+      next = [...current, ...described.where(seen.add)];
+    }
+    final after = joinCaptionText(next, format: CaptionFormat.prose);
+    if (after == before) return null;
+    await captionFile.writeAsString(after);
+    return CaptionEdit(
+      imagePath: imagePath,
+      captionPath: captionPath,
+      before: before,
+      after: after,
+    );
+  }
+
   /// Merges [predicted] into the caption file of [imagePath]; returns the
   /// resulting edit, or null when the caption did not change. A missing
   /// caption file counts as an empty one and is created on write.
@@ -424,10 +531,10 @@ class BatchTagState extends ChangeNotifier {
             config: runConfig,
           );
     if (next == null) return null;
-    final after = joinCaptionText(
-      [...next, if (split.nl != null) '$animaNlPrefix${split.nl}'],
-      format: anima ? CaptionFormat.animaTag : CaptionFormat.tags,
-    );
+    final after = joinCaptionText([
+      ...next,
+      if (split.nl != null) '$animaNlPrefix${split.nl}',
+    ], format: anima ? CaptionFormat.animaTag : CaptionFormat.tags);
     await captionFile.writeAsString(after);
     return CaptionEdit(
       imagePath: imagePath,

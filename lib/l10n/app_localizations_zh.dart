@@ -542,6 +542,22 @@ class AppLocalizationsZh extends AppLocalizations {
   String get batchTagModeOverwriteDesc => '用 AI 识别结果覆盖每张图的已有标签，可在下方配置要保留的标签。';
 
   @override
+  String get batchTagProseTitle => '批量 AI 描述';
+
+  @override
+  String get batchTagProseNote => '当前 caption 类型是散文，本次将对每张图跑自然语言描述模型。';
+
+  @override
+  String get batchTagModeAppendProseDesc => '把描述按句追加到每张图已有句子之后，已经有的句子不会重复添加。';
+
+  @override
+  String get batchTagModeOverwriteProseDesc => '用描述整段替换每张图的 caption。';
+
+  @override
+  String get batchTagJsonUnsupported =>
+      '当前 caption 类型是 JSON。批量打标会把整个文档压成一行逗号分隔的标签，因此这里不提供——请改用 AI 助手的 JSON caption 工具。';
+
+  @override
   String get batchTagPreservedLabel => '保留标签';
 
   @override
