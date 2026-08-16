@@ -722,6 +722,18 @@ abstract class AppLocalizations {
   /// **'Tagging…'**
   String get aiInterrogating;
 
+  /// No description provided for @aiDescribeButton.
+  ///
+  /// In en, this message translates to:
+  /// **'AI describe'**
+  String get aiDescribeButton;
+
+  /// No description provided for @aiDescribing.
+  ///
+  /// In en, this message translates to:
+  /// **'Describing…'**
+  String get aiDescribing;
+
   /// No description provided for @aiParamsTitle.
   ///
   /// In en, this message translates to:
@@ -991,6 +1003,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No model selected. Check the AI parameters.'**
   String get aiNoModelSelected;
+
+  /// No description provided for @aiCaptionModelRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected model outputs tags, not sentences. Pick a natural-language caption model.'**
+  String get aiCaptionModelRequired;
+
+  /// No description provided for @aiDescribeEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'The model returned no description.'**
+  String get aiDescribeEmpty;
 
   /// No description provided for @aiFailed.
   ///

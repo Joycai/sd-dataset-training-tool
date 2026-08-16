@@ -125,6 +125,8 @@ Typing a tag by hand brings up danbooru-dictionary suggestions in real time, ran
 
 Running AI recognition on the current image (`Ctrl+E`) shows the result side by side with the current caption in compare mode — accept or reject tags one by one, or apply everything at once; a global exit-compare control lives in the top bar. Batch "recognize only" puts results into each image's own compare mode the same way, for per-image review.
 
+**A prose (sentence mode) caption takes a different route**: the button reads "AI describe" and runs a natural-language caption model (JoyCaption, Florence2 and friends). Its output is split into sentences and **appended** to the sentence list — the same path as typing one and pressing Enter, so nothing already there is overwritten — and no compare view opens, because that one diffs two tag sets and a description is not one. If the selected model is a WD tagger, the run is refused with a hint to pick a caption model and the parameters dialog opens, rather than writing a comma-separated tag line in as a sentence; a server that reports no model category (an older build) is trusted and runs. JSON captions still have no AI entry point at all — their document structure cannot be rebuilt from a flat result.
+
 ## AI Assistant
 
 The ✨ icon in the top bar opens the **AI Assistant** — a chat panel that can operate on your whole dataset for you.

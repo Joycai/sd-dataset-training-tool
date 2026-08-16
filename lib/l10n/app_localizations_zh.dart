@@ -344,6 +344,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiInterrogating => '识别中…';
 
   @override
+  String get aiDescribeButton => 'AI 描述';
+
+  @override
+  String get aiDescribing => '描述中…';
+
+  @override
   String get aiParamsTitle => 'AI 识别参数';
 
   @override
@@ -489,6 +495,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiNoModelSelected => '未选择模型，请检查 AI 识别参数。';
+
+  @override
+  String get aiCaptionModelRequired => '当前模型输出的是标签，不是句子。请选择一个自然语言描述模型。';
+
+  @override
+  String get aiDescribeEmpty => '模型没有返回任何描述。';
 
   @override
   String aiFailed(String error) {

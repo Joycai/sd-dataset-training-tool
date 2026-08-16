@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
+import 'package:dataset_training_tool/models/caption_type.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/ai_tagger_state.dart';
 import 'package:dataset_training_tool/state/editor_session.dart';
@@ -99,41 +100,48 @@ void main() {
       // sit at opposite ends of that set.
       for (final state in ['pristine', 'dirty', 'saved']) {
         for (final compare in [false, true]) {
-          final session = EditorSession()..autoSaveEnabled = false;
-          final ai = AiTaggerState(SettingsService());
-          addTearDown(session.dispose);
+          // Prose swaps in the wider "AI describe" button, and compare mode
+          // is a global flag: its exit control shows up in a prose toolbar
+          // too, even though the sentence view ignores it.
+          for (final format in [CaptionFormat.tags, CaptionFormat.prose]) {
+            final session = EditorSession()..autoSaveEnabled = false;
+            final ai = AiTaggerState(SettingsService());
+            addTearDown(session.dispose);
 
-          await tester.runAsync(() async {
-            await session.load(image, '.txt');
-            if (state == 'dirty') {
-              session.captionController.text = 'alpha, beta, gamma';
-            } else if (state == 'saved') {
-              session.captionController.text = 'alpha, beta, gamma';
-              await session.save();
+            await tester.runAsync(() async {
+              await session.load(image, '.txt', format: format);
+              if (state == 'dirty') {
+                session.captionController.text = 'alpha, beta, gamma';
+              } else if (state == 'saved') {
+                session.captionController.text = 'alpha, beta, gamma';
+                await session.save();
+              }
+            });
+            if (compare) ai.enterCompareMode();
+
+            final label =
+                '${locale.languageCode}/$state/compare=$compare/'
+                '${format.name}';
+            for (var w = minWidth; w <= maxWidth; w += 4) {
+              // A fresh key every pump: RenderFlex reports an overflow only
+              // once per render object, so reusing the subtree would swallow
+              // every hit after the first and quietly pass.
+              await tester.pumpWidget(
+                harness(
+                  width: w.toDouble(),
+                  locale: locale,
+                  session: session,
+                  ai: ai,
+                  key: ValueKey('$label-$w'),
+                ),
+              );
+              await tester.pump();
+              expect(
+                tester.takeException(),
+                isNull,
+                reason: 'toolbar overflowed at ${w}px ($label)',
+              );
             }
-          });
-          if (compare) ai.enterCompareMode();
-
-          final label = '${locale.languageCode}/$state/compare=$compare';
-          for (var w = minWidth; w <= maxWidth; w += 4) {
-            // A fresh key every pump: RenderFlex reports an overflow only
-            // once per render object, so reusing the subtree would swallow
-            // every hit after the first and quietly pass.
-            await tester.pumpWidget(
-              harness(
-                width: w.toDouble(),
-                locale: locale,
-                session: session,
-                ai: ai,
-                key: ValueKey('$label-$w'),
-              ),
-            );
-            await tester.pump();
-            expect(
-              tester.takeException(),
-              isNull,
-              reason: 'toolbar overflowed at ${w}px ($label)',
-            );
           }
         }
       }

@@ -160,6 +160,8 @@
 
   "aiInterrogateButton": "AI tag",
   "aiInterrogating": "Tagging…",
+  "aiDescribeButton": "AI describe",
+  "aiDescribing": "Describing…",
   "aiParamsTitle": "AI tagging parameters",
   "aiServerUrl": "Server URL",
   "aiModelLabel": "Model",
@@ -235,6 +237,8 @@
   "aiNoResultYet": "No result for this image yet.",
   "aiFirstRunHint": "First use of a model downloads it — this can take a while.",
   "aiNoModelSelected": "No model selected. Check the AI parameters.",
+  "aiCaptionModelRequired": "The selected model outputs tags, not sentences. Pick a natural-language caption model.",
+  "aiDescribeEmpty": "The model returned no description.",
   "aiFailed": "AI tagging failed: {error}",
   "@aiFailed": {
     "placeholders": {

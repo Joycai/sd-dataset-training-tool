@@ -358,6 +358,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiInterrogating => 'Tagging…';
 
   @override
+  String get aiDescribeButton => 'AI describe';
+
+  @override
+  String get aiDescribing => 'Describing…';
+
+  @override
   String get aiParamsTitle => 'AI tagging parameters';
 
   @override
@@ -508,6 +514,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aiNoModelSelected => 'No model selected. Check the AI parameters.';
+
+  @override
+  String get aiCaptionModelRequired =>
+      'The selected model outputs tags, not sentences. Pick a natural-language caption model.';
+
+  @override
+  String get aiDescribeEmpty => 'The model returned no description.';
 
   @override
   String aiFailed(String error) {

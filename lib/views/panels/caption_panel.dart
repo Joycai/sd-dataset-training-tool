@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
@@ -66,29 +68,16 @@ class _CaptionPanelState extends State<CaptionPanel> {
     final session = context.read<EditorSession>();
     final image = session.image;
     if (image == null || ai.running) return;
-    // Only tag-list captions have a tag grid for the compare view to land in.
-    // A JSON document could not be serialized back from suggestions, and a
-    // prose caption would have danbooru tags stapled onto its sentences.
+    // A JSON document could not be serialized back from a flat result, so it
+    // has no AI path at all. Prose has one, but not this one: a caption
+    // model's sentences, not danbooru tags stapled onto them.
+    if (session.format == CaptionFormat.prose) {
+      await _describeIntoProse(ai, session, image);
+      return;
+    }
     if (!session.format.isTagList) return;
 
-    if (ai.modelName == null) {
-      await ai.refreshModels();
-      if (!mounted) return;
-      if (ai.modelName == null) {
-        final l10n = AppLocalizations.of(context)!;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              ai.lastError == null
-                  ? l10n.aiNoModelSelected
-                  : l10n.aiFailed(ai.lastError!),
-            ),
-          ),
-        );
-        await showAiParamsDialog(context, ai);
-        return;
-      }
-    }
+    if (!await _ensureModel(ai)) return;
 
     // Compare mode lives in the tags tab; make it visible right away so the
     // running indicator shows where the result will land.
@@ -106,6 +95,76 @@ class _CaptionPanelState extends State<CaptionPanel> {
         ).showSnackBar(SnackBar(content: Text(l10n.aiFailed(ai.lastError!))));
       }
     }
+  }
+
+  /// Makes sure a model is selected, fetching the list on first use. Returns
+  /// false when none could be resolved — the user has been told and left in
+  /// the params dialog.
+  Future<bool> _ensureModel(AiTaggerState ai) async {
+    if (ai.modelName != null) return true;
+    await ai.refreshModels();
+    if (!mounted) return false;
+    if (ai.modelName != null) return true;
+    final l10n = AppLocalizations.of(context)!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ai.lastError == null
+              ? l10n.aiNoModelSelected
+              : l10n.aiFailed(ai.lastError!),
+        ),
+      ),
+    );
+    await showAiParamsDialog(context, ai);
+    return false;
+  }
+
+  /// The prose counterpart of [_runAi]: a caption model describes the image
+  /// and the description is appended to the caption, split into sentences by
+  /// the same parser the add-a-sentence field uses. No compare view — that
+  /// one diffs tag sets, and a paragraph is not one.
+  Future<void> _describeIntoProse(
+    AiTaggerState ai,
+    EditorSession session,
+    File image,
+  ) async {
+    if (!await _ensureModel(ai)) return;
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    // A booru tagger would answer with tags, and they would land here as
+    // sentences. The model is the user's choice, so say so instead of
+    // writing it. A server that reports no category is trusted — the same
+    // fallback the params dialog's threshold block uses.
+    final info = ai.selectedModel;
+    if (info != null &&
+        info.category.isNotEmpty &&
+        info.category != 'caption') {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.aiCaptionModelRequired)),
+      );
+      await showAiParamsDialog(context, ai);
+      return;
+    }
+
+    // The sentences tab is where the result lands; showing it up front puts
+    // the running indicator next to it.
+    setState(() => _tab = _tabTags);
+    final text = await ai.describe(image);
+    if (!mounted) return;
+    if (text == null) {
+      if (ai.lastError != null) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(l10n.aiFailed(ai.lastError!))),
+        );
+      }
+      return;
+    }
+    if (text.trim().isEmpty) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.aiDescribeEmpty)));
+      return;
+    }
+    session.addTagsFromInput(text);
   }
 
   Future<void> _editTag(EditorSession session, int index) async {
@@ -224,8 +283,15 @@ class _CaptionPanelState extends State<CaptionPanel> {
                 // anything is edited or saved. Sized for the wider of the two
                 // locales (English) with headroom; toolbar_overflow_test
                 // sweeps every width to keep them honest.
+                //
+                // Prose labels the AI button with what it produces there —
+                // "AI describe", ~48px wider than "AI tag" in English — so it
+                // may only stay labelled that much later. Compact widths draw
+                // both as the same icon, so nothing below this cares.
+                final labelExtra = isProse ? 48.0 : 0.0;
                 final compact =
-                    constraints.maxWidth < (ai.compareMode ? 680 : 480);
+                    constraints.maxWidth <
+                    (ai.compareMode ? 680 : 480) + labelExtra;
                 // How much the save indicator may take. It is not a flex
                 // child — the count owns the only flex slot — so a fixed cap
                 // is what overflowed: below a certain width there is simply
@@ -348,8 +414,10 @@ class _CaptionPanelState extends State<CaptionPanel> {
                     ],
                     _AiRunButton(
                       ai: ai,
-                      enabled:
-                          session.hasImage && !ai.running && format.isTagList,
+                      // JSON is the one format with no AI path: its documents
+                      // cannot be rebuilt from a flat result.
+                      enabled: session.hasImage && !ai.running && !isJson,
+                      describe: isProse,
                       compact: compact,
                       onPressed: _runAi,
                       l10n: l10n,
@@ -846,6 +914,7 @@ class _AiRunButton extends StatelessWidget {
   const _AiRunButton({
     required this.ai,
     required this.enabled,
+    required this.describe,
     required this.compact,
     required this.onPressed,
     required this.l10n,
@@ -853,6 +922,10 @@ class _AiRunButton extends StatelessWidget {
 
   final AiTaggerState ai;
   final bool enabled;
+
+  /// Prose captions get a caption model's description, not tags — the label
+  /// says which of the two this run produces.
+  final bool describe;
   final bool compact;
   final VoidCallback onPressed;
   final AppLocalizations l10n;
@@ -860,7 +933,9 @@ class _AiRunButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final semantic = context.semantic;
-    final label = ai.running ? l10n.aiInterrogating : l10n.aiInterrogateButton;
+    final label = ai.running
+        ? (describe ? l10n.aiDescribing : l10n.aiInterrogating)
+        : (describe ? l10n.aiDescribeButton : l10n.aiInterrogateButton);
     final icon = ai.running
         ? SizedBox(
             width: 12,
