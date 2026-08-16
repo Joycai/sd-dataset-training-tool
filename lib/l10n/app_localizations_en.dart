@@ -1504,6 +1504,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'The conversation no longer fits the model\'s context window even after folding. The request was sent anyway and may fail — consider starting a new conversation.';
 
   @override
+  String get agentReasoningLabel => 'Thinking';
+
+  @override
   String get agentConfirmTitle => 'The assistant wants to modify captions';
 
   @override

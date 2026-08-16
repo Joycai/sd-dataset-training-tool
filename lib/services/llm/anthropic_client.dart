@@ -202,7 +202,9 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
     CancellationToken? cancel,
   }) async* {
     final client = _clientFactory();
-    cancel?.onCancel(client.close);
+    // The token outlives this turn's client by the whole run; without the
+    // unregistration a 24-turn run leaves 24 dead listeners on it.
+    final unregister = cancel?.onCancel(client.close);
     try {
       final body = _buildBody(profile, messages, tools, stream: true);
       final resp = await _send(client, profile, body);
@@ -275,6 +277,14 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
               if (delta['type'] == 'text_delta') {
                 final text = delta['text'];
                 if (text is String && text.isNotEmpty) yield TextDelta(text);
+              } else if (delta['type'] == 'thinking_delta') {
+                // Extended thinking is never requested by this client, but a
+                // relay may switch it on server-side; showing the stream
+                // beats displaying a stalled connection while it thinks.
+                final text = delta['thinking'];
+                if (text is String && text.isNotEmpty) {
+                  yield ReasoningDelta(text);
+                }
               } else if (delta['type'] == 'input_json_delta') {
                 blocks[index]?.json.write(delta['partial_json'] ?? '');
               }
@@ -333,6 +343,7 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
       if (cancel?.isCancelled ?? false) return;
       throw LlmException('Network error: ${e.message}');
     } finally {
+      unregister?.call();
       client.close();
     }
   }

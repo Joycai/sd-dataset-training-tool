@@ -284,7 +284,9 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
     CancellationToken? cancel,
   }) async* {
     final client = _clientFactory();
-    cancel?.onCancel(client.close);
+    // The token outlives this turn's client by the whole run; without the
+    // unregistration a 24-turn run leaves 24 dead listeners on it.
+    final unregister = cancel?.onCancel(client.close);
     try {
       final body = _buildBody(profile, messages, tools, stream: true);
       final resp = await _sendWithRepair(client, profile, body);
@@ -337,6 +339,13 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
           if (reason is String && reason.isNotEmpty) finishReason = reason;
           final delta = choice['delta'];
           if (delta is! Map<String, dynamic>) continue;
+          // `reasoning_content` is the de-facto field for thinking models
+          // behind OpenAI-compatible relays (DeepSeek-R, Qwen, MiniMax…);
+          // a few relays shorten it to `reasoning`.
+          final reasoning = delta['reasoning_content'] ?? delta['reasoning'];
+          if (reasoning is String && reasoning.isNotEmpty) {
+            yield ReasoningDelta(reasoning);
+          }
           final content = delta['content'];
           if (content is String && content.isNotEmpty) {
             yield TextDelta(content);
@@ -369,6 +378,7 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
       if (cancel?.isCancelled ?? false) return;
       throw LlmException('Network error: ${e.message}');
     } finally {
+      unregister?.call();
       client.close();
     }
   }

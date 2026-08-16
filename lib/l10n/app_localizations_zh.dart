@@ -1463,6 +1463,9 @@ class AppLocalizationsZh extends AppLocalizations {
       '即使折叠后，会话仍超出模型的上下文窗口。请求已照常发出，可能失败——建议新开一个会话。';
 
   @override
+  String get agentReasoningLabel => '思考过程';
+
+  @override
   String get agentConfirmTitle => '助手请求修改 caption';
 
   @override

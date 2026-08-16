@@ -612,6 +612,17 @@ class TextDelta extends LlmStreamEvent {
   final String text;
 }
 
+/// A fragment of the model's reasoning/thinking stream (`reasoning_content`
+/// on OpenAI-compatible relays, `thinking_delta` on Anthropic). Display
+/// only — never part of the answer and never re-sent. Consuming it matters
+/// beyond display: a reasoning model can think for minutes, and a UI that
+/// drops these fragments shows a dead connection the whole time.
+class ReasoningDelta extends LlmStreamEvent {
+  ReasoningDelta(this.text);
+
+  final String text;
+}
+
 /// Emitted once per response, before [StreamDone], when the model requested
 /// tool calls. Arguments are fully accumulated at this point.
 class ToolCallsReady extends LlmStreamEvent {

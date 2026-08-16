@@ -289,6 +289,10 @@ Future<_Answer> _ask({
     switch (event) {
       case TextDelta(:final text):
         buffer.write(text);
+      case ReasoningDelta():
+        // Thinking is not part of the answer; consuming it just keeps the
+        // stream's idle timeout fed while the model reasons.
+        break;
       case ToolCallsReady(:final calls):
         for (final call in calls) {
           // Name-agnostic: a relay that renames or prefixes the call still

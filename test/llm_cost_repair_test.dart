@@ -194,6 +194,59 @@ void main() {
     });
   });
 
+  group('reasoning stream', () {
+    test('openai reasoning_content becomes ReasoningDelta', () async {
+      final sse = [
+        'data: {"choices":[{"delta":{"reasoning_content":"let me think"}}]}',
+        'data: {"choices":[{"delta":{"content":"answer"},'
+            '"finish_reason":"stop"}]}',
+        'data: [DONE]',
+      ].map((l) => '$l\n\n').join();
+      final client = OpenAiCompatClient(
+        clientFactory: () =>
+            MockClient((request) async => http.Response(sse, 200)),
+      );
+      final events = await client.chat(
+        profile: _profile,
+        messages: [ChatMessage.user('hi')],
+      ).toList();
+      expect(
+        events.whereType<ReasoningDelta>().map((e) => e.text).join(),
+        'let me think',
+      );
+      expect(
+        events.whereType<TextDelta>().map((e) => e.text).join(),
+        'answer',
+      );
+    });
+
+    test('anthropic thinking_delta becomes ReasoningDelta', () async {
+      final sse = [
+        'data: {"type":"content_block_delta","index":0,'
+            '"delta":{"type":"thinking_delta","thinking":"let me think"}}',
+        'data: {"type":"content_block_delta","index":1,'
+            '"delta":{"type":"text_delta","text":"answer"}}',
+        'data: {"type":"message_stop"}',
+      ].map((l) => '$l\n\n').join();
+      final client = AnthropicClient(
+        clientFactory: () =>
+            MockClient((request) async => http.Response(sse, 200)),
+      );
+      final events = await client.chat(
+        profile: _profile,
+        messages: [ChatMessage.user('hi')],
+      ).toList();
+      expect(
+        events.whereType<ReasoningDelta>().map((e) => e.text).join(),
+        'let me think',
+      );
+      expect(
+        events.whereType<TextDelta>().map((e) => e.text).join(),
+        'answer',
+      );
+    });
+  });
+
   group('pricing math', () {
     test('cached input is billed at the cache rates', () {
       const pricing = LlmPricing(

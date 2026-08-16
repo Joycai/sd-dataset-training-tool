@@ -23,6 +23,15 @@ class AgentTextDelta extends AgentUiEvent {
   final String text;
 }
 
+/// A fragment of the model's reasoning stream, forwarded for display so a
+/// thinking model does not look like a stalled connection. Never enters
+/// [AgentSession.history].
+class AgentReasoningDelta extends AgentUiEvent {
+  AgentReasoningDelta(this.text);
+
+  final String text;
+}
+
 class AgentToolStarted extends AgentUiEvent {
   AgentToolStarted(this.call);
 
@@ -70,6 +79,46 @@ class AgentFinished extends AgentUiEvent {
   /// was otherwise fine. A cap or a loop guard is not retryable: the request
   /// was received, and repeating it changes nothing.
   final bool retryable;
+}
+
+/// Inserts stub tool results for any assistant tool_call that lacks one, and
+/// returns how many it added.
+///
+/// The loop itself always pairs calls — even a cancelled run stubs the
+/// remainder — so on the normal path this is a no-op. It is the second
+/// suspender over that belt: a history left unpaired by any path not thought
+/// of (a crash between two appends, a future restore-from-disk) makes every
+/// later request fail at the provider, permanently — the failure mode is
+/// total, so it gets a guard even though the known paths are covered.
+/// [AgentSession] runs it at the start of every run.
+int repairToolCallPairing(List<ChatMessage> history) {
+  var repaired = 0;
+  // Backwards, so inserts (always after i) never shift an unvisited index.
+  for (var i = history.length - 1; i >= 0; i--) {
+    final m = history[i];
+    if (m.role != ChatRole.assistant || m.toolCalls.isEmpty) continue;
+    // Results sit contiguously after their assistant message.
+    final answered = <String?>{};
+    var end = i + 1;
+    while (end < history.length && history[end].role == ChatRole.tool) {
+      answered.add(history[end].toolCallId);
+      end++;
+    }
+    var inserted = 0;
+    for (final call in m.toolCalls) {
+      if (answered.contains(call.id)) continue;
+      history.insert(
+        end + inserted,
+        ChatMessage.toolResult(
+          toolCallId: call.id,
+          text: '[not run — this call had no recorded result]',
+        ),
+      );
+      inserted++;
+    }
+    repaired += inserted;
+  }
+  return repaired;
 }
 
 /// The user's answer when a run reaches its turn limit and asks whether to
@@ -180,6 +229,10 @@ class AgentSession {
     _busy = true;
     final cancel = _cancel = CancellationToken();
     try {
+      // Belt-and-suspenders: a no-op unless some unforeseen path left an
+      // unpaired tool_call behind, which would poison every later request.
+      repairToolCallPairing(history);
+
       var consecutiveToolErrors = 0;
 
       var turnBudget = maxTurnsPerRun;
@@ -196,6 +249,9 @@ class AgentSession {
             return;
           }
           if (decision == null) {
+            // The model was mid-task; without a wind-down the user gets no
+            // account of what got done. Best effort, tools withheld.
+            yield* _windDown(cancel);
             yield AgentFinished(
               AgentStopReason.maxTurns,
               'stopped after $turn model turns',
@@ -252,6 +308,8 @@ class AgentSession {
               case TextDelta(:final text):
                 textBuffer.write(text);
                 yield AgentTextDelta(text);
+              case ReasoningDelta(:final text):
+                yield AgentReasoningDelta(text);
               case ToolCallsReady(calls: final ready):
                 calls = ready;
               case StreamDone(usage: final u, finishReason: final reason):
@@ -286,6 +344,24 @@ class AgentSession {
         final truncated =
             finishReason == 'length' || finishReason == 'max_tokens';
         if (truncated) yield AgentOutputTruncated();
+
+        // No text and no calls is not an answer, whatever the status code
+        // said — the classic case is a reasoning model spending the whole
+        // output budget thinking. The turn never reaches history, so a
+        // retry re-sends exactly the request that produced nothing.
+        if (textBuffer.isEmpty && calls.isEmpty) {
+          yield AgentFinished(
+            AgentStopReason.error,
+            truncated
+                ? 'the model spent its whole output budget '
+                      '(max_tokens=${profile.maxOutputTokens}) without '
+                      'producing a reply — reasoning models can use it all '
+                      'up thinking; raise the model\'s max output tokens'
+                : 'the model returned an empty reply',
+            true,
+          );
+          return;
+        }
 
         history.add(
           ChatMessage.assistant(textBuffer.toString(), toolCalls: calls),
@@ -365,6 +441,59 @@ class AgentSession {
     } finally {
       _busy = false;
       _cancel = null;
+    }
+  }
+
+  /// One final tool-less turn after the user chose "stop here" at the turn
+  /// limit: the model summarizes what it completed and what remains, so a
+  /// stopped sweep does not end mid-air with no account of itself.
+  ///
+  /// Best effort: a failure here must not turn a normal stop into an error,
+  /// so exceptions are swallowed. The instruction is one-shot — sent, then
+  /// withdrawn from history — or "do not call tools" would become a standing
+  /// order for the rest of the conversation.
+  Stream<AgentUiEvent> _windDown(CancellationToken cancel) async* {
+    if (cancel.isCancelled) return;
+    budget.compact(history);
+    final prompt = ChatMessage.user(
+      'The user chose to stop here. In one or two sentences, summarize '
+      'what you completed and what remains. Do not call tools.',
+    );
+    history.add(prompt);
+    try {
+      final textBuffer = StringBuffer();
+      TokenUsage? usage;
+      await for (final event in client.chat(
+        profile: profile,
+        messages: history,
+        // Tools withheld: the point of this turn is prose.
+        cancel: cancel,
+      )) {
+        switch (event) {
+          case TextDelta(:final text):
+            textBuffer.write(text);
+            yield AgentTextDelta(text);
+          case ReasoningDelta(:final text):
+            yield AgentReasoningDelta(text);
+          case ToolCallsReady():
+            break; // none were offered; ignore an invented one
+          case StreamDone(usage: final u):
+            usage = u;
+        }
+      }
+      totalUsage +=
+          usage ??
+          TokenUsage(
+            prompt: budget.estimate(history),
+            completion: ContextBudget.estimateText(textBuffer.toString()),
+          );
+      if (textBuffer.isNotEmpty) {
+        history.add(ChatMessage.assistant(textBuffer.toString()));
+      }
+    } on LlmException {
+      // Swallowed by design (see doc comment).
+    } finally {
+      history.remove(prompt);
     }
   }
 

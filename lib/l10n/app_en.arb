@@ -850,6 +850,7 @@
     }
   },
   "agentContextOverBudgetNotice": "The conversation no longer fits the model's context window even after folding. The request was sent anyway and may fail — consider starting a new conversation.",
+  "agentReasoningLabel": "Thinking",
 
   "agentConfirmTitle": "The assistant wants to modify captions",
   "agentConfirmAllow": "Allow",

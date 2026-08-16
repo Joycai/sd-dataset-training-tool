@@ -25,7 +25,7 @@ import 'ai_tagger_state.dart';
 import 'dataset_state.dart';
 import 'tag_ops.dart';
 
-enum AgentEntryKind { user, assistant, tool, notice, rules }
+enum AgentEntryKind { user, assistant, tool, notice, rules, reasoning }
 
 /// What a notice row represents; the panel maps these to localized text.
 enum AgentNoticeType {
@@ -79,6 +79,10 @@ class AgentChatEntry {
     : kind = AgentEntryKind.rules {
     rules = proposed;
   }
+
+  /// The model's reasoning stream for one turn; text accumulates like an
+  /// assistant bubble but renders as a collapsed muted block.
+  AgentChatEntry.reasoning() : kind = AgentEntryKind.reasoning;
 
   final AgentEntryKind kind;
   AgentNoticeType? noticeType;
@@ -274,29 +278,41 @@ class AgentChatState extends ChangeNotifier {
 
   Future<void> _consume(Stream<AgentUiEvent> events) async {
     AgentChatEntry? assistant;
+    AgentChatEntry? reasoning;
+    // The entry AgentToolStarted created, held directly: execution is
+    // serial, so the finished event always belongs to it. Searching the
+    // transcript by name instead would need a fallback, and any fallback
+    // writes the result onto some unrelated row.
+    AgentChatEntry? runningTool;
     try {
       await for (final event in events) {
         switch (event) {
           case AgentTextDelta(:final text):
+            reasoning = null; // answer text ends the thinking block
             if (assistant == null) {
               assistant = AgentChatEntry.assistant();
               entries.add(assistant);
             }
             assistant.text += text;
+          case AgentReasoningDelta(:final text):
+            if (reasoning == null) {
+              reasoning = AgentChatEntry.reasoning();
+              entries.add(reasoning);
+            }
+            reasoning.text += text;
           case AgentToolStarted(:final call):
             assistant = null; // next text delta starts a new bubble
-            entries.add(AgentChatEntry.tool(call));
-          case AgentToolFinished(:final call, :final result):
-            final entry = entries.lastWhere(
-              (e) =>
-                  e.kind == AgentEntryKind.tool &&
-                  e.running &&
-                  e.toolName == call.name,
-              orElse: () => entries.last,
-            );
-            entry.running = false;
-            entry.toolResult = result.text;
-            entry.isError = result.isError;
+            reasoning = null;
+            runningTool = AgentChatEntry.tool(call);
+            entries.add(runningTool);
+          case AgentToolFinished(:final result):
+            final entry = runningTool;
+            runningTool = null;
+            if (entry != null) {
+              entry.running = false;
+              entry.toolResult = result.text;
+              entry.isError = result.isError;
+            }
           case AgentOutputTruncated():
             assistant = null;
             entries.add(AgentChatEntry.notice(AgentNoticeType.outputTruncated));

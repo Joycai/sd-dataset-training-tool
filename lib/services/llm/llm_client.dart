@@ -30,12 +30,17 @@ class CancellationToken {
     }
   }
 
-  void onCancel(void Function() listener) {
+  /// Registers [listener] and returns its unregistration handle. Callers
+  /// with a shorter life than the token (each turn's HTTP client, on a token
+  /// spanning a whole run) must call it, or the token accumulates a dead
+  /// listener per turn.
+  void Function() onCancel(void Function() listener) {
     if (_cancelled) {
       listener();
-    } else {
-      _listeners.add(listener);
+      return () {};
     }
+    _listeners.add(listener);
+    return () => _listeners.remove(listener);
   }
 }
 

@@ -2670,6 +2670,12 @@ abstract class AppLocalizations {
   /// **'The conversation no longer fits the model\'s context window even after folding. The request was sent anyway and may fail — consider starting a new conversation.'**
   String get agentContextOverBudgetNotice;
 
+  /// No description provided for @agentReasoningLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Thinking'**
+  String get agentReasoningLabel;
+
   /// No description provided for @agentConfirmTitle.
   ///
   /// In en, this message translates to:
