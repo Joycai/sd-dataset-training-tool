@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../../models/ai_tagger_models.dart';
 import '../../state/ai_tagger_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/model_picker.dart';
@@ -68,14 +67,7 @@ class _AiParamsDialogState extends State<_AiParamsDialog> {
     // The confidence threshold only exists for booru-style taggers; caption
     // models ignore it, so the whole threshold block goes inert for them.
     // Unknown category (old server) keeps the block enabled.
-    AiModelInfo? selectedInfo;
-    for (final m in ai.models) {
-      if (m.modelName == ai.modelName) {
-        selectedInfo = m;
-        break;
-      }
-    }
-    final thresholdApplies = selectedInfo?.category != 'caption';
+    final thresholdApplies = ai.selectedModel?.category != 'caption';
 
     return GlassDialog(
       width: 560,

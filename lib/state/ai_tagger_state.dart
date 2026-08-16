@@ -96,6 +96,19 @@ class AiTaggerState extends ChangeNotifier {
   bool get showNewOnly => _showNewOnly;
   List<String> get ignoreTags => _ignoreTags;
   List<AiModelInfo> get models => _models;
+
+  /// The server's metadata for [modelName], or null when the list has not
+  /// been fetched yet (or the saved model is gone from the server). Callers
+  /// key on [AiModelInfo.category] to tell a booru tagger from a caption
+  /// model — an empty category means the server predates that field, and is
+  /// not a claim either way.
+  AiModelInfo? get selectedModel {
+    for (final m in _models) {
+      if (m.modelName == _modelName) return m;
+    }
+    return null;
+  }
+
   bool get loadingModels => _loadingModels;
   bool get running => _running;
   bool get compareMode => _compareMode;
@@ -220,6 +233,41 @@ class AiTaggerState extends ChangeNotifier {
     } on AiTaggerException catch (e) {
       _lastError = e.message;
       return false;
+    } finally {
+      _running = false;
+      notifyListeners();
+    }
+  }
+
+  /// Interrogates [image] with the current model and returns its output as
+  /// one natural-language string — what a caption model (JoyCaption,
+  /// Florence2…) produces. Null on failure, with [lastError] carrying the
+  /// message; an empty string when the model answered with nothing.
+  ///
+  /// Deliberately not the tag path: no threshold is sent (caption models
+  /// ignore it), the text is not normalized (underscores and parentheses are
+  /// prose here, not tag syntax) and the result is not cached — the compare
+  /// view diffs tags, and a paragraph is not one.
+  Future<String?> describe(File image) async {
+    if (_running) return null;
+    final model = _modelName;
+    if (model == null) return null;
+    _running = true;
+    _lastError = null;
+    notifyListeners();
+    try {
+      final resp = await _service.interrogateImageFile(
+        _serverUrl,
+        image,
+        models: [AiModelRequest(modelName: model)],
+      );
+      return resp.allTags
+          .map((t) => t.trim())
+          .where((t) => t.isNotEmpty)
+          .join(' ');
+    } on AiTaggerException catch (e) {
+      _lastError = e.message;
+      return null;
     } finally {
       _running = false;
       notifyListeners();
