@@ -600,11 +600,17 @@ class _CaptionPanelState extends State<CaptionPanel> {
                   itemBuilder: (context, index) {
                     final sentence = session.tags[index];
                     return _SentenceRow(
-                      key: ValueKey(sentence),
+                      // Keyed by position, not by text: a paragraph may say
+                      // the same thing twice (parseSentenceText keeps both),
+                      // and two rows sharing a ValueKey let the list mix up
+                      // which one is being dragged or hovered.
+                      key: ValueKey(index),
                       index: index,
                       text: sentence,
                       onTap: () => _editTag(session, index),
-                      onDelete: () => session.removeTag(sentence),
+                      // By index, not by value: removeTag would take both
+                      // copies of a repeated sentence for this one click.
+                      onDelete: () => session.removeSentenceAt(index),
                     );
                   },
                 ),

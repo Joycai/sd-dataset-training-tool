@@ -137,7 +137,12 @@ class _AiCompareViewState extends State<AiCompareView> {
       );
     }
 
-    final diff = AiTagDiff.compute(session.tags, predictions);
+    // Anima Tag: compare the tags only. The natural-language tail is a
+    // sentence, not a tag — diffed against danbooru predictions it can never
+    // match, so it would always render as a "missing" chip complete with a
+    // delete button, one misclick away from wiping the whole description.
+    // Same reasoning (and the same accessor) as the tags tab in CaptionPanel.
+    final diff = AiTagDiff.compute(session.captionTags, predictions);
     // The filter lives on AiTaggerState (persisted) so it survives image
     // switches, re-runs, and app restarts.
     final visiblePredictions = ai.showNewOnly
@@ -190,7 +195,7 @@ class _AiCompareViewState extends State<AiCompareView> {
                 child: _ColumnLabel(
                   text:
                       '${l10n.aiCurrentTagsHeader} · '
-                      '${session.tags.length}',
+                      '${session.captionTags.length}',
                 ),
               ),
               if (diff.missing.isNotEmpty) ...[
@@ -220,7 +225,10 @@ class _AiCompareViewState extends State<AiCompareView> {
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    for (final (index, tag) in session.tags.indexed)
+                    // captionTags, not tags: an Anima Tag caption's trailing
+                    // sentence is not a chip here either. It stays a prefix
+                    // of tags, so these indices still address reorderTag.
+                    for (final (index, tag) in session.captionTags.indexed)
                       // Tags are de-duplicated on parse, so the tag itself is
                       // a stable key across reorders.
                       ReorderableItemView(

@@ -114,6 +114,37 @@ List<String> parseCaptionText(
   CaptionFormat.json => parseJsonCaptionTags(text),
 };
 
+/// Parses a *fragment* the user typed — what goes in the add-tag box or a
+/// rename dialog — rather than a whole caption.
+///
+/// The two differ for Anima Tag only, and that difference is the point.
+/// [parseCaptionText] reads the first `. ` as "the tag list ends here and the
+/// description begins", which is right for a whole caption and wrong for a
+/// fragment: a typed `red hair. blue eyes` is not someone declaring a
+/// description, and parsed as a caption its tail became a *second*
+/// natural-language part, which [splitAnimaParts] then joined onto the
+/// caption's real description with a space — losing a tag and rewriting, with
+/// its punctuation mangled, a sentence the user never touched.
+///
+/// So the `. ` is treated as another tag separator here. It cannot be kept
+/// inside a tag: [animaNlPrefix] is the format's own tag/description
+/// boundary, so `red hair. blue eyes` written to disk reads back as the tag
+/// `red hair` plus a description, whatever this function returns. Splitting
+/// makes the chips the user sees match the caption that lands on disk, and
+/// leaves the description alone. A tag whose own spelling needs a `. `
+/// (`dr. pepper`) is simply not expressible in this format — the documented
+/// cost of the standard's separator, see [_animaNlBreak].
+///
+/// Prose keeps sentence splitting: there a fragment really is sentences.
+/// JSON never reaches here — `EditorSession.tagsEditable` bails first.
+List<String> parseCaptionFragment(
+  String text, {
+  CaptionFormat format = CaptionFormat.tags,
+}) => switch (format) {
+  CaptionFormat.animaTag => parseTagText(text.replaceAll(_animaNlBreak, ',')),
+  _ => parseCaptionText(text, format: format),
+};
+
 /// The tags carried by a JSON caption, for display, statistics and the
 /// assistant's reads: every string leaf in document order, each split by the
 /// tag grammar, de-duplicated. Unparseable JSON yields no tags — the image
@@ -186,6 +217,29 @@ flattenJsonCaption(
   String? nlField,
   Set<String> skipFields = const {},
 }) {
+  // What skipFields swallowed, counted the same way jsonCaptionTags drops
+  // it: at any depth. Counting only the top-level keys reported 0 for a
+  // nested skip field whose tags really were dropped, which is exactly
+  // backwards for a number whose whole job is to make the drop visible.
+  var skipped = 0;
+  void countSkipped(dynamic node) {
+    if (node is List) {
+      node.forEach(countSkipped);
+    } else if (node is Map) {
+      node.forEach((key, value) {
+        // Everything under a skipped key is skipped, nested skip fields
+        // included, so it is counted here and not descended into twice.
+        if (skipFields.contains('$key')) {
+          skipped += jsonCaptionTags(value).length;
+        } else {
+          countSkipped(value);
+        }
+      });
+    }
+  }
+
+  countSkipped(decoded);
+
   if (decoded is! Map) {
     // No keys to order by; everything the document carries comes out as it
     // was walked.
@@ -193,15 +247,8 @@ flattenJsonCaption(
       tags: jsonCaptionTags(decoded, ignoreKeys: skipFields),
       nl: null,
       unlisted: const {},
-      skipped: 0,
+      skipped: skipped,
     );
-  }
-
-  var skipped = 0;
-  for (final entry in decoded.entries) {
-    if (skipFields.contains('${entry.key}')) {
-      skipped += jsonCaptionTags(entry.value).length;
-    }
   }
 
   String? nl;

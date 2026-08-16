@@ -582,12 +582,29 @@ _EditResult _editDocument(
   required void Function(String field, String tag) onAdded,
   required void Function(String field) onFieldCreated,
 }) {
+  // Collision bookkeeping, shared by the string-leaf and the array path so
+  // both answer "is this a duplicate?" the same way. A rename that lands on
+  // a tag the caption already carries merges into it — that is the tool's
+  // documented promise, and it has to hold whichever side of the collision
+  // the rename produced, so it cannot be decided from "did *this* element
+  // just change" alone. A duplicate that was already in the file and that no
+  // rule touched survives: this tool rewrites what it was asked to and
+  // nothing else.
+  bool merged(String tag, bool fromRule, Set<String> seen, Set<String> byRule) {
+    final key = tagLookupKey(tag);
+    final first = seen.add(key);
+    if (fromRule) byRule.add(key);
+    return !first && (fromRule || byRule.contains(key));
+  }
+
   String editText(String text) {
     if (rules.remove.isEmpty && rules.rename.isEmpty) return text;
     final tags = parseTagText(text);
     if (tags.isEmpty) return text;
     var touched = false;
     final kept = <String>[];
+    final seen = <String>{};
+    final byRule = <String>{};
     for (final tag in tags) {
       final key = tagLookupKey(tag);
       if (rules.remove.contains(key)) {
@@ -596,13 +613,17 @@ _EditResult _editDocument(
         continue;
       }
       final replacement = rules.rename[key];
-      if (replacement != null && replacement != tag) {
+      final renamed = replacement != null && replacement != tag;
+      if (renamed) {
         onRenamed(tag);
         touched = true;
-        kept.add(replacement);
+      }
+      final out = renamed ? replacement : tag;
+      if (merged(out, renamed, seen, byRule)) {
+        touched = true;
         continue;
       }
-      kept.add(tag);
+      kept.add(out);
     }
     // A leaf no rule matched is returned as it was read. Prose that happens
     // to sit in a tag field must not be re-joined into tag grammar just
@@ -615,6 +636,7 @@ _EditResult _editDocument(
     if (node is List) {
       final out = <dynamic>[];
       final seen = <String>{};
+      final byRule = <String>{};
       for (final element in node) {
         final edited = walk(element);
         if (element is String && edited is String) {
@@ -623,10 +645,7 @@ _EditResult _editDocument(
           // to touch.
           if (edited.trim().isEmpty) {
             if (element.trim().isNotEmpty) continue;
-          } else if (!seen.add(tagLookupKey(edited)) && edited != element) {
-            // A rename landed on a tag this array already carries: merge
-            // into it rather than write the tag twice. A duplicate that was
-            // already in the file is left alone.
+          } else if (merged(edited, edited != element, seen, byRule)) {
             continue;
           }
         }

@@ -493,6 +493,87 @@ void main() {
       expect(jsonDecode(await readCap('001'))['tags'], ['1girl', 'smile']);
     });
 
+    // The merge above only worked because the renamed tag happened to sit
+    // *after* the tag it collided with. The rule is "a rename onto a tag the
+    // caption already carries merges into it" — the tool's own documented
+    // promise — and it cannot depend on array order or on whether the value
+    // is an array or a comma string.
+    group('a rename never writes a duplicate', () {
+      test('when the existing tag comes after the renamed one', () async {
+        await writeJson('001', {
+          'tags': ['single_ponytail', 'ponytail', '1girl'],
+        });
+        final out = await call('edit_json_captions', {
+          'extension': '.json',
+          'rename': {'single_ponytail': 'ponytail'},
+        });
+        expect(out['written'], 1);
+        expect(jsonDecode(await readCap('001'))['tags'], ['ponytail', '1girl']);
+      });
+
+      test('when two tags are renamed onto the same target', () async {
+        await writeJson('001', {
+          'tags': ['a', 'b', '1girl'],
+        });
+        final out = await call('edit_json_captions', {
+          'extension': '.json',
+          'rename': {'a': 'x', 'b': 'x'},
+        });
+        expect(out['written'], 1);
+        expect(jsonDecode(await readCap('001'))['tags'], ['x', '1girl']);
+      });
+
+      test('in a field stored as one comma string', () async {
+        // jsonCaptionTags treats a comma string as a tag list, so this is a
+        // supported shape — and the string path had no dedup at all.
+        await writeJson('001', {'tags': 'single_ponytail, ponytail, 1girl'});
+        final out = await call('edit_json_captions', {
+          'extension': '.json',
+          'rename': {'single_ponytail': 'ponytail'},
+        });
+        expect(out['written'], 1);
+        expect(jsonDecode(await readCap('001'))['tags'], 'ponytail, 1girl');
+      });
+
+      test('in a comma string with the target first', () async {
+        await writeJson('001', {'tags': 'ponytail, single_ponytail, 1girl'});
+        await call('edit_json_captions', {
+          'extension': '.json',
+          'rename': {'single_ponytail': 'ponytail'},
+        });
+        expect(jsonDecode(await readCap('001'))['tags'], 'ponytail, 1girl');
+      });
+
+      test('matching folds case and underscore style', () async {
+        await writeJson('001', {
+          'tags': ['Single Ponytail', 'ponytail'],
+        });
+        await call('edit_json_captions', {
+          'extension': '.json',
+          'rename': {'single_ponytail': 'ponytail'},
+        });
+        expect(jsonDecode(await readCap('001'))['tags'], ['ponytail']);
+      });
+    });
+
+    test('a duplicate no rule touched is left alone', () async {
+      // The flip side of the merge: this tool rewrites what it was asked to
+      // and nothing else, so it must not quietly compact a pre-existing
+      // duplicate it was never pointed at.
+      await writeJson('001', {
+        'tags': ['Ponytail', 'ponytail', 'smile'],
+      });
+      await call('edit_json_captions', {
+        'extension': '.json',
+        'rename': {'smile': 'grin'},
+      });
+      expect(jsonDecode(await readCap('001'))['tags'], [
+        'Ponytail',
+        'ponytail',
+        'grin',
+      ]);
+    });
+
     test('a missing add target is created, a non-array one is reported',
         () async {
       final created = await call('edit_json_captions', {

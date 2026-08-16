@@ -171,5 +171,51 @@ void main() {
         'A girl smiling.',
       );
     });
+
+    // Two identical sentences are two sentences (parseSentenceText stopped
+    // collapsing them), so every by-value tag operation the editor inherited
+    // from tag mode now has a second, ambiguous case to answer for.
+    group('a repeated sentence', () {
+      late EditorSession session;
+
+      setUp(() async {
+        await File(
+          p.join(tempDir.path, '001.ntxt'),
+        ).writeAsString('A cat. A dog. A cat.');
+        session = EditorSession();
+        addTearDown(session.dispose);
+        session.autoSaveEnabled = false;
+        await session.load(
+          File(p.join(tempDir.path, '001.png')),
+          '.ntxt',
+          format: CaptionFormat.prose,
+        );
+        expect(session.tags, ['A cat.', 'A dog.', 'A cat.']);
+      });
+
+      test('deleting one occurrence leaves the other', () {
+        session.removeSentenceAt(2);
+        expect(session.tags, ['A cat.', 'A dog.']);
+        expect(session.captionController.text, 'A cat. A dog.');
+      });
+
+      test('deleting the first occurrence leaves the last', () {
+        session.removeSentenceAt(0);
+        expect(session.tags, ['A dog.', 'A cat.']);
+      });
+
+      test('editing one occurrence leaves the other', () {
+        session.replaceTagAt(2, 'A kitten.');
+        expect(session.tags, ['A cat.', 'A dog.', 'A kitten.']);
+      });
+
+      test('an edit that duplicates another sentence is kept', () {
+        // The tag-mode reflex is to fold this away; in prose it is a
+        // legitimate paragraph and dropping it loses what the user typed.
+        session.replaceTagAt(1, 'A cat.');
+        expect(session.tags, ['A cat.', 'A cat.', 'A cat.']);
+        expect(session.captionController.text, 'A cat. A cat. A cat.');
+      });
+    });
   });
 }

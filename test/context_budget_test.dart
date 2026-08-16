@@ -60,6 +60,43 @@ void main() {
         toolSchemaTokens: 9000,
       );
       expect(budget.inputBudget, 1024);
+      // …but the floor is a target to aim at, not a claim that 1024 tokens
+      // of history would fit. Nothing fits this window.
+      expect(budget.windowExhausted, isTrue);
+    });
+
+    test('a window with room to spare is not exhausted', () {
+      final budget = ContextBudget(
+        contextWindow: 32768,
+        maxOutputTokens: 4096,
+        toolSchemaTokens: 9000,
+      );
+      expect(budget.windowExhausted, isFalse);
+    });
+
+    test('an exhausted window is reported, not folded away', () {
+      // The floor used to hide this: compact() aimed at 1024, a short
+      // history cleared it, and stillOverBudget came back false — so the
+      // session's silent-truncation guard never fired on a request that
+      // could not fit. Worse, folding "succeeded" by shredding history the
+      // user still needed.
+      final budget = ContextBudget(
+        contextWindow: 8192,
+        maxOutputTokens: 4096,
+        toolSchemaTokens: 9000,
+      );
+      final history = [
+        ChatMessage.system('sys'),
+        ChatMessage.user('hello'),
+        ChatMessage.assistant('hi'),
+      ];
+      expect(budget.estimate(history), lessThan(budget.inputBudget));
+
+      final result = budget.compact(history);
+      expect(result.stillOverBudget, isTrue);
+      // Nothing was folded: no amount of it would have helped.
+      expect(result.folded, 0);
+      expect(history.map((m) => m.text), ['sys', 'hello', 'hi']);
     });
   });
 
@@ -134,9 +171,13 @@ void main() {
     });
 
     test('pinned tool results still fold as a last resort', () {
+      // Smallest window that still has room for *some* history: a window
+      // with none at all is windowExhausted, which is reported rather than
+      // folded against, so it would not exercise the passes below.
       final budget = ContextBudget(
-        contextWindow: 1,
+        contextWindow: 2,
         maxOutputTokens: 1,
+        safetyMargin: 0,
         protectedTail: 1,
       );
       final history = [
@@ -155,8 +196,9 @@ void main() {
 
     test('terminates even when everything is folded', () {
       final budget = ContextBudget(
-        contextWindow: 1,
+        contextWindow: 2,
         maxOutputTokens: 1,
+        safetyMargin: 0,
         protectedTail: 1,
       );
       final history = [

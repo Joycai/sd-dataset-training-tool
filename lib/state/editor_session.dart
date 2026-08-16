@@ -214,6 +214,17 @@ class EditorSession extends ChangeNotifier {
   /// serialized back into their document, so every mutator below bails.
   bool get tagsEditable => _format != CaptionFormat.json;
 
+  /// Whether two identical parts mean the same thing twice. They do for
+  /// tags — an image either carries `1girl` or it does not — so the tag
+  /// paths fold duplicates away. A paragraph may legitimately repeat a
+  /// sentence, and [parseSentenceText] keeps both, so prose must not.
+  bool get _duplicatesCollapse => _format != CaptionFormat.prose;
+
+  /// Removes every part equal to [tag].
+  ///
+  /// By value, because that is what a tag is: the caller has a tag name, not
+  /// a row. For prose — where the same sentence can appear twice and the
+  /// caller means one of them — use [removeSentenceAt].
   void removeTag(String tag) {
     if (!tagsEditable) return;
     if (!_tags.contains(tag)) return;
@@ -223,10 +234,24 @@ class EditorSession extends ChangeNotifier {
     _writeTagsToText();
   }
 
+  /// Removes the part at [index] and nothing else — the delete a *row* owns.
+  ///
+  /// The sentence view deletes through this rather than [removeTag]: a
+  /// paragraph that says the same thing twice would otherwise lose both rows
+  /// to one click, since [removeTag] matches by value.
+  void removeSentenceAt(int index) {
+    if (!tagsEditable || index < 0 || index >= _tags.length) return;
+    final removed = _tags[index];
+    _tags = [..._tags]..removeAt(index);
+    // The anchor is a name; it only stops resolving if no copy is left.
+    if (removed == _anchorTag && !_tags.contains(removed)) _anchorTag = null;
+    _writeTagsToText();
+  }
+
   void toggleTag(String tag) => hasTag(tag) ? removeTag(tag) : applyTag(tag);
 
   void addTagsFromInput(String input) {
-    _insertTags(_parseTags(input).where((t) => !_tags.contains(t)).toList());
+    _insertTags(_parseFragment(input).where((t) => !_tags.contains(t)).toList());
   }
 
   void _insertTags(List<String> parts) {
@@ -266,18 +291,28 @@ class EditorSession extends ChangeNotifier {
     // Editing an Anima Tag caption's natural-language tail edits a sentence,
     // not a tag list: without the marker the rewritten sentence would come
     // back split on its own commas.
+    // …and editing an ordinary tag stays tag editing: the replacement is a
+    // fragment, so a period in it must not start a description.
     final parts = _format == CaptionFormat.animaTag && isAnimaNlPart(replaced)
         ? _parseTags(
             isAnimaNlPart(replacement)
                 ? replacement
                 : '$animaNlPrefix${replacement.trim()}',
           )
-        : _parseTags(replacement);
+        : _parseFragment(replacement);
     final next = [..._tags];
     next.removeAt(index);
-    // Re-de-duplicate against the remaining tags.
-    final seen = next.toSet();
-    final inserted = parts.where(seen.add).toList();
+    // Re-de-duplicate against the remaining tags — but only where duplicates
+    // are meaningless. Two identical tags on one image are one tag; two
+    // identical sentences in a paragraph are two sentences, and folding the
+    // edited one away would silently drop the row the user just typed into.
+    final List<String> inserted;
+    if (_duplicatesCollapse) {
+      final seen = next.toSet();
+      inserted = parts.where(seen.add).toList();
+    } else {
+      inserted = parts;
+    }
     next.insertAll(index, inserted);
     _tags = next;
     // Renaming the anchored tag keeps the anchor on its successor.
@@ -362,8 +397,14 @@ class EditorSession extends ChangeNotifier {
     _lastText = text;
   }
 
+  /// For whole caption text — file contents, the editor's own text box.
   List<String> _parseTags(String text) =>
       parseCaptionText(text, format: _format);
+
+  /// For text the user typed into an add/rename box. Not the same grammar:
+  /// see [parseCaptionFragment].
+  List<String> _parseFragment(String text) =>
+      parseCaptionFragment(text, format: _format);
 
   @override
   void dispose() {
