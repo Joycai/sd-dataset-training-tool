@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/models/ai_tagger_models.dart';
+import 'package:dataset_training_tool/models/caption_type.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/ai_tagger_state.dart';
 import 'package:dataset_training_tool/state/editor_session.dart';
@@ -222,4 +223,60 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  group('Anima Tag', () {
+    // The compare view is reachable for Anima Tag because CaptionPanel gates
+    // the AI run on format.isTagList, which the format satisfies. Its
+    // trailing sentence is not a tag, so — exactly as in the tags tab — it
+    // must not become a chip here.
+    setUp(() async {
+      await File(
+        p.join(tempDir.path, 'shot.txt'),
+      ).writeAsString('1girl, solo. A girl standing alone.');
+      await session.load(image, '.txt', format: CaptionFormat.animaTag);
+    });
+
+    testWidgets('the description is not rendered as a chip', (tester) async {
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      // The tags are chips…
+      expect(find.text('1girl'), findsWidgets);
+      expect(find.text('solo'), findsOneWidget);
+      // …the sentence is not. Diffed against danbooru predictions it could
+      // never match, so it used to render as a warn-coloured "missing" chip
+      // carrying a delete button — one misclick from wiping the caption's
+      // whole description.
+      expect(find.text('. A girl standing alone.'), findsNothing);
+      expect(find.textContaining('A girl standing alone'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the header counts tags only, not the description', (
+      tester,
+    ) async {
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      // Two tags — "1girl" and "solo" — not three parts.
+      expect(find.text('Current tags · 2'), findsOneWidget);
+    });
+
+    testWidgets('applying a suggestion keeps the description last', (
+      tester,
+    ) async {
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('jewelry'));
+      await tester.pumpAndSettle();
+
+      expect(session.captionTags, ['1girl', 'solo', 'jewelry']);
+      expect(session.description, 'A girl standing alone.');
+      expect(
+        session.captionController.text,
+        '1girl, solo, jewelry. A girl standing alone.',
+      );
+    });
+  });
 }

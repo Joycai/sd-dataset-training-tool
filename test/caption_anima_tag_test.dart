@@ -228,5 +228,74 @@ void main() {
         'A girl sits, smiling.',
       );
     });
+
+    // A whole caption and a typed fragment are different grammars: the ". "
+    // that ends the tag list in a caption is another tag separator inside an
+    // add-tag box. Parsed as a caption, a fragment's tail became a *second*
+    // natural-language part that splitAnimaParts then joined onto the real
+    // description with a space — losing a tag and mangling a sentence the
+    // user never touched.
+    group('a typed fragment is not a caption', () {
+      late EditorSession session;
+
+      setUp(() async {
+        session = EditorSession();
+        addTearDown(session.dispose);
+        session.autoSaveEnabled = false;
+        await session.load(
+          File(img('002')),
+          '.atxt',
+          format: CaptionFormat.animaTag,
+        );
+        // 002 starts with no sentence; give it one to be damaged.
+        session.setDescription('A girl smiles.');
+        expect(
+          session.captionController.text,
+          '1girl, smile, indoors. A girl smiles.',
+        );
+      });
+
+      test('a mistyped period adds tags and leaves the description', () {
+        // "." where a "," was meant. The old parse made "blue eyes" a second
+        // NL part, so the description came back as "blue eyes A girl
+        // smiles." — the tag gone and the sentence rewritten.
+        session.addTagsFromInput('red hair. blue eyes');
+        expect(session.captionTags, [
+          '1girl',
+          'smile',
+          'indoors',
+          'red hair',
+          'blue eyes',
+        ]);
+        expect(session.description, 'A girl smiles.');
+        expect(
+          session.captionController.text,
+          '1girl, smile, indoors, red hair, blue eyes. A girl smiles.',
+        );
+      });
+
+      test('renaming an ordinary tag cannot reach the description', () {
+        session.replaceTagAt(1, 'vs. crossover');
+        expect(session.captionTags, ['1girl', 'vs', 'crossover', 'indoors']);
+        expect(session.description, 'A girl smiles.');
+      });
+
+      test('what the chips show is what the file holds', () {
+        // The real invariant behind the split: a tag list the format cannot
+        // hold would read back differently than it was displayed. Whatever
+        // the user types, a reload has to agree with the chips.
+        session.addTagsFromInput('a.k.a. joke');
+        final shown = session.captionTags;
+        final description = session.description;
+
+        final reparsed = parseCaptionText(
+          session.captionController.text,
+          format: CaptionFormat.animaTag,
+        );
+        expect(splitAnimaParts(reparsed).tags, shown);
+        expect(splitAnimaParts(reparsed).nl, description);
+        expect(description, 'A girl smiles.');
+      });
+    });
   });
 }

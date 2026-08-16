@@ -226,7 +226,7 @@ class EditorSession extends ChangeNotifier {
   void toggleTag(String tag) => hasTag(tag) ? removeTag(tag) : applyTag(tag);
 
   void addTagsFromInput(String input) {
-    _insertTags(_parseTags(input).where((t) => !_tags.contains(t)).toList());
+    _insertTags(_parseFragment(input).where((t) => !_tags.contains(t)).toList());
   }
 
   void _insertTags(List<String> parts) {
@@ -266,13 +266,15 @@ class EditorSession extends ChangeNotifier {
     // Editing an Anima Tag caption's natural-language tail edits a sentence,
     // not a tag list: without the marker the rewritten sentence would come
     // back split on its own commas.
+    // …and editing an ordinary tag stays tag editing: the replacement is a
+    // fragment, so a period in it must not start a description.
     final parts = _format == CaptionFormat.animaTag && isAnimaNlPart(replaced)
         ? _parseTags(
             isAnimaNlPart(replacement)
                 ? replacement
                 : '$animaNlPrefix${replacement.trim()}',
           )
-        : _parseTags(replacement);
+        : _parseFragment(replacement);
     final next = [..._tags];
     next.removeAt(index);
     // Re-de-duplicate against the remaining tags.
@@ -362,8 +364,14 @@ class EditorSession extends ChangeNotifier {
     _lastText = text;
   }
 
+  /// For whole caption text — file contents, the editor's own text box.
   List<String> _parseTags(String text) =>
       parseCaptionText(text, format: _format);
+
+  /// For text the user typed into an add/rename box. Not the same grammar:
+  /// see [parseCaptionFragment].
+  List<String> _parseFragment(String text) =>
+      parseCaptionFragment(text, format: _format);
 
   @override
   void dispose() {
