@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
+import '../../models/caption_type.dart';
 import '../../models/merge_rules.dart';
 import '../../state/ai_tagger_state.dart';
 import '../../state/batch_tag_state.dart';
@@ -144,14 +145,63 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
     final dataset = context.watch<DatasetState>();
     final filtered = dataset.visibleFiles.length != dataset.scopedFiles.length;
     final targetCount = _targetFiles(dataset).length;
-    final overwrite = batch.mode == BatchTagMode.overwrite;
-    final recognizeOnly = batch.mode == BatchTagMode.recognizeOnly;
-    final characterSheet = batch.mode == BatchTagMode.characterSheet;
+    // Prose is described, not tagged: the two tag-only modes are hidden and
+    // the state coerces them, so the segments must follow effectiveMode
+    // rather than the persisted choice.
+    final describing = batch.describing;
+    final mode = batch.effectiveMode;
+    final overwrite = mode == BatchTagMode.overwrite;
+    final recognizeOnly = mode == BatchTagMode.recognizeOnly;
+    final characterSheet = mode == BatchTagMode.characterSheet;
+    // A tagger's answer written into prose captions is the corruption this
+    // whole path exists to avoid; an unknown category (older server) is
+    // trusted, same as the single-image run.
+    final selected = ai.selectedModel;
+    final wrongModel =
+        describing &&
+        selected != null &&
+        selected.category.isNotEmpty &&
+        selected.category != 'caption';
     final ruleSets = context.watch<AppState>().mergeRuleSets;
     final canStart =
         ai.modelName != null &&
         targetCount > 0 &&
+        !wrongModel &&
         (!characterSheet || batch.selectedRules != null);
+
+    // JSON captions have no batch path at all: a flat result cannot be
+    // serialized back into a document, and merging one in would rewrite every
+    // caption as a comma line. Saying so beats a start button that destroys
+    // the dataset.
+    if (dataset.captionFormat == CaptionFormat.json) {
+      return AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.auto_awesome_motion, size: 18, color: semantic.muted),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                l10n.batchTagTitle,
+                style: const TextStyle(fontSize: 15),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: _dialogWidth,
+          child: Text(
+            l10n.batchTagJsonUnsupported,
+            style: const TextStyle(fontSize: 12.5),
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l10n.close),
+          ),
+        ],
+      );
+    }
 
     return AlertDialog(
       title: Row(
@@ -160,7 +210,7 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              l10n.batchTagTitle,
+              describing ? l10n.batchTagProseTitle : l10n.batchTagTitle,
               style: const TextStyle(fontSize: 15),
             ),
           ),
@@ -173,6 +223,13 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (describing) ...[
+                Text(
+                  l10n.batchTagProseNote,
+                  style: TextStyle(fontSize: 12, color: semantic.muted),
+                ),
+                const SizedBox(height: 10),
+              ],
               _FieldLabel(text: l10n.aiModelLabel),
               Row(
                 children: [
@@ -197,14 +254,32 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
                   ),
                 ],
               ),
+              if (wrongModel)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    l10n.aiCaptionModelRequired,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 4),
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      l10n.batchTagParamsHint,
-                      style: TextStyle(fontSize: 11.5, color: semantic.muted),
-                    ),
+                    // Threshold, ignore list and tag normalization are tag
+                    // settings; none of them touches a description.
+                    child: describing
+                        ? const SizedBox.shrink()
+                        : Text(
+                            l10n.batchTagParamsHint,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: semantic.muted,
+                            ),
+                          ),
                   ),
                   TextButton(
                     onPressed: () => showAiParamsDialog(
@@ -240,24 +315,28 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
                         style: const TextStyle(fontSize: 12.5),
                       ),
                     ),
-                    ButtonSegment(
-                      value: BatchTagMode.recognizeOnly,
-                      icon: const Icon(Icons.compare_arrows, size: 15),
-                      label: Text(
-                        l10n.batchTagModeRecognize,
-                        style: const TextStyle(fontSize: 12.5),
+                    // Neither survives a prose caption: compare mode diffs tag
+                    // sets, and a character sheet is a rule set over tags.
+                    if (!describing) ...[
+                      ButtonSegment(
+                        value: BatchTagMode.recognizeOnly,
+                        icon: const Icon(Icons.compare_arrows, size: 15),
+                        label: Text(
+                          l10n.batchTagModeRecognize,
+                          style: const TextStyle(fontSize: 12.5),
+                        ),
                       ),
-                    ),
-                    ButtonSegment(
-                      value: BatchTagMode.characterSheet,
-                      icon: const Icon(Icons.rule, size: 15),
-                      label: Text(
-                        l10n.batchTagModeSheet,
-                        style: const TextStyle(fontSize: 12.5),
+                      ButtonSegment(
+                        value: BatchTagMode.characterSheet,
+                        icon: const Icon(Icons.rule, size: 15),
+                        label: Text(
+                          l10n.batchTagModeSheet,
+                          style: const TextStyle(fontSize: 12.5),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
-                  selected: {batch.mode},
+                  selected: {mode},
                   onSelectionChanged: (set) => batch.setMode(set.first),
                   showSelectedIcon: false,
                   style: const ButtonStyle(
@@ -267,7 +346,11 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
               ),
               const SizedBox(height: 6),
               Text(
-                characterSheet
+                describing
+                    ? (overwrite
+                          ? l10n.batchTagModeOverwriteProseDesc
+                          : l10n.batchTagModeAppendProseDesc)
+                    : characterSheet
                     ? l10n.batchTagModeSheetDesc
                     : recognizeOnly
                     ? l10n.batchTagModeRecognizeDesc
@@ -277,7 +360,11 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
                 style: TextStyle(fontSize: 11.5, color: semantic.muted),
               ),
               const SizedBox(height: 14),
-              if (characterSheet)
+              // The preserved / keep-first-N / blacklist fields are all tag
+              // lists; a description has nothing to match them against.
+              if (describing)
+                const SizedBox.shrink()
+              else if (characterSheet)
                 _SheetSection(batch: batch, ruleSets: ruleSets)
               else if (recognizeOnly)
                 const SizedBox.shrink()

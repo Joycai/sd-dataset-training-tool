@@ -1088,6 +1088,36 @@ abstract class AppLocalizations {
   /// **'AI results replace each image\'s existing tags; configure below which existing tags survive.'**
   String get batchTagModeOverwriteDesc;
 
+  /// No description provided for @batchTagProseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch AI description'**
+  String get batchTagProseTitle;
+
+  /// No description provided for @batchTagProseNote.
+  ///
+  /// In en, this message translates to:
+  /// **'The active caption type is prose, so this runs a natural-language caption model over every image.'**
+  String get batchTagProseNote;
+
+  /// No description provided for @batchTagModeAppendProseDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The description is appended to each image\'s existing sentences; sentences already there are not repeated.'**
+  String get batchTagModeAppendProseDesc;
+
+  /// No description provided for @batchTagModeOverwriteProseDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'The description replaces each image\'s caption entirely.'**
+  String get batchTagModeOverwriteProseDesc;
+
+  /// No description provided for @batchTagJsonUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'The active caption type is JSON. Batch tagging would flatten each document into a comma-separated line, so it is not available here — use the assistant\'s JSON caption tools instead.'**
+  String get batchTagJsonUnsupported;
+
   /// No description provided for @batchTagPreservedLabel.
   ///
   /// In en, this message translates to:

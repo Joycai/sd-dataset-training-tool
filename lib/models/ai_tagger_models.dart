@@ -256,6 +256,13 @@ class AiInterrogateResponse {
             .toList(),
       );
 
+  /// This response read as one natural-language description — what a caption
+  /// model (JoyCaption, Florence2…) answers with. Same strings as [allTags];
+  /// the difference is that they are joined into a paragraph instead of each
+  /// being treated as a tag. Empty when the model said nothing.
+  String get description =>
+      allTags.map((t) => t.trim()).where((t) => t.isNotEmpty).join(' ');
+
   /// All tag strings across every model in this response, de-duplicated with
   /// original order preserved. The server has already applied each model's
   /// threshold, so these are final.

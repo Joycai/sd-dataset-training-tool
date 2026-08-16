@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
+import 'package:dataset_training_tool/models/caption_type.dart';
 import 'package:dataset_training_tool/models/merge_rules.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/ai_tagger_state.dart';
@@ -141,5 +145,77 @@ void main() {
     // but the rule set is chosen and remembered.
     expect(batch.selectedRules?.character, 'Aoi');
     expect(after.onPressed, isNull);
+  });
+
+  group('caption formats other than tags', () {
+    late Directory tempDir;
+
+    setUp(() async {
+      tempDir = await Directory.systemTemp.createTemp('batch_dialog_format_');
+    });
+
+    tearDown(() async => tempDir.delete(recursive: true));
+
+    /// Scans a one-image dataset under [format]. Real file IO never completes
+    /// inside the fake-async zone, so it runs outside it.
+    Future<void> scanAs(
+      WidgetTester tester,
+      CaptionFormat format,
+      String extension,
+    ) async {
+      await tester.runAsync(() async {
+        await File(p.join(tempDir.path, '001.png')).writeAsBytes([1, 2, 3]);
+        await dataset.scan(
+          directoryPath: tempDir.path,
+          recursive: false,
+          captionExtension: extension,
+          captionFormat: format,
+        );
+      });
+    }
+
+    testWidgets('prose offers only the two writing modes', (tester) async {
+      await scanAs(tester, CaptionFormat.prose, '.ntxt');
+      await open(tester);
+
+      // Compare mode and character sheets are tag concepts.
+      expect(find.text('Recognize'), findsNothing);
+      expect(find.text('Sheet'), findsNothing);
+      expect(find.text('Append'), findsOneWidget);
+      expect(find.text('Overwrite'), findsOneWidget);
+      expect(
+        find.textContaining('runs a natural-language caption model'),
+        findsOneWidget,
+      );
+      // Tag-only knobs are gone with them.
+      expect(find.text('Blacklist'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a persisted tag-only mode falls back to append', (
+      tester,
+    ) async {
+      await batch.setMode(BatchTagMode.characterSheet);
+      await scanAs(tester, CaptionFormat.prose, '.ntxt');
+      await open(tester);
+
+      expect(batch.effectiveMode, BatchTagMode.append);
+      expect(find.textContaining('appended to each image'), findsOneWidget);
+      // The choice itself is kept for whenever a tag type is active again.
+      expect(batch.mode, BatchTagMode.characterSheet);
+    });
+
+    testWidgets('JSON is refused with an explanation, not a start button', (
+      tester,
+    ) async {
+      await scanAs(tester, CaptionFormat.json, '.json');
+      await open(tester);
+
+      expect(
+        find.textContaining('would flatten each document'),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(FilledButton, 'Start'), findsNothing);
+    });
   });
 }
