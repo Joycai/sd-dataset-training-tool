@@ -77,9 +77,13 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   late final AgentChatState _agentChat;
   bool _agentOpen = false;
   String? _lastLoadedPath;
-  late double _leftWidth;
-  late double _rightWidth;
-  late double _centerSplit;
+  // ValueNotifiers, not setState: a resize drag fires per pointer event, and
+  // a top-level setState would rebuild every panel on each one. Only the
+  // splitter Row listens; the panels are the stable instances below, so the
+  // framework skips their subtrees and the drag costs layout alone.
+  late final ValueNotifier<double> _leftWidth;
+  late final ValueNotifier<double> _rightWidth;
+  late final ValueNotifier<double> _centerSplit;
   // Drag anchor: pointer x and panel width at drag start. Widths are computed
   // from the anchor on every update, so events arriving between frames can
   // never be lost to a stale build snapshot.
@@ -94,9 +98,9 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     // Held as a field, not re-read on demand: dispose() unsubscribes from it,
     // and by then the element is deactivated and an ancestor lookup throws.
     final appState = _appState = context.read<AppState>();
-    _leftWidth = appState.leftPanelWidth;
-    _rightWidth = appState.rightPanelWidth;
-    _centerSplit = appState.centerSplit;
+    _leftWidth = ValueNotifier(appState.leftPanelWidth);
+    _rightWidth = ValueNotifier(appState.rightPanelWidth);
+    _centerSplit = ValueNotifier(appState.centerSplit);
     _session.onSaved = _dataset.updateCaptionText;
     _dataset.addListener(_onDatasetChanged);
     // Library edits are the other half of the local vocabulary; the dataset
@@ -149,6 +153,9 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     _agentChat.dispose();
     _layout.dispose();
     _libraryFilterFocus.dispose();
+    _leftWidth.dispose();
+    _rightWidth.dispose();
+    _centerSplit.dispose();
     super.dispose();
   }
 
@@ -298,7 +305,10 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   }
 
   void _persistPanelWidths() {
-    context.read<AppState>().updatePanelWidths(_leftWidth, _rightWidth);
+    context.read<AppState>().updatePanelWidths(
+      _leftWidth.value,
+      _rightWidth.value,
+    );
   }
 
   /// Clamps the preview pane's height so both center panes stay usable; on
@@ -312,7 +322,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   }
 
   void _persistCenterSplit() {
-    context.read<AppState>().updateCenterSplit(_centerSplit);
+    context.read<AppState>().updateCenterSplit(_centerSplit.value);
   }
 
   void _toggleAgentPanel() {
@@ -387,6 +397,35 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     );
   }
 
+  // The four panels as stable instances: every constructor argument is a
+  // field or a method tear-off of this State, so one instance serves the
+  // whole life of the workbench. Handing the *same* widget to a rebuilt
+  // parent lets the framework skip the panel's subtree entirely — which is
+  // what makes the splitter ListenableBuilder below cheap to rerun.
+  late final AssetsPanel _assetsPanel = AssetsPanel(
+    onOpenFolder: _openFolder,
+    onRefresh: _refresh,
+    onOpenExternalPreview: _openExternalPreview,
+  );
+  late final PreviewPanel _previewPanel = PreviewPanel(
+    onOpenExternalPreview: _openExternalPreview,
+  );
+  late final CaptionPanel _captionPanel = CaptionPanel(
+    shortcutRelay: _shortcutRelay,
+  );
+  late final TagLibraryPanel _tagLibraryPanel = TagLibraryPanel(
+    filterFocusNode: _libraryFilterFocus,
+  );
+
+  /// Everything the splitter Row depends on: column visibility and the three
+  /// drag-adjusted dimensions.
+  late final Listenable _splitterListenable = Listenable.merge([
+    _layout,
+    _leftWidth,
+    _rightWidth,
+    _centerSplit,
+  ]);
+
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
     for (final entry in _globalShortcuts.entries) {
       if (entry.key.accepts(event, HardwareKeyboard.instance)) {
@@ -456,7 +495,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                             // `total` is already the width the resizable
                             // columns get to share.
                             child: ListenableBuilder(
-                              listenable: _layout,
+                              listenable: _splitterListenable,
                               builder: (context, _) => LayoutBuilder(
                                 builder: (context, constraints) {
                                   final total = constraints.maxWidth;
@@ -467,14 +506,16 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                                   // A hidden column contributes nothing to the other's clamp.
                                   final left = showNavigator
                                       ? _clampPanelWidth(
-                                          _leftWidth,
-                                          showInspector ? _rightWidth : 0,
+                                          _leftWidth.value,
+                                          showInspector
+                                              ? _rightWidth.value
+                                              : 0,
                                           total,
                                         )
                                       : 0.0;
                                   final right = showInspector
                                       ? _clampPanelWidth(
-                                          _rightWidth,
+                                          _rightWidth.value,
                                           left,
                                           total,
                                         )
@@ -486,32 +527,26 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                                       if (showNavigator) ...[
                                         SizedBox(
                                           width: left,
-                                          child: AssetsPanel(
-                                            onOpenFolder: _openFolder,
-                                            onRefresh: _refresh,
-                                            onOpenExternalPreview:
-                                                _openExternalPreview,
-                                          ),
+                                          child: _assetsPanel,
                                         ),
                                         ResizeHandle(
                                           onDragStart: (x) {
                                             _dragAnchorX = x;
                                             _dragStartWidth = left;
                                           },
-                                          onDragUpdate: (x) => setState(() {
-                                            _leftWidth = _clampPanelWidth(
-                                              _dragStartWidth +
-                                                  (x - _dragAnchorX),
-                                              right,
-                                              total,
-                                            );
-                                          }),
+                                          onDragUpdate: (x) {
+                                            _leftWidth.value =
+                                                _clampPanelWidth(
+                                                  _dragStartWidth +
+                                                      (x - _dragAnchorX),
+                                                  right,
+                                                  total,
+                                                );
+                                          },
                                           onDragEnd: _persistPanelWidths,
                                           onReset: () {
-                                            setState(() {
-                                              _leftWidth = SettingsService
-                                                  .defaultLeftPanelWidth;
-                                            });
+                                            _leftWidth.value = SettingsService
+                                                .defaultLeftPanelWidth;
                                             _persistPanelWidths();
                                           },
                                         ),
@@ -522,7 +557,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                                             final totalHeight =
                                                 center.maxHeight;
                                             final topHeight = _clampTopHeight(
-                                              _centerSplit * totalHeight,
+                                              _centerSplit.value * totalHeight,
                                               totalHeight,
                                             );
                                             return Column(
@@ -534,10 +569,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                                                   // No padding: the canvas *is* the
                                                   // window background, and the image
                                                   // carries its own radius + shadow.
-                                                  child: PreviewPanel(
-                                                    onOpenExternalPreview:
-                                                        _openExternalPreview,
-                                                  ),
+                                                  child: _previewPanel,
                                                 ),
                                                 ResizeHandle(
                                                   axis: Axis.vertical,
@@ -546,26 +578,22 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                                                     _dragStartTopHeight =
                                                         topHeight;
                                                   },
-                                                  onDragUpdate: (y) => setState(
-                                                    () {
-                                                      _centerSplit =
-                                                          _clampTopHeight(
-                                                            _dragStartTopHeight +
-                                                                (y -
-                                                                    _dragAnchorY),
-                                                            totalHeight,
-                                                          ) /
-                                                          totalHeight;
-                                                    },
-                                                  ),
+                                                  onDragUpdate: (y) {
+                                                    _centerSplit.value =
+                                                        _clampTopHeight(
+                                                          _dragStartTopHeight +
+                                                              (y -
+                                                                  _dragAnchorY),
+                                                          totalHeight,
+                                                        ) /
+                                                        totalHeight;
+                                                  },
                                                   onDragEnd:
                                                       _persistCenterSplit,
                                                   onReset: () {
-                                                    setState(() {
-                                                      _centerSplit =
-                                                          SettingsService
-                                                              .defaultCenterSplit;
-                                                    });
+                                                    _centerSplit.value =
+                                                        SettingsService
+                                                            .defaultCenterSplit;
                                                     _persistCenterSplit();
                                                   },
                                                 ),
@@ -573,10 +601,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                                                   // Flush like the canvas: the editor
                                                   // is a panel, and its own top
                                                   // hairline is the only separator.
-                                                  child: CaptionPanel(
-                                                    shortcutRelay:
-                                                        _shortcutRelay,
-                                                  ),
+                                                  child: _captionPanel,
                                                 ),
                                               ],
                                             );
@@ -589,29 +614,25 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                                             _dragAnchorX = x;
                                             _dragStartWidth = right;
                                           },
-                                          onDragUpdate: (x) => setState(() {
-                                            _rightWidth = _clampPanelWidth(
-                                              _dragStartWidth -
-                                                  (x - _dragAnchorX),
-                                              left,
-                                              total,
-                                            );
-                                          }),
+                                          onDragUpdate: (x) {
+                                            _rightWidth.value =
+                                                _clampPanelWidth(
+                                                  _dragStartWidth -
+                                                      (x - _dragAnchorX),
+                                                  left,
+                                                  total,
+                                                );
+                                          },
                                           onDragEnd: _persistPanelWidths,
                                           onReset: () {
-                                            setState(() {
-                                              _rightWidth = SettingsService
-                                                  .defaultRightPanelWidth;
-                                            });
+                                            _rightWidth.value = SettingsService
+                                                .defaultRightPanelWidth;
                                             _persistPanelWidths();
                                           },
                                         ),
                                         SizedBox(
                                           width: right,
-                                          child: TagLibraryPanel(
-                                            filterFocusNode:
-                                                _libraryFilterFocus,
-                                          ),
+                                          child: _tagLibraryPanel,
                                         ),
                                       ],
                                     ],

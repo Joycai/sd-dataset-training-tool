@@ -44,6 +44,9 @@ class DatasetState extends ChangeNotifier {
   };
 
   List<File> _files = [];
+  // Path index over _files: [selectedFile] is read from per-row builders, so
+  // it must not scan the list. Rebuilt wherever _files is assigned.
+  Map<String, File> _fileByPath = {};
   final Map<String, bool> _hasCaption = {};
   final Map<String, List<String>> _tagsByPath = {};
   // Set mirror of _tagsByPath for O(1) lookups in the filter evaluation.
@@ -217,13 +220,12 @@ class DatasetState extends ChangeNotifier {
     }).toList();
   }
 
-  File? get selectedFile {
-    if (_selectedPath == null) return null;
-    for (final f in _files) {
-      if (f.path == _selectedPath) return f;
-    }
-    return null;
-  }
+  /// The selected image's path, without the [File] lookup — what the asset
+  /// list's row builders compare against.
+  String? get selectedPath => _selectedPath;
+
+  File? get selectedFile =>
+      _selectedPath == null ? null : _fileByPath[_selectedPath];
 
   int get selectedVisibleIndex {
     if (_selectedPath == null) return -1;
@@ -397,6 +399,7 @@ class DatasetState extends ChangeNotifier {
 
     found.sort((a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()));
     _files = found;
+    _fileByPath = {for (final f in found) f.path: f};
     _rootPath = directoryPath;
     _dirByPath = {
       for (final f in found) f.path: _relativeDirOf(directoryPath, f.path),
@@ -456,6 +459,7 @@ class DatasetState extends ChangeNotifier {
   void clear() {
     _scanGeneration++;
     _files = [];
+    _fileByPath = {};
     _hasCaption.clear();
     _tagsByPath.clear();
     _tagSetsByPath.clear();
