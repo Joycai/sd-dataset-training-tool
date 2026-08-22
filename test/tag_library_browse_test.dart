@@ -19,6 +19,7 @@ import 'package:dataset_training_tool/state/workbench_layout.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/utils/tag_search.dart';
 import 'package:dataset_training_tool/views/panels/tag_library_panel.dart';
+import 'package:dataset_training_tool/widgets/panel_widgets.dart';
 
 // 1x1 transparent PNG.
 const _pngBytes = [
@@ -449,6 +450,54 @@ void main() {
 
       await enterOrganize(tester);
       expect(find.text('Nothing selected'), findsOneWidget);
+    });
+  });
+
+  group('inactive tab', () {
+    testWidgets('the hidden tab builds no chips', (tester) async {
+      await appState.addCommonTags(['dress']);
+
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      // Library tab in front: its chips exist, the dataset tab's do not —
+      // 'used_here' lives only in 002.txt's caption, and with the old
+      // keep-both-alive IndexedStack it was mounted (and laid out) here.
+      expect(find.text('dress'), findsOneWidget);
+      expect(find.text('used_here'), findsNothing);
+
+      await tester.tap(find.byType(PanelTab).at(1));
+      await tester.pumpAndSettle();
+      expect(find.text('used_here'), findsOneWidget);
+      expect(find.text('dress'), findsNothing);
+    });
+
+    testWidgets('the library filter text survives a tab round-trip', (
+      tester,
+    ) async {
+      await appState.addCommonTags(['dress', 'skirt']);
+
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'dre');
+      await tester.pumpAndSettle();
+      expect(find.text('dress'), findsOneWidget);
+      expect(find.text('skirt'), findsNothing);
+
+      await tester.tap(find.byType(PanelTab).at(1));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(PanelTab).at(0));
+      await tester.pumpAndSettle();
+
+      // The State object survived the shrink; the filter still narrows and
+      // the field still shows what was typed.
+      expect(find.text('dress'), findsOneWidget);
+      expect(find.text('skirt'), findsNothing);
+      expect(
+        tester.widget<TextField>(find.byType(TextField).first).controller?.text,
+        'dre',
+      );
     });
   });
 }

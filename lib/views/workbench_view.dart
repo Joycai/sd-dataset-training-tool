@@ -337,9 +337,18 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   // Global bindings stay active while typing; the rest would conflict with
   // text editing (caret movement, the text field's own undo) and only fire
   // when focus is outside any text field.
+  /// Ctrl+F: reveal the library tab first — with the dataset tab in front
+  /// the filter field is not mounted (inactive tabs build empty), so its
+  /// focus node has nothing to attach to until the tab switches. The
+  /// requestFocus is remembered by the node and lands once the field mounts.
+  void _focusLibraryFilter() {
+    _layout.showInspectorTab(InspectorTab.library);
+    _libraryFilterFocus.requestFocus();
+  }
+
   late final Map<SingleActivator, VoidCallback> _globalShortcuts = {
     primaryShortcut(LogicalKeyboardKey.keyS): _session.save,
-    primaryShortcut(LogicalKeyboardKey.keyF): _libraryFilterFocus.requestFocus,
+    primaryShortcut(LogicalKeyboardKey.keyF): _focusLibraryFilter,
     primaryShortcut(LogicalKeyboardKey.keyE): () =>
         _shortcutRelay.runAiForCurrentImage?.call(),
     // Global, not text-guarded: the question "what does this tag mean" comes

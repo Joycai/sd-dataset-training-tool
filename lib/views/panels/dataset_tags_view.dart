@@ -23,7 +23,12 @@ enum _AddPosition { head, tail, at }
 /// marks tags present on the current image; click toggles the tag on it;
 /// right-click offers gallery filtering and dataset-wide edits.
 class DatasetTagsView extends StatefulWidget {
-  const DatasetTagsView({super.key});
+  const DatasetTagsView({super.key, this.active = true});
+
+  /// Whether this tab is the one the IndexedStack shows. Inactive, the view
+  /// builds as an empty box: the State survives (filter, sort toggle), but
+  /// no notifier subscriptions and no offscreen chip layout.
+  final bool active;
 
   @override
   State<DatasetTagsView> createState() => _DatasetTagsViewState();
@@ -32,18 +37,38 @@ class DatasetTagsView extends StatefulWidget {
 class _DatasetTagsViewState extends State<DatasetTagsView> {
   String _filter = '';
 
+  /// Owned here, not by the TextField: the field unmounts while the tab is
+  /// inactive, and its internal controller would take the typed text with it.
+  final TextEditingController _filterController = TextEditingController();
+
   /// Display order for the tag list — count-descending (the default) or
   /// alphabetical. Purely cosmetic; it also seeds the priority list for
   /// "sort all images' tags…" (see [_confirmReorder]), so the batch
   /// operation applies whichever order is currently on screen.
   bool _sortAlphabetically = false;
 
+  // The alphabetical copy, keyed on the source list's identity — the state
+  // hands out a new instance only when captions change, so a plain rebuild
+  // (selection move, keystroke) must not re-sort thousands of tags.
+  List<DatasetTag>? _sortedCache;
+  List<DatasetTag>? _sortedSource;
+
+  @override
+  void dispose() {
+    _filterController.dispose();
+    super.dispose();
+  }
+
   /// [dataset.datasetTags] is already frequency-sorted (and cached); an
   /// alphabetical view is a plain copy, never a mutation of that cache.
   List<DatasetTag> _sortedTags(DatasetState dataset) {
     final tags = dataset.datasetTags;
     if (!_sortAlphabetically) return tags;
-    return [...tags]..sort((a, b) => a.tag.compareTo(b.tag));
+    if (!identical(tags, _sortedSource)) {
+      _sortedSource = tags;
+      _sortedCache = [...tags]..sort((a, b) => a.tag.compareTo(b.tag));
+    }
+    return _sortedCache!;
   }
 
   Future<void> _showTagMenu(Offset position, DatasetTag entry) async {
@@ -310,6 +335,13 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
 
   @override
   Widget build(BuildContext context) {
+    // The inactive tab contributes nothing — and, crucially, watches
+    // nothing: returning before the watch() calls drops this element's
+    // provider subscriptions, so caption keystrokes and dataset changes no
+    // longer rebuild (and the IndexedStack no longer lays out) the full chip
+    // wrap of a tab the user cannot see.
+    if (!widget.active) return const SizedBox.shrink();
+
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
     final scheme = Theme.of(context).colorScheme;
@@ -340,6 +372,7 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
               Expanded(
                 child: PanelSearchField(
                   hint: l10n.filterTagsHint,
+                  controller: _filterController,
                   onChanged: (value) => setState(() => _filter = value),
                   padding: EdgeInsets.zero,
                 ),

@@ -453,31 +453,45 @@ class _CaptionPanelState extends State<CaptionPanel> {
                       style: TextStyle(fontSize: 12.5, color: semantic.muted),
                     ),
                   )
-                : IndexedStack(
-                    index: _tab,
-                    sizing: StackFit.expand,
-                    children: [
-                      _buildTextView(session, l10n),
-                      if (isJson)
-                        JsonCaptionView(text: session.captionController.text)
-                      else if (isProse)
-                        _buildSentencesView(session, l10n, semantic)
-                      else
-                        // Compare mode is a global flag, but it only makes
-                        // sense for images that actually have (or are
-                        // getting) a result — other images keep the normal
-                        // tags view.
-                        ai.compareMode &&
-                                (ai.running ||
-                                    ai.hasResultFor(session.image!.path))
-                            ? AiCompareView(onRunAi: _runAi)
-                            : _buildTagsView(session, ai, l10n, semantic),
-                    ],
+                // Only the visible tab is built. This used to be an
+                // IndexedStack keeping both alive, which made every session
+                // notification (each keystroke) lay out the hidden sibling
+                // too — the full-caption TextField while editing tags, the
+                // whole chip wrap while typing text. Nothing durable lives in
+                // the hidden subtree: the text rides in
+                // session.captionController either way.
+                : _buildActiveTab(
+                    session,
+                    ai,
+                    l10n,
+                    semantic,
+                    isJson: isJson,
+                    isProse: isProse,
                   ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildActiveTab(
+    EditorSession session,
+    AiTaggerState ai,
+    AppLocalizations l10n,
+    AppSemanticColors semantic, {
+    required bool isJson,
+    required bool isProse,
+  }) {
+    if (_tab == _tabText) return _buildTextView(session, l10n);
+    if (isJson) return JsonCaptionView(text: session.captionController.text);
+    if (isProse) return _buildSentencesView(session, l10n, semantic);
+    // Compare mode is a global flag, but it only makes sense for images that
+    // actually have (or are getting) a result — other images keep the normal
+    // tags view.
+    if (ai.compareMode && (ai.running || ai.hasResultFor(session.image!.path))) {
+      return AiCompareView(onRunAi: _runAi);
+    }
+    return _buildTagsView(session, ai, l10n, semantic);
   }
 
   Widget _buildTextView(EditorSession session, AppLocalizations l10n) {
