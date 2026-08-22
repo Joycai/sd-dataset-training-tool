@@ -193,6 +193,7 @@
   "aiFirstRunHint": "首次使用某个模型需要下载，可能较慢。",
   "aiNoModelSelected": "未选择模型，请检查 AI 识别参数。",
   "aiCaptionModelRequired": "当前模型输出的是标签，不是句子。请选择一个自然语言描述模型。",
+  "aiTagModelRequired": "当前模型输出的是句子，不是标签。请选择一个打标模型。",
   "aiDescribeEmpty": "模型没有返回任何描述。",
   "aiFailed": "识别失败：{error}",
 
@@ -226,11 +227,13 @@
   "batchTagCancel": "取消任务",
   "batchTagCancelling": "正在取消…",
   "batchTagDoneTitle": "批量打标完成",
+  "batchTagProseDoneTitle": "批量 AI 描述完成",
   "batchTagDoneSummary": "共处理 {completed} 张：修改 {changed} 张，失败 {failed} 张。",
   "batchTagRecognizeDoneSummary": "共处理 {completed} 张：识别 {changed} 张，失败 {failed} 张。",
   "batchTagRecognizeDoneHint": "已进入对比模式：切换图片即可逐张审阅 AI 建议。",
   "batchTagUndoHint": "可通过顶栏的撤销按钮回退本次修改。",
   "batchTagOperationLabel": "批量 AI 打标",
+  "batchTagProseOperationLabel": "批量 AI 描述",
 
   "rightTabLibrary": "标签库",
   "rightTabDataset": "数据集",

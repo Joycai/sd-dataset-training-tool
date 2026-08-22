@@ -1010,6 +1010,12 @@ abstract class AppLocalizations {
   /// **'The selected model outputs tags, not sentences. Pick a natural-language caption model.'**
   String get aiCaptionModelRequired;
 
+  /// No description provided for @aiTagModelRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'The selected model writes sentences, not tags. Pick a tagger model.'**
+  String get aiTagModelRequired;
+
   /// No description provided for @aiDescribeEmpty.
   ///
   /// In en, this message translates to:
@@ -1202,6 +1208,12 @@ abstract class AppLocalizations {
   /// **'Batch tagging finished'**
   String get batchTagDoneTitle;
 
+  /// No description provided for @batchTagProseDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Batch AI description finished'**
+  String get batchTagProseDoneTitle;
+
   /// No description provided for @batchTagDoneSummary.
   ///
   /// In en, this message translates to:
@@ -1235,6 +1247,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'batch AI tagging'**
   String get batchTagOperationLabel;
+
+  /// No description provided for @batchTagProseOperationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'batch AI description'**
+  String get batchTagProseOperationLabel;
 
   /// No description provided for @rightTabLibrary.
   ///

@@ -109,6 +109,24 @@ class AiTaggerState extends ChangeNotifier {
     return null;
   }
 
+  /// Whether the selected model's category contradicts what the caller needs:
+  /// [wantCaption] true asks for a natural-language caption model, false for a
+  /// booru-style tagger. Both directions matter — a tagger's answer written
+  /// into a prose caption arrives as sentences, and a caption model's answer
+  /// written into a tag caption arrives as one sentence that the next parse
+  /// shreds at its commas.
+  ///
+  /// An empty category is not a claim either way (the server predates the
+  /// field), so it never mismatches; neither does a model the list has not
+  /// been fetched for yet. The single place that answers "is this the right
+  /// kind of model" — the batch run, the batch dialog, the single-image runs
+  /// and the params dialog's threshold block all read it here.
+  bool modelMismatches({required bool wantCaption}) {
+    final category = selectedModel?.category ?? '';
+    if (category.isEmpty) return false;
+    return wantCaption ? category != 'caption' : category == 'caption';
+  }
+
   bool get loadingModels => _loadingModels;
   bool get running => _running;
   bool get compareMode => _compareMode;

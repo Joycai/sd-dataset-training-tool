@@ -66,8 +66,9 @@ class _AiParamsDialogState extends State<_AiParamsDialog> {
     final useDefaultThreshold = ai.threshold == null;
     // The confidence threshold only exists for booru-style taggers; caption
     // models ignore it, so the whole threshold block goes inert for them.
-    // Unknown category (old server) keeps the block enabled.
-    final thresholdApplies = ai.selectedModel?.category != 'caption';
+    // Unknown category (old server) keeps the block enabled — which is what
+    // "does not mismatch a tagger" already means.
+    final thresholdApplies = !ai.modelMismatches(wantCaption: false);
 
     return GlassDialog(
       width: 560,

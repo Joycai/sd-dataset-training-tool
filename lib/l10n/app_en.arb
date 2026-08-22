@@ -238,6 +238,7 @@
   "aiFirstRunHint": "First use of a model downloads it — this can take a while.",
   "aiNoModelSelected": "No model selected. Check the AI parameters.",
   "aiCaptionModelRequired": "The selected model outputs tags, not sentences. Pick a natural-language caption model.",
+  "aiTagModelRequired": "The selected model writes sentences, not tags. Pick a tagger model.",
   "aiDescribeEmpty": "The model returned no description.",
   "aiFailed": "AI tagging failed: {error}",
   "@aiFailed": {
@@ -298,6 +299,7 @@
   "batchTagCancel": "Cancel run",
   "batchTagCancelling": "Cancelling…",
   "batchTagDoneTitle": "Batch tagging finished",
+  "batchTagProseDoneTitle": "Batch AI description finished",
   "batchTagDoneSummary": "{completed} images processed: {changed} changed, {failed} failed.",
   "@batchTagDoneSummary": {
     "placeholders": {
@@ -317,6 +319,7 @@
   "batchTagRecognizeDoneHint": "Compare mode is on: switch images to review the AI suggestions.",
   "batchTagUndoHint": "Use undo in the top bar to revert this run.",
   "batchTagOperationLabel": "batch AI tagging",
+  "batchTagProseOperationLabel": "batch AI description",
 
   "rightTabLibrary": "Library",
   "rightTabDataset": "Dataset",

@@ -279,6 +279,13 @@ class BatchTagState extends ChangeNotifier {
   /// Whether this run writes a caption model's description instead of tags.
   bool get describing => dataset.captionFormat == CaptionFormat.prose;
 
+  /// Whether the active caption type has a batch path at all. A JSON document
+  /// cannot be rebuilt from a flat result — merging one in would comma-split
+  /// the document and write the pieces back as a tag line — so it has none.
+  /// The dialog renders its refusal from this and [run] enforces it, so the
+  /// two cannot drift apart.
+  bool get batchSupported => dataset.captionFormat != CaptionFormat.json;
+
   /// The config assembled from the persisted fields.
   BatchTagConfig get config => BatchTagConfig(
     mode: effectiveMode,
@@ -302,38 +309,45 @@ class BatchTagState extends ChangeNotifier {
   /// caption type rules the run out (see below) — the last case leaves the
   /// reason in [lastError].
   ///
-  /// [operationLabel] is the localized undo-history label for this run.
+  /// [operationLabel] is the localized undo-history label for this run. This
+  /// state has no [AppLocalizations] of its own, so every other string a run
+  /// can put in front of the user arrives the same way; the English defaults
+  /// are for callers that have no context to translate with (tests).
   Future<bool> run({
     required List<File> files,
     required String operationLabel,
+    String? emptyDescriptionMessage,
+    String? unsupportedFormatMessage,
+    String? wrongModelMessage,
   }) async {
     if (_running || files.isEmpty) return false;
     final model = ai.modelName;
     if (model == null) return false;
-    // A JSON document cannot be rebuilt from a flat result: the merge below
-    // would comma-split the document and write the pieces back as a tag
-    // line, destroying every caption it touched. The dialog disables the
-    // start button for JSON; this is the backstop.
-    if (dataset.captionFormat == CaptionFormat.json) {
+    // The dialog shows the refusal for an unsupported caption type and never
+    // offers a start button; this is the backstop.
+    if (!batchSupported) {
       _lastError =
+          unsupportedFormatMessage ??
           'the active caption type is JSON; batch tagging needs a '
-          'tag-style or prose caption type';
+              'tag-style or prose caption type';
       notifyListeners();
       return false;
     }
     final describeRun = describing;
-    // Prose is written by a caption model. A booru tagger's answer would land
-    // there as sentences, which is exactly the corruption this run is meant
-    // to avoid — refuse instead. A server that reports no model category
-    // (older AiApiServer) is trusted, same as the single-image path.
-    final info = ai.selectedModel;
-    if (describeRun &&
-        info != null &&
-        info.category.isNotEmpty &&
-        info.category != 'caption') {
+    // The model has to match the caption type in both directions: a booru
+    // tagger's answer lands in a prose caption as sentences, and a caption
+    // model's answer lands in a tag caption as one sentence that the next
+    // parse shreds at its commas. Either way it is the corruption this run
+    // exists to avoid — refuse instead. A server that reports no model
+    // category (older AiApiServer) is trusted, same as the single-image path.
+    if (ai.modelMismatches(wantCaption: describeRun)) {
       _lastError =
-          'the selected model outputs tags, not sentences; pick a '
-          'natural-language caption model';
+          wrongModelMessage ??
+          (describeRun
+              ? 'the selected model outputs tags, not sentences; pick a '
+                    'natural-language caption model'
+              : 'the selected model writes sentences, not tags; pick a '
+                    'tagger model');
       notifyListeners();
       return false;
     }
@@ -398,7 +412,9 @@ class BatchTagState extends ChangeNotifier {
             // "appended nothing" is not a success either — report it as a
             // failed file and leave the caption alone.
             if (description.isEmpty) {
-              throw AiTaggerException('The model returned no description.');
+              throw AiTaggerException(
+                emptyDescriptionMessage ?? 'The model returned no description.',
+              );
             }
             final edit = await _applyDescription(
               file.path,
@@ -473,17 +489,22 @@ class BatchTagState extends ChangeNotifier {
     if (await captionFile.exists()) {
       before = await captionFile.readAsString();
     }
+    final current = parseSentenceText(before);
     final described = parseSentenceText(description);
     final List<String> next;
     if (runConfig.mode == BatchTagMode.overwrite) {
       next = described;
     } else {
-      final current = parseSentenceText(before);
       final seen = current.toSet();
       next = [...current, ...described.where(seen.add)];
     }
+    // Compared as parsed sentences rather than as raw text, exactly like the
+    // tag path's [listEquals] check. A caption file that differs from the
+    // join only by a trailing newline or doubled spacing already says this;
+    // rewriting it would report every such image as changed and push a
+    // whole-dataset undo entry for a run that added nothing.
+    if (listEquals(next, current)) return null;
     final after = joinCaptionText(next, format: CaptionFormat.prose);
-    if (after == before) return null;
     await captionFile.writeAsString(after);
     return CaptionEdit(
       imagePath: imagePath,

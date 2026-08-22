@@ -259,6 +259,68 @@ void main() {
     });
   });
 
+  group('AiTaggerState.modelMismatches', () {
+    /// A server that names a category for every model except `mystery`, which
+    /// stands in for an older AiApiServer that predates the field.
+    Future<AiTaggerState> stateWith(String modelName) async {
+      SharedPreferences.setMockInitialValues({});
+      final client = MockClient((request) async {
+        if (request.url.path == '/getconfig') {
+          return http.Response(
+            jsonEncode({
+              'Interrogators': [
+                {'ModelName': 'wd-tagger', 'Category': 'tag'},
+                {'ModelName': 'joycaption', 'Category': 'caption'},
+                {'ModelName': 'mystery', 'Category': ''},
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('not found', 404);
+      });
+      final state = AiTaggerState(
+        SettingsService(),
+        service: AiTaggerService(client: client),
+      );
+      await state.refreshModels();
+      await state.setModelName(modelName);
+      return state;
+    }
+
+    test('a tagger mismatches a caption run and fits a tag run', () async {
+      final state = await stateWith('wd-tagger');
+      expect(state.modelMismatches(wantCaption: true), isTrue);
+      expect(state.modelMismatches(wantCaption: false), isFalse);
+      state.dispose();
+    });
+
+    test('a caption model fits only a caption run', () async {
+      final state = await stateWith('joycaption');
+      expect(state.modelMismatches(wantCaption: false), isTrue);
+      expect(state.modelMismatches(wantCaption: true), isFalse);
+      state.dispose();
+    });
+
+    test('an empty category is not a claim in either direction', () async {
+      final state = await stateWith('mystery');
+      expect(state.modelMismatches(wantCaption: true), isFalse);
+      expect(state.modelMismatches(wantCaption: false), isFalse);
+      state.dispose();
+    });
+
+    test('a model list that was never fetched never mismatches', () async {
+      SharedPreferences.setMockInitialValues({});
+      final state = AiTaggerState(SettingsService());
+      await state.setModelName('wd-tagger');
+      expect(state.selectedModel, isNull);
+      expect(state.modelMismatches(wantCaption: true), isFalse);
+      expect(state.modelMismatches(wantCaption: false), isFalse);
+      state.dispose();
+    });
+  });
+
   group('AiTaggerState.setShowNewOnly', () {
     test('persists and is restored by loadSettings', () async {
       SharedPreferences.setMockInitialValues({});
