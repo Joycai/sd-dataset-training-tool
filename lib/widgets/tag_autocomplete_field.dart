@@ -168,8 +168,15 @@ class _TagAutocompleteFieldState extends State<TagAutocompleteField> {
     return (start, text.substring(start, caret));
   }
 
+  /// The last (start, query) a refresh ran for. The controller also notifies
+  /// on caret/selection-only changes; re-running the dictionary search for a
+  /// click that moved the caret within the same segment is pure waste.
+  (int, String)? _lastSegment;
+
   void _onTextChanged() {
     if (_applying || !mounted) return;
+    final segment = _currentSegment();
+    if (segment == _lastSegment) return;
     _refresh();
   }
 
@@ -180,7 +187,9 @@ class _TagAutocompleteFieldState extends State<TagAutocompleteField> {
   }
 
   void _refresh() {
-    final (_, query) = _currentSegment();
+    final segment = _currentSegment();
+    _lastSegment = segment;
+    final (_, query) = segment;
     final matches = widget.enabled && _focus.hasFocus
         ? widget.dictionary.search(query, limit: widget.maxSuggestions)
         : const <TagSuggestion>[];

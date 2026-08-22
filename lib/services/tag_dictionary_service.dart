@@ -542,13 +542,34 @@ class TagDictionaryService extends ChangeNotifier {
   ) {
     if (index == null || limit <= 0) return const [];
 
-    // Best hit per entry: one tag can match on its name and on two aliases,
-    // and it must still occupy a single row.
-    final best = <int, TagSuggestion>{};
-    for (final token in index.bucket(key[0])) {
+    // The bucket is sorted by token text, so every match sits in one
+    // contiguous range: binary-search its start, walk until the prefix
+    // breaks. Turns the per-keystroke cost from O(bucket) into
+    // O(log bucket + matches).
+    final bucket = index.bucket(key[0]);
+    var lo = 0;
+    var hi = bucket.length;
+    while (lo < hi) {
+      final mid = (lo + hi) >> 1;
+      if (index.tokens[bucket[mid]].compareTo(key) < 0) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+
+    // Matches as packed (kind, entry, token) ints. A single-character query
+    // matches its entire bucket — tens of thousands of tokens on the first
+    // keystroke of every tag — and the old shape (a map of allocated
+    // suggestions, sorted with a comparator) paid an object per match.
+    // Sorting plain ints and allocating only the emitted rows keeps that
+    // worst case cheap. 24 bits each for entry and token comfortably clear
+    // any dictionary this app loads.
+    final packed = <int>[];
+    for (var at = lo; at < bucket.length; at++) {
+      final token = bucket[at];
       final text = index.tokens[token];
-      if (!text.startsWith(key)) continue;
-      final entryAt = index.tokenEntry[token];
+      if (!text.startsWith(key)) break;
       final exact = text.length == key.length;
       final isAlias = index.tokenIsAlias[token] == 1;
       final kind = isAlias
@@ -556,25 +577,33 @@ class TagDictionaryService extends ChangeNotifier {
           : index.tokenIsWord[token] == 1
           ? TagMatchKind.nameWordPrefix
           : (exact ? TagMatchKind.exactName : TagMatchKind.namePrefix);
-      final previous = best[entryAt];
-      if (previous != null && previous.kind.index <= kind.index) continue;
-      best[entryAt] = TagSuggestion(
-        entry: index.entries[entryAt],
-        kind: kind,
-        origin: origin,
-        matchedAlias: isAlias ? text : null,
-      );
+      packed.add((kind.index << 48) | (index.tokenEntry[token] << 24) | token);
     }
 
-    final hits = best.entries.toList()
-      ..sort((a, b) {
-        final byKind = a.value.kind.index.compareTo(b.value.kind.index);
-        if (byKind != 0) return byKind;
-        // Entries are stored count-descending, so the index doubles as the
-        // popularity tie-break without re-reading the counts.
-        return a.key.compareTo(b.key);
-      });
-    return [for (final hit in hits.take(limit)) hit.value];
+    // Ascending = (kind, entry, token): kind ranks first; entries are stored
+    // count-descending, so the entry index doubles as the popularity
+    // tie-break without re-reading the counts. The first occurrence of an
+    // entry is its best kind — one tag can match on its name and on two
+    // aliases, and it must still occupy a single row.
+    packed.sort();
+    final result = <TagSuggestion>[];
+    final seen = <int>{};
+    for (final hit in packed) {
+      final entryAt = (hit >> 24) & 0xFFFFFF;
+      if (!seen.add(entryAt)) continue;
+      final token = hit & 0xFFFFFF;
+      final isAlias = index.tokenIsAlias[token] == 1;
+      result.add(
+        TagSuggestion(
+          entry: index.entries[entryAt],
+          kind: TagMatchKind.values[hit >> 48],
+          origin: origin,
+          matchedAlias: isAlias ? index.tokens[token] : null,
+        ),
+      );
+      if (result.length >= limit) break;
+    }
+    return result;
   }
 }
 
@@ -729,6 +758,17 @@ _TagIndex _indexTagEntries(List<TagDictionaryEntry> entries) {
   final grouped = <String, List<int>>{};
   for (var i = 0; i < tokens.length; i++) {
     grouped.putIfAbsent(tokens[i][0], () => <int>[]).add(i);
+  }
+  // Lexicographic within each bucket, so a query's matches form one
+  // contiguous prefix range that a binary search can find — the alternative
+  // is a startsWith scan of the whole bucket per keystroke. Equal texts keep
+  // insertion order (= popularity order) via the explicit index tie-break;
+  // List.sort makes no stability promise.
+  for (final indices in grouped.values) {
+    indices.sort((a, b) {
+      final byText = tokens[a].compareTo(tokens[b]);
+      return byText != 0 ? byText : a.compareTo(b);
+    });
   }
 
   return _TagIndex(
