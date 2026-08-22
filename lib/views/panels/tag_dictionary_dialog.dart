@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -220,9 +221,19 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
   /// be silenced is an alarm.
   bool _missingDismissed = false;
 
+  /// Bumped whenever any backing service notifies; part of the row cache key
+  /// so a dictionary download, a glossary edit or a meta write recomputes
+  /// the list while plain rebuilds reuse it.
+  int _serviceRevision = 0;
+  late final Listenable _services;
+
+  void _onServicesChanged() => _serviceRevision++;
+
   @override
   void initState() {
     super.initState();
+    _services = Listenable.merge([_dictionary, _glossary, _meta]);
+    _services.addListener(_onServicesChanged);
     if (widget.fetchOnOpen && _selected != null) {
       // After the first frame: the lookup calls setState, and the snack bar it
       // may raise needs a mounted ScaffoldMessenger.
@@ -234,8 +245,28 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
 
   @override
   void dispose() {
+    _services.removeListener(_onServicesChanged);
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  Timer? _searchDebounce;
+
+  /// Keystrokes land in the controller immediately; the row recompute waits
+  /// out a short pause. Recomputing the list is O(dataset vocabulary) with a
+  /// regex fold per tag, and running that between every two keystrokes of a
+  /// word is what made typing here stutter. Clearing skips the wait — an
+  /// empty query must feel like a reset, not a request.
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    if (value.trim().isEmpty) {
+      setState(() => _query = value);
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 150), () {
+      if (mounted) setState(() => _query = value);
+    });
   }
 
   TagDictionaryService get _dictionary =>
@@ -260,10 +291,23 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
 
   // --- The list ---------------------------------------------------------
 
+  // Keyed on the entry list's identity — the service reassigns it on every
+  // change — because [_isCustom] used to rebuild this whole set to answer a
+  // single membership test, once per build of the right pane.
+  Set<String>? _customKeysCache;
+  List<TagDictionaryEntry>? _customKeysSource;
+
   /// [tagLookupKey] of every tag the user added by hand.
-  Set<String> get _customKeys => {
-    for (final entry in _dictionary.customEntries) tagLookupKey(entry.name),
-  };
+  Set<String> get _customKeys {
+    final entries = _dictionary.customEntries;
+    if (!identical(entries, _customKeysSource)) {
+      _customKeysSource = entries;
+      _customKeysCache = {
+        for (final entry in entries) tagLookupKey(entry.name),
+      };
+    }
+    return _customKeysCache!;
+  }
 
   bool _isCustom(String tag) => _customKeys.contains(tagLookupKey(tag));
 
@@ -287,8 +331,25 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
     );
   }
 
+  // Row-set memo: build() used to recompute every row (a lookup-key fold, two
+  // service lookups and a usage read per dataset tag) on each rebuild — twice
+  // when the batch pane was open — and every keystroke rebuilds. The key
+  // covers all local inputs; [_serviceRevision] covers the services.
+  List<_DictRow>? _rowsCache;
+  String? _rowsCacheKey;
+
   /// The rows to show, in display order.
   List<_DictRow> _rows() {
+    final cacheKey =
+        '$_serviceRevision|$_datasetOnly|${_filter.name}|${_query.trim()}';
+    if (_rowsCache != null && _rowsCacheKey == cacheKey) return _rowsCache!;
+    final rows = _computeRows();
+    _rowsCacheKey = cacheKey;
+    _rowsCache = rows;
+    return rows;
+  }
+
+  List<_DictRow> _computeRows() {
     final query = _query.trim();
     final custom = _customKeys;
 
@@ -383,17 +444,26 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
     return rows;
   }
 
+  List<({String tag, int count})>? _missingCache;
+  int _missingCacheRevision = -1;
+
   /// Dataset tags the dictionary has never heard of, busiest first. The one
   /// list that is worth putting in front of the user unprompted: these tags
   /// render untranslated everywhere and never reach the completion list.
   List<({String tag, int count})> _missingTags() {
     if (_missingDismissed || !_dictionary.isReady) return const [];
-    // Already busiest-first; the dataset index sorts on the same key.
-    return [
-      for (final tag in widget.scope.datasetTags)
-        if (_dictionary.lookup(tag) == null)
-          (tag: tag, count: widget.scope.usageOf(tag) ?? 0),
-    ];
+    // The scope is an immutable snapshot, so only the services can change
+    // the answer — no reason to walk the whole vocabulary per rebuild.
+    if (_missingCache == null || _missingCacheRevision != _serviceRevision) {
+      _missingCacheRevision = _serviceRevision;
+      // Already busiest-first; the dataset index sorts on the same key.
+      _missingCache = [
+        for (final tag in widget.scope.datasetTags)
+          if (_dictionary.lookup(tag) == null)
+            (tag: tag, count: widget.scope.usageOf(tag) ?? 0),
+      ];
+    }
+    return _missingCache!;
   }
 
   // --- Mutation ---------------------------------------------------------
@@ -1062,7 +1132,7 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
             hint: l10n.dictSearchHint,
             controller: _searchController,
             padding: EdgeInsets.zero,
-            onChanged: (value) => setState(() => _query = value),
+            onChanged: _onSearchChanged,
           ),
           entries: _toolbarEntries(l10n),
           overflowTooltip: l10n.moreActionsTooltip,
@@ -3312,26 +3382,31 @@ class _MiniAction extends StatelessWidget {
   }
 }
 
+// Measured once per label: the strip re-measures its whole row on every
+// rebuild of the dialog (each debounced keystroke), and the answers never
+// change while the app's font and locale stand still. Keyed on the style
+// inputs so a font/locale switch measures fresh instead of lying.
+final Map<String, double> _labelWidthCache = {};
+
 /// Width of [label] as this toolbar will draw it.
 ///
 /// Always measured at the *selected* weight, whatever the segment's current
 /// state: a control that grew by two pixels every time it was clicked would
 /// nudge its neighbours on every click.
 double _labelWidth(BuildContext context, String label) {
+  final style = DefaultTextStyle.of(context).style.merge(
+    const TextStyle(fontSize: AppText.secondary, fontWeight: FontWeight.w600),
+  );
+  final direction = Directionality.of(context);
+  final cacheKey = '${style.fontFamily}|${style.fontSize}|$direction|$label';
+  final cached = _labelWidthCache[cacheKey];
+  if (cached != null) return cached;
   final painter = TextPainter(
-    text: TextSpan(
-      text: label,
-      style: DefaultTextStyle.of(context).style.merge(
-        const TextStyle(
-          fontSize: AppText.secondary,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    ),
-    textDirection: Directionality.of(context),
+    text: TextSpan(text: label, style: style),
+    textDirection: direction,
     maxLines: 1,
   )..layout();
-  return painter.width;
+  return _labelWidthCache[cacheKey] = painter.width;
 }
 
 /// One choice inside the filter group.

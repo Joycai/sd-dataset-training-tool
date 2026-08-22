@@ -301,6 +301,15 @@ String joinCaptionText(
   return buffer.toString();
 }
 
+// Memoized process-wide, like the pinyin readings in tag_search.dart: the
+// fold is three replaceAlls plus a regex, and hot paths (dictionary rows,
+// library filtering, index lookups) run it over the same stable tag strings
+// on every pass. The mapping is deterministic, so entries never go stale;
+// the cap only bounds memory against pathological vocabularies.
+final Map<String, String> _lookupKeyCache = {};
+const int _lookupKeyCacheCap = 65536;
+final RegExp _blankRuns = RegExp(r'\s+');
+
 /// Folds a tag into the form the dictionary matches on: lower case, spaces
 /// instead of underscores, parentheses unescaped, runs of blanks collapsed.
 ///
@@ -308,13 +317,19 @@ String joinCaptionText(
 /// written `long hair`, `long_hair` or `smile \(expression\)`, while
 /// danbooru's own spelling is `long_hair`. Folding both sides means a user
 /// typing in their own style still reaches the canonical tag.
-String tagLookupKey(String tag) => tag
-    .replaceAll(r'\(', '(')
-    .replaceAll(r'\)', ')')
-    .replaceAll('_', ' ')
-    .trim()
-    .replaceAll(RegExp(r'\s+'), ' ')
-    .toLowerCase();
+String tagLookupKey(String tag) {
+  final cached = _lookupKeyCache[tag];
+  if (cached != null) return cached;
+  final key = tag
+      .replaceAll(r'\(', '(')
+      .replaceAll(r'\)', ')')
+      .replaceAll('_', ' ')
+      .trim()
+      .replaceAll(_blankRuns, ' ')
+      .toLowerCase();
+  if (_lookupKeyCache.length >= _lookupKeyCacheCap) _lookupKeyCache.clear();
+  return _lookupKeyCache[tag] = key;
+}
 
 /// Removes caption-style backslash escaping from a tag
 /// (`smile \(expression\)` → `smile (expression)`). The escaping exists for
