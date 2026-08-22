@@ -16,6 +16,10 @@ import 'package:dataset_training_tool/state/dataset_state.dart';
 /// Prose captions are described by a caption model instead of tagged, and
 /// JSON captions have no batch path at all. Before this, both were parsed as
 /// comma-separated tags and written back as one line, which destroyed them.
+///
+/// The model has to match the caption type in both directions, so the model
+/// guard is covered here too: a tagger under prose and a caption model under
+/// tags are each refused before any image is touched.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -25,9 +29,42 @@ void main() {
   late List<Map<String, dynamic>> sentRequests;
 
   /// What the fake server answers every interrogation with; set by
-  /// [buildState] so one client serves both states below.
+  /// [buildState] so every client below tells the same story.
   late String description;
-  late MockClient client;
+
+  /// A fresh client per service, never a shared one: [AiTaggerService.dispose]
+  /// closes the client it was handed, so the batch state disposing at the end
+  /// of a test would close it out from under [ai], which is still alive.
+  MockClient newClient() => MockClient((request) async {
+    Map<String, dynamic> body;
+    if (request.url.path == '/getconfig') {
+      body = {
+        'Interrogators': [
+          {'ModelName': 'wd-tagger', 'Category': 'tag'},
+          {'ModelName': 'joycaption', 'Category': 'caption'},
+        ],
+      };
+    } else {
+      sentRequests.add(jsonDecode(request.body) as Map<String, dynamic>);
+      body = {
+        'Success': true,
+        'ErrorMessage': '',
+        'Result': [
+          {
+            'ModelName': 'joycaption',
+            'Tags': [
+              {'Tag': description, 'Probability': 1.0},
+            ],
+          },
+        ],
+      };
+    }
+    return http.Response(
+      jsonEncode(body),
+      200,
+      headers: {'content-type': 'application/json'},
+    );
+  });
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
@@ -35,46 +72,18 @@ void main() {
     dataset = DatasetState();
     sentRequests = [];
     description = '';
-    client = MockClient((request) async {
-      Map<String, dynamic> body;
-      if (request.url.path == '/getconfig') {
-        body = {
-          'Interrogators': [
-            {'ModelName': 'wd-tagger', 'Category': 'tag'},
-            {'ModelName': 'joycaption', 'Category': 'caption'},
-          ],
-        };
-      } else {
-        sentRequests.add(jsonDecode(request.body) as Map<String, dynamic>);
-        body = {
-          'Success': true,
-          'ErrorMessage': '',
-          'Result': [
-            {
-              'ModelName': 'joycaption',
-              'Tags': [
-                {'Tag': description, 'Probability': 1.0},
-              ],
-            },
-          ],
-        };
-      }
-      return http.Response(
-        jsonEncode(body),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    });
     // The AI state fetches the model list through its own service, and the
-    // category it reads there is what decides whether a prose run is allowed
-    // — so it has to talk to the same fake server as the batch.
+    // category it reads there is what decides whether a run is allowed — so
+    // it has to talk to the same fake server as the batch.
     ai = AiTaggerState(
       SettingsService(),
-      service: AiTaggerService(client: client),
+      service: AiTaggerService(client: newClient()),
     );
   });
 
   tearDown(() async {
+    ai.dispose();
+    dataset.dispose();
     await tempDir.delete(recursive: true);
   });
 
@@ -107,7 +116,7 @@ void main() {
       dataset: dataset,
       ai: ai,
       settings: SettingsService(),
-      service: AiTaggerService(client: client),
+      service: AiTaggerService(client: newClient()),
     );
   }
 
@@ -142,6 +151,46 @@ void main() {
 
     expect(state.changed, 0);
     expect(state.failed, 0);
+    state.dispose();
+  });
+
+  test('a caption file ending in a newline is left alone', () async {
+    // Files written by other tooling routinely end in a newline. The join
+    // never emits one, so comparing assembled text against the file would
+    // rewrite every such caption — and count it — for a run that added
+    // nothing.
+    final img = await addImage('a', caption: 'A girl smiles.\n');
+    await scan();
+    await ai.setModelName('joycaption');
+    final state = buildState(describeAs: 'A girl smiles.');
+
+    await state.run(files: [img], operationLabel: 'batch');
+
+    expect(state.changed, 0);
+    expect(state.failed, 0);
+    expect(
+      await File('${tempDir.path}/a.ntxt').readAsString(),
+      'A girl smiles.\n',
+    );
+    state.dispose();
+  });
+
+  test('overwrite leaves a caption that already says it alone', () async {
+    final img = await addImage('a', caption: 'A girl smiles.  Outdoors.');
+    await scan();
+    await ai.setModelName('joycaption');
+    final state = buildState(describeAs: 'A girl smiles. Outdoors.');
+    await state.setMode(BatchTagMode.overwrite);
+
+    await state.run(files: [img], operationLabel: 'batch');
+
+    // Same sentences, so the doubled space the user typed is not "a change"
+    // worth rewriting the file and filling the undo history over.
+    expect(state.changed, 0);
+    expect(
+      await File('${tempDir.path}/a.ntxt').readAsString(),
+      'A girl smiles.  Outdoors.',
+    );
     state.dispose();
   });
 
@@ -216,6 +265,25 @@ void main() {
     expect(sentRequests, isEmpty);
     expect(state.lastError, contains('caption model'));
     expect(await File('${tempDir.path}/a.ntxt').readAsString(), 'Keep me.');
+    state.dispose();
+  });
+
+  test('a caption model is refused for a tag caption type', () async {
+    final img = await addImage('a', caption: '1girl, smile', extension: '.txt');
+    await scan(extension: '.txt', format: CaptionFormat.tags);
+    final state = buildState(describeAs: 'A girl smiles, wearing a red hat.');
+    await ai.refreshModels();
+    await ai.setModelName('joycaption');
+
+    final ok = await state.run(files: [img], operationLabel: 'batch');
+
+    expect(ok, isFalse);
+    expect(sentRequests, isEmpty);
+    expect(state.lastError, contains('tagger'));
+    // Unguarded, the whole sentence lands as a single tag and the next parse
+    // shreds it at the comma inside it — in overwrite mode, across the
+    // whole dataset.
+    expect(await File('${tempDir.path}/a.txt').readAsString(), '1girl, smile');
     state.dispose();
   });
 

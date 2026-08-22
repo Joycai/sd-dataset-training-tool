@@ -500,6 +500,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiCaptionModelRequired => '当前模型输出的是标签，不是句子。请选择一个自然语言描述模型。';
 
   @override
+  String get aiTagModelRequired => '当前模型输出的是句子，不是标签。请选择一个打标模型。';
+
+  @override
   String get aiDescribeEmpty => '模型没有返回任何描述。';
 
   @override
@@ -608,6 +611,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get batchTagDoneTitle => '批量打标完成';
 
   @override
+  String get batchTagProseDoneTitle => '批量 AI 描述完成';
+
+  @override
   String batchTagDoneSummary(Object completed, Object changed, Object failed) {
     return '共处理 $completed 张：修改 $changed 张，失败 $failed 张。';
   }
@@ -629,6 +635,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get batchTagOperationLabel => '批量 AI 打标';
+
+  @override
+  String get batchTagProseOperationLabel => '批量 AI 描述';
 
   @override
   String get rightTabLibrary => '标签库';

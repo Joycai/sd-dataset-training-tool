@@ -78,6 +78,20 @@ class _CaptionPanelState extends State<CaptionPanel> {
     if (!session.format.isTagList) return;
 
     if (!await _ensureModel(ai)) return;
+    if (!mounted) return;
+    // The mirror of the guard in [_describeIntoProse]: a caption model answers
+    // with a sentence, and one sentence written into a tag caption re-parses
+    // into junk tags at every comma inside it. The model is the user's choice,
+    // so say so instead of writing it. A server that reports no category is
+    // trusted, same as the other direction.
+    if (ai.modelMismatches(wantCaption: false)) {
+      final l10n = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.aiTagModelRequired)));
+      await showAiParamsDialog(context, ai);
+      return;
+    }
 
     // Compare mode lives in the tags tab; make it visible right away so the
     // running indicator shows where the result will land.
@@ -136,10 +150,7 @@ class _CaptionPanelState extends State<CaptionPanel> {
     // sentences. The model is the user's choice, so say so instead of
     // writing it. A server that reports no category is trusted — the same
     // fallback the params dialog's threshold block uses.
-    final info = ai.selectedModel;
-    if (info != null &&
-        info.category.isNotEmpty &&
-        info.category != 'caption') {
+    if (ai.modelMismatches(wantCaption: true)) {
       messenger.showSnackBar(
         SnackBar(content: Text(l10n.aiCaptionModelRequired)),
       );

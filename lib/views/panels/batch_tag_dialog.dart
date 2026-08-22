@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 
 import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
-import '../../models/caption_type.dart';
 import '../../models/merge_rules.dart';
 import '../../state/ai_tagger_state.dart';
 import '../../state/batch_tag_state.dart';
@@ -46,6 +45,23 @@ Future<void> showBatchTagDialog(
 /// Content width of every view in this dialog. Wide enough that the mode
 /// selector fits four segments without clipping their labels.
 const double _dialogWidth = 440;
+
+/// The title row every view of this dialog shares. Factored because there are
+/// four of them and they have drifted once already: the config view was
+/// retitled for description runs while the progress and summary views went on
+/// calling the same run "tagging".
+Widget _dialogTitle(
+  BuildContext context,
+  String text, {
+  IconData icon = Icons.auto_awesome_motion,
+  Color? color,
+}) => Row(
+  children: [
+    Icon(icon, size: 18, color: color ?? context.semantic.muted),
+    const SizedBox(width: 8),
+    Expanded(child: Text(text, style: const TextStyle(fontSize: 15))),
+  ],
+);
 
 /// The label a rule set shows in the picker: its character name, else the
 /// trigger word it writes, else a placeholder.
@@ -122,9 +138,22 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
     final dataset = context.read<DatasetState>();
     _persistFields();
     final files = List.of(_targetFiles(dataset));
+    final describing = _batch.describing;
     setState(() => _started = true);
     // Not awaited: the dialog follows the run through the state's notifies.
-    _batch.run(files: files, operationLabel: l10n.batchTagOperationLabel);
+    // The state has no l10n of its own, so every string a run can surface is
+    // handed to it here — the same way the undo label always has been.
+    _batch.run(
+      files: files,
+      operationLabel: describing
+          ? l10n.batchTagProseOperationLabel
+          : l10n.batchTagOperationLabel,
+      emptyDescriptionMessage: l10n.aiDescribeEmpty,
+      unsupportedFormatMessage: l10n.batchTagJsonUnsupported,
+      wrongModelMessage: describing
+          ? l10n.aiCaptionModelRequired
+          : l10n.aiTagModelRequired,
+    );
   }
 
   @override
@@ -133,60 +162,25 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
     final batch = context.watch<BatchTagState>();
     if (batch.running) return _progressView(context, l10n, batch);
     if (_started) return _summaryView(context, l10n, batch);
-    return _configView(context, l10n);
+    return _configView(context, l10n, batch);
   }
 
   // --- Configuration --------------------------------------------------
 
-  Widget _configView(BuildContext context, AppLocalizations l10n) {
-    final semantic = context.semantic;
-    final ai = context.watch<AiTaggerState>();
-    final batch = context.watch<BatchTagState>();
-    final dataset = context.watch<DatasetState>();
-    final filtered = dataset.visibleFiles.length != dataset.scopedFiles.length;
-    final targetCount = _targetFiles(dataset).length;
-    // Prose is described, not tagged: the two tag-only modes are hidden and
-    // the state coerces them, so the segments must follow effectiveMode
-    // rather than the persisted choice.
-    final describing = batch.describing;
-    final mode = batch.effectiveMode;
-    final overwrite = mode == BatchTagMode.overwrite;
-    final recognizeOnly = mode == BatchTagMode.recognizeOnly;
-    final characterSheet = mode == BatchTagMode.characterSheet;
-    // A tagger's answer written into prose captions is the corruption this
-    // whole path exists to avoid; an unknown category (older server) is
-    // trusted, same as the single-image run.
-    final selected = ai.selectedModel;
-    final wrongModel =
-        describing &&
-        selected != null &&
-        selected.category.isNotEmpty &&
-        selected.category != 'caption';
-    final ruleSets = context.watch<AppState>().mergeRuleSets;
-    final canStart =
-        ai.modelName != null &&
-        targetCount > 0 &&
-        !wrongModel &&
-        (!characterSheet || batch.selectedRules != null);
-
+  Widget _configView(
+    BuildContext context,
+    AppLocalizations l10n,
+    BatchTagState batch,
+  ) {
     // JSON captions have no batch path at all: a flat result cannot be
     // serialized back into a document, and merging one in would rewrite every
     // caption as a comma line. Saying so beats a start button that destroys
-    // the dataset.
-    if (dataset.captionFormat == CaptionFormat.json) {
+    // the dataset. The state owns the rule; this renders it — first, so the
+    // whole configuration below (including a watch on AppState's rule sets)
+    // is never assembled just to be thrown away.
+    if (!batch.batchSupported) {
       return AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.auto_awesome_motion, size: 18, color: semantic.muted),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                l10n.batchTagTitle,
-                style: const TextStyle(fontSize: 15),
-              ),
-            ),
-          ],
-        ),
+        title: _dialogTitle(context, l10n.batchTagTitle),
         content: SizedBox(
           width: _dialogWidth,
           child: Text(
@@ -203,18 +197,35 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
       );
     }
 
+    final semantic = context.semantic;
+    final ai = context.watch<AiTaggerState>();
+    final dataset = context.watch<DatasetState>();
+    final filtered = dataset.visibleFiles.length != dataset.scopedFiles.length;
+    final targetCount = _targetFiles(dataset).length;
+    // Prose is described, not tagged: the two tag-only modes are hidden and
+    // the state coerces them, so the segments must follow effectiveMode
+    // rather than the persisted choice.
+    final describing = batch.describing;
+    final mode = batch.effectiveMode;
+    final overwrite = mode == BatchTagMode.overwrite;
+    final recognizeOnly = mode == BatchTagMode.recognizeOnly;
+    final characterSheet = mode == BatchTagMode.characterSheet;
+    // The model has to match the caption type in both directions — a tagger
+    // into prose, or a caption model into tags, is the corruption this whole
+    // path exists to avoid. An unknown category (older server) is trusted,
+    // same as the single-image run.
+    final wrongModel = ai.modelMismatches(wantCaption: describing);
+    final ruleSets = context.watch<AppState>().mergeRuleSets;
+    final canStart =
+        ai.modelName != null &&
+        targetCount > 0 &&
+        !wrongModel &&
+        (!characterSheet || batch.selectedRules != null);
+
     return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.auto_awesome_motion, size: 18, color: semantic.muted),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              describing ? l10n.batchTagProseTitle : l10n.batchTagTitle,
-              style: const TextStyle(fontSize: 15),
-            ),
-          ),
-        ],
+      title: _dialogTitle(
+        context,
+        describing ? l10n.batchTagProseTitle : l10n.batchTagTitle,
       ),
       content: SizedBox(
         width: _dialogWidth,
@@ -258,7 +269,9 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
-                    l10n.aiCaptionModelRequired,
+                    describing
+                        ? l10n.aiCaptionModelRequired
+                        : l10n.aiTagModelRequired,
                     style: TextStyle(
                       fontSize: 11.5,
                       color: Theme.of(context).colorScheme.error,
@@ -268,19 +281,18 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  Expanded(
-                    // Threshold, ignore list and tag normalization are tag
-                    // settings; none of them touches a description.
-                    child: describing
-                        ? const SizedBox.shrink()
-                        : Text(
-                            l10n.batchTagParamsHint,
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: semantic.muted,
-                            ),
-                          ),
-                  ),
+                  // Threshold, ignore list and tag normalization are tag
+                  // settings; none of them touches a description. The hint
+                  // goes, the flex slot stays so the button keeps its place.
+                  if (describing)
+                    const Spacer()
+                  else
+                    Expanded(
+                      child: Text(
+                        l10n.batchTagParamsHint,
+                        style: TextStyle(fontSize: 11.5, color: semantic.muted),
+                      ),
+                    ),
                   TextButton(
                     onPressed: () => showAiParamsDialog(
                       context,
@@ -361,60 +373,60 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
               ),
               const SizedBox(height: 14),
               // The preserved / keep-first-N / blacklist fields are all tag
-              // lists; a description has nothing to match them against.
-              if (describing)
-                const SizedBox.shrink()
-              else if (characterSheet)
+              // lists: a description has nothing to match them against, and
+              // recognize-only writes no caption at all. Both render nothing
+              // here rather than an empty placeholder widget.
+              if (characterSheet)
                 _SheetSection(batch: batch, ruleSets: ruleSets)
-              else if (recognizeOnly)
-                const SizedBox.shrink()
-              else if (overwrite) ...[
-                _FieldLabel(text: l10n.batchTagPreservedLabel),
-                TextField(
-                  controller: _preservedController,
-                  style: const TextStyle(fontSize: 13),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.batchTagPreservedDesc,
-                  style: TextStyle(fontSize: 11.5, color: semantic.muted),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        l10n.batchTagKeepFirstN,
-                        style: const TextStyle(fontSize: 13),
+              else if (!describing && !recognizeOnly) ...[
+                if (overwrite) ...[
+                  _FieldLabel(text: l10n.batchTagPreservedLabel),
+                  TextField(
+                    controller: _preservedController,
+                    style: const TextStyle(fontSize: 13),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    l10n.batchTagPreservedDesc,
+                    style: TextStyle(fontSize: 11.5, color: semantic.muted),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          l10n.batchTagKeepFirstN,
+                          style: const TextStyle(fontSize: 13),
+                        ),
                       ),
-                    ),
-                    SizedBox(
-                      width: 64,
-                      child: TextField(
-                        controller: _keepFirstNController,
-                        style: const TextStyle(fontSize: 13),
-                        textAlign: TextAlign.center,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
+                      SizedBox(
+                        width: 64,
+                        child: TextField(
+                          controller: _keepFirstNController,
+                          style: const TextStyle(fontSize: 13),
+                          textAlign: TextAlign.center,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ] else ...[
-                _FieldLabel(text: l10n.batchTagBlacklistLabel),
-                TextField(
-                  controller: _blacklistController,
-                  style: const TextStyle(fontSize: 13),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  l10n.batchTagBlacklistDesc,
-                  style: TextStyle(fontSize: 11.5, color: semantic.muted),
-                ),
+                    ],
+                  ),
+                ] else ...[
+                  _FieldLabel(text: l10n.batchTagBlacklistLabel),
+                  TextField(
+                    controller: _blacklistController,
+                    style: const TextStyle(fontSize: 13),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    l10n.batchTagBlacklistDesc,
+                    style: TextStyle(fontSize: 11.5, color: semantic.muted),
+                  ),
+                ],
               ],
               const SizedBox(height: 10),
               const Divider(),
@@ -490,17 +502,9 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
     final current = batch.currentPath;
 
     return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.auto_awesome_motion, size: 18, color: semantic.muted),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              l10n.batchTagTitle,
-              style: const TextStyle(fontSize: 15),
-            ),
-          ),
-        ],
+      title: _dialogTitle(
+        context,
+        batch.describing ? l10n.batchTagProseTitle : l10n.batchTagTitle,
       ),
       content: SizedBox(
         width: _dialogWidth,
@@ -582,24 +586,19 @@ class _BatchTagDialogState extends State<_BatchTagDialog> {
     final semantic = context.semantic;
     final scheme = Theme.of(context).colorScheme;
     final hasFailures = batch.failed > 0;
-    final recognizeOnly = batch.mode == BatchTagMode.recognizeOnly;
+    final describing = batch.describing;
+    // The run followed [effectiveMode], so the summary has to as well: a
+    // persisted recognize-only choice under a prose type still described and
+    // rewrote every caption, and reporting it as a recognize run would claim
+    // nothing was written and point at a compare mode that never opened.
+    final recognizeOnly = batch.effectiveMode == BatchTagMode.recognizeOnly;
 
     return AlertDialog(
-      title: Row(
-        children: [
-          Icon(
-            hasFailures ? Icons.error_outline : Icons.check_circle_outline,
-            size: 18,
-            color: hasFailures ? semantic.warn : semantic.ok,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              l10n.batchTagDoneTitle,
-              style: const TextStyle(fontSize: 15),
-            ),
-          ),
-        ],
+      title: _dialogTitle(
+        context,
+        describing ? l10n.batchTagProseDoneTitle : l10n.batchTagDoneTitle,
+        icon: hasFailures ? Icons.error_outline : Icons.check_circle_outline,
+        color: hasFailures ? semantic.warn : semantic.ok,
       ),
       content: SizedBox(
         width: _dialogWidth,

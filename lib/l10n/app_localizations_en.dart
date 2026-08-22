@@ -520,6 +520,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'The selected model outputs tags, not sentences. Pick a natural-language caption model.';
 
   @override
+  String get aiTagModelRequired =>
+      'The selected model writes sentences, not tags. Pick a tagger model.';
+
+  @override
   String get aiDescribeEmpty => 'The model returned no description.';
 
   @override
@@ -636,6 +640,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get batchTagDoneTitle => 'Batch tagging finished';
 
   @override
+  String get batchTagProseDoneTitle => 'Batch AI description finished';
+
+  @override
   String batchTagDoneSummary(Object completed, Object changed, Object failed) {
     return '$completed images processed: $changed changed, $failed failed.';
   }
@@ -658,6 +665,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get batchTagOperationLabel => 'batch AI tagging';
+
+  @override
+  String get batchTagProseOperationLabel => 'batch AI description';
 
   @override
   String get rightTabLibrary => 'Library';
