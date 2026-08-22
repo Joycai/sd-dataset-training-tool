@@ -25,7 +25,18 @@ class EditorSession extends ChangeNotifier {
 
   File? _image;
   String _captionPath = '';
-  List<String> _tags = [];
+  List<String> _tagList = [];
+  // Lazy Set mirror of [_tagList]: [hasTag] is called once per chip by the
+  // tag library and the dataset tags panel, so membership must not be a list
+  // scan. Every mutation reassigns [_tags] (never edits in place), so the
+  // setter below is the single invalidation point.
+  Set<String>? _tagSet;
+
+  List<String> get _tags => _tagList;
+  set _tags(List<String> value) {
+    _tagList = value;
+    _tagSet = null;
+  }
   String? _anchorTag;
   SaveState _saveState = SaveState.clean;
   DateTime? _lastSavedAt;
@@ -167,7 +178,7 @@ class EditorSession extends ChangeNotifier {
 
   // --- Tag operations -------------------------------------------------
 
-  bool hasTag(String tag) => _tags.contains(tag);
+  bool hasTag(String tag) => (_tagSet ??= _tagList.toSet()).contains(tag);
 
   /// The insertion anchor: newly added tags are inserted right after this
   /// tag, and the anchor then moves onto the tag just inserted — exactly like
@@ -181,7 +192,7 @@ class EditorSession extends ChangeNotifier {
   /// Every add path — AI suggestions, tag library, the add input — funnels
   /// through [_insertTags], so one anchor covers them all.
   String? get anchorTag =>
-      (_anchorTag != null && _tags.contains(_anchorTag)) ? _anchorTag : null;
+      (_anchorTag != null && hasTag(_anchorTag!)) ? _anchorTag : null;
 
   void setAnchorTag(String? tag) {
     if (tag == _anchorTag) return;
@@ -205,7 +216,7 @@ class EditorSession extends ChangeNotifier {
   }
 
   void applyTag(String tag) {
-    if (_tags.contains(tag)) return;
+    if (hasTag(tag)) return;
     _insertTags([tag]);
   }
 
@@ -227,7 +238,7 @@ class EditorSession extends ChangeNotifier {
   /// caller means one of them — use [removeSentenceAt].
   void removeTag(String tag) {
     if (!tagsEditable) return;
-    if (!_tags.contains(tag)) return;
+    if (!hasTag(tag)) return;
     // The anchor memory intentionally survives: this image just falls back
     // to appending, and the next image containing the tag re-activates it.
     _tags = _tags.where((t) => t != tag).toList();
@@ -244,14 +255,14 @@ class EditorSession extends ChangeNotifier {
     final removed = _tags[index];
     _tags = [..._tags]..removeAt(index);
     // The anchor is a name; it only stops resolving if no copy is left.
-    if (removed == _anchorTag && !_tags.contains(removed)) _anchorTag = null;
+    if (removed == _anchorTag && !hasTag(removed)) _anchorTag = null;
     _writeTagsToText();
   }
 
   void toggleTag(String tag) => hasTag(tag) ? removeTag(tag) : applyTag(tag);
 
   void addTagsFromInput(String input) {
-    _insertTags(_parseFragment(input).where((t) => !_tags.contains(t)).toList());
+    _insertTags(_parseFragment(input).where((t) => !hasTag(t)).toList());
   }
 
   void _insertTags(List<String> parts) {

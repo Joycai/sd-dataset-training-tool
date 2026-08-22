@@ -225,9 +225,31 @@ class AgentChatState extends ChangeNotifier {
   /// Bumped on every transcript change; the panel uses it to auto-scroll.
   int revision = 0;
 
+  Timer? _streamNotifyTimer;
+
+  /// Streaming deltas arrive one per network chunk — often hundreds per
+  /// reply — and every listener repaints the whole panel (and the dock's
+  /// backdrop blur). One notification per ~2 frames is indistinguishable to
+  /// the eye and keeps the UI thread out of the transcript's way.
+  static const _streamNotifyInterval = Duration(milliseconds: 33);
+
   void _touch() {
     revision++;
+    // A structural change must not be reordered behind a pending delta tick.
+    _streamNotifyTimer?.cancel();
+    _streamNotifyTimer = null;
     notifyListeners();
+  }
+
+  /// [_touch] for text/reasoning deltas: coalesces bursts into at most one
+  /// notification per [_streamNotifyInterval].
+  void _touchCoalesced() {
+    revision++;
+    if (_streamNotifyTimer != null) return;
+    _streamNotifyTimer = Timer(_streamNotifyInterval, () {
+      _streamNotifyTimer = null;
+      notifyListeners();
+    });
   }
 
   /// Runs the character-sheet skill: the form's answers become one task
@@ -276,6 +298,12 @@ class AgentChatState extends ChangeNotifier {
     await _consume(session.resume());
   }
 
+  /// Feeds [_consume] a hand-built event stream, so the notification
+  /// coalescing can be asserted without standing up a session and a client.
+  @visibleForTesting
+  Future<void> consumeEventsForTest(Stream<AgentUiEvent> events) =>
+      _consume(events);
+
   Future<void> _consume(Stream<AgentUiEvent> events) async {
     AgentChatEntry? assistant;
     AgentChatEntry? reasoning;
@@ -286,8 +314,10 @@ class AgentChatState extends ChangeNotifier {
     AgentChatEntry? runningTool;
     try {
       await for (final event in events) {
+        var isDelta = false;
         switch (event) {
           case AgentTextDelta(:final text):
+            isDelta = true;
             reasoning = null; // answer text ends the thinking block
             if (assistant == null) {
               assistant = AgentChatEntry.assistant();
@@ -295,6 +325,7 @@ class AgentChatState extends ChangeNotifier {
             }
             assistant.text += text;
           case AgentReasoningDelta(:final text):
+            isDelta = true;
             if (reasoning == null) {
               reasoning = AgentChatEntry.reasoning();
               entries.add(reasoning);
@@ -340,7 +371,11 @@ class AgentChatState extends ChangeNotifier {
           case AgentFinished(:final reason, :final message, :final retryable):
             _onFinished(reason, message, retryable);
         }
-        _touch();
+        if (isDelta) {
+          _touchCoalesced();
+        } else {
+          _touch();
+        }
       }
     } finally {
       _busy = false;
@@ -648,6 +683,7 @@ class AgentChatState extends ChangeNotifier {
 
   @override
   void dispose() {
+    _streamNotifyTimer?.cancel();
     resolveConfirm(allow: false);
     resolveQuestion(null);
     resolveContinue(null);

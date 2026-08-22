@@ -170,6 +170,10 @@ class AssetsPanel extends StatelessWidget {
     // is on screen rather than by the size of the dataset.
     final ai = context.watch<AiTaggerState>();
 
+    // Hoisted out of the item builders: one read per list build, not one
+    // per visible row.
+    final selectedPath = dataset.selectedPath;
+
     if (columns == 1) {
       return ListView.builder(
         padding: const EdgeInsets.fromLTRB(6, 2, 6, 8),
@@ -185,7 +189,7 @@ class AssetsPanel extends StatelessWidget {
               : 0;
           return _FileRow(
             file: file,
-            selected: file.path == dataset.selectedFile?.path,
+            selected: file.path == selectedPath,
             captioned: dataset.hasCaption(file.path),
             tagCount: dataset.tagsOf(file.path).length,
             pendingReview: !ai.compareMode || !ai.hasResultFor(file.path)
@@ -209,7 +213,7 @@ class AssetsPanel extends StatelessWidget {
       itemCount: visible.length,
       itemBuilder: (context, index) {
         final file = visible[index];
-        final selected = file.path == dataset.selectedFile?.path;
+        final selected = file.path == selectedPath;
         final captioned = dataset.hasCaption(file.path);
         return _Thumbnail(
           file: file,

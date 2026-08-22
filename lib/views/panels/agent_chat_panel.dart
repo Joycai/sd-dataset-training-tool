@@ -16,21 +16,39 @@ import 'character_sheet_dialog.dart';
 import 'llm_profile_dialog.dart';
 import 'prompt_preset_dialog.dart';
 
+/// The chat bubbles' base text style; the streaming bubble renders with it
+/// directly so the switch to markdown at the end doesn't visibly reflow.
+const _chatTextStyle = TextStyle(fontSize: 12.5, height: 1.45);
+
+// Built once per brightness: the config depends on nothing else, and a fresh
+// copy per bubble per rebuild made every visible message re-parse while text
+// streamed in.
+MarkdownConfig? _chatConfigLight;
+MarkdownConfig? _chatConfigDark;
+
+MarkdownConfig _chatConfig(bool isDark) {
+  final cached = isDark ? _chatConfigDark : _chatConfigLight;
+  if (cached != null) return cached;
+  final base = isDark
+      ? MarkdownConfig.darkConfig
+      : MarkdownConfig.defaultConfig;
+  final config = base.copy(configs: [PConfig(textStyle: _chatTextStyle)]);
+  if (isDark) {
+    _chatConfigDark = config;
+  } else {
+    _chatConfigLight = config;
+  }
+  return config;
+}
+
 /// Markdown rendering shared by the user and assistant bubbles: the preset
 /// for the current brightness with the chat's compact font size.
 Widget chatMarkdown(BuildContext context, String text) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final base = isDark
-      ? MarkdownConfig.darkConfig
-      : MarkdownConfig.defaultConfig;
   return MarkdownBlock(
     data: text,
     selectable: true,
-    config: base.copy(
-      configs: [
-        PConfig(textStyle: const TextStyle(fontSize: 12.5, height: 1.45)),
-      ],
-    ),
+    config: _chatConfig(isDark),
   );
 }
 
@@ -51,6 +69,10 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
   final ScrollController _scroll = ScrollController();
   final FocusNode _inputFocus = FocusNode();
   int _lastRevision = -1;
+
+  /// How far above the bottom still counts as "at the bottom" for the
+  /// auto-scroll — roughly one bubble of slack.
+  static const double _autoScrollSlack = 48;
 
   @override
   void dispose() {
@@ -142,6 +164,14 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
   void _autoScroll(AgentChatState chat) {
     if (chat.revision == _lastRevision) return;
     _lastRevision = chat.revision;
+    // Follow the stream only while the user is already at the bottom:
+    // yanking the viewport down while they are scrolled up reading earlier
+    // output loses their place (and forces a tail relayout for nothing).
+    if (_scroll.hasClients &&
+        _scroll.position.pixels <
+            _scroll.position.maxScrollExtent - _autoScrollSlack) {
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scroll.hasClients) return;
       _scroll.jumpTo(_scroll.position.maxScrollExtent);
@@ -167,6 +197,12 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
                   itemCount: chat.entries.length,
                   itemBuilder: (context, index) => _EntryRow(
                     entry: chat.entries[index],
+                    // The bubble still growing renders as plain text: parsing
+                    // the accumulated markdown on every delta is O(len²) over
+                    // one reply. It becomes markdown on the next rebuild
+                    // after its last delta (a tool call or the run's end).
+                    streaming:
+                        chat.busy && index == chat.entries.length - 1,
                     // Only the failure at the end of the transcript can be
                     // retried: anything above it has been overtaken by
                     // whatever the conversation did next.
@@ -662,9 +698,13 @@ class _NoProfileHint extends StatelessWidget {
 }
 
 class _EntryRow extends StatelessWidget {
-  const _EntryRow({required this.entry, this.onRetry});
+  const _EntryRow({required this.entry, this.streaming = false, this.onRetry});
 
   final AgentChatEntry entry;
+
+  /// True for the transcript's last row while a run is in flight — its text
+  /// may still be growing, so the assistant bubble skips markdown.
+  final bool streaming;
 
   /// Non-null on a failed run the user can send again; the error card turns
   /// it into a button.
@@ -698,7 +738,9 @@ class _EntryRow extends StatelessWidget {
       case AgentEntryKind.assistant:
         return Padding(
           padding: const EdgeInsets.only(bottom: 8, right: 12),
-          child: chatMarkdown(context, entry.text),
+          child: streaming
+              ? Text(entry.text, style: _chatTextStyle)
+              : chatMarkdown(context, entry.text),
         );
       case AgentEntryKind.tool:
         return _ToolCard(entry: entry);
