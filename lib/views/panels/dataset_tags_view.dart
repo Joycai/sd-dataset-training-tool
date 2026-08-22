@@ -16,6 +16,11 @@ import 'tag_dictionary_dialog.dart';
 
 enum _EditMode { replace, insertBefore, insertAfter }
 
+/// Tags per lazily built chip Wrap. Small enough that one chunk is a few
+/// rows (lazy layout stays viewport-bounded), large enough that the scroll
+/// extent estimate doesn't wobble.
+const int _chunkSize = 60;
+
 enum _AddPosition { head, tail, at }
 
 /// Right panel, "Dataset" tab: every tag in the dataset with its image count.
@@ -449,32 +454,51 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
                     ),
                   ),
                 )
-              : SingleChildScrollView(
+              // Lazy, in chunks: a single Wrap holding one chip per unique
+              // tag laid out thousands of text runs on every rebuild. Chunks
+              // of [_chunkSize] tags each get their own small Wrap inside a
+              // ListView.builder, so build and layout stay bounded by the
+              // viewport, not the vocabulary. A chunk boundary can leave one
+              // ragged row — invisible in a tag cloud, and the price of
+              // wrapping variable-width chips lazily.
+              : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.datasetTagsHint,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.3,
-                          color: semantic.muted,
+                  itemCount: 1 + (visibleTags.length + _chunkSize - 1) ~/ _chunkSize,
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          l10n.datasetTagsHint,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                            color: semantic.muted,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      // The dictionary notifies on its own (a download ticks
-                      // every 256 KB) and AppState never forwards that, so the
-                      // "not in the dictionary" marking subscribes to it
-                      // directly — and only the chip wrap rebuilds.
-                      ListenableBuilder(
-                        listenable: dictionary,
-                        builder: (context, _) => Wrap(
+                      );
+                    }
+                    final start = (index - 1) * _chunkSize;
+                    final end = start + _chunkSize > visibleTags.length
+                        ? visibleTags.length
+                        : start + _chunkSize;
+                    // The dictionary notifies on its own (a download ticks
+                    // every 256 KB) and AppState never forwards that, so the
+                    // "not in the dictionary" marking subscribes to it
+                    // directly — per chunk, so a tick only rebuilds the
+                    // chips actually on screen.
+                    return ListenableBuilder(
+                      listenable: dictionary,
+                      builder: (context, _) => Padding(
+                        // Continues the Wrap's runSpacing across the chunk
+                        // boundary.
+                        padding: const EdgeInsets.only(bottom: 7),
+                        child: Wrap(
                           spacing: 7,
                           runSpacing: 7,
                           children: [
-                            for (final entry in visibleTags)
+                            for (final entry in visibleTags.sublist(start, end))
                               _DatasetTagChip(
                                 entry: entry,
                                 applied: session.hasTag(entry.tag),
@@ -504,8 +528,8 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
                           ],
                         ),
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
         ),
       ],
