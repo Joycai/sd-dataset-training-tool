@@ -159,4 +159,38 @@ void main() {
     // covering the viewport, so the fitted view is as far out as it goes.
     expect(scaleOf(tester), closeTo(_fittedScale, 1e-9));
   });
+
+  testWidgets('browsing decodes bounded, zooming past 2x goes full-res', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await tester.pump();
+
+    ImageProvider provider() =>
+        tester.widget<Image>(find.byType(Image)).image;
+
+    // The fitted view shows a viewport-bounded decode, never the raw file.
+    expect(provider(), isA<ResizeImage>());
+
+    // 100% → 125% → 156% → 195% stays bounded; 244% crosses the threshold.
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pump();
+    }
+    expect(provider(), isA<ResizeImage>());
+
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pump();
+    expect(provider(), isA<FileImage>());
+
+    // Zooming back out keeps the full decode — no re-decode churn…
+    await tester.tap(find.text('Fit to window'));
+    await tester.pump();
+    expect(provider(), isA<FileImage>());
+
+    // …but the next image starts bounded again.
+    dataset.select(p.join(tempDir.path, '002.png'));
+    await tester.pump();
+    expect(provider(), isA<ResizeImage>());
+  });
 }

@@ -88,7 +88,13 @@ class _ImagePreviewWindowState extends State<ImagePreviewWindow> {
                       transformationController: _transformationController,
                       minScale: 0.1,
                       maxScale: 4.0,
-                      child: Image.file(imageFile, fit: BoxFit.contain),
+                      // Keeps the previous frame up while the next decodes,
+                      // so stepping through images doesn't flash to black.
+                      child: Image.file(
+                        imageFile,
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
+                      ),
                     ),
                   ),
                   IconButton(
