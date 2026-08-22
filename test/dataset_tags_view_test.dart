@@ -486,4 +486,31 @@ void main() {
     await openDatasetTab(tester, width: 200);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('a large vocabulary builds lazily, not all at once', (
+    tester,
+  ) async {
+    // 300 unique tags on one image, injected in memory — no file IO here:
+    // inside testWidgets' fake-async zone a disk round-trip never completes.
+    // Equal counts sort alphabetically, so tag000 is first and tag299 last.
+    final many = [for (var i = 0; i < 300; i++) 'tag${'$i'.padLeft(3, '0')}'];
+    dataset.updateCaptionText(p.join(tempDir.path, '001.png'), many.join(', '));
+
+    await openDatasetTab(tester);
+
+    // The viewport holds the first rows; the tail chunks must not have been
+    // built at all — that is the virtualization this list exists for.
+    expect(find.text('tag000'), findsOneWidget);
+    expect(find.text('tag299'), findsNothing);
+
+    // Scrolling brings the tail into existence. Stepwise: the lazy list's
+    // scroll extent is estimated and grows as chunks build, so one huge drag
+    // clamps short of the true bottom.
+    for (var i = 0; i < 20 && !tester.any(find.text('tag299')); i++) {
+      await tester.drag(find.byType(ListView).last, const Offset(0, -600));
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+    expect(find.text('tag299'), findsOneWidget);
+  });
 }
