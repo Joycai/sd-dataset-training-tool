@@ -107,14 +107,21 @@ class _TagLibraryPanelState extends State<TagLibraryPanel> {
           ),
           const Divider(),
           Expanded(
-            // IndexedStack keeps both tabs alive so scroll positions and
-            // filter text survive switching.
+            // IndexedStack keeps both tabs' State objects alive so filter
+            // text, status pills and organize-mode selections survive
+            // switching — but the hidden side builds as a SizedBox.shrink
+            // (see the `active` flags): a mounted-but-inactive tab used to
+            // keep watching four notifiers and re-laying-out its whole chip
+            // wrap on every caption keystroke, offscreen.
             child: IndexedStack(
               index: tab.index,
               sizing: StackFit.expand,
               children: [
-                _LibraryView(filterFocusNode: widget.filterFocusNode),
-                const DatasetTagsView(),
+                _LibraryView(
+                  filterFocusNode: widget.filterFocusNode,
+                  active: tab == InspectorTab.library,
+                ),
+                DatasetTagsView(active: tab == InspectorTab.dataset),
               ],
             ),
           ),
@@ -149,9 +156,14 @@ class _TagDrag {
 /// current image does or does not carry, and the dataset switch hides library
 /// tags this dataset never uses.
 class _LibraryView extends StatefulWidget {
-  const _LibraryView({this.filterFocusNode});
+  const _LibraryView({this.filterFocusNode, this.active = true});
 
   final FocusNode? filterFocusNode;
+
+  /// Whether this tab is the one the IndexedStack shows. Inactive, the view
+  /// builds as an empty box: the State survives (filter, pills, selections),
+  /// but no notifier subscriptions and no offscreen chip layout.
+  final bool active;
 
   @override
   State<_LibraryView> createState() => _LibraryViewState();
@@ -159,6 +171,10 @@ class _LibraryView extends StatefulWidget {
 
 class _LibraryViewState extends State<_LibraryView> {
   String _filter = '';
+
+  /// Owned here, not by the TextField: the field unmounts while the tab is
+  /// inactive, and its internal controller would take the typed text with it.
+  final TextEditingController _filterController = TextEditingController();
   _LibraryStatus _status = _LibraryStatus.all;
 
   /// Hides library tags no image in the current scope carries — the other
@@ -174,6 +190,12 @@ class _LibraryViewState extends State<_LibraryView> {
 
   /// Last tag clicked without Shift; the other end of a Shift range.
   String? _anchor;
+
+  @override
+  void dispose() {
+    _filterController.dispose();
+    super.dispose();
+  }
 
   /// Sections the user opened past the two-row cap. Per session, unlike the
   /// collapsed state: "show me the rest of this group" is a momentary need,
@@ -808,6 +830,13 @@ class _LibraryViewState extends State<_LibraryView> {
 
   @override
   Widget build(BuildContext context) {
+    // The inactive tab contributes nothing — and, crucially, watches
+    // nothing: returning before the watch() calls drops this element's
+    // provider subscriptions, so caption keystrokes and library edits no
+    // longer rebuild (and the IndexedStack no longer lays out) a tab the
+    // user cannot see.
+    if (!widget.active) return const SizedBox.shrink();
+
     final l10n = AppLocalizations.of(context)!;
     final semantic = context.semantic;
     final scheme = Theme.of(context).colorScheme;
@@ -898,6 +927,7 @@ class _LibraryViewState extends State<_LibraryView> {
               Expanded(
                 child: PanelSearchField(
                   hint: l10n.filterTagsHint,
+                  controller: _filterController,
                   focusNode: widget.filterFocusNode,
                   onChanged: (value) => setState(() => _filter = value),
                   padding: EdgeInsets.zero,
