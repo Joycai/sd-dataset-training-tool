@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -18,6 +19,21 @@ const double _minScale = 1.0;
 const double _maxScale = 8;
 const double _zoomStep = 1.25;
 
+/// Zoom level at which the panel swaps the bounded browse decode for the
+/// full-resolution image. The browse decode carries [_browseHeadroom] of
+/// spare pixels, so the swap happens before the bounded copy runs out of
+/// detail; past it the user is inspecting pixels and full resolution is the
+/// point.
+const double _fullResScale = 2.0;
+
+/// How much larger than the viewport the browse decode is, so mild zooming
+/// stays sharp without paying for pixels the panel cannot show.
+const double _browseHeadroom = 1.5;
+
+/// Browse decode widths are quantized to this step so dragging the panel
+/// splitter doesn't mint a new cache entry (and a new decode) per pixel.
+const int _decodeWidthStep = 256;
+
 /// Center-top: the inline preview. Shows the selected image with pan/zoom,
 /// a filename/resolution chip, and previous/next + window controls.
 class PreviewPanel extends StatefulWidget {
@@ -31,23 +47,78 @@ class PreviewPanel extends StatefulWidget {
 
 class _PreviewPanelState extends State<PreviewPanel> {
   final TransformationController _transformation = TransformationController();
-  ImageStream? _imageStream;
-  ImageStreamListener? _imageListener;
   String? _resolvedPath;
+
+  /// Whether the current image has escalated to a full-resolution decode.
+  /// One-way per image (zooming back out keeps it — re-decoding the bounded
+  /// copy just to save memory the cache will reclaim anyway is churn); reset
+  /// when the selection moves.
+  bool _fullRes = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _transformation.addListener(_onTransformChanged);
+  }
 
   @override
   void dispose() {
-    _detachImageStream();
+    _transformation.removeListener(_onTransformChanged);
     _transformation.dispose();
     super.dispose();
   }
 
-  void _detachImageStream() {
-    if (_imageStream != null && _imageListener != null) {
-      _imageStream!.removeListener(_imageListener!);
+  void _onTransformChanged() {
+    if (_fullRes) return;
+    if (_transformation.value.getMaxScaleOnAxis() >= _fullResScale - 1e-6) {
+      setState(() => _fullRes = true);
     }
-    _imageStream = null;
-    _imageListener = null;
+  }
+
+  /// The provider the canvas shows: bounded to the viewport (plus headroom)
+  /// while browsing, the real file once the user zooms in.
+  ///
+  /// The bound is what keeps arrow-key browsing responsive — a 24MP source
+  /// decodes to ~96MB of RGBA at full size, which both janks the decode and
+  /// evicts everything else from the image cache, so every revisit decoded
+  /// again from disk.
+  ImageProvider _providerFor(File file, double viewportWidth, double dpr) =>
+      _fullRes ? FileImage(file) : _browseProvider(file, viewportWidth, dpr);
+
+  ImageProvider _browseProvider(File file, double viewportWidth, double dpr) {
+    final target =
+        ((viewportWidth * dpr * _browseHeadroom) / _decodeWidthStep).ceil() *
+        _decodeWidthStep;
+    // Default policy + null height: decoded at [target] wide preserving
+    // aspect ratio, and never upscaled past the source's own size.
+    return ResizeImage(FileImage(file), width: target);
+  }
+
+  /// The last selection a neighbour precache ran for.
+  String? _precachedFor;
+
+  /// Warms the cache with the previous/next image at browse size, so an
+  /// arrow-key step shows a decoded picture instead of starting one.
+  void _precacheNeighbors(
+    List<File> visible,
+    int index,
+    String currentPath,
+    double viewportWidth,
+    double dpr,
+  ) {
+    if (_precachedFor == currentPath || index < 0) return;
+    _precachedFor = currentPath;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _precachedFor != currentPath) return;
+      for (final at in [index - 1, index + 1]) {
+        if (at < 0 || at >= visible.length) continue;
+        precacheImage(
+          _browseProvider(visible[at], viewportWidth, dpr),
+          context,
+          onError: (_, _) {},
+        );
+      }
+    });
   }
 
   /// Zooms by [factor] about the middle of the viewport, so the part of the
@@ -75,26 +146,34 @@ class _PreviewPanelState extends State<PreviewPanel> {
 
   void _resetZoom() => _transformation.value = Matrix4.identity();
 
-  /// Reads the decoded dimensions off the image cache (the same FileImage is
-  /// used for display, so this does not decode twice). Deferred to after the
-  /// frame: a cached image completes synchronously on addListener, and the
-  /// resulting notifyListeners must not fire during build.
+  /// Reads the source dimensions from the file's header via
+  /// [ui.ImageDescriptor] — no bitmap decode. The display path uses a
+  /// bounded [ResizeImage] while browsing, so resolving a FileImage here
+  /// (the old way) would have forced the very full-resolution decode the
+  /// bound exists to avoid. Deferred to after the frame: the resulting
+  /// notifyListeners must not fire during build.
   void _resolveDimensions(File file, EditorSession session) {
     if (_resolvedPath == file.path) return;
     _resolvedPath = file.path;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _fullRes = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted || _resolvedPath != file.path) return;
-      _detachImageStream();
       _transformation.value = Matrix4.identity();
-
-      final stream = FileImage(file).resolve(const ImageConfiguration());
-      final listener = ImageStreamListener((info, _) {
-        session.setImageDimensions(info.image.width, info.image.height);
-        info.dispose();
-      }, onError: (_, _) {});
-      _imageStream = stream;
-      _imageListener = listener;
-      stream.addListener(listener);
+      try {
+        final buffer = await ui.ImmutableBuffer.fromFilePath(file.path);
+        try {
+          final descriptor = await ui.ImageDescriptor.encoded(buffer);
+          if (mounted && _resolvedPath == file.path) {
+            session.setImageDimensions(descriptor.width, descriptor.height);
+          }
+          descriptor.dispose();
+        } finally {
+          buffer.dispose();
+        }
+      } catch (_) {
+        // Unreadable file: the canvas shows the broken-image glyph; the
+        // status bar simply goes without a resolution.
+      }
     });
   }
 
@@ -111,7 +190,8 @@ class _PreviewPanelState extends State<PreviewPanel> {
       _resolveDimensions(file, session);
     } else {
       _resolvedPath = null;
-      _detachImageStream();
+      _precachedFor = null;
+      _fullRes = false;
     }
 
     final visible = dataset.visibleFiles;
@@ -137,37 +217,52 @@ class _PreviewPanelState extends State<PreviewPanel> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          InteractiveViewer(
-            transformationController: _transformation,
-            minScale: _minScale,
-            maxScale: _maxScale,
-            child: Center(
-              // The rounded corners and the drop shadow belong to the image,
-              // not to a frame around it: the canvas itself is the window
-              // background, so the picture reads as a sheet lying on it.
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadii.window),
-                  boxShadow: [
-                    BoxShadow(
-                      color: semantic.shadow,
-                      blurRadius: 40,
-                      offset: const Offset(0, 12),
+          LayoutBuilder(
+            builder: (context, viewport) {
+              final dpr = MediaQuery.devicePixelRatioOf(context);
+              _precacheNeighbors(
+                visible,
+                index,
+                file.path,
+                viewport.maxWidth,
+                dpr,
+              );
+              return InteractiveViewer(
+                transformationController: _transformation,
+                minScale: _minScale,
+                maxScale: _maxScale,
+                child: Center(
+                  // The rounded corners and the drop shadow belong to the
+                  // image, not to a frame around it: the canvas itself is the
+                  // window background, so the picture reads as a sheet lying
+                  // on it.
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppRadii.window),
+                      boxShadow: [
+                        BoxShadow(
+                          color: semantic.shadow,
+                          blurRadius: 40,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadii.window),
-                  child: Image.file(
-                    file,
-                    fit: BoxFit.contain,
-                    gaplessPlayback: true,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.broken_image_outlined, size: 40),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadii.window),
+                      child: Image(
+                        image: _providerFor(file, viewport.maxWidth, dpr),
+                        fit: BoxFit.contain,
+                        // Keeps the bounded copy on screen while the full-res
+                        // decode (or the next image) arrives.
+                        gaplessPlayback: true,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.broken_image_outlined, size: 40),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
           Positioned(
             top: 12,
