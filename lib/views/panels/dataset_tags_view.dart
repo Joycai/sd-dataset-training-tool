@@ -1151,11 +1151,22 @@ class _DatasetTagChip extends StatelessWidget {
       textColor = semantic.muted;
     }
 
+    // Disabled chips dim to 55%. The dim is mixed into the colours rather
+    // than applied with an Opacity widget: every chip goes disabled at once
+    // (no image selected, or a batch running), and one saveLayer per chip
+    // across a few hundred chips cost the raster thread ~10 ms a frame at 4K.
+    Color ink(Color color) => enabled
+        ? color
+        : dimDisabled(color, backdrop: semantic.panel, over: fill);
+    final fillColor = enabled
+        ? fill
+        : dimDisabled(fill, backdrop: semantic.panel);
+
     final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2.5),
       decoration: BoxDecoration(
-        color: fill,
-        border: Border.all(color: border),
+        color: fillColor,
+        border: Border.all(color: ink(border)),
         borderRadius: BorderRadius.circular(AppRadii.pill),
       ),
       child: Row(
@@ -1165,25 +1176,25 @@ class _DatasetTagChip extends StatelessWidget {
             Icon(
               filterExclude ? Icons.block_outlined : Icons.filter_alt_outlined,
               size: 10,
-              color: filterExclude ? scheme.error : scheme.primary,
+              color: ink(filterExclude ? scheme.error : scheme.primary),
             ),
             const SizedBox(width: 4),
           ] else if (applied) ...[
-            Icon(Icons.check, size: 10, color: semantic.ok),
+            Icon(Icons.check, size: 10, color: ink(semantic.ok)),
             const SizedBox(width: 4),
           ],
           Text(
             entry.tag,
-            style: TextStyle(fontSize: AppText.small, color: textColor),
+            style: TextStyle(fontSize: AppText.small, color: ink(textColor)),
           ),
-          TagGlossLabel(entry.tag),
+          TagGlossLabel(entry.tag, color: ink(semantic.muted)),
           const SizedBox(width: 5),
           Text(
             '${entry.count}',
             style: monoStyle(
               context,
               size: AppText.micro,
-              color: semantic.muted,
+              color: ink(semantic.muted),
             ),
           ),
         ],
@@ -1205,16 +1216,13 @@ class _DatasetTagChip extends StatelessWidget {
         ? unknownHint
         : '$gloss — $unknownHint';
 
-    return Opacity(
-      opacity: enabled ? 1 : 0.55,
-      child: GestureDetector(
-        onTap: enabled ? onTap : null,
-        onSecondaryTapDown: (details) => onContextMenu(details.globalPosition),
-        onLongPressStart: (details) => onContextMenu(details.globalPosition),
-        child: message == null
-            ? hovering
-            : Tooltip(message: message, child: hovering),
-      ),
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      onSecondaryTapDown: (details) => onContextMenu(details.globalPosition),
+      onLongPressStart: (details) => onContextMenu(details.globalPosition),
+      child: message == null
+          ? hovering
+          : Tooltip(message: message, child: hovering),
     );
   }
 }

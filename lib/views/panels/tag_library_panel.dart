@@ -2126,11 +2126,22 @@ class _LibraryTagChip extends StatelessWidget {
       textColor = semantic.muted;
     }
 
+    // Disabled chips dim to 55%, mixed into the colours rather than applied
+    // with an Opacity widget: with no image selected every chip in the
+    // library is disabled at once, and one saveLayer per chip across a few
+    // hundred chips cost the raster thread ~10 ms a frame at 4K.
+    Color ink(Color color) => enabled
+        ? color
+        : dimDisabled(color, backdrop: semantic.panel, over: bgColor);
+    final fillColor = enabled
+        ? bgColor
+        : dimDisabled(bgColor, backdrop: semantic.panel);
+
     final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2.5),
       decoration: BoxDecoration(
-        color: bgColor,
-        border: Border.all(color: borderColor),
+        color: fillColor,
+        border: Border.all(color: ink(borderColor)),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Row(
@@ -2143,11 +2154,11 @@ class _LibraryTagChip extends StatelessWidget {
             Icon(
               selected ? Icons.check_box : Icons.check_box_outline_blank,
               size: 12,
-              color: selected ? scheme.primary : semantic.muted,
+              color: ink(selected ? scheme.primary : semantic.muted),
             ),
             const SizedBox(width: 4),
           ] else if (applied) ...[
-            Icon(Icons.check, size: 10, color: semantic.ok),
+            Icon(Icons.check, size: 10, color: ink(semantic.ok)),
             const SizedBox(width: 4),
           ],
           if (dotColor != null) ...[
@@ -2156,7 +2167,7 @@ class _LibraryTagChip extends StatelessWidget {
               height: 6,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: dotColor,
+                color: ink(dotColor!),
               ),
             ),
             const SizedBox(width: 5),
@@ -2170,29 +2181,26 @@ class _LibraryTagChip extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: AppText.small, color: textColor),
+              style: TextStyle(fontSize: AppText.small, color: ink(textColor)),
             ),
           ),
-          TagGlossLabel(label),
+          TagGlossLabel(label, color: ink(semantic.muted)),
         ],
       ),
     );
 
-    return Opacity(
-      opacity: enabled ? 1 : 0.55,
-      child: GestureDetector(
-        onTap: enabled ? onTap : null,
-        onSecondaryTapDown: (details) => onContextMenu(details.globalPosition),
-        onLongPressStart: (details) => onContextMenu(details.globalPosition),
-        child: withTagGlossTooltip(
-          context: context,
-          tag: label,
-          child: MouseRegion(
-            cursor: enabled
-                ? SystemMouseCursors.click
-                : SystemMouseCursors.basic,
-            child: chip,
-          ),
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      onSecondaryTapDown: (details) => onContextMenu(details.globalPosition),
+      onLongPressStart: (details) => onContextMenu(details.globalPosition),
+      child: withTagGlossTooltip(
+        context: context,
+        tag: label,
+        child: MouseRegion(
+          cursor: enabled
+              ? SystemMouseCursors.click
+              : SystemMouseCursors.basic,
+          child: chip,
         ),
       ),
     );

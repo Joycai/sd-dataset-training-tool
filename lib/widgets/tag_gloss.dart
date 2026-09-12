@@ -87,10 +87,14 @@ class TagGlossLabel extends StatelessWidget {
     super.key,
     this.fontSize = AppText.micro,
     this.maxWidth = 132,
+    this.color,
   });
 
   final String tag;
   final double fontSize;
+
+  /// Overrides the muted default; disabled chips pass their pre-dimmed ink.
+  final Color? color;
 
   /// Chips size themselves to their content inside an unbounded `Wrap`, where
   /// `TextOverflow.ellipsis` never fires on its own. Capping the gloss keeps
@@ -109,7 +113,10 @@ class TagGlossLabel extends StatelessWidget {
           gloss,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: fontSize, color: context.semantic.muted),
+          style: TextStyle(
+            fontSize: fontSize,
+            color: color ?? context.semantic.muted,
+          ),
         ),
       ),
     );
