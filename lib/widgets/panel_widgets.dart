@@ -309,6 +309,17 @@ class SegmentedControl<T> extends StatelessWidget {
 ///
 /// The shadow is drawn outside the clip (a [BoxShadow] on the clipped child
 /// would be cut off by its own [ClipRRect]).
+///
+/// Every [BackdropFilter] reads the whole render target back before it can
+/// blur, so the cost is per filter, not per pixel or per sigma: at 4K one
+/// surface is a full 60 Hz frame budget on an integrated GPU, and the control
+/// bar plus the assistant dock plus a dialog ran at 26-36 fps. Surfaces that
+/// sit under a [BackdropGroup] share one snapshot instead via
+/// [BackdropFilter.grouped], which took that worst case back under 20 ms.
+/// The group is discovered from the context rather than passed in, so a
+/// dialog or menu, pushed as a route and never a descendant of the workbench,
+/// keeps its own filter automatically, which it must: it blurs the grouped
+/// surfaces themselves.
 class GlassSurface extends StatelessWidget {
   const GlassSurface({
     super.key,
@@ -332,6 +343,16 @@ class GlassSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     final semantic = context.semantic;
     final radius = borderRadius ?? BorderRadius.circular(AppRadii.card);
+    final filter = ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma);
+    final content = Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: semantic.glass,
+        borderRadius: radius,
+        border: Border.all(color: semantic.line),
+      ),
+      child: child,
+    );
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -348,18 +369,9 @@ class GlassSurface extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: radius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(
-              color: semantic.glass,
-              borderRadius: radius,
-              border: Border.all(color: semantic.line),
-            ),
-            child: child,
-          ),
-        ),
+        child: BackdropGroup.of(context) != null
+            ? BackdropFilter.grouped(filter: filter, child: content)
+            : BackdropFilter(filter: filter, child: content),
       ),
     );
   }

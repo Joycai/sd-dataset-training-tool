@@ -491,9 +491,16 @@ class _WorkbenchViewState extends State<WorkbenchView> {
             Expanded(
               // The assistant floats over this area, so it is a Stack rather
               // than another column.
+              //
+              // The BackdropGroup lets the glass surfaces living here, the
+              // canvas control bar and the assistant dock, blur from one
+              // shared snapshot of this subtree instead of each reading the
+              // render target back on its own (see GlassSurface). Dialogs are
+              // routes above the Navigator, so they stay outside the group.
               child: LayoutBuilder(
-                builder: (context, area) => Stack(
-                  children: [
+                builder: (context, area) => BackdropGroup(
+                  child: Stack(
+                    children: [
                     Positioned.fill(
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -653,9 +660,13 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                         ],
                       ),
                     ),
-                    if (_agentOpen)
-                      AgentDock(area: area.biggest, onClose: _toggleAgentPanel),
-                  ],
+                      if (_agentOpen)
+                        AgentDock(
+                          area: area.biggest,
+                          onClose: _toggleAgentPanel,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
