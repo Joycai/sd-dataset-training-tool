@@ -119,6 +119,7 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 | C5 | `8738826` | 同上 |
 | C6 | `da89230` | 文档 |
 | review 修复 | `917cc82` 及之后 | 文档（单片 review 与整体 review 的修复） |
+| 合入 main | `2481f31` | 带入 PR #106（chip_dim 阈值修复），无冲突；format 0、analyze 0、分层 0、test `+923` |
 
 - 重放到 C6 暂存文档后，与原工作区快照 `git diff` 为**零差异**；之后 C6 只在文档上追加了本节、状态更新和 LLD §6.1 的 exclude 说明。
 - 偏离：C2 单独提交时分层校验为 1（`models/caption_type.dart → state/`，即 P1），因为 2.5 拆到了 C3；分层 0 的验收相应移到 C3。
@@ -132,7 +133,7 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 2. 重点关注 CI 的三个步骤：
    - **Verify localizations**：本次未改 arb，应无差异。
    - **Verify formatting**：新增步骤，CI 用 Flutter 3.44.7 的 formatter。若与本地 3.47.5 结果不一致 → 在 3.44.7 下重跑 `dart format` 追加提交，并在 PR 中注明。
-   - **Run tests**：`chip_dim_test` 两例在本地 3.47.5 失败但与本次无关（见第 7 节）；在 CI 3.44.7 上若通过，也佐证是版本渲染差异。
+   - **Run tests**：合入 main（含 PR #106 对 `chip_dim_test` 的修复）后本地 `+923` 全绿，CI 应一致。
 3. 合入策略：**Create a merge commit**（与仓库现有的 “Merge pull request #…” 一致）。不要 squash，也不要 rebase merge：GitHub 的 rebase merge 总会重写 commit hash，squash 会把 C1 并入别的改动，两者都会使 `.git-blame-ignore-revs` 里记录的 C1 hash 失效。
 4. 合入后通知进行中的分支 rebase；被移动文件上的冲突按新路径解决。
 
@@ -144,7 +145,7 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 
 | 任务 | 说明 | 优先级 |
 | --- | --- | --- |
-| 修复 `test/theme/chip_dim_test.dart` | 基线即失败（差值 ≈0.036 > 0.03）。判断是 Flutter 版本渲染差异还是 `30a7bae`（chip 去 Opacity）引入的回归；已开独立任务 | 高 |
+| `settings_view.dart` 移入 `views/dialogs/` | 它只作为设置对话框使用，按 ARCHITECTURE 规则应在 `dialogs/`；见 LLD §9 | 低 |
 | 修复 `test/views/dialogs/tag_dictionary_dialog_test.dart` 偶发失败 | danbooru 查询用例在全量并行运行时约 1/7 概率失败、单跑稳定通过；`fetch()` 用固定 80 ms 真实时间等待含文件 I/O 的往返，基线即如此。改为等待实际完成；已开独立任务 | 中 |
 | 统一本地与 CI 的 Flutter 版本 | CI 3.44.7 vs 本地 3.47.5 是像素测试与格式校验不一致的根源；考虑 `.fvmrc` 或升级 CI | 中 |
 | 拆分超大 UI 文件 | `tag_dictionary_dialog.dart` 等，切分点见 LLD §9 | 低 |
@@ -156,13 +157,14 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 ## 8. 每阶段验收标准
 
 ```bash
+flutter pub get                                                 # 先解析依赖，否则 formatter 按错误的语言版本格式化
 dart format --output=none --set-exit-if-changed lib test tool   # 退出码 0
 flutter analyze                                                 # No issues found!
-flutter test                                                    # 除已知 2 例外全部通过
+flutter test                                                    # 全部通过（合入 main 前：除 chip_dim_test 2 例外）
 python3 check_layers.py                                         # violations: 0（附录 B，在 lib/ 下运行）
 ```
 
-当前结果（阶段 1–4 完成后）：格式 0 变更；analyzer 0 issue；测试 `+920 -2`，失败的 2 例为 `chip_dim_test`，与基线一致；分层 0 violation。
+当前结果（合入 main @ `472a689` 后）：格式 0 变更；analyzer 0 issue；测试 `+923` 全部通过；分层 0 violation。各提交单独验收时为 `+920 -2`，失败的 2 例是基线即存在的 `chip_dim_test`，已由 main 上的 PR #106 修复。
 
 ---
 

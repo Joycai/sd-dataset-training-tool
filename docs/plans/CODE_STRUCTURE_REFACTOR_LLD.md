@@ -48,8 +48,8 @@ lib/
 └── views/
     ├── workbench/            # 主窗口壳：workbench_view + 顶栏/导航栏/状态栏
     ├── panels/               # 停靠面板及其共享件（含 tag_context_menu）
-    ├── dialogs/              # 全部 show…Dialog 模态框（settings 除外）
-    ├── settings_view.dart    # SettingsView 页面 + showSettingsDialog 外壳，页面为主，留在根
+    ├── dialogs/              # 全部 show…Dialog 模态框
+    ├── settings_view.dart    # 设置对话框（SettingsView 只在 _SettingsDialog 内使用）；本次未移动，见 §9
     └── image_preview_window.dart
 
 test/                         # 镜像 lib/，widget_test.dart 为 App 冒烟测试保留在根
@@ -225,4 +225,5 @@ const Set<String> supportedImageExtensions = {
 ## 9. 不在本次范围
 
 - **超大文件拆分**：`views/dialogs/tag_dictionary_dialog.dart`（约 4000 行，其中 `_TagDictionaryDialogState` 约 1270 行）、`views/panels/tag_library_panel.dart`（约 2300 行）、`views/panels/agent_chat_panel.dart`（约 1900 行）。Flutter/Effective Dart 不设文件行数上限，框架自身也有数千行的文件；拆分核心 State 类属于行为级重构，另立任务。可行切分点：tag_dictionary 的工具条组件族（`_ToolbarSegment` … `_ToolbarButton`，约 500 行）、四个表单（`_TranslationForm` / `_NewTagForm` / `_FetchForm` / `_BatchForm`）；agent_chat 的各类卡片（`_ToolCard` / `_RulesCard` / `_ReasoningCard` …）。
-- **`test/theme/chip_dim_test.dart` 两个像素比对用例失败**：基线 `e68c352` 上同样失败（差值约 0.036，阈值 0.03），与本次改造无关，已另开任务排查（Flutter 版本渲染差异或 chip 去 Opacity 提交）。
+- **`settings_view.dart` 移入 `views/dialogs/`**：它实质是设置对话框，按 §2 规则应在 `dialogs/`（可更名为 `settings_dialog.dart`）；本次设计时未识别，留作后续一次单文件移动。
+- **`test/theme/chip_dim_test.dart` 两个像素比对用例**：基线 `e68c352` 上失败，与本次改造无关；已由 main 上的 PR #106 按宿主字形光栅化重新标定阈值修复，本分支合入 main 后全绿。

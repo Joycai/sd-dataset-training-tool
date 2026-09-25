@@ -1,7 +1,7 @@
 # Code layout
 
-Layer-first layout under `lib/`. Each layer may import the layers listed
-below it, never the ones above.
+Layer-first layout under `lib/`. Each layer may import only what its row
+lists in the "May import" column; anything else is a layering violation.
 
 | Directory | Holds | May import |
 | --- | --- | --- |
@@ -18,9 +18,9 @@ Inside `views/`:
 
 - `workbench/`: the main window shell (`WorkbenchView`, its top bar, icon rail, status bar).
 - `panels/`: the docked panels and the pieces they share (for example `tag_context_menu.dart`).
-- `dialogs/`: every modal opened via `show…Dialog`. The one exception is
-  `settings_view.dart`, which stays at the `views/` root because it also holds
-  the full `SettingsView` page that `showSettingsDialog` wraps.
+- `dialogs/`: every modal opened via `show…Dialog`. `views/settings_view.dart`
+  (`showSettingsDialog`) predates this rule and has not been moved yet; new
+  dialogs go in `dialogs/`.
 
 ## Conventions
 
@@ -30,9 +30,11 @@ Inside `views/`:
   Tests import with `package:dataset_training_tool/...`.
 - `test/` mirrors `lib/`: a test for `lib/state/tag_ops.dart` lives at
   `test/state/tag_ops_test.dart`. `test/widget_test.dart` is the app smoke test.
-- Before pushing, run the same checks CI runs:
+- Before pushing, run the same checks CI runs (after `flutter pub get`, so the
+  formatter sees the package's language version):
 
   ```bash
+  flutter pub get
   dart format --output=none --set-exit-if-changed lib test tool
   flutter analyze
   flutter test
