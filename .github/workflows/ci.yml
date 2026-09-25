@@ -68,6 +68,9 @@ jobs:
       - name: Check layer dependencies
         run: dart run tool/check_layers.dart
 
-      # `flutter test` already picks the GitHub reporter under GITHUB_ACTIONS.
+      # package:test defaults to numberOfProcessors / 2 concurrent test
+      # files, i.e. 2 on a 4-vCPU hosted runner; use every core instead.
+      # (`flutter test` already picks the GitHub reporter under
+      # GITHUB_ACTIONS.)
       - name: Run tests
-        run: flutter test
+        run: flutter test -j "$(nproc)"
