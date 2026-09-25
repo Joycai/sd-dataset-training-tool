@@ -375,18 +375,15 @@ class TagOps extends ChangeNotifier {
   ) async {
     await beforeMutate?.call();
     final captionPath = dataset.captionPathFor(imagePath);
-    final captionFile = File(captionPath);
-    var before = '';
+    final String before;
     try {
-      if (await captionFile.exists()) {
-        before = await captionFile.readAsString();
-      }
+      before = await dataset.store.readCaption(captionPath) ?? '';
     } catch (e) {
       return RewriteResult.failed('cannot read "$captionPath": $e');
     }
     if (before == text) return const RewriteResult.unchanged();
     try {
-      await captionFile.writeAsString(text);
+      await dataset.store.writeCaption(captionPath, text);
     } catch (e) {
       return RewriteResult.failed('cannot write "$captionPath": $e');
     }
@@ -486,20 +483,17 @@ class TagOps extends ChangeNotifier {
       await beforeMutate?.call();
       for (final file in files ?? dataset.scopedFiles) {
         final captionPath = dataset.captionPathFor(file.path);
-        final captionFile = File(captionPath);
-        var before = '';
+        final String? existing;
         try {
-          if (await captionFile.exists()) {
-            before = await captionFile.readAsString();
-          } else if (!createMissing) {
-            continue;
-          }
+          existing = await dataset.store.readCaption(captionPath);
         } catch (e) {
           failures.add(
             RewriteFailure(captionPath: captionPath, error: 'cannot read: $e'),
           );
           continue;
         }
+        if (existing == null && !createMissing) continue;
+        final before = existing ?? '';
         final parts = parseCaptionText(before, format: dataset.captionFormat);
         // An Anima Tag caption's natural-language tail is not a tag: it must
         // not be matched by a replace, land in a sort bucket, or push an
@@ -517,7 +511,7 @@ class TagOps extends ChangeNotifier {
         final next = [...rewritten, if (nl != null) '$animaNlPrefix$nl'];
         final after = joinCaptionText(next, format: dataset.captionFormat);
         try {
-          await captionFile.writeAsString(after);
+          await dataset.store.writeCaption(captionPath, after);
         } catch (e) {
           failures.add(
             RewriteFailure(captionPath: captionPath, error: 'cannot write: $e'),
@@ -570,7 +564,7 @@ class TagOps extends ChangeNotifier {
       for (final edit in op.edits) {
         final text = undo ? edit.before : edit.after;
         try {
-          await File(edit.captionPath).writeAsString(text);
+          await dataset.store.writeCaption(edit.captionPath, text);
           restored++;
         } catch (e) {
           failures.add(

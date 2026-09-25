@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dataset_training_tool/services/dataset_store.dart';
 import 'package:dataset_training_tool/state/editor_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -13,6 +14,15 @@ const _pngBytes = [
   0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
   0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
 ];
+
+/// The real store, except that every caption write fails.
+class _ReadOnlyStore extends DatasetStore {
+  const _ReadOnlyStore();
+
+  @override
+  Future<void> writeCaption(String captionPath, String text) async =>
+      throw FileSystemException('write refused', captionPath);
+}
 
 void main() {
   late Directory tempDir;
@@ -203,5 +213,25 @@ void main() {
     expect(session.tags, isEmpty);
 
     session.dispose();
+  });
+
+  test('a failed save keeps the edit and reports the error', () async {
+    final session = EditorSession(store: const _ReadOnlyStore())
+      ..autoSaveEnabled = false;
+    final saved = <String>[];
+    session.onSaved = (path, _) => saved.add(path);
+
+    await session.load(File(p.join(tempDir.path, '001.png')), '.txt');
+    session.applyTag('smile');
+    await session.save();
+
+    expect(session.saveState, SaveState.error);
+    expect(session.lastError, contains('write refused'));
+    expect(session.captionController.text, '1girl, solo, smile');
+    expect(saved, isEmpty);
+    expect(
+      await File(p.join(tempDir.path, '001.txt')).readAsString(),
+      '1girl, solo',
+    );
   });
 }

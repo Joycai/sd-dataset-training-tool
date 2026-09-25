@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dataset_training_tool/models/merge_rules.dart';
 import 'package:dataset_training_tool/services/ai_tagger_service.dart';
+import 'package:dataset_training_tool/services/dataset_store.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/ai_tagger_state.dart';
 import 'package:dataset_training_tool/state/batch_tag_state.dart';
@@ -12,6 +13,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// The real store, except that reading the listed caption paths fails.
+class _UnreadableStore extends DatasetStore {
+  _UnreadableStore(this.unreadable);
+
+  final Set<String> unreadable;
+
+  @override
+  Future<String?> readCaption(String captionPath) async {
+    if (unreadable.contains(captionPath)) {
+      throw FileSystemException('read refused', captionPath);
+    }
+    return super.readCaption(captionPath);
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -298,6 +314,34 @@ void main() {
       // The failed image's caption is untouched.
       expect(await File('${tempDir.path}/a.txt').readAsString(), 'solo');
       expect(ops.single.edits, hasLength(1));
+      state.dispose();
+    });
+
+    test('an unreadable caption fails that image, the rest proceeds', () async {
+      dataset = DatasetState(
+        store: _UnreadableStore({'${tempDir.path}/a.txt'}),
+      );
+      final img1 = await addImage('a', caption: 'solo');
+      final img2 = await addImage('b');
+      await scan();
+
+      final ops = <TagOperation>[];
+      final state = buildState({
+        'a.png': [
+          {'Tag': 'smile', 'Probability': 0.9},
+        ],
+        'b.png': [
+          {'Tag': '1girl', 'Probability': 0.95},
+        ],
+      }, onOperation: ops.add);
+
+      await state.run(files: [img1, img2], operationLabel: 'batch');
+      expect(state.completed, 2);
+      expect(state.changed, 1);
+      expect(state.failed, 1);
+      expect(state.lastError, contains('read refused'));
+      expect(await File('${tempDir.path}/a.txt').readAsString(), 'solo');
+      expect(ops.single.edits.single.imagePath, img2.path);
       state.dispose();
     });
 

@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
-import 'package:path/path.dart' as p;
 
 import '../models/caption_type.dart';
+import '../services/dataset_store.dart';
 import '../utils/tag_text.dart';
 
 enum SaveState { clean, dirty, saving, saved, error }
@@ -15,9 +15,11 @@ enum SaveState { clean, dirty, saving, saved, error }
 /// The center editor and the tag library both mutate the caption through this
 /// object so they stay in sync.
 class EditorSession extends ChangeNotifier {
-  EditorSession() {
+  EditorSession({DatasetStore store = const DatasetStore()}) : _store = store {
     captionController.addListener(_onTextChanged);
   }
+
+  final DatasetStore _store;
 
   static const autoSaveDelay = Duration(milliseconds: 800);
 
@@ -120,18 +122,14 @@ class EditorSession extends ChangeNotifier {
 
     _format = format;
     final generation = ++_loadGeneration;
-    final captionPath =
-        '${p.withoutExtension(imageFile.path)}$captionExtension';
+    final captionPath = captionPathOf(imageFile.path, captionExtension);
 
     String content = '';
     String? error;
     int? bytes;
     try {
-      final captionFile = File(captionPath);
-      if (await captionFile.exists()) {
-        content = await captionFile.readAsString();
-      }
-      bytes = await imageFile.length();
+      content = await _store.readCaption(captionPath) ?? '';
+      bytes = await _store.imageLength(imageFile.path);
     } catch (e) {
       error = e.toString();
     }
@@ -344,7 +342,7 @@ class EditorSession extends ChangeNotifier {
     _saveState = SaveState.saving;
     notifyListeners();
     try {
-      await File(path).writeAsString(text);
+      await _store.writeCaption(path, text);
       if (path != _captionPath) return; // switched image mid-write
       _saveState = SaveState.saved;
       _lastSavedAt = DateTime.now();

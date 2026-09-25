@@ -5,6 +5,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  group('captionPathOf', () {
+    test('swaps only the last extension', () {
+      expect(captionPathOf('/d/img.png', '.txt'), '/d/img.txt');
+      expect(captionPathOf('/d/img.v2.png', '.ntxt'), '/d/img.v2.ntxt');
+      expect(captionPathOf('/d.x/img', '.txt'), '/d.x/img.txt');
+    });
+  });
+
   group('normalizeCaptionExtension', () {
     test('adds the dot, trims and lowercases', () {
       expect(normalizeCaptionExtension('ntxt'), '.ntxt');

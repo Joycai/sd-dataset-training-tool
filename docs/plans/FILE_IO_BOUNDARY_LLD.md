@@ -244,13 +244,13 @@ Future<String?> saveJson({required String fileName, required String contents});
 - **回归**：现有 945 个测试不做任何修改，全部通过。它们都走默认的真实 store，所以能证明替换后行为不变。
 - **新增 `test/services/dataset_store_test.dart`**，覆盖以下内容：
   - `scan` 的扩展名过滤、递归与非递归、不跟随符号链接；
-  - 标注缺失和不可读都得到 `''`。"不可读"的构造方法：放一个与标注同名的目录；
+  - 标注缺失和不可读都得到 `''`。"不可读"用非法 UTF-8 构造；与标注同名的目录让 `File.exists()` 返回 false，属于"缺失"，与原代码一致；
   - 列目录失败时，先交付已找到的图片，再抛出流错误；
-  - `readCaption` 缺失时返回 `null`，不可读时抛出异常；
+  - `readCaption` 缺失（含同名目录）时返回 `null`，不可读时抛出异常；`writeCaption` 遇到同名目录时抛出异常；
   - `writeCaption` 能新建和覆盖文件；
   - `isNonEmptyFile` 对 0 字节、非 0 字节、不存在三种情况的判断；
   - `imageLength`、`readImageBytes`、`directoryExists`。
-- **新增 `models/caption_type_test.dart` 用例**：覆盖 `captionPathOf` 的多段扩展名、无扩展名，以及 Windows 路径（用 `p.windows` 上下文断言公式不依赖分隔符）。
+- **新增 `models/caption_type_test.dart` 用例**：覆盖 `captionPathOf` 的多段扩展名、无扩展名、目录名带点。公式用平台默认的 `path` 上下文，与原代码一致，所以不在 macOS/Linux 上断言 Windows 路径。
 - **新增用假 store 的失败分支测试**，这些是原来难以构造、现在可以直接覆盖的：
   - `TagOps.rewriteOne` 写入失败时，返回 `RewriteResult.failed`，`dataset` 的标注和撤销栈都不变；
   - `TagOps` 批量操作中部分文件写失败时，只把成功的文件记入撤销；
