@@ -87,7 +87,7 @@ python -m py_compile AiApiServer/models.py AiApiServer/main.py
 Flutter 端回归(选择器测试):
 
 ```bash
-flutter test test/ai_params_dialog_test.dart
+flutter test test/views/dialogs/ai_params_dialog_test.dart
 ```
 
 如果服务端在跑,`GET /getconfig` 肉眼确认新字段;模型真实加载验证

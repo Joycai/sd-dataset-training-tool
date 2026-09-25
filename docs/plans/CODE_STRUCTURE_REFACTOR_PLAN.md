@@ -28,7 +28,7 @@
 | --- | --- | --- |
 | 1.1 | 评估候选 lint 的违例数 | 对每条规则单独启用后 `flutter analyze`，结果见 LLD §6.1 |
 | 1.2 | 写入 `analysis_options.yaml` | 12 条新增规则 + 排除 gen-l10n 生成物 |
-| 1.3 | 自动修复 | `dart fix --apply --code=directives_ordering,prefer_final_locals`（73 处，71 个文件） |
+| 1.3 | 自动修复 | `dart fix --apply --code=directives_ordering,prefer_final_locals`（73 处，71 个文件。LLD §6.1 的 71 + 4 = 75 是 analyzer 违例数；`dart fix` 对同一文件的多条 `directives_ordering` 只做一次排序，计 69 处，加 `prefer_final_locals` 4 处共 73） |
 | 1.4 | 手动修复 | `agent_chat_panel.dart` 包 `unawaited`；`tag_library_panel.dart` `void async` → `Future<void>`；`glass_backdrop_group_test.dart` 包 `unawaited`；两个文件补 `import 'dart:async'` |
 | 1.5 | 消除 analyzer 误报 | `test/tag_ai_group_test.dart` `_FakeLlm` 命名构造改初始化列表 |
 | 1.6 | 格式化 | `dart format lib test tool` |
@@ -121,7 +121,7 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 
 - 重放到 C6 暂存文档后，与原工作区快照 `git diff` 为**零差异**；之后 C6 只在文档上追加了本节、状态更新和 LLD §6.1 的 exclude 说明。
 - 偏离：C2 单独提交时分层校验为 1（`models/caption_type.dart → state/`，即 P1），因为 2.5 拆到了 C3；分层 0 的验收相应移到 C3。
-- 每个提交都做了单独 review，唯一成立的一条（LLD 未说明平台目录的 analyzer exclude）已在本提交补充。
+- 每个提交都做了单独 review。成立的问题：LLD 未说明平台目录的 analyzer exclude（C6 补充）；`update-models` skill 里的测试命令仍是旧路径、合入策略 rebase merge 会使 blame-ignore 失效、ARCHITECTURE 允许依赖列表窄于 LLD 矩阵（C6 之后的 review 修复提交）。
 
 ---
 
@@ -132,7 +132,7 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
    - **Verify localizations**：本次未改 arb，应无差异。
    - **Verify formatting**：新增步骤，CI 用 Flutter 3.44.7 的 formatter。若与本地 3.47.5 结果不一致 → 在 3.44.7 下重跑 `dart format` 追加提交，并在 PR 中注明。
    - **Run tests**：`chip_dim_test` 两例在本地 3.47.5 失败但与本次无关（见第 7 节）；在 CI 3.44.7 上若通过，也佐证是版本渲染差异。
-3. 合入策略：**rebase merge**（保留 C1–C6 独立提交，blame-ignore 才有意义），不要 squash。
+3. 合入策略：**Create a merge commit**（与仓库现有的 “Merge pull request #…” 一致）。不要 squash，也不要 rebase merge：GitHub 的 rebase merge 总会重写 commit hash，squash 会把 C1 并入别的改动，两者都会使 `.git-blame-ignore-revs` 里记录的 C1 hash 失效。
 4. 合入后通知进行中的分支 rebase；被移动文件上的冲突按新路径解决。
 
 **回滚**：C2–C4 以文件重命名为主，`git revert` 可干净回退；C1 独立，可单独回退而不影响结构调整。

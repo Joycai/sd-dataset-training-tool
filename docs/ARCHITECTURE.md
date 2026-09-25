@@ -6,9 +6,9 @@ below it, never the ones above.
 | Directory | Holds | May import |
 | --- | --- | --- |
 | `views/` | Screens, panels and dialogs: app-specific UI that knows which feature it belongs to | everything below |
-| `widgets/` | Reusable UI building blocks. No imports from `views/` | `state/`, `services/`, `models/`, `theme/`, `utils/`, `l10n/` |
-| `state/` | `ChangeNotifier`s exposed through Provider (`AppState`, `DatasetState`, …) and controllers that drive them (`TagOps`, `DataTransfer`) | `agent/`, `services/`, `models/`, `theme/`, `utils/`, `app_info.dart` |
-| `agent/` | The LLM agent runtime (`AgentSession`) and its tools. The tools act on app state, so this folder and `state/` import each other by design | `state/`, `services/`, `models/`, `utils/` |
+| `widgets/` | Reusable UI building blocks. No imports from `views/` | `state/`, `services/`, `models/`, `theme/`, `utils/`, `l10n/`, `app_info.dart` |
+| `state/` | `ChangeNotifier`s exposed through Provider (`AppState`, `DatasetState`, …) and controllers that drive them (`TagOps`, `DataTransfer`) | `agent/`, `services/`, `models/`, `theme/`, `utils/`, `l10n/`, `app_info.dart` |
+| `agent/` | The LLM agent runtime (`AgentSession`) and its tools. The tools act on app state, so this folder and `state/` import each other by design | `state/`, `services/`, `models/`, `utils/`, `l10n/`, `app_info.dart` |
 | `services/` | I/O and external systems: settings storage, HTTP APIs, LLM clients (`services/llm/`), fonts, dictionaries. No imports from `state/` | `models/`, `theme/`, `utils/`, `app_info.dart` |
 | `models/` | Plain data types and their pure logic. No Flutter widgets, no state | other `models/` |
 | `theme/`, `utils/` | Design tokens and theme; small pure helpers | `models/` only |
