@@ -30,7 +30,7 @@
 | 1.2 | 写入 `analysis_options.yaml` | 12 条新增规则 + 排除 gen-l10n 生成物 |
 | 1.3 | 自动修复 | `dart fix --apply --code=directives_ordering,prefer_final_locals`（73 处，71 个文件。LLD §6.1 的 71 + 4 = 75 是 analyzer 违例数；`dart fix` 对同一文件的多条 `directives_ordering` 只做一次排序，计 69 处，加 `prefer_final_locals` 4 处共 73） |
 | 1.4 | 手动修复 | `agent_chat_panel.dart` 包 `unawaited`；`tag_library_panel.dart` `void async` → `Future<void>`；`glass_backdrop_group_test.dart` 包 `unawaited`；两个文件补 `import 'dart:async'` |
-| 1.5 | 消除 analyzer 误报 | `test/tag_ai_group_test.dart` `_FakeLlm` 命名构造改初始化列表 |
+| 1.5 | 消除 analyzer 误报 | `test/tag_ai_group_test.dart`（现 `test/services/`）`_FakeLlm` 命名构造改初始化列表 |
 | 1.6 | 格式化 | `dart format lib test tool` |
 | 1.7 | 修复格式化引出的 lint | `danbooru_api.dart` 单行 `if` 补花括号 |
 
@@ -117,7 +117,8 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 | C3 | `c6c6024` | 同上；分层 0 |
 | C4 | `24d2973` | 同上；72 个纯 rename，0 行改动 |
 | C5 | `8738826` | 同上 |
-| C6 | 本提交 | 文档 |
+| C6 | `da89230` | 文档 |
+| review 修复 | `917cc82` 及之后 | 文档（单片 review 与整体 review 的修复） |
 
 - 重放到 C6 暂存文档后，与原工作区快照 `git diff` 为**零差异**；之后 C6 只在文档上追加了本节、状态更新和 LLD §6.1 的 exclude 说明。
 - 偏离：C2 单独提交时分层校验为 1（`models/caption_type.dart → state/`，即 P1），因为 2.5 拆到了 C3；分层 0 的验收相应移到 C3。
@@ -125,7 +126,7 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 
 ---
 
-## 6. 阶段 6：PR 与 CI 验证（待执行）
+## 6. 阶段 6：PR 与 CI 验证（进行中）
 
 1. 推送分支，开 PR 到 `main`，描述引用本计划与 LLD。
 2. 重点关注 CI 的三个步骤：
@@ -147,6 +148,7 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 | 修复 `test/views/dialogs/tag_dictionary_dialog_test.dart` 偶发失败 | danbooru 查询用例在全量并行运行时约 1/7 概率失败、单跑稳定通过；`fetch()` 用固定 80 ms 真实时间等待含文件 I/O 的往返，基线即如此。改为等待实际完成；已开独立任务 | 中 |
 | 统一本地与 CI 的 Flutter 版本 | CI 3.44.7 vs 本地 3.47.5 是像素测试与格式校验不一致的根源；考虑 `.fvmrc` 或升级 CI | 中 |
 | 拆分超大 UI 文件 | `tag_dictionary_dialog.dart` 等，切分点见 LLD §9 | 低 |
+| 分层规则进 CI | 目前靠附录 B 脚本手工校验，且只查 `import`；应把脚本放进 `tool/`、扩展到 `export`，在 CI analyze 后执行，并写入 ARCHITECTURE 的提交前检查；已开独立任务 | 中 |
 | 评估剩余 lint | `avoid_dynamic_calls`（20 处，JSON 解析）可配合类型化解析逐步启用 | 低 |
 
 ---

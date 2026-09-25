@@ -18,7 +18,9 @@ Inside `views/`:
 
 - `workbench/`: the main window shell (`WorkbenchView`, its top bar, icon rail, status bar).
 - `panels/`: the docked panels and the pieces they share (for example `tag_context_menu.dart`).
-- `dialogs/`: every modal opened via `show…Dialog`.
+- `dialogs/`: every modal opened via `show…Dialog`. The one exception is
+  `settings_view.dart`, which stays at the `views/` root because it also holds
+  the full `SettingsView` page that `showSettingsDialog` wraps.
 
 ## Conventions
 

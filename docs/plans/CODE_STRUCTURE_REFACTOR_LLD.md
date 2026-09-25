@@ -48,8 +48,8 @@ lib/
 └── views/
     ├── workbench/            # 主窗口壳：workbench_view + 顶栏/导航栏/状态栏
     ├── panels/               # 停靠面板及其共享件（含 tag_context_menu）
-    ├── dialogs/              # 全部 show…Dialog 模态框
-    ├── settings_view.dart
+    ├── dialogs/              # 全部 show…Dialog 模态框（settings 除外）
+    ├── settings_view.dart    # SettingsView 页面 + showSettingsDialog 外壳，页面为主，留在根
     └── image_preview_window.dart
 
 test/                         # 镜像 lib/，widget_test.dart 为 App 冒烟测试保留在根
@@ -191,7 +191,7 @@ const Set<String> supportedImageExtensions = {
 - `views/panels/agent_chat_panel.dart`：`_startCharacterSheet` 中 `chat.startCharacterSheet(...)` 是有意的即发即弃（进度由 `AgentChatState` 通知），包 `unawaited()`。
 - `views/panels/tag_library_panel.dart`：`_showTagMenu` 返回类型 `void` → `Future<void>`。
 - `services/danbooru_api.dart`：格式化后 `if` 单行体换行，补花括号以满足 `curly_braces_in_flow_control_structures`。
-- `test/tag_ai_group_test.dart`：`_FakeLlm` 的 `toolCall` / `toolCallBatch` 由重定向构造改为各自的初始化列表，消除 `unused_element_parameter` 误报；行为不变（两个命名构造均有测试在用）。
+- `test/services/tag_ai_group_test.dart`（C1 时位于 `test/tag_ai_group_test.dart`）：`_FakeLlm` 的 `toolCall` / `toolCallBatch` 由重定向构造改为各自的初始化列表，消除 `unused_element_parameter` 误报；行为不变（两个命名构造均有测试在用）。
 - `test/widgets/glass_backdrop_group_test.dart`：`showDialog` 包 `unawaited()`。
 
 ---
