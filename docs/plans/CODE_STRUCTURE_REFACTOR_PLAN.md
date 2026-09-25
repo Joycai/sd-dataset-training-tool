@@ -227,7 +227,7 @@ print(f'moved {len(mapping)} files')
 
 ## 附录 B：分层校验 `tool/check_layers.dart`
 
-重构期间用的是手工运行的 Python 脚本 `check_layers.py`（见本文件 git 历史）。它只匹配 `^import '...'`，漏掉 `export` 与 `package:dataset_training_tool/...` 自引用。现已由 `tool/check_layers.dart` 取代，规则与 LLD §3 矩阵一致，`views/`、`l10n/` 及 `lib/` 根下文件不受限。在仓库根目录运行：
+重构期间用的是手工运行的 Python 脚本 `check_layers.py`（见本文件 git 历史）。它只匹配 `^import '...'`，漏掉 `export` 与 `package:dataset_training_tool/...` 自引用。现已由 `tool/check_layers.dart` 取代，规则与 LLD §3 矩阵一致；只有 `views/` 与 `main.dart` 不受限，`l10n/` 与 `app_info.dart` 是叶子（只能依赖自身）。在仓库根目录运行：
 
 ```bash
 dart run tool/check_layers.dart   # 打印每条 VIOLATION，末行 violations: N；N > 0 时退出码 1
@@ -235,9 +235,10 @@ dart run tool/check_layers.dart   # 打印每条 VIOLATION，末行 violations: 
 
 与旧脚本相比：
 
-- 检查 `import`、`export`、`part`，含条件导入的各备选 URI（`if (dart.library.io) '...'`）；
+- 检查 `import`、`export`，含条件导入的各备选 URI（`if (dart.library.io) '...'`）；`part` / `part of` 必须留在自己的顶层目录内，防止 part 文件把代码带进别的层；
+- 用一个小型扫描器读取文件开头的指令区（Dart 只允许指令出现在第一个声明之前），正确处理注释、raw 字符串、注解与同一行多条指令，块注释或字符串里的伪 import 不会误报；
 - 相对路径与 `package:dataset_training_tool/` 都解析到 `lib/` 下的顶层目录或文件，指向 `lib/` 之外也算违规；
-- `lib/` 下出现矩阵里没有的新顶层目录时报错，避免新目录绕开检查；
-- CI（`.github/workflows/dart.yml`）在 `flutter analyze` 之后运行；测试见 `test/tool/check_layers_test.dart`。
+- `lib/` 下出现矩阵里没有的新顶层目录或根文件时报错，避免绕开检查；
+- CI（`.github/workflows/dart.yml`）在 `flutter analyze` 之后运行；测试见 `test/tool/check_layers_test.dart`，其中一条测试解析 `docs/ARCHITECTURE.md` 的分层表并与 `allowedImports` 逐行比对。
 
-矩阵改动时同步改 `docs/ARCHITECTURE.md` 表格、LLD §3 与脚本里的 `allowedImports`。
+矩阵改动时同步改 `docs/ARCHITECTURE.md` 表格、LLD §3 与脚本里的 `allowedImports`（前两者不一致时测试会失败）。
