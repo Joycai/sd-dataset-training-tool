@@ -50,10 +50,14 @@ Windows/macOS/Linux 的 zip/tar 包和 AiApiServer 源码包,不会触发
 `.github/workflows/release.yml` 负责出包:在 GitHub Actions 页对目标分支
 手动触发 **Release** workflow 即可,它会:
 
-1. 从 `pubspec.yaml` 读版本号,并校验与 `AppInfo.version` 一致(不一致直接失败);
-2. 校验 release `vX.Y.Z` 尚不存在;
+1. 从 `pubspec.yaml` 读版本号,校验 release `vX.Y.Z` 尚不存在;
+2. 跑一遍完整 CI(`ci.yml`:格式、analyze、分层、全部测试,其中
+   `test/app_info_test.dart` 校验三处版本号一致),不过直接失败;
 3. 并行构建 Windows/macOS/Linux 桌面包 + AiApiServer 源码包;
 4. 自动打 tag `vX.Y.Z` 并创建 GitHub Release 挂上四个产物。
+
+勾选 `dry_run` 触发则只做前三步,四个包作为 workflow artifact 上传但不
+打 tag、不建 release,用于在分支上验证 workflow 改动。
 
 因此本 skill 只管改这三处版本号;tag 与 release 由 workflow 生成,**不要
 手动打版本 tag**。

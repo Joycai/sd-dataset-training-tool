@@ -1,5 +1,6 @@
 # Pull-request / main gate: localization drift, formatting, analysis, layer
-# rules and the test suite.
+# rules and the test suite. Also called from release.yml (workflow_call) so
+# a release cannot ship a commit that never passed these checks.
 name: CI
 
 on:
@@ -19,11 +20,17 @@ on:
       - '**.md'
       - 'AiApiServer/**'
       - '.claude/**'
+  # Reused by release.yml as its pre-build gate. paths-ignore does not apply
+  # to calls, so a release always runs the full set.
+  workflow_call:
 
 permissions:
   contents: read
 
-# A newer push to the same branch supersedes the run in flight.
+# A newer push to the same branch supersedes the run in flight. The workflow
+# name is part of the key, and inside a workflow_call it resolves to the
+# caller's name, so a release-triggered run never cancels (or is cancelled
+# by) a plain CI run on the same ref.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
