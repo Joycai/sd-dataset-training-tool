@@ -147,7 +147,7 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 | --- | --- | --- |
 | `settings_view.dart` 移入 `views/dialogs/` | 它只作为设置对话框使用，按 ARCHITECTURE 规则应在 `dialogs/`；见 LLD §9 | 低 |
 | 修复 `test/views/dialogs/tag_dictionary_dialog_test.dart` 偶发失败 | danbooru 查询用例在全量并行运行时约 1/7 概率失败、单跑稳定通过；`fetch()` 用固定 80 ms 真实时间等待含文件 I/O 的往返，基线即如此。改为等待实际完成；已开独立任务 | 中 |
-| 统一本地与 CI 的 Flutter 版本 | CI 3.44.7 vs 本地 3.47.5 可能导致格式校验结果不一致；考虑 `.fvmrc` 或升级 CI | 中 |
+| 统一本地与 CI 的 Flutter 版本 | ✅ 已完成：pubspec `environment.flutter: 3.47.5` 为唯一来源，CI 与 Release 用 `flutter-version-file` 读取，见 [CI_OPTIMIZATION_PLAN.md](CI_OPTIMIZATION_PLAN.md) §2 | 中 |
 | 拆分超大 UI 文件 | `tag_dictionary_dialog.dart` 等，切分点见 LLD §9 | 低 |
 | ~~分层规则进 CI~~ | 已完成：`tool/check_layers.dart`（见附录 B）在 CI analyze 之后执行，并已写入 ARCHITECTURE 的提交前检查 | — |
 | 评估剩余 lint | `avoid_dynamic_calls`（20 处，JSON 解析）可配合类型化解析逐步启用 | 低 |
