@@ -20,10 +20,10 @@ description: 升级/同步 app 版本号的完整流程:版本号写在哪几处
 
 **msix_version 要单独提醒的原因**:`.github/workflows/release.yml` 只出
 Windows/macOS/Linux 的 zip/tar 包和 AiApiServer 源码包,不会触发
-`dart run msix:create`,也就不会在 CI 里校验 msix 版本号是否同步——
-msix 安装包是本地手动打的(见 [msix 打包配置](../../../pubspec.yaml)
-里的 `msix_config`),漏改了不会有任何报错,只会在装完之后看着不对劲
-才发现。
+`dart run msix:create`——msix 安装包是本地手动打的(见
+[msix 打包配置](../../../pubspec.yaml) 里的 `msix_config`)。三处是否
+一致由 `test/app_info_test.dart` 在每次 CI 里校验,漏改会让 CI 变红,
+但不会阻止本地 `dart run msix:create` 打出一个版本号错误的包。
 
 ## 步骤
 
@@ -39,10 +39,11 @@ msix 安装包是本地手动打的(见 [msix 打包配置](../../../pubspec.yam
 5. **校验**(三处版本号必须逐字对应):
 
    ```bash
-   grep "^version:" pubspec.yaml && grep "version = " lib/app_info.dart && grep "msix_version:" pubspec.yaml
+   flutter test test/app_info_test.dart
    ```
 
-   然后跑 `flutter analyze --no-pub` 确认无告警。
+   该测试读 pubspec 与 `AppInfo.version`、`msix_version` 逐字比对,
+   与 CI 跑的是同一份校验。然后跑 `flutter analyze --no-pub` 确认无告警。
 
 ## 发版(版本号合入后)
 

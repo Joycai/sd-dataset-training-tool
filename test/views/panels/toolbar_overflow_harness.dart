@@ -24,15 +24,28 @@ const _pngBytes = [
   0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
 ];
 
+// The narrowest the centre column reaches with both side panels at their
+// 200 minimum is around a 720px window; 200 leaves room to spare below it.
+const _minWidth = 200;
+const _maxWidth = 900;
+
 /// The editor toolbar lays itself out from hand-tuned width budgets, and the
 /// numbers went stale once the save indicator started appearing next to the
 /// labelled buttons: between the collapse threshold and the width the labels
 /// actually need, every frame threw "A RenderFlex overflowed".
 ///
 /// The budgets are only as good as this sweep, so it walks every width the
-/// panel can plausibly get, in both locales and in every save state, and
-/// fails on the first overflow.
-void main() {
+/// panel can plausibly get, in every save state and compare-mode setting,
+/// and fails on the first overflow.
+///
+/// One [locale] × [format] slice per call: a widget test runs its file's
+/// cases serially in one isolate, so the four slices live in four test files
+/// (`toolbar_overflow_<locale>_<format>_test.dart`) and `flutter test` runs
+/// them side by side instead of as one 4000-pump tail on the whole suite.
+void sweepToolbarOverflow({
+  required Locale locale,
+  required CaptionFormat format,
+}) {
   late Directory tempDir;
   late AppState appState;
   late File image;
@@ -51,7 +64,6 @@ void main() {
 
   Widget harness({
     required double width,
-    required Locale locale,
     required EditorSession session,
     required AiTaggerState ai,
     required Key key,
@@ -81,67 +93,55 @@ void main() {
     );
   }
 
-  // The narrowest the centre column reaches with both side panels at their
-  // 200 minimum is around a 720px window; 200 leaves room to spare below it.
-  const minWidth = 200;
-  const maxWidth = 900;
-
-  testWidgets('editor toolbar never overflows at any panel width', (
-    tester,
-  ) async {
+  testWidgets('editor toolbar never overflows at any panel width '
+      '(${locale.languageCode}/${format.name})', (tester) async {
     tester.view.physicalSize = const Size(2000, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    for (final locale in [const Locale('en'), const Locale('zh')]) {
-      // Each save state renders a different indicator width, and "nothing
-      // saved yet" renders none at all — the widest and the narrowest cases
-      // sit at opposite ends of that set.
-      for (final state in ['pristine', 'dirty', 'saved']) {
-        for (final compare in [false, true]) {
-          // Prose swaps in the wider "AI describe" button, and compare mode
-          // is a global flag: its exit control shows up in a prose toolbar
-          // too, even though the sentence view ignores it.
-          for (final format in [CaptionFormat.tags, CaptionFormat.prose]) {
-            final session = EditorSession()..autoSaveEnabled = false;
-            final ai = AiTaggerState(SettingsService());
-            addTearDown(session.dispose);
+    // Each save state renders a different indicator width, and "nothing
+    // saved yet" renders none at all — the widest and the narrowest cases
+    // sit at opposite ends of that set.
+    for (final state in ['pristine', 'dirty', 'saved']) {
+      // Prose swaps in the wider "AI describe" button, and compare mode
+      // is a global flag: its exit control shows up in a prose toolbar
+      // too, even though the sentence view ignores it.
+      for (final compare in [false, true]) {
+        final session = EditorSession()..autoSaveEnabled = false;
+        final ai = AiTaggerState(SettingsService());
+        addTearDown(session.dispose);
 
-            await tester.runAsync(() async {
-              await session.load(image, '.txt', format: format);
-              if (state == 'dirty') {
-                session.captionController.text = 'alpha, beta, gamma';
-              } else if (state == 'saved') {
-                session.captionController.text = 'alpha, beta, gamma';
-                await session.save();
-              }
-            });
-            if (compare) ai.enterCompareMode();
-
-            final label =
-                '${locale.languageCode}/$state/compare=$compare/'
-                '${format.name}';
-            for (var w = minWidth; w <= maxWidth; w += 4) {
-              // A fresh key every pump: RenderFlex reports an overflow only
-              // once per render object, so reusing the subtree would swallow
-              // every hit after the first and quietly pass.
-              await tester.pumpWidget(
-                harness(
-                  width: w.toDouble(),
-                  locale: locale,
-                  session: session,
-                  ai: ai,
-                  key: ValueKey('$label-$w'),
-                ),
-              );
-              await tester.pump();
-              expect(
-                tester.takeException(),
-                isNull,
-                reason: 'toolbar overflowed at ${w}px ($label)',
-              );
-            }
+        await tester.runAsync(() async {
+          await session.load(image, '.txt', format: format);
+          if (state == 'dirty') {
+            session.captionController.text = 'alpha, beta, gamma';
+          } else if (state == 'saved') {
+            session.captionController.text = 'alpha, beta, gamma';
+            await session.save();
           }
+        });
+        if (compare) ai.enterCompareMode();
+
+        final label =
+            '${locale.languageCode}/$state/compare=$compare/${format.name}';
+        for (var w = _minWidth; w <= _maxWidth; w += 4) {
+          // A fresh key every pump: RenderFlex reports an overflow only
+          // once per render object, so reusing the subtree would swallow
+          // every hit after the first and quietly pass.
+          await tester.pumpWidget(
+            harness(
+              width: w.toDouble(),
+              session: session,
+              ai: ai,
+              key: ValueKey('$label-$w'),
+            ),
+          );
+          await tester.pump();
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: 'toolbar overflowed at ${w}px ($label)',
+          );
         }
       }
     }
