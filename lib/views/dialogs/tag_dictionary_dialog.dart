@@ -11,6 +11,7 @@ import '../../models/tag_dictionary.dart';
 import '../../models/tag_translation.dart';
 import '../../services/danbooru_api.dart';
 import '../../services/danbooru_meta_service.dart';
+import '../../services/external_url_opener.dart';
 import '../../services/llm/llm_client.dart';
 import '../../services/tag_ai_translate.dart';
 import '../../services/tag_dictionary_service.dart';
@@ -1593,7 +1594,7 @@ class _DictRowTile extends StatelessWidget {
                   _Badge(label: l10n.dictCustomBadge, color: scheme.primary)
                 else if (row.postCount > 0)
                   Text(
-                    compactCount(row.postCount),
+                    _compactCount(row.postCount),
                     style: monoStyle(
                       context,
                       size: AppText.micro,
@@ -3997,7 +3998,7 @@ String _sourceLabel(AppLocalizations l10n, TagTranslationSource source) =>
 
 /// `7.1M` rather than `7148213`: the list column is 40px wide and the exact
 /// figure was never the point — only the order of magnitude is.
-String compactCount(int count) {
+String _compactCount(int count) {
   if (count >= 1000000) {
     final m = count / 1000000;
     return '${m >= 10 ? m.toStringAsFixed(0) : m.toStringAsFixed(1)}M';

@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/editor_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -30,47 +29,6 @@ void main() {
 
   tearDown(() async {
     await tempDir.delete(recursive: true);
-  });
-
-  test('scan finds images and caption status', () async {
-    final dataset = DatasetState();
-    await dataset.scan(
-      directoryPath: tempDir.path,
-      recursive: false,
-      captionExtension: '.txt',
-    );
-
-    expect(dataset.totalCount, 3);
-    expect(dataset.taggedCount, 1);
-    expect(dataset.untaggedCount, 2);
-    expect(dataset.hasCaption(p.join(tempDir.path, '001.png')), isTrue);
-    expect(dataset.hasCaption(p.join(tempDir.path, '002.png')), isFalse);
-
-    dataset.setFilter(CaptionFilter.tagged);
-    expect(dataset.visibleFiles.map((f) => p.basename(f.path)), ['001.png']);
-
-    dataset.setFilter(CaptionFilter.all);
-    dataset.setQuery('002');
-    expect(dataset.visibleFiles.map((f) => p.basename(f.path)), ['002.png']);
-  });
-
-  test('selection navigates the visible list with arrows', () async {
-    final dataset = DatasetState();
-    await dataset.scan(
-      directoryPath: tempDir.path,
-      recursive: false,
-      captionExtension: '.txt',
-    );
-
-    expect(dataset.selectByOffset(1), isNotNull);
-    expect(dataset.selectedVisibleIndex, 0);
-    dataset.selectByOffset(1);
-    expect(dataset.selectedVisibleIndex, 1);
-    dataset.selectByOffset(-1);
-    expect(dataset.selectedVisibleIndex, 0);
-    // Clamped at the ends.
-    expect(dataset.selectByOffset(-1), isNull);
-    expect(dataset.selectedVisibleIndex, 0);
   });
 
   test(

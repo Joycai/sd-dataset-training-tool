@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/ai_tagger_state.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/model_picker.dart';
+import '../../widgets/model_picker_field.dart';
 import '../../widgets/panel_widgets.dart';
 
 /// Opens the AI interrogation parameters dialog. [ai] is passed explicitly

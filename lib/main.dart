@@ -132,20 +132,10 @@ class DatasetToolkitApp extends StatelessWidget {
             accent: appState.accentChoice,
           ),
           themeMode: appState.currentThemeMode,
-          home: const MyHomePage(),
+          // Settings are a modal, so the workbench is the only top-level view.
+          home: const Scaffold(body: WorkbenchView()),
         ),
       ),
     );
-  }
-}
-
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    // Settings are a modal now, so the workbench is the only top-level view
-    // and there is nothing left to switch between.
-    return const Scaffold(body: WorkbenchView());
   }
 }

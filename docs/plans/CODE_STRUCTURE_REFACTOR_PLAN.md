@@ -134,7 +134,7 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
    - **Verify localizations**：本次未改 arb，应无差异。
    - **Verify formatting**：新增步骤，CI 用 Flutter 3.44.7 的 formatter。若与本地 3.47.5 结果不一致 → 在 3.44.7 下重跑 `dart format` 追加提交，并在 PR 中注明。
    - **Run tests**：合入 main（含 PR #106 对 `chip_dim_test` 的修复）后本地 `+923` 全绿，CI 应一致。
-3. 合入策略：**Create a merge commit**（与仓库现有的 “Merge pull request #…” 一致）。不要 squash，也不要 rebase merge：GitHub 的 rebase merge 总会重写 commit hash，squash 会把 C1 并入别的改动，两者都会使 `.git-blame-ignore-revs` 里记录的 C1 hash 失效。
+3. 合入策略：**Create a merge commit**（与仓库现有的 “Merge pull request #…” 一致）。不要 squash，也不要 rebase merge：GitHub 的 rebase merge 总会重写 commit hash，squash 会把 C1 并入别的改动，两者都会使 `.git-blame-ignore-revs` 里记录的 C1 hash 失效。PR 开着期间同步 main 同样只用 merge（GitHub 的 “Update with merge commit” 或本地 `git merge origin/main`），不要 rebase：rebase 也会重写 C1 hash，而 git 遇到不存在的 hash 不报错，blame-ignore 会静默失效。
 4. 合入后通知进行中的分支 rebase；被移动文件上的冲突按新路径解决。
 
 **回滚**：C2–C4 以文件重命名为主，`git revert` 可干净回退；C1 独立，可单独回退而不影响结构调整。
@@ -147,10 +147,36 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 | --- | --- | --- |
 | `settings_view.dart` 移入 `views/dialogs/` | 它只作为设置对话框使用，按 ARCHITECTURE 规则应在 `dialogs/`；见 LLD §9 | 低 |
 | 修复 `test/views/dialogs/tag_dictionary_dialog_test.dart` 偶发失败 | danbooru 查询用例在全量并行运行时约 1/7 概率失败、单跑稳定通过；`fetch()` 用固定 80 ms 真实时间等待含文件 I/O 的往返，基线即如此。改为等待实际完成；已开独立任务 | 中 |
-| 统一本地与 CI 的 Flutter 版本 | CI 3.44.7 vs 本地 3.47.5 是像素测试与格式校验不一致的根源；考虑 `.fvmrc` 或升级 CI | 中 |
+| 统一本地与 CI 的 Flutter 版本 | CI 3.44.7 vs 本地 3.47.5 可能导致格式校验结果不一致；考虑 `.fvmrc` 或升级 CI | 中 |
 | 拆分超大 UI 文件 | `tag_dictionary_dialog.dart` 等，切分点见 LLD §9 | 低 |
 | ~~分层规则进 CI~~ | 已完成：`tool/check_layers.dart`（见附录 B）在 CI analyze 之后执行，并已写入 ARCHITECTURE 的提交前检查 | — |
 | 评估剩余 lint | `avoid_dynamic_calls`（20 处，JSON 解析）可配合类型化解析逐步启用 | 低 |
+
+---
+
+## 7.1 合入后复审（第二次 code review）
+
+#107 之外，#109 已把本重构与 `tool/check_layers.dart` 合入 main。随后用两个子代理对“分层检查工具”和“整棵树的 Flutter 规范符合度”各做一次 review，修复如下（报告见任务目录 `review/goal-A.md`、`goal-B.md`）：
+
+| 来源 | 问题 | 处理 |
+| --- | --- | --- |
+| A-1/4/5 | 分层检查用按行正则匹配，raw 字符串、关键字后的注释会漏报，块注释/字符串里的伪 import 会误报 | 改为扫描指令区的小型词法器 |
+| A-3 | `l10n/`、`app_info.dart` 不受约束，与 ARCHITECTURE 的 “none” 矛盾 | 设为叶子；ARCHITECTURE 表补 `main.dart`、`app_info.dart` 两行 |
+| A-6 | `part` 可把代码带进别的层 | `part`/`part of` 必须同一顶层目录 |
+| A-2 | 测试缺矩阵禁止格、`part`、lib 外、退出码、文档一致性 | 补齐；`main` 拆出可测的 `run()` |
+| B-1 | 两个 service 测试在 `test/models/` | 移到 `test/services/*_service_test.dart` |
+| B-2 | `utils/external_links.dart` 的 `openExternalUrl` 启动进程 | 拆到 `services/external_url_opener.dart`，URL 构造留在 utils |
+| B-3 | 只服务资源面板的两个 picker 在 `widgets/` | 移到 `views/panels/` |
+| B-4 | ARCHITECTURE 与现状不符 4 处 | 补 gen-l10n 检查、`image_preview_window`、`test/tool` 相对导入、同层导入 |
+| B-5 | 模板名 `MyHomePage` | 删除，`home:` 直接放工作台 |
+| B-6 | 未使用的 `cupertino_icons` | 删除（已确认依赖包里也没有用到 `CupertinoIcons`） |
+| B-7 | `PanelHeader`/`CountPill` 无引用（基线即如此） | 删除 |
+| B-8 | 4 个只在本文件使用的公开顶层函数 | 改为私有 |
+| B-9 | `model_picker.dart` 的主类是 `ModelPickerField` | 文件改名 `model_picker_field.dart` |
+| B-10 | `test/state/state_test.dart` 不对应任何 lib 文件 | 拆为 `dataset_state_test.dart`、`editor_session_test.dart` |
+| B-11 | 部分跨层特性测试按名字归到 `test/models/` | `tag_group_test`（22 例中 20 例测 AppState）移到 `test/state/app_state_tag_groups_test.dart`；其余是以模型命名的端到端特性测试（`caption_*`、`prompt_preset`），按约定留在 `test/models/`，不拆 |
+| B-12/13/15 | `panel_widgets` 多个公开组件；面板内私有对话框；service 是 `ChangeNotifier` | 约定写入 ARCHITECTURE，不改代码 |
+| B-14 | `ShortcutRelay` 不是状态 | 移到 `views/workbench/` |
 
 ---
 
@@ -227,7 +253,7 @@ print(f'moved {len(mapping)} files')
 
 ## 附录 B：分层校验 `tool/check_layers.dart`
 
-重构期间用的是手工运行的 Python 脚本 `check_layers.py`（见本文件 git 历史）。它只匹配 `^import '...'`，漏掉 `export` 与 `package:dataset_training_tool/...` 自引用。现已由 `tool/check_layers.dart` 取代，规则与 LLD §3 矩阵一致，`views/`、`l10n/` 及 `lib/` 根下文件不受限。在仓库根目录运行：
+重构期间用的是手工运行的 Python 脚本 `check_layers.py`（见本文件 git 历史）。它只匹配 `^import '...'`，漏掉 `export` 与 `package:dataset_training_tool/...` 自引用。现已由 `tool/check_layers.dart` 取代，规则与 LLD §3 矩阵一致；只有 `views/` 与 `main.dart` 不受限，`l10n/` 与 `app_info.dart` 是叶子（只能依赖自身）。在仓库根目录运行：
 
 ```bash
 dart run tool/check_layers.dart   # 打印每条 VIOLATION，末行 violations: N；N > 0 时退出码 1
@@ -235,9 +261,10 @@ dart run tool/check_layers.dart   # 打印每条 VIOLATION，末行 violations: 
 
 与旧脚本相比：
 
-- 检查 `import`、`export`、`part`，含条件导入的各备选 URI（`if (dart.library.io) '...'`）；
+- 检查 `import`、`export`，含条件导入的各备选 URI（`if (dart.library.io) '...'`）；`part` / `part of` 必须留在自己的顶层目录内，防止 part 文件把代码带进别的层；
+- 用一个小型扫描器读取文件开头的指令区（Dart 只允许指令出现在第一个声明之前），正确处理注释、raw 字符串、注解与同一行多条指令，块注释或字符串里的伪 import 不会误报；
 - 相对路径与 `package:dataset_training_tool/` 都解析到 `lib/` 下的顶层目录或文件，指向 `lib/` 之外也算违规；
-- `lib/` 下出现矩阵里没有的新顶层目录时报错，避免新目录绕开检查；
-- CI（`.github/workflows/dart.yml`）在 `flutter analyze` 之后运行；测试见 `test/tool/check_layers_test.dart`。
+- `lib/` 下出现矩阵里没有的新顶层目录或根文件时报错，避免绕开检查；
+- CI（`.github/workflows/dart.yml`）在 `flutter analyze` 之后运行；测试见 `test/tool/check_layers_test.dart`，其中一条测试解析 `docs/ARCHITECTURE.md` 的分层表并与 `allowedImports` 逐行比对。
 
-矩阵改动时同步改 `docs/ARCHITECTURE.md` 表格、LLD §3 与脚本里的 `allowedImports`。
+矩阵改动时同步改 `docs/ARCHITECTURE.md` 表格、LLD §3 与脚本里的 `allowedImports`。ARCHITECTURE 表与 `allowedImports` 不一致时测试会失败；LLD §3 不在测试范围内，需手工同步。

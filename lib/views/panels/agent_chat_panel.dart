@@ -45,7 +45,7 @@ MarkdownConfig _chatConfig(bool isDark) {
 
 /// Markdown rendering shared by the user and assistant bubbles: the preset
 /// for the current brightness with the chat's compact font size.
-Widget chatMarkdown(BuildContext context, String text) {
+Widget _chatMarkdown(BuildContext context, String text) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
   return MarkdownBlock(
     data: text,
@@ -734,7 +734,7 @@ class _EntryRow extends StatelessWidget {
                 border: Border.all(color: scheme.primary.withAlpha(70)),
                 borderRadius: BorderRadius.circular(AppRadii.card - 2),
               ),
-              child: chatMarkdown(context, entry.text),
+              child: _chatMarkdown(context, entry.text),
             ),
           ),
         );
@@ -743,7 +743,7 @@ class _EntryRow extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 8, right: 12),
           child: streaming
               ? Text(entry.text, style: _chatTextStyle)
-              : chatMarkdown(context, entry.text),
+              : _chatMarkdown(context, entry.text),
         );
       case AgentEntryKind.tool:
         return _ToolCard(entry: entry);
@@ -1537,7 +1537,7 @@ class _InputFooter extends StatelessWidget {
 /// Anima caption workflows. Built from l10n on each open so they follow
 /// the UI language; the ids are stable but never persisted — picking one
 /// only fills the input, exactly like a saved preset.
-List<PromptPreset> builtinPromptPresets(AppLocalizations l10n) => [
+List<PromptPreset> _builtinPromptPresets(AppLocalizations l10n) => [
   PromptPreset(
     id: 'builtin-anima-tag',
     title: l10n.animaTagPresetTitle,
@@ -1636,7 +1636,7 @@ class _PresetMenuButton extends StatelessWidget {
             style: TextStyle(fontSize: 10.5, color: semantic.muted),
           ),
         ),
-        for (final preset in builtinPromptPresets(l10n))
+        for (final preset in _builtinPromptPresets(l10n))
           PopupMenuItem<PromptPreset>(
             value: preset,
             enabled: enabled,
