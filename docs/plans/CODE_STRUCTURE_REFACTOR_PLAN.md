@@ -149,7 +149,7 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 | 修复 `test/views/dialogs/tag_dictionary_dialog_test.dart` 偶发失败 | danbooru 查询用例在全量并行运行时约 1/7 概率失败、单跑稳定通过；`fetch()` 用固定 80 ms 真实时间等待含文件 I/O 的往返，基线即如此。改为等待实际完成；已开独立任务 | 中 |
 | 统一本地与 CI 的 Flutter 版本 | CI 3.44.7 vs 本地 3.47.5 可能导致格式校验结果不一致；考虑 `.fvmrc` 或升级 CI | 中 |
 | 拆分超大 UI 文件 | `tag_dictionary_dialog.dart` 等，切分点见 LLD §9 | 低 |
-| 分层规则进 CI | 目前靠附录 B 脚本手工校验，且只查 `import`；应把脚本放进 `tool/`、扩展到 `export`，在 CI analyze 后执行，并写入 ARCHITECTURE 的提交前检查；已开独立任务 | 中 |
+| ~~分层规则进 CI~~ | 已完成：`tool/check_layers.dart`（见附录 B）在 CI analyze 之后执行，并已写入 ARCHITECTURE 的提交前检查 | — |
 | 评估剩余 lint | `avoid_dynamic_calls`（20 处，JSON 解析）可配合类型化解析逐步启用 | 低 |
 
 ---
@@ -161,7 +161,7 @@ flutter pub get                                                 # 先解析依�
 dart format --output=none --set-exit-if-changed lib test tool   # 退出码 0
 flutter analyze                                                 # No issues found!
 flutter test                                                    # 全部通过（合入 main 前：除 chip_dim_test 2 例外）
-python3 check_layers.py                                         # violations: 0（附录 B，在 lib/ 下运行）
+dart run tool/check_layers.dart                                 # violations: 0（附录 B，在仓库根目录运行）
 ```
 
 当前结果（合入 main @ `472a689` 后）：格式 0 变更；analyzer 0 issue；测试 `+923` 全部通过；分层 0 violation。各提交单独验收时为 `+920 -2`，失败的 2 例是基线即存在的 `chip_dim_test`，已由 main 上的 PR #106 修复。
@@ -225,33 +225,19 @@ for a, b in mapping.items():
 print(f'moved {len(mapping)} files')
 ```
 
-## 附录 B：分层校验脚本 `check_layers.py`
+## 附录 B：分层校验 `tool/check_layers.dart`
 
-在 `lib/` 目录下运行。规则与 LLD §3 矩阵一致；`views/` 不受限。
+重构期间用的是手工运行的 Python 脚本 `check_layers.py`（见本文件 git 历史）。它只匹配 `^import '...'`，漏掉 `export` 与 `package:dataset_training_tool/...` 自引用。现已由 `tool/check_layers.dart` 取代，规则与 LLD §3 矩阵一致，`views/`、`l10n/` 及 `lib/` 根下文件不受限。在仓库根目录运行：
 
-```python
-import os, re
-
-allowed = {
-    'widgets':  {'widgets', 'state', 'services', 'models', 'theme', 'utils', 'l10n', 'app_info.dart'},
-    'state':    {'state', 'agent', 'services', 'models', 'theme', 'utils', 'l10n', 'app_info.dart'},
-    'agent':    {'agent', 'state', 'services', 'models', 'utils', 'l10n', 'app_info.dart'},
-    'services': {'services', 'models', 'theme', 'utils', 'app_info.dart'},
-    'models':   {'models'},
-    'theme':    {'theme', 'models'},
-    'utils':    {'utils', 'models'},
-}
-bad = 0
-for layer, ok in allowed.items():
-    for dp, _, fs in os.walk(layer):
-        for f in fs:
-            p = os.path.join(dp, f)
-            for uri in re.findall(r"^import '([^']+)'", open(p).read(), re.M):
-                if uri.startswith(('dart:', 'package:')):
-                    continue
-                top = os.path.normpath(os.path.join(dp, uri)).split('/')[0]
-                if top not in ok:
-                    print('VIOLATION', p, '->', uri)
-                    bad += 1
-print('violations:', bad)
+```bash
+dart run tool/check_layers.dart   # 打印每条 VIOLATION，末行 violations: N；N > 0 时退出码 1
 ```
+
+与旧脚本相比：
+
+- 检查 `import`、`export`、`part`，含条件导入的各备选 URI（`if (dart.library.io) '...'`）；
+- 相对路径与 `package:dataset_training_tool/` 都解析到 `lib/` 下的顶层目录或文件，指向 `lib/` 之外也算违规；
+- `lib/` 下出现矩阵里没有的新顶层目录时报错，避免新目录绕开检查；
+- CI（`.github/workflows/dart.yml`）在 `flutter analyze` 之后运行；测试见 `test/tool/check_layers_test.dart`。
+
+矩阵改动时同步改 `docs/ARCHITECTURE.md` 表格、LLD §3 与脚本里的 `allowedImports`。

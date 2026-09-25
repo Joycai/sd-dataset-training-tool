@@ -2,6 +2,9 @@
 
 Layer-first layout under `lib/`. Each layer may import only what its row
 lists in the "May import" column; anything else is a layering violation.
+`tool/check_layers.dart` enforces this table (imports, exports and
+`package:dataset_training_tool/` URIs alike) and runs in CI; change both
+together.
 
 | Directory | Holds | May import |
 | --- | --- | --- |
@@ -30,6 +33,7 @@ Inside `views/`:
   Tests import with `package:dataset_training_tool/...`.
 - `test/` mirrors `lib/`: a test for `lib/state/tag_ops.dart` lives at
   `test/state/tag_ops_test.dart`. `test/widget_test.dart` is the app smoke test.
+  `test/tool/` tests the scripts in `tool/`.
 - Before pushing, run the same checks CI runs (after `flutter pub get`, so the
   formatter sees the package's language version):
 
@@ -37,6 +41,7 @@ Inside `views/`:
   flutter pub get
   dart format --output=none --set-exit-if-changed lib test tool
   flutter analyze
+  dart run tool/check_layers.dart
   flutter test
   ```
 
