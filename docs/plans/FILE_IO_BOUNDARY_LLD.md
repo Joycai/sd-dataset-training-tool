@@ -163,7 +163,7 @@ class DatasetStore {
 | `json_caption_tools.dart` 3 处 | exists / read / write | `readCaption` 为 `null` 时走 `missingFile++` 或 `skippedNoCaption++` | 计数与失败文案不变 |
 | `media_tools.dart:213` | `File(key).readAsBytes()` | `s.readImageBytes(key)` | `cannot read image: $e` 不变 |
 | `media_tools.dart:108-110` | `interrogateImageFile(File(key), …)` | **不改** | 只把 `File` 作为句柄传给 service，本身没有读写 |
-| `workbench_view.dart:137` | `Directory(d).existsSync()` | `if (d != null && await _dataset.store.directoryExists(d) && mounted) _scan(d);` | 由同步改为异步，扫描推迟一个微任务启动；await 后补 `mounted` 检查 |
+| `workbench_view.dart:137` | `Directory(d).existsSync()` | `if (d != null && await _dataset.store.directoryExists(d) && mounted) _scan(d);` | 由同步改为异步，扫描推迟到这次存在检查（一次磁盘 I/O）返回后才启动；await 后补 `mounted` 检查 |
 
 ### 4.5 `services/json_file_dialogs.dart`（新增，P4）
 
@@ -235,7 +235,7 @@ Future<String?> saveJson({required String fileName, required String contents});
 | 风险 | 缓解 |
 | --- | --- |
 | 替换时改变了错误文案或跳过条件，agent 的工具结果随之改变 | §4.4 逐处列出了需保持的语义。`test/agent/` 的 14 个测试文件断言了失败文案和计数。单片 review 时要按表逐行核对。 |
-| `workbench_view` 改为异步后，启动时的首次扫描推迟一个微任务 | 扫描本身就是异步的，时序上没有可观察的变化。`widget_test.dart` 冒烟测试会覆盖启动流程。 |
+| `workbench_view` 改为异步后，启动时的首次扫描要等存在检查的磁盘 I/O 返回 | 扫描本身就是异步的，这段窗口里用户来不及触发别的扫描。`widget_test.dart` 新增用例覆盖"上次的目录存在时重开、不存在时不扫描"。 |
 | 守卫正则将来出现误报 | 方法名表可以直接调整；工具有单元测试锁定当前行为。 |
 | 与进行中的其他分支冲突（大量 agent 文件） | 按 §8 拆成小提交，合入前把 main 同步进来（merge，不 rebase）。 |
 

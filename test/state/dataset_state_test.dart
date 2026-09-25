@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dataset_training_tool/services/dataset_store.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -13,6 +14,23 @@ const _pngBytes = [
   0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
   0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
 ];
+
+/// A listing that finds two images and then fails, the way a directory the
+/// user may not read does halfway through a recursive scan.
+class _BrokenListingStore extends DatasetStore {
+  const _BrokenListingStore();
+
+  @override
+  Stream<ScannedImage> scan(
+    String root, {
+    required bool recursive,
+    required String captionExtension,
+  }) async* {
+    yield (image: File(p.join(root, 'b.png')), caption: 'y');
+    yield (image: File(p.join(root, 'a.png')), caption: 'x, z');
+    throw FileSystemException('list refused', root);
+  }
+}
 
 void main() {
   late Directory tempDir;
@@ -70,5 +88,21 @@ void main() {
     // Clamped at the ends.
     expect(dataset.selectByOffset(-1), isNull);
     expect(dataset.selectedVisibleIndex, 0);
+  });
+
+  test('a listing failure keeps the images found before it', () async {
+    final dataset = DatasetState(store: const _BrokenListingStore());
+    await dataset.scan(
+      directoryPath: tempDir.path,
+      recursive: true,
+      captionExtension: '.txt',
+    );
+    expect(dataset.allFiles.map((f) => p.basename(f.path)), ['a.png', 'b.png']);
+    expect(dataset.tagsOf(p.join(tempDir.path, 'a.png')), ['x', 'z']);
+    expect(
+      dataset.error,
+      FileSystemException('list refused', tempDir.path).toString(),
+    );
+    expect(dataset.isLoading, isFalse);
   });
 }
