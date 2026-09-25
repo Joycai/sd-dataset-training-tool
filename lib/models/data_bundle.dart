@@ -3,7 +3,7 @@
 /// reinstall — can be brought back to where they left off.
 ///
 /// Pure data. Collecting a bundle from the running app and applying one to it
-/// live in `services/data_transfer.dart`; this file only knows the layout.
+/// live in `state/data_transfer.dart`; this file only knows the layout.
 ///
 /// Deliberately *not* in the file: anything the app can fetch or regenerate on
 /// its own — the bundled WD label file, the downloaded danbooru dictionary,
@@ -104,7 +104,8 @@ class TagLibraryBundle {
 
   Map<String, dynamic> toJson() => {
     'groups': [
-      for (final g in groups) {'name': g.name, 'color': g.color, 'tags': g.tags},
+      for (final g in groups)
+        {'name': g.name, 'color': g.color, 'tags': g.tags},
     ],
     'ungrouped': ungrouped,
     'customTags': [for (final e in customTags) e.toJson()],
@@ -126,7 +127,8 @@ class TagLibraryBundle {
               // Placeholder: import matches by name and mints its own id.
               id: '',
               name: raw['name'] as String,
-              color: (raw['color'] as num?)?.toInt() ?? kTagGroupPresetColors[0],
+              color:
+                  (raw['color'] as num?)?.toInt() ?? kTagGroupPresetColors[0],
               tags: _stringsOf(raw['tags']),
             ),
       ],
@@ -216,12 +218,11 @@ class DataBundle {
       'app': appId,
       'appVersion': appVersion,
       if (exportedAt != null) 'exportedAt': exportedAt!.toIso8601String(),
-      if (providers case final list?)
-        DataSection.llm.key: {'providers': [for (final p in list) p.toJson()]},
-      if (tagLibrary case final library?)
-        DataSection.tagLibrary.key: library.toJson(),
-      if (presets case final list?)
-        DataSection.promptPresets.key: [for (final p in list) p.toJson()],
+      if (providers case final list?) DataSection.llm.key: {
+          'providers': [for (final p in list) p.toJson()],
+        },
+      if (tagLibrary case final library?) DataSection.tagLibrary.key: library.toJson(),
+      if (presets case final list?) DataSection.promptPresets.key: [for (final p in list) p.toJson()],
     })}\n';
   }
 
@@ -258,9 +259,7 @@ class DataBundle {
         _ => null,
       },
       tagLibrary: switch (decoded[DataSection.tagLibrary.key]) {
-        final Map raw => TagLibraryBundle.fromJson(
-          raw.cast<String, dynamic>(),
-        ),
+        final Map raw => TagLibraryBundle.fromJson(raw.cast<String, dynamic>()),
         _ => null,
       },
       presets: switch (decoded[DataSection.promptPresets.key]) {

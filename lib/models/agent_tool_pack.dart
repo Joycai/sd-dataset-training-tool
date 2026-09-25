@@ -55,8 +55,6 @@ enum AgentToolPack {
   /// empty set; an empty list is a user who really did switch everything off.
   static Set<AgentToolPack> decode(List<String>? ids) {
     if (ids == null) return defaults;
-    return {
-      for (final id in ids) ?fromId(id),
-    };
+    return {for (final id in ids) ?fromId(id)};
   }
 }

@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/tag_group.dart';
+import '../../state/app_state.dart';
 import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
 import '../../state/tag_ops.dart';
@@ -16,13 +16,13 @@ import '../../theme/app_theme.dart';
 import '../../utils/tag_search.dart';
 import '../../widgets/panel_widgets.dart';
 import '../../widgets/row_limited_wrap.dart';
-import '../../widgets/tag_context_menu.dart';
 import '../../widgets/tag_gloss.dart';
+import '../dialogs/tag_ai_group_dialog.dart';
+import '../dialogs/tag_dictionary_dialog.dart';
+import '../dialogs/tag_group_dialog.dart';
+import '../dialogs/tag_merge_dialog.dart';
 import 'dataset_tags_view.dart';
-import 'tag_ai_group_dialog.dart';
-import 'tag_dictionary_dialog.dart';
-import 'tag_group_dialog.dart';
-import 'tag_merge_dialog.dart';
+import 'tag_context_menu.dart';
 
 /// Right panel: two tabs sharing the column — the reusable tag library and
 /// the dataset-wide tag list.
@@ -273,7 +273,11 @@ class _LibraryViewState extends State<_LibraryView> {
         .toList();
   }
 
-  void _showTagMenu(BuildContext context, Offset position, String tag) async {
+  Future<void> _showTagMenu(
+    BuildContext context,
+    Offset position,
+    String tag,
+  ) async {
     final appState = context.read<AppState>();
     final dataset = context.read<DatasetState>();
     final action = await showPanelContextMenu<TagMenuAction>(
@@ -2036,7 +2040,7 @@ class _GroupHeaderState extends State<_GroupHeader> {
 
     // The whole header row folds the section; the controls inside it swallow
     // their own taps, so the chevron is a hint rather than the only hit area.
-    Widget content = MouseRegion(
+    final Widget content = MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -2197,9 +2201,7 @@ class _LibraryTagChip extends StatelessWidget {
         context: context,
         tag: label,
         child: MouseRegion(
-          cursor: enabled
-              ? SystemMouseCursors.click
-              : SystemMouseCursors.basic,
+          cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
           child: chip,
         ),
       ),

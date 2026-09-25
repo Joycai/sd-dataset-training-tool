@@ -147,10 +147,7 @@ const int _maxOutput = 2000000;
 final _contextNumberPatterns = <RegExp>[
   // OpenAI / vLLM / most relays:
   // "This model's maximum context length is 8192 tokens"
-  RegExp(
-    r'maximum context length is ([\d,]+)',
-    caseSensitive: false,
-  ),
+  RegExp(r'maximum context length is ([\d,]+)', caseSensitive: false),
   RegExp(r'maximum context length \(([\d,]+)\)', caseSensitive: false),
   RegExp(r'context length of ([\d,]+)', caseSensitive: false),
   RegExp(r'context window of ([\d,]+)', caseSensitive: false),
@@ -266,9 +263,8 @@ ProbedLimits limitsFromModelEntry(Map<String, dynamic> entry) {
   }
 
   return ProbedLimits(
-    contextWindow: (context != null &&
-            context >= _minContext &&
-            context <= _maxContext)
+    contextWindow:
+        (context != null && context >= _minContext && context <= _maxContext)
         ? context
         : null,
     maxOutput: (output != null && output >= _minOutput && output <= _maxOutput)
@@ -368,13 +364,54 @@ int? parseLlamaCppContext(Object? json) {
 /// Ordinary words, so the text tokenizes at a normal rate and does not look
 /// like an attack payload to a content filter.
 const _fillerWords = [
-  'river', 'copper', 'lantern', 'garden', 'method', 'silent', 'harbor',
-  'window', 'travel', 'orange', 'pencil', 'bridge', 'forest', 'moment',
-  'candle', 'marble', 'signal', 'pocket', 'ribbon', 'summer', 'ticket',
-  'valley', 'wander', 'yellow', 'anchor', 'basket', 'cotton', 'dinner',
-  'engine', 'fabric', 'gentle', 'hollow', 'island', 'jacket', 'kettle',
-  'ladder', 'meadow', 'napkin', 'orchid', 'parcel', 'quarry', 'rocket',
-  'saddle', 'temple', 'urgent', 'velvet', 'walnut', 'zenith',
+  'river',
+  'copper',
+  'lantern',
+  'garden',
+  'method',
+  'silent',
+  'harbor',
+  'window',
+  'travel',
+  'orange',
+  'pencil',
+  'bridge',
+  'forest',
+  'moment',
+  'candle',
+  'marble',
+  'signal',
+  'pocket',
+  'ribbon',
+  'summer',
+  'ticket',
+  'valley',
+  'wander',
+  'yellow',
+  'anchor',
+  'basket',
+  'cotton',
+  'dinner',
+  'engine',
+  'fabric',
+  'gentle',
+  'hollow',
+  'island',
+  'jacket',
+  'kettle',
+  'ladder',
+  'meadow',
+  'napkin',
+  'orchid',
+  'parcel',
+  'quarry',
+  'rocket',
+  'saddle',
+  'temple',
+  'urgent',
+  'velvet',
+  'walnut',
+  'zenith',
 ];
 
 /// Builds [words] words of deterministic filler.

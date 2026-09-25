@@ -1,16 +1,15 @@
+import 'package:dataset_training_tool/main.dart';
+import 'package:dataset_training_tool/services/settings_service.dart';
+import 'package:dataset_training_tool/state/app_state.dart';
+import 'package:dataset_training_tool/state/dataset_state.dart';
+import 'package:dataset_training_tool/views/panels/assets_panel.dart';
+import 'package:dataset_training_tool/views/panels/tag_library_panel.dart';
+import 'package:dataset_training_tool/widgets/resize_handle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:dataset_training_tool/app_state.dart';
-import 'package:dataset_training_tool/main.dart';
-import 'package:dataset_training_tool/services/settings_service.dart';
-import 'package:dataset_training_tool/state/dataset_state.dart';
-import 'package:dataset_training_tool/views/panels/assets_panel.dart';
-import 'package:dataset_training_tool/views/panels/tag_library_panel.dart';
-import 'package:dataset_training_tool/widgets/resize_handle.dart';
 
 Future<AppState> _createAppState({Map<String, Object> prefs = const {}}) async {
   SharedPreferences.setMockInitialValues(prefs);
@@ -20,7 +19,10 @@ Future<AppState> _createAppState({Map<String, Object> prefs = const {}}) async {
 }
 
 Widget _wrapApp(AppState appState) {
-  return ChangeNotifierProvider.value(value: appState, child: const MyApp());
+  return ChangeNotifierProvider.value(
+    value: appState,
+    child: const DatasetToolkitApp(),
+  );
 }
 
 void main() {

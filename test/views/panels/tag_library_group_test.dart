@@ -1,0 +1,387 @@
+import 'package:dataset_training_tool/l10n/app_localizations.dart';
+import 'package:dataset_training_tool/models/tag_filter.dart';
+import 'package:dataset_training_tool/models/tag_group.dart';
+import 'package:dataset_training_tool/services/settings_service.dart';
+import 'package:dataset_training_tool/state/app_state.dart';
+import 'package:dataset_training_tool/state/dataset_state.dart';
+import 'package:dataset_training_tool/state/editor_session.dart';
+import 'package:dataset_training_tool/state/tag_ops.dart';
+import 'package:dataset_training_tool/state/workbench_layout.dart';
+import 'package:dataset_training_tool/theme/app_theme.dart';
+import 'package:dataset_training_tool/views/panels/tag_library_panel.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void main() {
+  late AppState appState;
+  late DatasetState dataset;
+  late EditorSession session;
+  late TagOps ops;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    appState = AppState(SettingsService());
+    await appState.loadSettings();
+    await appState.addCommonTags(['alpha', 'beta', 'gamma']);
+    dataset = DatasetState();
+    session = EditorSession()..autoSaveEnabled = false;
+    ops = TagOps(dataset: dataset);
+  });
+
+  tearDown(() {
+    session.dispose();
+  });
+
+  Widget harness() {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: appState),
+        ChangeNotifierProvider.value(value: dataset),
+        ChangeNotifierProvider.value(value: session),
+        ChangeNotifierProvider.value(value: ops),
+        ChangeNotifierProvider(create: (_) => WorkbenchLayout()),
+      ],
+      child: MaterialApp(
+        theme: buildAppTheme(Brightness.dark),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const Scaffold(
+          body: Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(width: 340, child: TagLibraryPanel()),
+          ),
+        ),
+      ),
+    );
+  }
+
+  testWidgets('groups render as sections with ungrouped last', (tester) async {
+    final g = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+    await appState.moveTagsToGroup(['alpha'], g.id);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    expect(find.text('outfit'), findsOneWidget);
+    expect(find.text('Ungrouped'), findsOneWidget);
+    expect(find.text('alpha'), findsOneWidget);
+    expect(find.text('beta'), findsOneWidget);
+  });
+
+  testWidgets('group edit mode: select two tags, send via context menu', (
+    tester,
+  ) async {
+    await appState.createTagGroup('outfit', 0xFF6A9BDD);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.checklist));
+    await tester.pumpAndSettle();
+    expect(find.text('Nothing selected'), findsOneWidget);
+
+    // Selection works without an image loaded — organize mode is library-only.
+    await tester.tap(find.text('alpha'));
+    await tester.tap(find.text('beta'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 tags selected'), findsOneWidget);
+
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Send to outfit'));
+    await tester.pumpAndSettle();
+
+    expect(appState.tagGroups.single.tags, ['alpha', 'beta']);
+    expect(appState.ungroupedTags, ['gamma']);
+    // Moved tags leave the selection.
+    expect(find.text('Nothing selected'), findsOneWidget);
+  });
+
+  testWidgets('right-click on an unselected tag sends only that tag', (
+    tester,
+  ) async {
+    final g = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.checklist));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('alpha'));
+    await tester.pumpAndSettle();
+
+    // 'gamma' is not selected: the menu targets it alone.
+    await tester.tap(find.text('gamma'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Send to outfit'));
+    await tester.pumpAndSettle();
+
+    expect(appState.tagGroups.single.tags, ['gamma']);
+    expect(appState.groupOfTag('alpha'), isNull);
+    expect(g.tags, isEmpty); // the original instance is immutable
+  });
+
+  testWidgets(
+    'right-click on a library tag (outside edit mode) offers filter and '
+    'dictionary actions, unified with the dataset tab',
+    (tester) async {
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Only images with this tag'), findsOneWidget);
+      expect(find.text('Only images without this tag'), findsOneWidget);
+      expect(find.text('Danbooru wiki'), findsOneWidget);
+      expect(find.text('Danbooru posts'), findsOneWidget);
+      expect(find.text('Open in dictionary…'), findsOneWidget);
+      expect(find.text('Remove from library'), findsOneWidget);
+      // Every tag here is already in the library: no add-to-library entry.
+      expect(find.text('Add to library'), findsNothing);
+
+      await tester.tap(find.text('Only images with this tag'));
+      await tester.pumpAndSettle();
+
+      final conditions = dataset.tagFilterExpression.children
+          .whereType<TagFilterCondition>()
+          .toList();
+      expect(conditions.single.tag, 'alpha');
+    },
+  );
+
+  testWidgets('remove from library via chip context menu', (tester) async {
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('gamma'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove from library'));
+    await tester.pumpAndSettle();
+
+    expect(appState.commonTags, ['alpha', 'beta']);
+  });
+
+  testWidgets('remove from group via context menu', (tester) async {
+    final g = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+    await appState.moveTagsToGroup(['alpha'], g.id);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.checklist));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove from group'));
+    await tester.pumpAndSettle();
+
+    expect(appState.groupOfTag('alpha'), isNull);
+    expect(appState.ungroupedTags, ['alpha', 'beta', 'gamma']);
+  });
+
+  testWidgets('clear library via the more menu keeps groups', (tester) async {
+    final g = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+    await appState.moveTagsToGroup(['alpha'], g.id);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_horiz));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear library'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+
+    expect(appState.commonTags, isEmpty);
+    expect(appState.tagGroups.single.name, 'outfit');
+    expect(appState.tagGroups.single.tags, isEmpty);
+    // The emptied group still renders as a section.
+    expect(find.text('outfit'), findsOneWidget);
+  });
+
+  testWidgets('group header delete button removes the group', (tester) async {
+    final g = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+    await appState.moveTagsToGroup(['alpha'], g.id);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    // Only real group headers carry a delete button; ungrouped has none.
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+
+    expect(appState.tagGroups, isEmpty);
+    expect(appState.ungroupedTags, ['alpha', 'beta', 'gamma']);
+  });
+
+  testWidgets('group header context menu deletes the group', (tester) async {
+    final g = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+    await appState.moveTagsToGroup(['alpha'], g.id);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('outfit'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete group'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+
+    expect(appState.tagGroups, isEmpty);
+    expect(appState.ungroupedTags, ['alpha', 'beta', 'gamma']);
+  });
+
+  testWidgets('edit mode: arrows reorder groups and disable at the ends', (
+    tester,
+  ) async {
+    final g1 = await appState.createTagGroup('one', 1);
+    final g2 = await appState.createTagGroup('two', 2);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    // Outside edit mode the headers carry no arrows.
+    expect(find.byIcon(Icons.arrow_upward), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.checklist));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.arrow_upward), findsNWidgets(2));
+
+    // Move "two" up above "one".
+    await tester.tap(find.byIcon(Icons.arrow_upward).last);
+    await tester.pumpAndSettle();
+    expect(appState.tagGroups.map((g) => g.id), [g2.id, g1.id]);
+
+    // Now "two" is first: its up arrow is the disabled one — tapping it
+    // changes nothing.
+    await tester.tap(find.byIcon(Icons.arrow_upward).first);
+    await tester.pumpAndSettle();
+    expect(appState.tagGroups.map((g) => g.id), [g2.id, g1.id]);
+  });
+
+  testWidgets('edit mode: color dot opens swatches and recolors the group', (
+    tester,
+  ) async {
+    final g = await appState.createTagGroup('outfit', kTagGroupPresetColors[0]);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.checklist));
+    await tester.pumpAndSettle();
+
+    // The header dot sits just left of the group name.
+    final nameRect = tester.getRect(find.text('outfit'));
+    await tester.tapAt(Offset(nameRect.left - 12, nameRect.center.dy));
+    await tester.pumpAndSettle();
+
+    // Pick the second preset swatch from the popup.
+    final swatch = find.byWidgetPredicate((w) {
+      if (w is! Container || w.decoration is! BoxDecoration) return false;
+      final d = w.decoration! as BoxDecoration;
+      return d.shape == BoxShape.circle &&
+          d.color == Color(kTagGroupPresetColors[1]);
+    });
+    await tester.tap(swatch.last);
+    await tester.pumpAndSettle();
+
+    expect(appState.tagGroups.single.color, kTagGroupPresetColors[1]);
+    expect(appState.tagGroups.single.name, 'outfit');
+    expect(g.id, appState.tagGroups.single.id);
+  });
+
+  testWidgets('edit mode menu: select and deselect the clicked tag', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.checklist));
+    await tester.pumpAndSettle();
+
+    // Unselected: the menu offers "Select".
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Select'), findsOneWidget);
+    expect(find.text('Deselect'), findsNothing);
+    await tester.tap(find.text('Select'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 tag selected'), findsOneWidget);
+
+    // Now selected: the same menu item flips to "Deselect".
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Deselect'), findsOneWidget);
+    await tester.tap(find.text('Deselect'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nothing selected'), findsOneWidget);
+  });
+
+  testWidgets('edit mode menu: select all in group', (tester) async {
+    final g = await appState.createTagGroup('outfit', 0xFF6A9BDD);
+    await appState.moveTagsToGroup(['alpha', 'beta'], g.id);
+
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.checklist));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Select all in group'), findsOneWidget);
+    await tester.tap(find.text('Select all in group'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 tags selected'), findsOneWidget);
+  });
+
+  testWidgets(
+    "edit mode menu: 'select all in group' is absent for a lone tag",
+    (tester) async {
+      await tester.pumpWidget(harness());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pumpAndSettle();
+
+      // A group of exactly one tag has no siblings worth a batch-select.
+      final g = await appState.createTagGroup('solo', 0xFF6A9BDD);
+      await appState.moveTagsToGroup(['alpha'], g.id);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Select all in group'), findsNothing);
+    },
+  );
+
+  testWidgets('edit mode menu: remove selection from the library', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.checklist));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('alpha'));
+    await tester.tap(find.text('beta'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('alpha'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
+    expect(find.text('Remove from library'), findsOneWidget);
+    await tester.tap(find.text('Remove from library'));
+    await tester.pumpAndSettle();
+
+    expect(appState.commonTags, ['gamma']);
+  });
+}

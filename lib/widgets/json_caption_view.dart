@@ -48,7 +48,10 @@ class JsonCaptionView extends StatelessWidget {
                 Expanded(
                   child: Text(
                     l10n.captionJsonInvalid(e.message),
-                    style: TextStyle(fontSize: AppText.small, color: scheme.error),
+                    style: TextStyle(
+                      fontSize: AppText.small,
+                      color: scheme.error,
+                    ),
                   ),
                 ),
               ],

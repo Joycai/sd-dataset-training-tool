@@ -66,29 +66,26 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
     List<AgentToolSpec> tools, {
     required bool stream,
     int? maxTokensOverride,
-  }) => _applyRepairs(
-    {
-      'model': profile.model,
-      'messages': _convertMessages(messages),
-      'stream': stream,
-      if (stream) 'stream_options': {'include_usage': true},
-      'max_tokens': maxTokensOverride ?? profile.maxOutputTokens,
-      'temperature': profile.temperature,
-      if (tools.isNotEmpty)
-        'tools': [
-          for (final t in tools)
-            {
-              'type': 'function',
-              'function': {
-                'name': t.name,
-                'description': t.description,
-                'parameters': t.parametersSchema,
-              },
+  }) => _applyRepairs({
+    'model': profile.model,
+    'messages': _convertMessages(messages),
+    'stream': stream,
+    if (stream) 'stream_options': {'include_usage': true},
+    'max_tokens': maxTokensOverride ?? profile.maxOutputTokens,
+    'temperature': profile.temperature,
+    if (tools.isNotEmpty)
+      'tools': [
+        for (final t in tools)
+          {
+            'type': 'function',
+            'function': {
+              'name': t.name,
+              'description': t.description,
+              'parameters': t.parametersSchema,
             },
-        ],
-    },
-    _knownRepairs[profile.id] ?? const {},
-  );
+          },
+      ],
+  }, _knownRepairs[profile.id] ?? const {});
 
   List<Map<String, dynamic>> _convertMessages(List<ChatMessage> messages) {
     final out = <Map<String, dynamic>>[];
@@ -447,7 +444,9 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
       if (decoded is! Map<String, dynamic> || decoded['data'] is! List) {
         throw LlmException('Unexpected /models response shape.');
       }
-      return (decoded['data'] as List).whereType<Map<String, dynamic>>().toList();
+      return (decoded['data'] as List)
+          .whereType<Map<String, dynamic>>()
+          .toList();
     } on TimeoutException {
       throw LlmException(
         'Connection timed out after ${connectTimeout.inSeconds}s.',
@@ -476,14 +475,13 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
   }) async {
     final client = _clientFactory();
     try {
-      var body =
-          _buildBody(
-            profile,
-            messages,
-            const [],
-            stream: false,
-            maxTokensOverride: maxTokens,
-          )..remove('stream_options');
+      var body = _buildBody(
+        profile,
+        messages,
+        const [],
+        stream: false,
+        maxTokensOverride: maxTokens,
+      )..remove('stream_options');
       var resp = await _send(client, profile, body, timeout: timeout);
       var text = await _readBody(resp);
 
