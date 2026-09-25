@@ -19,7 +19,10 @@ Future<AppState> _createAppState({Map<String, Object> prefs = const {}}) async {
 }
 
 Widget _wrapApp(AppState appState) {
-  return ChangeNotifierProvider.value(value: appState, child: const MyApp());
+  return ChangeNotifierProvider.value(
+    value: appState,
+    child: const DatasetToolkitApp(),
+  );
 }
 
 void main() {

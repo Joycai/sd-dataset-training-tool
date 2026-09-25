@@ -29,6 +29,9 @@ jobs:
           flutter gen-l10n
           git diff --exit-code lib/l10n
 
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed lib test tool
+
       - name: Analyze project source
         run: flutter analyze
 

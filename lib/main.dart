@@ -68,7 +68,10 @@ void main(List<String> args) async {
 
   runApp(
     _withoutSemantics(
-      ChangeNotifierProvider.value(value: appState, child: const MyApp()),
+      ChangeNotifierProvider.value(
+        value: appState,
+        child: const DatasetToolkitApp(),
+      ),
     ),
   );
 }
@@ -97,8 +100,8 @@ void main(List<String> args) async {
 /// has never actually provided. Remove this once the upstream fix lands.
 Widget _withoutSemantics(Widget child) => ExcludeSemantics(child: child);
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class DatasetToolkitApp extends StatelessWidget {
+  const DatasetToolkitApp({super.key});
 
   @override
   Widget build(BuildContext context) {
