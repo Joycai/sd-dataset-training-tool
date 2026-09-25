@@ -9,9 +9,9 @@ import '../../state/editor_session.dart';
 import '../../state/tag_ops.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
-import '../../widgets/subdirectory_picker.dart';
 import '../../widgets/tag_gloss.dart';
 import '../dialogs/tag_dictionary_dialog.dart';
+import 'subdirectory_picker.dart';
 import 'tag_context_menu.dart';
 
 enum _EditMode { replace, insertBefore, insertAfter }

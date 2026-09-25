@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../l10n/app_localizations.dart';
-import '../state/dataset_state.dart';
-import '../theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
+import '../../state/dataset_state.dart';
+import '../../theme/app_theme.dart';
 
 /// Human-readable name of a subdirectory scope: null is the whole dataset,
 /// the empty path is the dataset root itself.

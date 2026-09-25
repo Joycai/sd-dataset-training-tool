@@ -14,7 +14,6 @@ import '../../state/app_state.dart';
 import '../../state/batch_tag_state.dart';
 import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
-import '../../state/shortcut_relay.dart';
 import '../../state/tag_ops.dart';
 import '../../state/workbench_layout.dart';
 import '../../utils/platform_shortcuts.dart';
@@ -26,6 +25,7 @@ import '../panels/caption_panel.dart';
 import '../panels/preview_panel.dart';
 import '../panels/tag_library_panel.dart';
 import 'icon_nav_rail.dart';
+import 'shortcut_relay.dart';
 import 'status_bar.dart';
 import 'workbench_top_bar.dart';
 

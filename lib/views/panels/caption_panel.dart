@@ -10,7 +10,6 @@ import '../../state/ai_tagger_state.dart';
 import '../../state/app_state.dart';
 import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
-import '../../state/shortcut_relay.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/platform_shortcuts.dart';
 import '../../widgets/json_caption_view.dart';
@@ -18,6 +17,7 @@ import '../../widgets/panel_widgets.dart';
 import '../../widgets/tag_autocomplete_field.dart';
 import '../../widgets/tag_gloss.dart';
 import '../dialogs/ai_params_dialog.dart';
+import '../workbench/shortcut_relay.dart';
 import 'ai_compare_view.dart';
 import 'tag_context_menu.dart';
 

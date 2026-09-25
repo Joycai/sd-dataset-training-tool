@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../l10n/app_localizations.dart';
 import '../models/tag_dictionary.dart';
 import '../services/ai_tagger_service.dart';
+import '../services/external_url_opener.dart';
 import '../services/tag_dictionary_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/external_links.dart';

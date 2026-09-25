@@ -12,8 +12,8 @@ import '../../state/app_state.dart';
 import '../../state/batch_tag_state.dart';
 import '../../state/dataset_state.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/model_picker.dart';
-import '../../widgets/subdirectory_picker.dart';
+import '../../widgets/model_picker_field.dart';
+import '../panels/subdirectory_picker.dart';
 import 'ai_params_dialog.dart';
 
 /// Opens the batch tagging dialog. The states are passed explicitly because
@@ -65,7 +65,7 @@ Widget _dialogTitle(
 
 /// The label a rule set shows in the picker: its character name, else the
 /// trigger word it writes, else a placeholder.
-String mergeRulesLabel(AppLocalizations l10n, CharacterMergeRules rules) {
+String _mergeRulesLabel(AppLocalizations l10n, CharacterMergeRules rules) {
   if (rules.character.trim().isNotEmpty) return rules.character.trim();
   if (rules.triggerWord.trim().isNotEmpty) return rules.triggerWord.trim();
   return l10n.batchTagRulesUnnamed;
@@ -697,7 +697,7 @@ class _SheetSection extends StatelessWidget {
                 DropdownMenuItem(
                   value: r.id,
                   child: Text(
-                    mergeRulesLabel(l10n, r),
+                    _mergeRulesLabel(l10n, r),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

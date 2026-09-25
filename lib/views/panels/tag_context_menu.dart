@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../services/external_url_opener.dart';
 import '../../services/tag_dictionary_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/external_links.dart';

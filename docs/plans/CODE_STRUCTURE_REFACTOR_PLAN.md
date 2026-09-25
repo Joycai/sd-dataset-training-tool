@@ -154,6 +154,32 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 
 ---
 
+## 7.1 合入后复审（第二次 code review）
+
+#107 之外，#109 已把本重构与 `tool/check_layers.dart` 合入 main。随后用两个子代理对“分层检查工具”和“整棵树的 Flutter 规范符合度”各做一次 review，修复如下（报告见任务目录 `review/goal-A.md`、`goal-B.md`）：
+
+| 来源 | 问题 | 处理 |
+| --- | --- | --- |
+| A-1/4/5 | 分层检查用按行正则匹配，raw 字符串、关键字后的注释会漏报，块注释/字符串里的伪 import 会误报 | 改为扫描指令区的小型词法器 |
+| A-3 | `l10n/`、`app_info.dart` 不受约束，与 ARCHITECTURE 的 “none” 矛盾 | 设为叶子；ARCHITECTURE 表补 `main.dart`、`app_info.dart` 两行 |
+| A-6 | `part` 可把代码带进别的层 | `part`/`part of` 必须同一顶层目录 |
+| A-2 | 测试缺矩阵禁止格、`part`、lib 外、退出码、文档一致性 | 补齐；`main` 拆出可测的 `run()` |
+| B-1 | 两个 service 测试在 `test/models/` | 移到 `test/services/*_service_test.dart` |
+| B-2 | `utils/external_links.dart` 的 `openExternalUrl` 启动进程 | 拆到 `services/external_url_opener.dart`，URL 构造留在 utils |
+| B-3 | 只服务资源面板的两个 picker 在 `widgets/` | 移到 `views/panels/` |
+| B-4 | ARCHITECTURE 与现状不符 4 处 | 补 gen-l10n 检查、`image_preview_window`、`test/tool` 相对导入、同层导入 |
+| B-5 | 模板名 `MyHomePage` | 删除，`home:` 直接放工作台 |
+| B-6 | 未使用的 `cupertino_icons` | 删除（已确认依赖包里也没有用到 `CupertinoIcons`） |
+| B-7 | `PanelHeader`/`CountPill` 无引用（基线即如此） | 删除 |
+| B-8 | 4 个只在本文件使用的公开顶层函数 | 改为私有 |
+| B-9 | `model_picker.dart` 的主类是 `ModelPickerField` | 文件改名 `model_picker_field.dart` |
+| B-10 | `test/state/state_test.dart` 不对应任何 lib 文件 | 拆为 `dataset_state_test.dart`、`editor_session_test.dart` |
+| B-11 | 部分跨层特性测试按名字归到 `test/models/` | `tag_group_test`（22 例中 20 例测 AppState）移到 `test/state/app_state_tag_groups_test.dart`；其余写入约定“按主要断言对象归类”，不拆 |
+| B-12/13/15 | `panel_widgets` 多个公开组件；面板内私有对话框；service 是 `ChangeNotifier` | 约定写入 ARCHITECTURE，不改代码 |
+| B-14 | `ShortcutRelay` 不是状态 | 移到 `views/workbench/` |
+
+---
+
 ## 8. 每阶段验收标准
 
 ```bash

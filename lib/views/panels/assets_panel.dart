@@ -9,9 +9,9 @@ import '../../state/ai_tagger_state.dart';
 import '../../state/app_state.dart';
 import '../../state/dataset_state.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/caption_type_picker.dart';
 import '../../widgets/panel_widgets.dart';
-import '../../widgets/subdirectory_picker.dart';
+import 'caption_type_picker.dart';
+import 'subdirectory_picker.dart';
 
 /// Left panel — the file navigator: search, caption-status segments, and the
 /// file list.
