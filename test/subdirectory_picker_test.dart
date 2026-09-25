@@ -1,9 +1,9 @@
 import 'dart:io';
 
-import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/ai_tagger_state.dart';
+import 'package:dataset_training_tool/state/app_state.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/views/panels/assets_panel.dart';

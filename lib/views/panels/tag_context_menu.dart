@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../l10n/app_localizations.dart';
-import '../services/tag_dictionary_service.dart';
-import '../theme/app_theme.dart';
-import '../utils/external_links.dart';
-import '../views/panels/tag_dictionary_dialog.dart';
-import 'panel_widgets.dart';
-import 'tag_gloss.dart';
+import '../../l10n/app_localizations.dart';
+import '../../services/tag_dictionary_service.dart';
+import '../../theme/app_theme.dart';
+import '../../utils/external_links.dart';
+import '../../widgets/panel_widgets.dart';
+import '../../widgets/tag_gloss.dart';
+import '../dialogs/tag_dictionary_dialog.dart';
 
 /// Every action any tag's right-click menu can offer. A single call site only
 /// ever sees the subset [TagMenuSections] enables for it.

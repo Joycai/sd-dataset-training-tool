@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/tag_filter.dart';
+import '../../state/app_state.dart';
 import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
 import '../../state/tag_ops.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
 import '../../widgets/subdirectory_picker.dart';
-import '../../widgets/tag_context_menu.dart';
 import '../../widgets/tag_gloss.dart';
-import 'tag_dictionary_dialog.dart';
+import '../dialogs/tag_dictionary_dialog.dart';
+import 'tag_context_menu.dart';
 
 enum _EditMode { replace, insertBefore, insertAfter }
 

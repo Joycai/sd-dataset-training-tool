@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dataset_training_tool/agent/agent_tools.dart';
+import 'package:dataset_training_tool/agent/tag_translation_tools.dart';
 import 'package:dataset_training_tool/models/tag_translation.dart';
-import 'package:dataset_training_tool/services/agent/agent_tools.dart';
-import 'package:dataset_training_tool/services/agent/tag_translation_tools.dart';
 import 'package:dataset_training_tool/services/danbooru_api.dart';
 import 'package:dataset_training_tool/services/tag_dictionary_service.dart';
 import 'package:dataset_training_tool/services/tag_translation_service.dart';

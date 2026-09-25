@@ -4,10 +4,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/data_bundle.dart';
-import '../../services/data_transfer.dart';
+import '../../state/app_state.dart';
+import '../../state/data_transfer.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
 

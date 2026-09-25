@@ -1,7 +1,7 @@
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/services/tag_ai_group.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
-import 'package:dataset_training_tool/views/panels/tag_ai_group_dialog.dart';
+import 'package:dataset_training_tool/views/dialogs/tag_ai_group_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

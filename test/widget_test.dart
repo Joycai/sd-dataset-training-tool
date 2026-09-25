@@ -1,6 +1,6 @@
-import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/main.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
+import 'package:dataset_training_tool/state/app_state.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/views/panels/assets_panel.dart';
 import 'package:dataset_training_tool/views/panels/tag_library_panel.dart';

@@ -5,18 +5,18 @@ import 'package:flutter/services.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'package:provider/provider.dart';
 
-import '../../app_state.dart';
+import '../../agent/agent_session.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/llm_models.dart';
 import '../../models/merge_rules.dart';
 import '../../models/prompt_preset.dart';
-import '../../services/agent/agent_session.dart';
 import '../../state/agent_chat_state.dart';
+import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
+import '../dialogs/character_sheet_dialog.dart';
+import '../dialogs/llm_profile_dialog.dart';
+import '../dialogs/prompt_preset_dialog.dart';
 import '../settings_view.dart';
-import 'character_sheet_dialog.dart';
-import 'llm_profile_dialog.dart';
-import 'prompt_preset_dialog.dart';
 
 /// The chat bubbles' base text style; the streaming bubble renders with it
 /// directly so the switch to markdown at the end doesn't visibly reflow.

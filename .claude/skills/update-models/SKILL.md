@@ -6,7 +6,7 @@ description: 向 AiApiServer 添加/更新/下架 AI 模型(打标、描述、�
 # AiApiServer 模型清单更新流程
 
 模型清单与元数据全部集中在 `AiApiServer/models.py`,是唯一数据源。Flutter 端
-(`lib/views/panels/ai_params_dialog.dart` 的分组选择器)只消费 `/getconfig`
+(`lib/views/dialogs/ai_params_dialog.dart` 的分组选择器)只消费 `/getconfig`
 返回的字段,加模型**不需要动 app 端代码**,badge 与分组自动生效。
 
 ## 1. 调研阶段(加新模型前必做)

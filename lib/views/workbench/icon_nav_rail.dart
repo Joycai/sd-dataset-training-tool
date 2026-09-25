@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../app_state.dart';
-import '../l10n/app_localizations.dart';
-import '../state/ai_tagger_state.dart';
-import '../state/batch_tag_state.dart';
-import '../state/dataset_state.dart';
-import '../state/workbench_layout.dart';
-import '../theme/app_theme.dart';
-import '../utils/platform_shortcuts.dart';
-import '../views/panels/batch_tag_dialog.dart';
-import '../views/panels/tag_dictionary_dialog.dart';
-import '../views/settings_view.dart';
+import '../../l10n/app_localizations.dart';
+import '../../state/ai_tagger_state.dart';
+import '../../state/app_state.dart';
+import '../../state/batch_tag_state.dart';
+import '../../state/dataset_state.dart';
+import '../../state/workbench_layout.dart';
+import '../../theme/app_theme.dart';
+import '../../utils/platform_shortcuts.dart';
+import '../dialogs/batch_tag_dialog.dart';
+import '../dialogs/tag_dictionary_dialog.dart';
+import '../settings_view.dart';
 
 /// The vertical icon rail: one entry per workbench area, settings pinned to
 /// the bottom.

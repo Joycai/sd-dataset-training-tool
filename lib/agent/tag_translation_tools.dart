@@ -10,12 +10,12 @@
 /// reversible in one.
 library;
 
-import '../../models/tag_translation.dart';
-import '../../state/dataset_state.dart';
-import '../../utils/tag_text.dart';
-import '../danbooru_api.dart';
-import '../tag_dictionary_service.dart';
-import '../tag_translation_service.dart';
+import '../models/tag_translation.dart';
+import '../services/danbooru_api.dart';
+import '../services/tag_dictionary_service.dart';
+import '../services/tag_translation_service.dart';
+import '../state/dataset_state.dart';
+import '../utils/tag_text.dart';
 import 'agent_tools.dart';
 
 class TagTranslationToolsDeps {

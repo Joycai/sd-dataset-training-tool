@@ -7,10 +7,10 @@ library;
 
 import 'dart:convert';
 
-import '../../models/llm_models.dart';
+import '../models/llm_models.dart';
 import 'context_budget.dart';
 
-export '../../models/llm_models.dart' show AgentToolSpec;
+export '../models/llm_models.dart' show AgentToolSpec;
 
 class AgentToolResult {
   const AgentToolResult(

@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dataset_training_tool/agent/agent_tools.dart';
+import 'package:dataset_training_tool/agent/dataset_tools.dart';
 import 'package:dataset_training_tool/models/tag_group.dart';
-import 'package:dataset_training_tool/services/agent/agent_tools.dart';
-import 'package:dataset_training_tool/services/agent/dataset_tools.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;

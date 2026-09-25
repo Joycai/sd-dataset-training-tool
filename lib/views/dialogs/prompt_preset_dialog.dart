@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/prompt_preset.dart';
+import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
 

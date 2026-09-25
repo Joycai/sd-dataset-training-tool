@@ -1,6 +1,6 @@
-import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/models/caption_type.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
+import 'package:dataset_training_tool/state/app_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

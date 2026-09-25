@@ -15,10 +15,10 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
-import '../../models/ai_tagger_models.dart';
-import '../../models/llm_models.dart';
-import '../../state/ai_tagger_state.dart';
-import '../ai_tagger_service.dart';
+import '../models/ai_tagger_models.dart';
+import '../models/llm_models.dart';
+import '../services/ai_tagger_service.dart';
+import '../state/ai_tagger_state.dart';
 import 'agent_tools.dart';
 import 'dataset_tools.dart';
 

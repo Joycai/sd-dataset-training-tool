@@ -7,7 +7,7 @@
 /// explanation the model can act on rather than stored and hit in phase B.
 library;
 
-import '../../models/merge_rules.dart';
+import '../models/merge_rules.dart';
 import 'agent_tools.dart';
 
 /// Persists a proposal and returns it as stored (with its assigned id).

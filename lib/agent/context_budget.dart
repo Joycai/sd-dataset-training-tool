@@ -2,7 +2,7 @@
 /// Pure Dart.
 library;
 
-import '../../models/llm_models.dart';
+import '../models/llm_models.dart';
 
 /// What one [ContextBudget.compact] pass did, so the session can tell the
 /// user about it. Folding history is invisible on the wire — the request

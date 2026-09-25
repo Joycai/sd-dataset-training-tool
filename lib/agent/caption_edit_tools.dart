@@ -24,9 +24,9 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import '../../models/caption_type.dart';
-import '../../state/tag_ops.dart';
-import '../../utils/tag_text.dart';
+import '../models/caption_type.dart';
+import '../state/tag_ops.dart';
+import '../utils/tag_text.dart';
 import 'agent_tools.dart';
 import 'caption_variant_tools.dart';
 import 'dataset_tools.dart';

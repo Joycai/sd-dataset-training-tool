@@ -16,8 +16,8 @@
 /// them.
 library;
 
-import '../../models/tag_group.dart';
-import '../../utils/tag_text.dart';
+import '../models/tag_group.dart';
+import '../utils/tag_text.dart';
 import 'agent_tools.dart';
 
 class TagLibraryToolsDeps {

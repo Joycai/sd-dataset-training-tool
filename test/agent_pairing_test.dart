@@ -5,9 +5,9 @@ library;
 
 import 'dart:async';
 
+import 'package:dataset_training_tool/agent/agent_session.dart';
+import 'package:dataset_training_tool/agent/agent_tools.dart';
 import 'package:dataset_training_tool/models/llm_models.dart';
-import 'package:dataset_training_tool/services/agent/agent_session.dart';
-import 'package:dataset_training_tool/services/agent/agent_tools.dart';
 import 'package:dataset_training_tool/services/llm/llm_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 

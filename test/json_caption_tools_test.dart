@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dataset_training_tool/agent/agent_tools.dart';
+import 'package:dataset_training_tool/agent/caption_edit_tools.dart';
+import 'package:dataset_training_tool/agent/caption_variant_tools.dart';
+import 'package:dataset_training_tool/agent/dataset_tools.dart';
+import 'package:dataset_training_tool/agent/json_caption_tools.dart';
 import 'package:dataset_training_tool/models/caption_type.dart';
-import 'package:dataset_training_tool/services/agent/agent_tools.dart';
-import 'package:dataset_training_tool/services/agent/caption_edit_tools.dart';
-import 'package:dataset_training_tool/services/agent/caption_variant_tools.dart';
-import 'package:dataset_training_tool/services/agent/dataset_tools.dart';
-import 'package:dataset_training_tool/services/agent/json_caption_tools.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
 import 'package:flutter_test/flutter_test.dart';

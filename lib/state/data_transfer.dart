@@ -10,13 +10,13 @@ library;
 import 'dart:convert';
 
 import '../app_info.dart';
-import '../app_state.dart';
 import '../models/data_bundle.dart';
 import '../models/llm_models.dart';
 import '../models/prompt_preset.dart';
 import '../models/tag_dictionary.dart';
 import '../models/tag_translation.dart';
 import '../utils/tag_text.dart';
+import 'app_state.dart';
 
 class DataTransfer {
   DataTransfer(this.state);

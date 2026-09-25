@@ -5,7 +5,7 @@ import 'package:dataset_training_tool/services/ai_tagger_service.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/ai_tagger_state.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
-import 'package:dataset_training_tool/views/panels/ai_params_dialog.dart';
+import 'package:dataset_training_tool/views/dialogs/ai_params_dialog.dart';
 import 'package:dataset_training_tool/widgets/panel_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

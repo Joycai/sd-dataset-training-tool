@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/llm_models.dart';
 import '../../services/llm/anthropic_client.dart';
 import '../../services/llm/llm_client.dart';
 import '../../services/llm/openai_compat_client.dart';
+import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
 import 'llm_probe_dialog.dart';

@@ -2,19 +2,19 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
-import 'models/agent_tool_pack.dart';
-import 'models/caption_type.dart';
-import 'models/llm_models.dart';
-import 'models/merge_rules.dart';
-import 'models/prompt_preset.dart';
-import 'models/tag_group.dart';
-import 'models/tag_translation.dart';
-import 'services/danbooru_meta_service.dart';
-import 'services/font_service.dart';
-import 'services/settings_service.dart';
-import 'services/tag_dictionary_service.dart';
-import 'services/tag_translation_service.dart';
-import 'theme/app_theme.dart';
+import '../models/agent_tool_pack.dart';
+import '../models/caption_type.dart';
+import '../models/llm_models.dart';
+import '../models/merge_rules.dart';
+import '../models/prompt_preset.dart';
+import '../models/tag_group.dart';
+import '../models/tag_translation.dart';
+import '../services/danbooru_meta_service.dart';
+import '../services/font_service.dart';
+import '../services/settings_service.dart';
+import '../services/tag_dictionary_service.dart';
+import '../services/tag_translation_service.dart';
+import '../theme/app_theme.dart';
 
 class AppState extends ChangeNotifier {
   final SettingsService _settingsService;

@@ -5,7 +5,6 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/llm_models.dart';
 import '../../models/tag_dictionary.dart';
@@ -16,6 +15,7 @@ import '../../services/llm/llm_client.dart';
 import '../../services/tag_ai_translate.dart';
 import '../../services/tag_dictionary_service.dart';
 import '../../services/tag_translation_service.dart';
+import '../../state/app_state.dart';
 import '../../state/dataset_state.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/external_links.dart';

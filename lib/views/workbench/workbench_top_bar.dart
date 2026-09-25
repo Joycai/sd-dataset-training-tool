@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
-import '../app_state.dart';
-import '../l10n/app_localizations.dart';
-import '../state/ai_tagger_state.dart';
-import '../state/dataset_state.dart';
-import '../state/tag_ops.dart';
-import '../state/workbench_layout.dart';
-import '../theme/app_theme.dart';
-import '../utils/platform_shortcuts.dart';
+import '../../l10n/app_localizations.dart';
+import '../../state/ai_tagger_state.dart';
+import '../../state/app_state.dart';
+import '../../state/dataset_state.dart';
+import '../../state/tag_ops.dart';
+import '../../state/workbench_layout.dart';
+import '../../theme/app_theme.dart';
+import '../../utils/platform_shortcuts.dart';
 
 /// Title bar: sidebar toggles on the left, the centered activity capsule,
 /// and the document-level actions on the right.

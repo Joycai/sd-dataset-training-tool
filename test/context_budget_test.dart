@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:dataset_training_tool/agent/context_budget.dart';
 import 'package:dataset_training_tool/models/llm_models.dart';
-import 'package:dataset_training_tool/services/agent/context_budget.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

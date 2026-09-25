@@ -5,8 +5,8 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
-import '../../models/llm_models.dart';
-import '../llm/llm_client.dart';
+import '../models/llm_models.dart';
+import '../services/llm/llm_client.dart';
 import 'agent_tools.dart';
 import 'context_budget.dart';
 import 'tag_library_tools.dart'

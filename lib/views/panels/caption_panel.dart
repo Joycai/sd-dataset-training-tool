@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
-import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/caption_type.dart';
 import '../../state/ai_tagger_state.dart';
+import '../../state/app_state.dart';
 import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
 import '../../state/shortcut_relay.dart';
@@ -16,10 +16,10 @@ import '../../utils/platform_shortcuts.dart';
 import '../../widgets/json_caption_view.dart';
 import '../../widgets/panel_widgets.dart';
 import '../../widgets/tag_autocomplete_field.dart';
-import '../../widgets/tag_context_menu.dart';
 import '../../widgets/tag_gloss.dart';
+import '../dialogs/ai_params_dialog.dart';
 import 'ai_compare_view.dart';
-import 'ai_params_dialog.dart';
+import 'tag_context_menu.dart';
 
 /// Center-bottom: the caption editor. Two views of the same caption — raw
 /// text and a reorderable tag grid — plus a live save-state indicator.

@@ -1,13 +1,13 @@
 import 'dart:convert';
 
-import 'package:dataset_training_tool/app_state.dart';
+import 'package:dataset_training_tool/agent/agent_session.dart';
+import 'package:dataset_training_tool/agent/agent_tools.dart';
 import 'package:dataset_training_tool/models/agent_tool_pack.dart';
 import 'package:dataset_training_tool/models/llm_models.dart';
-import 'package:dataset_training_tool/services/agent/agent_session.dart';
-import 'package:dataset_training_tool/services/agent/agent_tools.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/agent_chat_state.dart';
 import 'package:dataset_training_tool/state/ai_tagger_state.dart';
+import 'package:dataset_training_tool/state/app_state.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
 import 'package:flutter_test/flutter_test.dart';

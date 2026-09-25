@@ -3,7 +3,7 @@
 /// reinstall — can be brought back to where they left off.
 ///
 /// Pure data. Collecting a bundle from the running app and applying one to it
-/// live in `services/data_transfer.dart`; this file only knows the layout.
+/// live in `state/data_transfer.dart`; this file only knows the layout.
 ///
 /// Deliberately *not* in the file: anything the app can fetch or regenerate on
 /// its own — the bundled WD label file, the downloaded danbooru dictionary,

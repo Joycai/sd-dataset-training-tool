@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../agent/character_sheet.dart';
 import '../../l10n/app_localizations.dart';
-import '../../services/agent/character_sheet.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
 

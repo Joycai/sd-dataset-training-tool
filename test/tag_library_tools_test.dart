@@ -1,8 +1,8 @@
 import 'dart:convert';
 
+import 'package:dataset_training_tool/agent/agent_tools.dart';
+import 'package:dataset_training_tool/agent/tag_library_tools.dart';
 import 'package:dataset_training_tool/models/tag_group.dart';
-import 'package:dataset_training_tool/services/agent/agent_tools.dart';
-import 'package:dataset_training_tool/services/agent/tag_library_tools.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// An in-memory stand-in for AppState's library, with the same two rules that

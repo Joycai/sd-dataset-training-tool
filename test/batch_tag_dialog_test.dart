@@ -1,15 +1,15 @@
 import 'dart:io';
 
-import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/models/caption_type.dart';
 import 'package:dataset_training_tool/models/merge_rules.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/ai_tagger_state.dart';
+import 'package:dataset_training_tool/state/app_state.dart';
 import 'package:dataset_training_tool/state/batch_tag_state.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
-import 'package:dataset_training_tool/views/panels/batch_tag_dialog.dart';
+import 'package:dataset_training_tool/views/dialogs/batch_tag_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../l10n/app_localizations.dart';
-import '../state/ai_tagger_state.dart';
-import '../state/dataset_state.dart';
-import '../state/editor_session.dart';
-import '../theme/app_theme.dart';
-import '../utils/platform_shortcuts.dart';
+import '../../l10n/app_localizations.dart';
+import '../../state/ai_tagger_state.dart';
+import '../../state/dataset_state.dart';
+import '../../state/editor_session.dart';
+import '../../theme/app_theme.dart';
+import '../../utils/platform_shortcuts.dart';
 
 /// Bottom status bar: how far the dataset is tagged, whether the tagger
 /// service is reachable, and the always-on shortcut reminder.

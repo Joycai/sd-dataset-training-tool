@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
-import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../state/ai_tagger_state.dart';
+import '../../state/app_state.dart';
 import '../../state/editor_session.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
-import '../../widgets/tag_context_menu.dart';
+import 'tag_context_menu.dart';
 
 /// The AI compare mode shown inside the caption editor's tags tab: current
 /// tags on the left, AI predictions on the right, with the diff highlighted.

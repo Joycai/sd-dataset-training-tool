@@ -4,7 +4,7 @@ import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/models/llm_models.dart';
 import 'package:dataset_training_tool/services/llm/llm_client.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
-import 'package:dataset_training_tool/views/panels/llm_probe_dialog.dart';
+import 'package:dataset_training_tool/views/dialogs/llm_probe_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
