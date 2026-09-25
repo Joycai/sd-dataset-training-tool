@@ -50,7 +50,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   static const double _captionMinHeight = 150;
 
   final DatasetState _dataset = DatasetState();
-  final EditorSession _session = EditorSession();
+  late final EditorSession _session = EditorSession(store: _dataset.store);
   final AiTaggerState _aiTagger = AiTaggerState(SettingsService());
   late final TagOps _tagOps = TagOps(
     dataset: _dataset,
@@ -130,12 +130,14 @@ class _WorkbenchViewState extends State<WorkbenchView> {
       if (mounted) setState(() => _agentOpen = value);
     });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final appState = context.read<AppState>();
       final directory = appState.browsingDirectory;
-      if (directory != null && Directory(directory).existsSync()) {
-        _scan(directory);
+      if (directory != null &&
+          await _dataset.store.directoryExists(directory) &&
+          mounted) {
+        await _scan(directory);
       }
     });
   }

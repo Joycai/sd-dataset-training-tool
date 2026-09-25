@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dataset_training_tool/main.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/app_state.dart';
@@ -39,6 +41,50 @@ void main() {
     expect(find.text('Open Folder'), findsOneWidget);
     expect(find.text('Select an image from the assets panel.'), findsWidgets);
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
+  });
+
+  testWidgets('reopens the last folder only while it still exists', (
+    WidgetTester tester,
+  ) async {
+    final folder = (await tester.runAsync(
+      () => Directory.systemTemp.createTemp('workbench_reopen_'),
+    ))!;
+    addTearDown(() => folder.deleteSync(recursive: true));
+    await tester.runAsync(
+      () => File('${folder.path}/001.png').writeAsBytes([0]),
+    );
+
+    final openFolder = find.text('Open Folder');
+    final loading = find.byType(CircularProgressIndicator);
+    Future<void> start(String directory) async {
+      final appState = await _createAppState(
+        prefs: {'browsingDirectory': directory},
+      );
+      await tester.pumpWidget(_wrapApp(appState));
+      // The existence check and the scan are real disk IO, each finishing
+      // outside the fake clock: let real time pass, then pump, until the
+      // assets panel shows a finished scan (or clearly never will).
+      for (
+        var i = 0;
+        i < 50 &&
+            (openFolder.evaluate().isNotEmpty || loading.evaluate().isNotEmpty);
+        i++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump();
+      }
+    }
+
+    await start('${folder.path}/missing');
+    expect(openFolder, findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await start(folder.path);
+    expect(loading, findsNothing);
+    expect(openFolder, findsNothing);
+    expect(find.text('001.png'), findsWidgets);
   });
 
   testWidgets('library tags reach the tag dictionary as local suggestions', (

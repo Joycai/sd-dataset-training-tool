@@ -484,11 +484,7 @@ class BatchTagState extends ChangeNotifier {
     BatchTagConfig runConfig,
   ) async {
     final captionPath = dataset.captionPathFor(imagePath);
-    final captionFile = File(captionPath);
-    var before = '';
-    if (await captionFile.exists()) {
-      before = await captionFile.readAsString();
-    }
+    final before = await dataset.store.readCaption(captionPath) ?? '';
     final current = parseSentenceText(before);
     final described = parseSentenceText(description);
     final List<String> next;
@@ -505,7 +501,7 @@ class BatchTagState extends ChangeNotifier {
     // whole-dataset undo entry for a run that added nothing.
     if (listEquals(next, current)) return null;
     final after = joinCaptionText(next, format: CaptionFormat.prose);
-    await captionFile.writeAsString(after);
+    await dataset.store.writeCaption(captionPath, after);
     return CaptionEdit(
       imagePath: imagePath,
       captionPath: captionPath,
@@ -524,11 +520,7 @@ class BatchTagState extends ChangeNotifier {
     double mainThreshold,
   ) async {
     final captionPath = dataset.captionPathFor(imagePath);
-    final captionFile = File(captionPath);
-    var before = '';
-    if (await captionFile.exists()) {
-      before = await captionFile.readAsString();
-    }
+    final before = await dataset.store.readCaption(captionPath) ?? '';
     // An Anima Tag caption's natural-language tail describes the image, not
     // the tagger's output: it is held aside so the merge below never sees it
     // as a tag, and restored unchanged afterwards.
@@ -556,7 +548,7 @@ class BatchTagState extends ChangeNotifier {
       ...next,
       if (split.nl != null) '$animaNlPrefix${split.nl}',
     ], format: anima ? CaptionFormat.animaTag : CaptionFormat.tags);
-    await captionFile.writeAsString(after);
+    await dataset.store.writeCaption(captionPath, after);
     return CaptionEdit(
       imagePath: imagePath,
       captionPath: captionPath,

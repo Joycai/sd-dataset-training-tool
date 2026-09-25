@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dataset_training_tool/services/dataset_store.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +15,31 @@ const _pngBytes = [
   0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
   0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
 ];
+
+/// The real store, except that reading or writing the listed caption paths
+/// fails the way the disk would.
+class _FailingStore extends DatasetStore {
+  _FailingStore();
+
+  final Set<String> unreadable = {};
+  final Set<String> unwritable = {};
+
+  @override
+  Future<String?> readCaption(String captionPath) async {
+    if (unreadable.contains(captionPath)) {
+      throw FileSystemException('read refused', captionPath);
+    }
+    return super.readCaption(captionPath);
+  }
+
+  @override
+  Future<void> writeCaption(String captionPath, String text) async {
+    if (unwritable.contains(captionPath)) {
+      throw FileSystemException('write refused', captionPath);
+    }
+    return super.writeCaption(captionPath, text);
+  }
+}
 
 void main() {
   late Directory tempDir;
@@ -322,6 +348,57 @@ void main() {
       ops.clearHistory();
       expect(ops.canUndo, isFalse);
       expect(ops.canRedo, isFalse);
+    });
+  });
+
+  group('TagOps with a failing store', () {
+    late _FailingStore store;
+    late TagOps ops;
+
+    setUp(() async {
+      store = _FailingStore();
+      dataset = DatasetState(store: store);
+      await dataset.scan(
+        directoryPath: tempDir.path,
+        recursive: false,
+        captionExtension: '.txt',
+      );
+      ops = TagOps(dataset: dataset);
+    });
+
+    test('rewriteOne reports a failed write and records nothing', () async {
+      store.unwritable.add(cap('001'));
+      final result = await ops.rewriteOne(img('001'), 'x', label: 'edit');
+      expect(result.failed, isTrue);
+      expect(result.error, startsWith('cannot write "${cap('001')}": '));
+      expect(dataset.tagsOf(img('001')), ['a', 'b', 'c']);
+      expect(ops.canUndo, isFalse);
+      expect(await readCap('001'), 'a, b, c');
+    });
+
+    test('rewriteOne reports a failed read without writing', () async {
+      store.unreadable.add(cap('001'));
+      final result = await ops.rewriteOne(img('001'), 'x', label: 'edit');
+      expect(result.error, startsWith('cannot read "${cap('001')}": '));
+      expect(await readCap('001'), 'a, b, c');
+    });
+
+    test('a batch undoes only the files it managed to write', () async {
+      store.unwritable.add(cap('001'));
+      store.unreadable.add(cap('003'));
+      final result = await ops.addEverywhere('z', label: 'add z');
+      expect(result.changed, 1);
+      expect(
+        result.failures.map((f) => (f.captionPath, f.error.split(':').first)),
+        [(cap('001'), 'cannot write'), (cap('003'), 'cannot read')],
+      );
+      expect(await readCap('001'), 'a, b, c');
+      expect(dataset.tagsOf(img('001')), ['a', 'b', 'c']);
+      expect(dataset.tagsOf(img('002')), ['b', 'c', 'd', 'z']);
+
+      final undo = await ops.undo();
+      expect(undo.restored, 1);
+      expect(await readCap('002'), 'b,  c ,d');
     });
   });
 }

@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:path/path.dart' as p;
+
 import 'image_formats.dart';
 
 /// How a caption type's file content is structured. The format — not the
@@ -136,6 +138,11 @@ List<CaptionType> decodeCaptionTypes(String json) {
     return const [];
   }
 }
+
+/// The caption file that sits beside [imagePath] for a caption type whose
+/// file extension is [captionExtension] (with its leading dot).
+String captionPathOf(String imagePath, String captionExtension) =>
+    '${p.withoutExtension(imagePath)}$captionExtension';
 
 /// Normalizes a user-typed caption extension: trimmed, lowercased, exactly
 /// one leading dot. Returns null when nothing usable remains or the result

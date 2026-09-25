@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,6 +11,7 @@ import '../../models/tag_translation.dart';
 import '../../services/danbooru_api.dart';
 import '../../services/danbooru_meta_service.dart';
 import '../../services/external_url_opener.dart';
+import '../../services/json_file_dialogs.dart';
 import '../../services/llm/llm_client.dart';
 import '../../services/tag_ai_translate.dart';
 import '../../services/tag_dictionary_service.dart';
@@ -900,16 +900,10 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
 
   Future<void> _import() async {
     final l10n = AppLocalizations.of(context)!;
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-    );
-    final path = result?.files.single.path;
-    if (path == null) return;
     try {
-      final (written, skipped) = await _glossary.importJson(
-        await File(path).readAsString(),
-      );
+      final text = await pickAndReadJson();
+      if (text == null) return;
+      final (written, skipped) = await _glossary.importJson(text);
       if (!mounted) return;
       setState(() {});
       _snack(l10n.dictImportSummary(written, skipped));
@@ -923,15 +917,12 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
   Future<void> _export() async {
     final l10n = AppLocalizations.of(context)!;
     final glossary = _glossary;
-    final path = await FilePicker.saveFile(
-      fileName: 'tag_translations_${glossary.languageCode}.json',
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-    );
-    if (path == null) return;
     try {
-      await File(path).writeAsString(glossary.exportJson());
-      if (!mounted) return;
+      final path = await saveJson(
+        fileName: 'tag_translations_${glossary.languageCode}.json',
+        contents: glossary.exportJson(),
+      );
+      if (path == null || !mounted) return;
       _snack(l10n.exportedTo(path));
     } on FileSystemException catch (e) {
       if (mounted) _snack(l10n.exportFailedMsg(e.message));

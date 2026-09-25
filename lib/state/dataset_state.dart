@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/caption_type.dart';
-import '../models/image_formats.dart';
 import '../models/tag_filter.dart';
+import '../services/dataset_store.dart';
 import '../utils/tag_text.dart';
 
 enum CaptionFilter { all, untagged, tagged }
@@ -35,7 +35,12 @@ class DatasetSubdirectory {
 /// Scans a dataset directory and tracks per-image caption status and tags,
 /// the search/filter state of the assets panel, and the current selection.
 class DatasetState extends ChangeNotifier {
-  static const supportedExtensions = supportedImageExtensions;
+  DatasetState({this.store = const DatasetStore()});
+
+  /// Where the dataset's files are read and written. The collaborators that
+  /// act on this dataset ([TagOps], the batch tagger, the assistant's tools)
+  /// use this same store.
+  final DatasetStore store;
 
   List<File> _files = [];
   // Path index over _files: [selectedFile] is read from per-row builders, so
@@ -184,7 +189,7 @@ class DatasetState extends ChangeNotifier {
 
   /// Caption file path for an image, using the extension of the last scan.
   String captionPathFor(String imagePath) =>
-      '${p.withoutExtension(imagePath)}$_captionExtension';
+      captionPathOf(imagePath, _captionExtension);
 
   /// Files after the subdirectory scope plus search + caption-status + tag
   /// filtering; the grid and the previous/next navigation both operate on
@@ -356,31 +361,16 @@ class DatasetState extends ChangeNotifier {
     final tagsByPath = <String, List<String>>{};
     String? error;
     try {
-      final stream = Directory(
+      final images = store.scan(
         directoryPath,
-      ).list(recursive: recursive, followLinks: false);
-      await for (final entity in stream) {
-        if (entity is! File) continue;
-        if (!supportedExtensions.contains(
-          p.extension(entity.path).toLowerCase(),
-        )) {
-          continue;
-        }
-        found.add(entity);
-        final captionFile = File(
-          '${p.withoutExtension(entity.path)}$captionExtension',
-        );
-        String content = '';
-        try {
-          if (await captionFile.exists()) {
-            content = await captionFile.readAsString();
-          }
-        } catch (_) {
-          // Unreadable caption file: treat as untagged.
-        }
-        captioned[entity.path] = content.trim().isNotEmpty;
-        tagsByPath[entity.path] = parseCaptionText(
-          content,
+        recursive: recursive,
+        captionExtension: captionExtension,
+      );
+      await for (final (:image, :caption) in images) {
+        found.add(image);
+        captioned[image.path] = caption.trim().isNotEmpty;
+        tagsByPath[image.path] = parseCaptionText(
+          caption,
           format: captionFormat,
         );
       }

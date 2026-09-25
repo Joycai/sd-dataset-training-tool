@@ -1,12 +1,12 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/tag_group.dart';
+import '../../services/json_file_dialogs.dart';
 import '../../state/app_state.dart';
 import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
@@ -636,16 +636,10 @@ class _LibraryViewState extends State<_LibraryView> {
   Future<void> _importFromFile() async {
     final l10n = AppLocalizations.of(context)!;
     final appState = context.read<AppState>();
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-    );
-    final path = result?.files.single.path;
-    if (path == null) return;
     try {
-      final imported = await appState.importLibraryJson(
-        await File(path).readAsString(),
-      );
+      final text = await pickAndReadJson();
+      if (text == null) return;
+      final imported = await appState.importLibraryJson(text);
       if (!mounted) return;
       _snack(l10n.importSummary(imported.tagsAdded, imported.groupsCreated));
     } on FormatException catch (e) {
@@ -658,17 +652,12 @@ class _LibraryViewState extends State<_LibraryView> {
   Future<void> _exportLibrary({required bool groupsOnly}) async {
     final l10n = AppLocalizations.of(context)!;
     final appState = context.read<AppState>();
-    final path = await FilePicker.saveFile(
-      fileName: groupsOnly ? 'tag_groups.json' : 'tag_library.json',
-      type: FileType.custom,
-      allowedExtensions: ['json'],
-    );
-    if (path == null) return;
     try {
-      await File(
-        path,
-      ).writeAsString(appState.exportLibraryJson(groupsOnly: groupsOnly));
-      if (!mounted) return;
+      final path = await saveJson(
+        fileName: groupsOnly ? 'tag_groups.json' : 'tag_library.json',
+        contents: appState.exportLibraryJson(groupsOnly: groupsOnly),
+      );
+      if (path == null || !mounted) return;
       _snack(l10n.exportedTo(path));
     } on FileSystemException catch (e) {
       if (mounted) _snack(l10n.exportFailedMsg(e.message));
