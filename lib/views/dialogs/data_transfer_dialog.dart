@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/data_bundle.dart';
+import '../../services/json_file_dialogs.dart';
 import '../../state/app_state.dart';
 import '../../state/data_transfer.dart';
 import '../../theme/app_theme.dart';
@@ -29,14 +29,12 @@ Future<void> showDataExportDialog(BuildContext context) async {
   final bundle = await DataTransfer(
     appState,
   ).collect(sections: choice.sections, includeApiKeys: choice.includeApiKeys);
-  final path = await FilePicker.saveFile(
-    fileName: 'dataset_tool_settings.json',
-    type: FileType.custom,
-    allowedExtensions: ['json'],
-  );
-  if (path == null) return;
   try {
-    await File(path).writeAsString(bundle.encode());
+    final path = await saveJson(
+      fileName: 'dataset_tool_settings.json',
+      contents: bundle.encode(),
+    );
+    if (path == null) return;
     messenger.showSnackBar(SnackBar(content: Text(l10n.exportedTo(path))));
   } on FileSystemException catch (e) {
     messenger.showSnackBar(
@@ -52,23 +50,16 @@ Future<void> showDataImportDialog(BuildContext context) async {
   final l10n = AppLocalizations.of(context)!;
   final messenger = ScaffoldMessenger.of(context);
 
-  final result = await FilePicker.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: ['json'],
-  );
-  final path = result?.files.single.path;
-  if (path == null) return;
-
-  final String text;
+  final String? text;
   try {
-    text = await File(path).readAsString();
+    text = await pickAndReadJson();
   } on FileSystemException catch (e) {
     messenger.showSnackBar(
       SnackBar(content: Text(l10n.importFailedMsg(e.message))),
     );
     return;
   }
-  if (!context.mounted) return;
+  if (text == null || !context.mounted) return;
   await runDataImport(context, text);
 }
 

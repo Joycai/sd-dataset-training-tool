@@ -186,7 +186,7 @@ Future<String?> saveJson({required String fileName, required String contents});
 
 **有一处调用顺序变化**：`tag_library_panel` 和 `tag_dictionary_dialog` 原来先弹保存框、拿到路径再生成 JSON，改后要先生成 JSON 再弹框。
 
-- 两个生成函数 `exportLibraryJson`、`exportJson` 都是同步的纯计算，所以这一变化看不出来。
+- 两个生成函数 `exportLibraryJson`、`exportJson` 都是同步的纯计算，所以这一变化看不出来。唯一的区别是：保存框打开期间，如果助手在后台改了标签库或词典，原来导出的是关闭保存框时的内容，现在导出的是打开保存框时的内容。两者都是用户发起导出那一刻的合理快照。
 - 唯一的代价是用户取消保存时白算了一次，而这里只是一次小规模的 JSON 序列化。
 - 为了这一点把参数改成回调（`String Function()`）不值得。
 
