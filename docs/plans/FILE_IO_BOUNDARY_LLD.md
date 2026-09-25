@@ -202,7 +202,9 @@ Future<String?> saveJson({required String fileName, required String contents});
   \.(readAsString|readAsBytes|readAsLines|writeAsString|writeAsBytes|
      readAsStringSync|readAsBytesSync|readAsLinesSync|writeAsStringSync|writeAsBytesSync|
      openRead|openWrite|openSync|exists|existsSync|length|lengthSync|list|listSync|
-     delete|deleteSync|rename|renameSync|copySync|createSync|stat|statSync)\(
+     delete|deleteSync|rename|renameSync|copySync|createSync|createTemp|createTempSync|
+     lastModified|lastModifiedSync|setLastModified|setLastModifiedSync|
+     resolveSymbolicLinks|resolveSymbolicLinksSync|stat|statSync)\(
   ```
   不收 `create(`、`copy(`：`TagFilterGroup.create(`、`base.copy(` 等非 I/O 调用会误报。
 - **违规信息**：`file I/O belongs in services/: .readAsString(`，行号精确到调用处。

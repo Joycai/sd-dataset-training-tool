@@ -86,11 +86,13 @@ void main() {
     test(
       'a listing failure mid-scan still delivers what came before it',
       () async {
+        // The locked directory is created first so that file systems that
+        // list newest entries first (tmpfs) put the images ahead of it.
+        final locked = await Directory(path('locked')).create();
+        await write(p.join('locked', 'hidden.png'));
         for (var i = 0; i < 20; i++) {
           await write('img_$i.png');
         }
-        final locked = await Directory(path('locked')).create();
-        await write(p.join('locked', 'hidden.png'));
         await Process.run('chmod', ['000', locked.path]);
         addTearDown(() => Process.run('chmod', ['755', locked.path]));
 
@@ -108,6 +110,12 @@ void main() {
         }
         if (listingError == null) {
           markTestSkipped('chmod 000 did not block listing (running as root?)');
+          return;
+        }
+        if (listedFirst.isEmpty) {
+          // Nothing precedes the failure here, so the test would prove
+          // nothing about partial delivery.
+          markTestSkipped('this file system lists the locked directory first');
           return;
         }
 

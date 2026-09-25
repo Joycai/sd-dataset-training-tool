@@ -42,7 +42,8 @@ Inside `views/`:
   `widgets/panel_widgets.dart` is the exception: it is the kit of small shared
   panel pieces (buttons, search field, glass surfaces, …).
 - Only `services/` reads or writes files. Other layers hold `File` objects as
-  paths and call a service: dataset images and captions go through the
+  paths and call a service (the one exception is the UI decoding images with
+  `Image.file`/`FileImage`): dataset images and captions go through the
   `DatasetStore` that `DatasetState.store` exposes. `tool/check_layers.dart`
   flags direct calls such as `.readAsString(` or `.exists(` by method name.
 - Inside `lib/`, import with relative paths (`prefer_relative_imports`).

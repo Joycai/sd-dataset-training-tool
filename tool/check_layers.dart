@@ -490,7 +490,9 @@ final RegExp directIoCall = RegExp(
   r'readAsStringSync|readAsBytesSync|readAsLinesSync|writeAsStringSync|'
   r'writeAsBytesSync|openRead|openWrite|openSync|exists|existsSync|length|'
   r'lengthSync|list|listSync|delete|deleteSync|rename|renameSync|copySync|'
-  r'createSync|stat|statSync)\(',
+  r'createSync|createTemp|createTempSync|lastModified|lastModifiedSync|'
+  r'setLastModified|setLastModifiedSync|resolveSymbolicLinks|'
+  r'resolveSymbolicLinksSync|stat|statSync)\(',
 );
 
 /// Flags [directIoCall]s in every file under [lib] outside `services/`.
