@@ -83,6 +83,53 @@ void main() {
       expect((await scan(recursive: true)).keys, ['a.png']);
     });
 
+    test(
+      'a listing failure mid-scan still delivers what came before it',
+      () async {
+        for (var i = 0; i < 20; i++) {
+          await write('img_$i.png');
+        }
+        final locked = await Directory(path('locked')).create();
+        await write(p.join('locked', 'hidden.png'));
+        await Process.run('chmod', ['000', locked.path]);
+        addTearDown(() => Process.run('chmod', ['755', locked.path]));
+
+        // What the platform lists before the failure is up to the file
+        // system's entry order, so the expectation is taken from a plain
+        // listing of the same tree.
+        final listedFirst = <String>[];
+        Object? listingError;
+        try {
+          await for (final e in tempDir.list(recursive: true)) {
+            if (e.path.endsWith('.png')) listedFirst.add(e.path);
+          }
+        } catch (e) {
+          listingError = e;
+        }
+        if (listingError == null) {
+          markTestSkipped('chmod 000 did not block listing (running as root?)');
+          return;
+        }
+
+        final delivered = <String>[];
+        Object? scanError;
+        try {
+          await for (final (:image, caption: _) in store.scan(
+            tempDir.path,
+            recursive: true,
+            captionExtension: '.txt',
+          )) {
+            delivered.add(image.path);
+          }
+        } catch (e) {
+          scanError = e;
+        }
+        expect(scanError, isA<FileSystemException>());
+        expect(delivered, listedFirst);
+      },
+      skip: Platform.isWindows ? 'relies on chmod' : false,
+    );
+
     test('a listing failure is a stream error', () async {
       await expectLater(
         store.scan(path('missing'), recursive: false, captionExtension: '.txt'),

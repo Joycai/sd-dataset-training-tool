@@ -39,7 +39,7 @@
 
 **目标**
 
-1. 数据集文件（图片与标注）的所有读写只经过 `services/dataset_store.dart`。
+1. 标注文件的所有读写、以及状态类与 agent 工具对图片的读取，只经过 `services/dataset_store.dart`。两处例外按设计保留：`AiTaggerService.interrogateImageFile` 自己读图片上传（它本身就是 service），界面用 `Image.file` 解码显示。
 2. JSON 导入导出的"弹框 + 读写"只经过 `services/json_file_dialogs.dart`。
 3. 标注路径公式只剩一份。
 4. `tool/check_layers.dart` 新增规则：除 `services/` 外，任何文件不得直接调用文件读写 API。
@@ -121,7 +121,7 @@ class DatasetStore {
 
 设计要点：
 
-- **只做 I/O，不做解析**。`scan` 返回标注原文，按 `CaptionFormat` 解析仍留在 `DatasetState`。这样 service 不需要知道任何标注语法，依赖只有 `models/image_formats.dart`，用于筛选支持的图片扩展名。
+- **只做 I/O，不做解析**。`scan` 返回标注原文，按 `CaptionFormat` 解析仍留在 `DatasetState`。这样 service 不需要知道任何标注语法，依赖只有 `models/image_formats.dart`（筛选支持的图片扩展名）和 `models/caption_type.dart`（`captionPathOf`）。
 - **`readCaption` 用 `null` 表示"不存在"**。调用方在"缺失时跳过"和"缺失按空串处理"两种语义之间选，原来的 `exists()` 分支就能原样保留，比如 `tag_ops` 的 `createMissing`、`json_caption_tools` 的 `missingFile++`。
 - **异常类型不变**：底层仍是 `File.readAsString()`/`writeAsString()`，抛出的 `FileSystemException` 及其 `toString()` 与原来一致，所以各处拼进错误文案的 `$e` 不变。编码错误同样是 `FileSystemException`（已验证：`Failed to decode data using encoding 'utf-8'`）。
 - **用具体类，不定义抽象接口**。项目里只有一种实现。Dart 的每个类本身就能当接口用，测试用 `implements DatasetStore` 即可替换，写法与现有的 `_FakeLlm implements LlmClient` 相同。
@@ -184,7 +184,7 @@ Future<String?> saveJson({required String fileName, required String contents});
 - 导入仍在界面里 catch `FormatException`（内容解析失败）和 `FileSystemException`（读失败），提示文案不变。
 - `data_transfer_dialog` 的 `runDataImport(context, text)` 已单独拆出来供测试用，不受影响。
 
-**有一处调用顺序变化**：`tag_library_panel` 和 `tag_dictionary_dialog` 原来先弹保存框、拿到路径再生成 JSON，改后要先生成 JSON 再弹框。
+**有一处调用顺序变化**：`tag_library_panel` 和 `tag_dictionary_dialog` 原来先弹保存框、拿到路径再生成 JSON，改后要先生成 JSON 再弹框。`data_transfer_dialog` 的 `bundle.encode()` 同样提前，但 `bundle` 原本就在弹框前收集好，没有差别。
 
 - 两个生成函数 `exportLibraryJson`、`exportJson` 都是同步的纯计算，所以这一变化看不出来。唯一的区别是：保存框打开期间，如果助手在后台改了标签库或词典，原来导出的是关闭保存框时的内容，现在导出的是打开保存框时的内容。两者都是用户发起导出那一刻的合理快照。
 - 唯一的代价是用户取消保存时白算了一次，而这里只是一次小规模的 JSON 序列化。
@@ -199,10 +199,12 @@ Future<String?> saveJson({required String fileName, required String contents});
 - **范围**：`lib/` 下除 `services/` 以外的所有 `.dart` 文件，`main.dart` 也在内。
 - **判定**：去掉行注释后，匹配对 `dart:io` 读写方法的调用：
   ```
-  \.(readAsString|readAsBytes|readAsLines|writeAsString|writeAsBytes|openRead|openWrite|
-     exists|existsSync|length|list|listSync|delete|deleteSync|rename|renameSync|
-     createSync|stat|statSync)\(
+  \.(readAsString|readAsBytes|readAsLines|writeAsString|writeAsBytes|
+     readAsStringSync|readAsBytesSync|readAsLinesSync|writeAsStringSync|writeAsBytesSync|
+     openRead|openWrite|openSync|exists|existsSync|length|lengthSync|list|listSync|
+     delete|deleteSync|rename|renameSync|copySync|createSync|stat|statSync)\(
   ```
+  不收 `create(`、`copy(`：`TagFilterGroup.create(`、`base.copy(` 等非 I/O 调用会误报。
 - **违规信息**：`file I/O belongs in services/: .readAsString(`，行号精确到调用处。
 - **误报与漏报**：
   - 这是按方法名的启发式检查，不是类型分析，属于"绊线"：挡住常见写法，剩下的靠 review。

@@ -349,9 +349,9 @@ AgentToolHandler guardBusy(TagOps tagOps, AgentToolHandler inner) =>
     };
 
 /// Like [guardBusy], but holds [TagOps.busy] for [inner]'s entire run
-/// instead of only checking it on entry — for handlers that write files
-/// directly (their own `File.writeAsString` loop plus a [TagOps.pushOperation]
-/// at the end) rather than going through [TagOps.rewriteOne]/[TagOps]'s
+/// instead of only checking it on entry — for handlers that write captions
+/// themselves (their own `DatasetStore.writeCaption` loop plus a
+/// [TagOps.pushOperation] at the end) rather than going through [TagOps.rewriteOne]/[TagOps]'s
 /// batch rewrites, which already lock internally. Without this, [TagOps.busy]
 /// stays false for the whole sweep, so the UI's undo/redo (gated on
 /// [TagOps.canUndo]/[TagOps.canRedo], which only check [TagOps.busy]) stays

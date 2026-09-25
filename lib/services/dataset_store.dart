@@ -12,10 +12,12 @@ typedef ScannedImage = ({File image, String caption});
 
 /// The dataset on disk: image files and the caption files beside them.
 ///
-/// Every read and write of a dataset file goes through here, so state
-/// classes and agent tools hold no file I/O of their own, and a test can
-/// swap in a fake with `implements DatasetStore`. Stateless: one const
-/// instance can be shared freely.
+/// Every caption read and write, and every image read by state classes and
+/// agent tools, goes through here, so those hold no file I/O of their own,
+/// and a test can swap in a fake with `implements DatasetStore`. Two image
+/// readers bypass it by design: `AiTaggerService.interrogateImageFile`
+/// uploads the bytes itself, and the UI decodes images with `Image.file`.
+/// Stateless: one const instance can be shared freely.
 class DatasetStore {
   const DatasetStore();
 

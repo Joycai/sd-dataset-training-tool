@@ -306,6 +306,7 @@ final f = File(path);
 final text = await f.readAsString();
 await File(p).writeAsString(t); await d.list(recursive: true).toList();
 if (Directory(p).existsSync()) {}
+File(p).writeAsStringSync(t);
 ''');
       write('main.dart', 'final n = await File(p).length();');
       expect(found(), [
@@ -314,6 +315,8 @@ if (Directory(p).existsSync()) {}
         'lib/state/s.dart:3: file I/O belongs in services/: .writeAsString(',
         'lib/state/s.dart:3: file I/O belongs in services/: .list(',
         'lib/state/s.dart:4: file I/O belongs in services/: .existsSync(',
+        'lib/state/s.dart:5: file I/O belongs in services/: '
+            '.writeAsStringSync(',
       ]);
     });
 

@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/caption_type.dart';
-import '../models/image_formats.dart';
 import '../models/tag_filter.dart';
 import '../services/dataset_store.dart';
 import '../utils/tag_text.dart';
@@ -37,8 +36,6 @@ class DatasetSubdirectory {
 /// the search/filter state of the assets panel, and the current selection.
 class DatasetState extends ChangeNotifier {
   DatasetState({this.store = const DatasetStore()});
-
-  static const supportedExtensions = supportedImageExtensions;
 
   /// Where the dataset's files are read and written. The collaborators that
   /// act on this dataset ([TagOps], the batch tagger, the assistant's tools)

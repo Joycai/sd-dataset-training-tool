@@ -55,6 +55,7 @@ void main() {
     );
 
     final openFolder = find.text('Open Folder');
+    final loading = find.byType(CircularProgressIndicator);
     Future<void> start(String directory) async {
       final appState = await _createAppState(
         prefs: {'browsingDirectory': directory},
@@ -62,8 +63,13 @@ void main() {
       await tester.pumpWidget(_wrapApp(appState));
       // The existence check and the scan are real disk IO, each finishing
       // outside the fake clock: let real time pass, then pump, until the
-      // assets panel leaves its empty state (or clearly never will).
-      for (var i = 0; i < 20 && openFolder.evaluate().isNotEmpty; i++) {
+      // assets panel shows a finished scan (or clearly never will).
+      for (
+        var i = 0;
+        i < 50 &&
+            (openFolder.evaluate().isNotEmpty || loading.evaluate().isNotEmpty);
+        i++
+      ) {
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 20)),
         );
@@ -76,7 +82,9 @@ void main() {
 
     await tester.pumpWidget(const SizedBox());
     await start(folder.path);
+    expect(loading, findsNothing);
     expect(openFolder, findsNothing);
+    expect(find.text('001.png'), findsWidgets);
   });
 
   testWidgets('library tags reach the tag dictionary as local suggestions', (

@@ -487,8 +487,10 @@ const String ioLayer = 'services';
 /// an escape hatch.
 final RegExp directIoCall = RegExp(
   r'\.(readAsString|readAsBytes|readAsLines|writeAsString|writeAsBytes|'
-  r'openRead|openWrite|exists|existsSync|length|list|listSync|delete|'
-  r'deleteSync|rename|renameSync|createSync|stat|statSync)\(',
+  r'readAsStringSync|readAsBytesSync|readAsLinesSync|writeAsStringSync|'
+  r'writeAsBytesSync|openRead|openWrite|openSync|exists|existsSync|length|'
+  r'lengthSync|list|listSync|delete|deleteSync|rename|renameSync|copySync|'
+  r'createSync|stat|statSync)\(',
 );
 
 /// Flags [directIoCall]s in every file under [lib] outside `services/`.
