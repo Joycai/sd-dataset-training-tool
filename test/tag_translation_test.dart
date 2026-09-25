@@ -1,10 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:dataset_training_tool/models/tag_translation.dart';
 import 'package:dataset_training_tool/services/tag_translation_service.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   late Directory temp;
@@ -44,9 +43,7 @@ void main() {
     test('each language keeps its own file', () async {
       final glossary = service();
       await glossary.load('zh');
-      await glossary.upsert(
-        const TagTranslation(tag: 'long_hair', text: '长发'),
-      );
+      await glossary.upsert(const TagTranslation(tag: 'long_hair', text: '长发'));
 
       // Switching languages switches the whole glossary — no fallback to the
       // one that happened to be loaded before.
@@ -59,19 +56,24 @@ void main() {
       expect(await glossaryFile('ja').exists(), isFalse);
     });
 
-    test('a spelling variant replaces the entry instead of doubling it', () async {
-      final glossary = service();
-      await glossary.load('zh');
-      await glossary.upsert(const TagTranslation(tag: 'long hair', text: '长发'));
-      await glossary.upsert(
-        const TagTranslation(tag: 'long_hair', text: '长头发'),
-      );
+    test(
+      'a spelling variant replaces the entry instead of doubling it',
+      () async {
+        final glossary = service();
+        await glossary.load('zh');
+        await glossary.upsert(
+          const TagTranslation(tag: 'long hair', text: '长发'),
+        );
+        await glossary.upsert(
+          const TagTranslation(tag: 'long_hair', text: '长头发'),
+        );
 
-      // Two spellings fold to one lookup key, so keeping both would leave the
-      // loser sitting in the file forever, fighting over the same tag.
-      expect(glossary.count, 1);
-      expect(glossary.glossFor('long_hair'), '长头发');
-    });
+        // Two spellings fold to one lookup key, so keeping both would leave the
+        // loser sitting in the file forever, fighting over the same tag.
+        expect(glossary.count, 1);
+        expect(glossary.glossFor('long_hair'), '长头发');
+      },
+    );
 
     test('a corrupt file leaves the service usable and reports why', () async {
       await glossaryFile('zh').writeAsString('{ this is not json');
@@ -141,25 +143,20 @@ void main() {
     test('overwrite:false protects hand-written text', () async {
       final glossary = service();
       await glossary.load('zh');
-      await glossary.upsert(
-        const TagTranslation(tag: 'long_hair', text: '长发'),
-      );
+      await glossary.upsert(const TagTranslation(tag: 'long_hair', text: '长发'));
 
-      final (written, skipped) = await glossary.upsertAll(
-        const [
-          TagTranslation(
-            tag: 'long_hair',
-            text: '长长的头发',
-            source: TagTranslationSource.llm,
-          ),
-          TagTranslation(
-            tag: '1girl',
-            text: '单人女性',
-            source: TagTranslationSource.llm,
-          ),
-        ],
-        overwrite: false,
-      );
+      final (written, skipped) = await glossary.upsertAll(const [
+        TagTranslation(
+          tag: 'long_hair',
+          text: '长长的头发',
+          source: TagTranslationSource.llm,
+        ),
+        TagTranslation(
+          tag: '1girl',
+          text: '单人女性',
+          source: TagTranslationSource.llm,
+        ),
+      ], overwrite: false);
 
       expect((written, skipped), (1, 1));
       expect(glossary.glossFor('long_hair'), '长发');
@@ -239,14 +236,16 @@ void main() {
       expect(glossary.has('blue_eyes'), isFalse);
     });
 
-    test('a non-object file is a FormatException, not a silent no-op', () async {
-      final glossary = service();
-      await glossary.load('zh');
-      expect(
-        () => glossary.importJson('[1, 2, 3]'),
-        throwsA(isA<FormatException>()),
-      );
-    });
+    test(
+      'a non-object file is a FormatException, not a silent no-op',
+      () async {
+        final glossary = service();
+        await glossary.load('zh');
+        expect(
+          () => glossary.importJson('[1, 2, 3]'),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
   });
-
 }

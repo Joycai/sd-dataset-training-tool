@@ -263,7 +263,12 @@ class DataTransfer {
       return (local, 0);
     }
     return (
-      local.copyWith(kind: kind, baseUrl: baseUrl, apiKey: apiKey, models: models),
+      local.copyWith(
+        kind: kind,
+        baseUrl: baseUrl,
+        apiKey: apiKey,
+        models: models,
+      ),
       added,
     );
   }
@@ -276,9 +281,7 @@ class DataTransfer {
     var groupsCreated = 0;
 
     if (library.groups.isNotEmpty || library.ungrouped.isNotEmpty) {
-      final result = await state.importLibraryJson(
-        _libraryExportJson(library),
-      );
+      final result = await state.importLibraryJson(_libraryExportJson(library));
       tagsAdded = result.tagsAdded;
       groupsCreated = result.groupsCreated;
       // importLibraryJson keeps a pre-existing group's local color, which is
@@ -412,7 +415,10 @@ class DataTransfer {
     );
   }
 
-  static DataImportReport _mergeReports(DataImportReport a, DataImportReport b) {
+  static DataImportReport _mergeReports(
+    DataImportReport a,
+    DataImportReport b,
+  ) {
     return DataImportReport(
       providersAdded: a.providersAdded + b.providersAdded,
       providersUpdated: a.providersUpdated + b.providersUpdated,

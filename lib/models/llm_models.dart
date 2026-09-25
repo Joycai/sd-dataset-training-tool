@@ -317,8 +317,8 @@ class LlmModelConfig {
     'temperature': temperature,
     'supportsVision': supportsVision,
     if (pricing != null && !pricing!.isEmpty) 'pricing': pricing!.toJson(),
-    if (measuredContextWindow > 0) 'measuredContextWindow':
-        measuredContextWindow,
+    if (measuredContextWindow > 0)
+      'measuredContextWindow': measuredContextWindow,
     if (measuredMaxOutput > 0) 'measuredMaxOutput': measuredMaxOutput,
     if (measuredAt.isNotEmpty) 'measuredAt': measuredAt,
     if (silentTruncation) 'silentTruncation': true,

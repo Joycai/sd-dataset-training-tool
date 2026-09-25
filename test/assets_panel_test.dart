@@ -1,19 +1,18 @@
 import 'dart:io';
 
+import 'package:dataset_training_tool/app_state.dart';
+import 'package:dataset_training_tool/l10n/app_localizations.dart';
+import 'package:dataset_training_tool/models/ai_tagger_models.dart';
+import 'package:dataset_training_tool/services/settings_service.dart';
+import 'package:dataset_training_tool/state/ai_tagger_state.dart';
+import 'package:dataset_training_tool/state/dataset_state.dart';
+import 'package:dataset_training_tool/theme/app_theme.dart';
+import 'package:dataset_training_tool/views/panels/assets_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:dataset_training_tool/app_state.dart';
-import 'package:dataset_training_tool/l10n/app_localizations.dart';
-import 'package:dataset_training_tool/services/settings_service.dart';
-import 'package:dataset_training_tool/models/ai_tagger_models.dart';
-import 'package:dataset_training_tool/state/ai_tagger_state.dart';
-import 'package:dataset_training_tool/state/dataset_state.dart';
-import 'package:dataset_training_tool/theme/app_theme.dart';
-import 'package:dataset_training_tool/views/panels/assets_panel.dart';
 
 // 1x1 transparent PNG.
 const _pngBytes = [

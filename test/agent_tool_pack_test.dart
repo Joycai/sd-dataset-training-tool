@@ -1,8 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/models/agent_tool_pack.dart';
 import 'package:dataset_training_tool/models/llm_models.dart';
@@ -13,6 +10,8 @@ import 'package:dataset_training_tool/state/agent_chat_state.dart';
 import 'package:dataset_training_tool/state/ai_tagger_state.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _profile = LlmProviderProfile(id: 'p', name: 'fake', model: 'm');
 
@@ -58,7 +57,10 @@ void main() {
 
       final reloaded = AppState(SettingsService());
       await reloaded.loadSettings();
-      expect(reloaded.isAgentToolPackEnabled(AgentToolPack.tagLibrary), isFalse);
+      expect(
+        reloaded.isAgentToolPackEnabled(AgentToolPack.tagLibrary),
+        isFalse,
+      );
       expect(
         reloaded.isAgentToolPackEnabled(AgentToolPack.tagTranslation),
         isTrue,

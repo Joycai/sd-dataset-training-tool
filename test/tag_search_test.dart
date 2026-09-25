@@ -1,6 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:dataset_training_tool/utils/tag_search.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   setUp(resetTagSearchCache);

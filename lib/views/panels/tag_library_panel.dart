@@ -273,7 +273,11 @@ class _LibraryViewState extends State<_LibraryView> {
         .toList();
   }
 
-  void _showTagMenu(BuildContext context, Offset position, String tag) async {
+  Future<void> _showTagMenu(
+    BuildContext context,
+    Offset position,
+    String tag,
+  ) async {
     final appState = context.read<AppState>();
     final dataset = context.read<DatasetState>();
     final action = await showPanelContextMenu<TagMenuAction>(
@@ -2036,7 +2040,7 @@ class _GroupHeaderState extends State<_GroupHeader> {
 
     // The whole header row folds the section; the controls inside it swallow
     // their own taps, so the chevron is a hint rather than the only hit area.
-    Widget content = MouseRegion(
+    final Widget content = MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -2197,9 +2201,7 @@ class _LibraryTagChip extends StatelessWidget {
         context: context,
         tag: label,
         child: MouseRegion(
-          cursor: enabled
-              ? SystemMouseCursors.click
-              : SystemMouseCursors.basic,
+          cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
           child: chip,
         ),
       ),

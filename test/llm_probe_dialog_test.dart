@@ -1,13 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/models/llm_models.dart';
 import 'package:dataset_training_tool/services/llm/llm_client.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/views/panels/llm_probe_dialog.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// An inspector whose `sendProbe` hangs until [finish] is called — the
 /// "still running" window the Stop button has to work inside. A fresh
@@ -47,7 +46,11 @@ const _provider = LlmProvider(
   kind: LlmApiKind.anthropic,
   baseUrl: 'https://api.anthropic.com',
 );
-const _model = LlmModelConfig(id: 'm', modelId: 'claude-x', contextWindow: 8192);
+const _model = LlmModelConfig(
+  id: 'm',
+  modelId: 'claude-x',
+  contextWindow: 8192,
+);
 
 Widget _harness(LlmEndpointInspector inspector) => MaterialApp(
   theme: buildAppTheme(Brightness.dark),
@@ -78,9 +81,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
 
-      final l10n = AppLocalizations.of(
-        tester.element(find.text('open')),
-      )!;
+      final l10n = AppLocalizations.of(tester.element(find.text('open')))!;
 
       // Kick off the run: the listing step resolves immediately, the
       // error-probe step then hangs on the inspector's completer.

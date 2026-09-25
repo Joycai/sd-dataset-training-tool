@@ -1099,8 +1099,11 @@ AgentTool _convertCaptionsToTags(
     // call that is not true.
     final fieldOrder = optStringList(args, 'fields', maxLength: 100);
     final nlField = optString(args, 'nl_field');
-    final skipFields = optStringList(args, 'skip_fields', maxLength: 100)
-        .toSet();
+    final skipFields = optStringList(
+      args,
+      'skip_fields',
+      maxLength: 100,
+    ).toSet();
     if (!jsonSource &&
         (fieldOrder.isNotEmpty || nlField != null || skipFields.isNotEmpty)) {
       return toolError(
@@ -1148,9 +1151,7 @@ AgentTool _convertCaptionsToTags(
         return toolError('"rename" must map tag strings to tag strings');
       }
       if (to.trim().isEmpty) {
-        return toolError(
-          'rename: "$from" → "" — use remove to delete a tag',
-        );
+        return toolError('rename: "$from" → "" — use remove to delete a tag');
       }
       rename[tagLookupKey(from)] = to.trim();
     }

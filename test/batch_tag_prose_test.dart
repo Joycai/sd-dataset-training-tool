@@ -1,17 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:dataset_training_tool/models/caption_type.dart';
 import 'package:dataset_training_tool/services/ai_tagger_service.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/state/ai_tagger_state.dart';
 import 'package:dataset_training_tool/state/batch_tag_state.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Prose captions are described by a caption model instead of tagged, and
 /// JSON captions have no batch path at all. Before this, both were parsed as

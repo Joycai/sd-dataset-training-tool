@@ -1400,8 +1400,7 @@ class _TagDictionaryDialogState extends State<_TagDictionaryDialog> {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     TextButton.icon(
-                      onPressed: () =>
-                          setState(() => _pane = _DictPane.batch),
+                      onPressed: () => setState(() => _pane = _DictPane.batch),
                       icon: const Icon(Icons.cloud_sync_outlined, size: 14),
                       label: Text(
                         l10n.dictBatchAction,

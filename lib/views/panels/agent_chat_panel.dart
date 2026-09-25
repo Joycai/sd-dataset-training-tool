@@ -1,9 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'package:provider/provider.dart';
 
-import '../settings_view.dart';
 import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
 import '../../models/llm_models.dart';
@@ -12,6 +13,7 @@ import '../../models/prompt_preset.dart';
 import '../../services/agent/agent_session.dart';
 import '../../state/agent_chat_state.dart';
 import '../../theme/app_theme.dart';
+import '../settings_view.dart';
 import 'character_sheet_dialog.dart';
 import 'llm_profile_dialog.dart';
 import 'prompt_preset_dialog.dart';
@@ -155,9 +157,11 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
     final input = await showCharacterSheetDialog(context);
     if (input == null || !mounted) return;
     if (chat.busy || !chat.hasProfile) return;
-    chat.startCharacterSheet(
-      input,
-      summary: characterSheetSummary(l10n, input),
+    unawaited(
+      chat.startCharacterSheet(
+        input,
+        summary: characterSheetSummary(l10n, input),
+      ),
     );
   }
 
@@ -201,8 +205,7 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
                     // the accumulated markdown on every delta is O(len²) over
                     // one reply. It becomes markdown on the next rebuild
                     // after its last delta (a tool call or the run's end).
-                    streaming:
-                        chat.busy && index == chat.entries.length - 1,
+                    streaming: chat.busy && index == chat.entries.length - 1,
                     // Only the failure at the end of the transcript can be
                     // retried: anything above it has been overtaken by
                     // whatever the conversation did next.
@@ -898,8 +901,11 @@ class _ReasoningCardState extends State<_ReasoningCard> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.psychology_outlined,
-                      size: 13, color: semantic.muted),
+                  Icon(
+                    Icons.psychology_outlined,
+                    size: 13,
+                    color: semantic.muted,
+                  ),
                   const SizedBox(width: 5),
                   Text(l10n.agentReasoningLabel, style: muted),
                   const SizedBox(width: 3),

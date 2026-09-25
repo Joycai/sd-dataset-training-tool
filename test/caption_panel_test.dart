@@ -1,16 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/gestures.dart'
-    show kLongPressTimeout, kSecondaryButton;
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:path/path.dart' as p;
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/services/ai_tagger_service.dart';
@@ -21,7 +11,15 @@ import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/views/panels/ai_compare_view.dart';
 import 'package:dataset_training_tool/views/panels/caption_panel.dart';
 import 'package:dataset_training_tool/widgets/panel_widgets.dart';
+import 'package:flutter/gestures.dart' show kLongPressTimeout, kSecondaryButton;
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // 1x1 transparent PNG.
 const _pngBytes = [

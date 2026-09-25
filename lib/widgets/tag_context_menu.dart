@@ -215,7 +215,14 @@ List<PopupMenuEntry<TagMenuAction>> buildTagMenuItems(
   ];
 
   final items = <PopupMenuEntry<TagMenuAction>>[];
-  for (final group in [info, filter, currentImage, library, datasetOps, danger]) {
+  for (final group in [
+    info,
+    filter,
+    currentImage,
+    library,
+    datasetOps,
+    danger,
+  ]) {
     if (group.isEmpty) continue;
     if (items.isNotEmpty) items.add(const PopupMenuDivider(height: 9));
     items.addAll(group);

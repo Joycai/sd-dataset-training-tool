@@ -1,12 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/gestures.dart' show kSecondaryButton;
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/models/ai_tagger_models.dart';
@@ -16,6 +9,12 @@ import 'package:dataset_training_tool/state/ai_tagger_state.dart';
 import 'package:dataset_training_tool/state/editor_session.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/views/panels/ai_compare_view.dart';
+import 'package:flutter/gestures.dart' show kSecondaryButton;
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // 1x1 transparent PNG.
 const _pngBytes = [
@@ -155,26 +154,23 @@ void main() {
     },
   );
 
-  testWidgets(
-    'right column: right-click on a suggestion offers apply, not '
-    'remove-from-image',
-    (tester) async {
-      await tester.pumpWidget(harness());
-      await tester.pumpAndSettle();
+  testWidgets('right column: right-click on a suggestion offers apply, not '
+      'remove-from-image', (tester) async {
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('jewelry'), buttons: kSecondaryButton);
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('jewelry'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Apply suggestion'), findsOneWidget);
-      expect(find.text('Remove from this image'), findsNothing);
-      expect(find.text('Set as insertion anchor'), findsNothing);
-      expect(find.text('Add to library'), findsOneWidget);
+    expect(find.text('Apply suggestion'), findsOneWidget);
+    expect(find.text('Remove from this image'), findsNothing);
+    expect(find.text('Set as insertion anchor'), findsNothing);
+    expect(find.text('Add to library'), findsOneWidget);
 
-      await tester.tap(find.text('Apply suggestion'));
-      await tester.pumpAndSettle();
-      expect(session.tags, contains('jewelry'));
-    },
-  );
+    await tester.tap(find.text('Apply suggestion'));
+    await tester.pumpAndSettle();
+    expect(session.tags, contains('jewelry'));
+  });
 
   testWidgets(
     'right column: right-click on an already-matched suggestion offers no '
@@ -193,9 +189,7 @@ void main() {
     },
   );
 
-  testWidgets('add to library from either column adds the tag', (
-    tester,
-  ) async {
+  testWidgets('add to library from either column adds the tag', (tester) async {
     await tester.pumpWidget(harness());
     await tester.pumpAndSettle();
 

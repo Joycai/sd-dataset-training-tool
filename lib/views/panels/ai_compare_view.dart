@@ -343,11 +343,8 @@ class _AiCompareViewState extends State<AiCompareView> {
                             label: p.tag,
                             probability: p.probability,
                             semantic: semantic,
-                            onContextMenu: (position) => _showTagMenu(
-                              p.tag,
-                              position,
-                              session: session,
-                            ),
+                            onContextMenu: (position) =>
+                                _showTagMenu(p.tag, position, session: session),
                           )
                         : _CompareChip.suggestion(
                             label: p.tag,

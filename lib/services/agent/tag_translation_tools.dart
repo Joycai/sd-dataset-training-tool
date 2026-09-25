@@ -134,7 +134,13 @@ List<AgentTool> buildTagTranslationTools(TagTranslationToolsDeps deps) {
       ),
       handler: (args) async {
         final glossary = deps.glossary;
-        final limit = optInt(args, 'limit', fallback: 100, min: 1, max: _maxListed);
+        final limit = optInt(
+          args,
+          'limit',
+          fallback: 100,
+          min: 1,
+          max: _maxListed,
+        );
         final asked = optStringList(args, 'tags');
 
         if (asked.isNotEmpty) {
@@ -179,7 +185,8 @@ List<AgentTool> buildTagTranslationTools(TagTranslationToolsDeps deps) {
             ];
             totalMatching = tags.length;
             rows = [
-              for (final t in tags.take(limit)) describe(t.tag, images: t.count),
+              for (final t in tags.take(limit))
+                describe(t.tag, images: t.count),
             ];
         }
 

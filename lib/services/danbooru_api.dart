@@ -70,7 +70,9 @@ class DanbooruTagInfo {
     final rawCategory = value['category'];
     return DanbooruTagInfo(
       name: name,
-      category: rawCategory is num ? TagCategory.fromId(rawCategory.toInt()) : null,
+      category: rawCategory is num
+          ? TagCategory.fromId(rawCategory.toInt())
+          : null,
       postCount: value['count'] is num ? (value['count'] as num).toInt() : 0,
       otherNames: value['otherNames'] is List
           ? [
@@ -115,7 +117,8 @@ class DanbooruApi {
 
   /// Danbooru asks API clients to identify themselves and throttles or blocks
   /// generic agents.
-  static final userAgent = 'sd-dataset-training-tool/${AppInfo.version} '
+  static final userAgent =
+      'sd-dataset-training-tool/${AppInfo.version} '
       '(+${AppInfo.repositoryUrl})';
 
   /// Per-request ceiling. A wiki body runs to a few KB; anything wildly past
@@ -157,7 +160,9 @@ class DanbooruApi {
       // A post search can carry several tags and metatags; the first plain tag
       // is the one the user is looking at.
       for (final part in value.split(RegExp(r'[\s+]+'))) {
-        if (part.isEmpty || part.contains(':') || part.startsWith('-')) continue;
+        if (part.isEmpty || part.contains(':') || part.startsWith('-')) {
+          continue;
+        }
         return danbooruTagName(part);
       }
     }
@@ -228,9 +233,7 @@ class DanbooruApi {
                 for (final other in (page['other_names'] as List? ?? const []))
                   if ('$other'.trim().isNotEmpty) '$other'.trim(),
               ],
-        wikiExcerpt: page == null
-            ? null
-            : stripDText('${page['body'] ?? ''}'),
+        wikiExcerpt: page == null ? null : stripDText('${page['body'] ?? ''}'),
         knownToDanbooru: record is Map,
         hasWiki: page != null,
       );
@@ -239,10 +242,8 @@ class DanbooruApi {
     }
   }
 
-  Uri _tagUrl(String name) => Uri.https(host, '/tags.json', {
-    'search[name]': name,
-    'limit': '1',
-  });
+  Uri _tagUrl(String name) =>
+      Uri.https(host, '/tags.json', {'search[name]': name, 'limit': '1'});
 
   /// Built from path segments: a tag name may contain a slash
   /// (`fate/grand_order`), which has to reach the server escaped.
@@ -273,14 +274,18 @@ class DanbooruApi {
       );
     }
     if (response.statusCode != 200) {
-      throw DanbooruApiException('danbooru returned HTTP ${response.statusCode}');
+      throw DanbooruApiException(
+        'danbooru returned HTTP ${response.statusCode}',
+      );
     }
     try {
       // bodyBytes, not body: danbooru serves UTF-8 and `other_names` is mostly
       // Japanese, which http's latin-1 default would mangle.
       return jsonDecode(utf8.decode(response.bodyBytes, allowMalformed: true));
     } on FormatException catch (e) {
-      throw DanbooruApiException('danbooru returned unreadable JSON: ${e.message}');
+      throw DanbooruApiException(
+        'danbooru returned unreadable JSON: ${e.message}',
+      );
     }
   }
 }

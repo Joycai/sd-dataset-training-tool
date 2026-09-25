@@ -1,9 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
-
 import 'package:dataset_training_tool/models/caption_type.dart';
 import 'package:dataset_training_tool/services/agent/agent_tools.dart';
 import 'package:dataset_training_tool/services/agent/caption_edit_tools.dart';
@@ -11,6 +8,8 @@ import 'package:dataset_training_tool/services/agent/caption_variant_tools.dart'
 import 'package:dataset_training_tool/services/agent/dataset_tools.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 // 1x1 transparent PNG.
 const _pngBytes = [
@@ -489,10 +488,7 @@ void main() {
         'nl_field': 'nl',
         'overwrite': true,
       });
-      expect(
-        await read('001', '.atxt'),
-        endsWith('. A girl smiles, indoors.'),
-      );
+      expect(await read('001', '.atxt'), endsWith('. A girl smiles, indoors.'));
     });
 
     test('without nl_field the sentence is comma-split into tags', () async {

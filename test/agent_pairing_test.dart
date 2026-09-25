@@ -36,8 +36,7 @@ void expectPaired(List<ChatMessage> history) {
 ChatMessage _assistantCalls(List<String> ids) => ChatMessage.assistant(
   '',
   toolCalls: [
-    for (final id in ids)
-      ChatToolCall(id: id, name: 't', argumentsJson: '{}'),
+    for (final id in ids) ChatToolCall(id: id, name: 't', argumentsJson: '{}'),
   ],
 );
 
@@ -142,8 +141,7 @@ class _OneTurnClient implements LlmClient {
   Future<String?> probe(LlmProviderProfile profile) async => null;
 
   @override
-  Future<List<String>> listModels(LlmProviderProfile profile) async =>
-      const [];
+  Future<List<String>> listModels(LlmProviderProfile profile) async => const [];
 
   @override
   void dispose() {}

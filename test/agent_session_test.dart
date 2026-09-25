@@ -443,9 +443,7 @@ void main() {
     expect(finished.result.text, contains('output token limit'));
     expect(finished.result.text, isNot(contains('invalid JSON')));
     // The result message still pairs with the call.
-    final toolMsg = session.history.firstWhere(
-      (m) => m.role == ChatRole.tool,
-    );
+    final toolMsg = session.history.firstWhere((m) => m.role == ChatRole.tool);
     expect(toolMsg.toolCallId, 'c1');
   });
 

@@ -1,10 +1,9 @@
 import 'dart:convert';
 
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:dataset_training_tool/models/tag_group.dart';
 import 'package:dataset_training_tool/services/agent/agent_tools.dart';
 import 'package:dataset_training_tool/services/agent/tag_library_tools.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// An in-memory stand-in for AppState's library, with the same two rules that
 /// matter here: the library is an ordered list, and group membership is
@@ -374,7 +373,10 @@ void main() {
     test('hex works, and 6 digits stay opaque', () async {
       await library.create('服装', 0);
       await call('manage_tag_groups', {
-        'action': 'update','group': '服装', 'color': '#123456'});
+        'action': 'update',
+        'group': '服装',
+        'color': '#123456',
+      });
       expect(library.named('服装')!.color, 0xFF123456);
     });
 
@@ -418,7 +420,9 @@ void main() {
         ],
       });
       final out = await call('manage_tag_groups', {
-        'action': 'delete','group': '服装'});
+        'action': 'delete',
+        'group': '服装',
+      });
       expect(out['tags_returned_to_ungrouped'], 1);
       expect(library.groups, isEmpty);
       expect(library.tags, contains('boots'));

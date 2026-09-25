@@ -514,10 +514,7 @@ class TagOps extends ChangeNotifier {
         // No semantic change: don't rewrite the file just to normalize
         // separators.
         if (rewritten == null || listEquals(rewritten, tags)) continue;
-        final next = [
-          ...rewritten,
-          if (nl != null) '$animaNlPrefix$nl',
-        ];
+        final next = [...rewritten, if (nl != null) '$animaNlPrefix$nl'];
         final after = joinCaptionText(next, format: dataset.captionFormat);
         try {
           await captionFile.writeAsString(after);

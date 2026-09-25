@@ -463,7 +463,8 @@ class _DatasetTagsViewState extends State<DatasetTagsView> {
               // wrapping variable-width chips lazily.
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  itemCount: 1 + (visibleTags.length + _chunkSize - 1) ~/ _chunkSize,
+                  itemCount:
+                      1 + (visibleTags.length + _chunkSize - 1) ~/ _chunkSize,
                   itemBuilder: (context, index) {
                     if (index == 0) {
                       return Padding(
@@ -749,7 +750,7 @@ class _FilterGroupView extends StatelessWidget {
                 _edit(filterToggleOp(dataset.tagFilterExpression, group.id)),
           ),
         switch (child) {
-          TagFilterCondition c => _ConditionChip(
+          final TagFilterCondition c => _ConditionChip(
             condition: c,
             toggleTooltip: l10n.filterToggleRoleTooltip,
             removeTooltip: l10n.filterRemoveConditionTooltip,
@@ -758,7 +759,7 @@ class _FilterGroupView extends StatelessWidget {
             onRemove: () =>
                 _edit(filterRemove(dataset.tagFilterExpression, c.id)),
           ),
-          TagFilterGroup g => _FilterGroupView(
+          final TagFilterGroup g => _FilterGroupView(
             dataset: dataset,
             group: g,
             depth: depth + 1,

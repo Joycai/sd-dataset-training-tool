@@ -1,14 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
-
 import 'package:dataset_training_tool/services/agent/agent_tools.dart';
 import 'package:dataset_training_tool/services/agent/caption_edit_tools.dart';
 import 'package:dataset_training_tool/services/agent/dataset_tools.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 // 1x1 transparent PNG.
 const _pngBytes = [

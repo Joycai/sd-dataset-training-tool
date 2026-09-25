@@ -1,8 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/models/data_bundle.dart';
 import 'package:dataset_training_tool/models/llm_models.dart';
@@ -14,6 +11,8 @@ import 'package:dataset_training_tool/services/data_transfer.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
 import 'package:dataset_training_tool/services/tag_dictionary_service.dart';
 import 'package:dataset_training_tool/services/tag_translation_service.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -64,9 +63,7 @@ void main() {
     name: 'OpenAI',
     baseUrl: 'https://api.openai.com/v1',
     apiKey: 'sk-secret',
-    models: [
-      LlmModelConfig(id: 'm1', modelId: 'gpt-5', contextWindow: 200000),
-    ],
+    models: [LlmModelConfig(id: 'm1', modelId: 'gpt-5', contextWindow: 200000)],
   );
 
   /// Fills [state] with one of everything the bundle carries.
@@ -111,9 +108,9 @@ void main() {
     test('round trips every section', () async {
       final state = await freshState();
       await seed(state);
-      final bundle = await DataTransfer(state).collect(
-        sections: {...DataSection.values},
-      );
+      final bundle = await DataTransfer(
+        state,
+      ).collect(sections: {...DataSection.values});
 
       final decoded = DataBundle.decode(bundle.encode());
       expect(decoded.sections, {...DataSection.values});
@@ -147,21 +144,22 @@ void main() {
       expect(decoded.tagLibrary, isNull);
     });
 
-    test('api keys can be stripped, the rest of the backend survives',
-        () async {
-      final state = await freshState();
-      await seed(state);
-      final bundle = await DataTransfer(state).collect(
-        sections: {DataSection.llm},
-        includeApiKeys: false,
-      );
+    test(
+      'api keys can be stripped, the rest of the backend survives',
+      () async {
+        final state = await freshState();
+        await seed(state);
+        final bundle = await DataTransfer(
+          state,
+        ).collect(sections: {DataSection.llm}, includeApiKeys: false);
 
-      final decoded = DataBundle.decode(bundle.encode());
-      expect(decoded.hasApiKeys, isFalse);
-      expect(decoded.providers!.single.apiKey, isEmpty);
-      expect(decoded.providers!.single.baseUrl, 'https://api.openai.com/v1');
-      expect(decoded.providers!.single.models.single.modelId, 'gpt-5');
-    });
+        final decoded = DataBundle.decode(bundle.encode());
+        expect(decoded.hasApiKeys, isFalse);
+        expect(decoded.providers!.single.apiKey, isEmpty);
+        expect(decoded.providers!.single.baseUrl, 'https://api.openai.com/v1');
+        expect(decoded.providers!.single.models.single.modelId, 'gpt-5');
+      },
+    );
 
     test('rejects files that are not this app\'s export', () {
       expect(() => DataBundle.decode('not json'), throwsFormatException);
@@ -190,8 +188,9 @@ void main() {
       final source = await freshState();
       await seed(source);
       final bundle = DataBundle.decode(
-        (await DataTransfer(source).collect(sections: {...DataSection.values}))
-            .encode(),
+        (await DataTransfer(
+          source,
+        ).collect(sections: {...DataSection.values})).encode(),
       );
 
       final target = await freshState();
@@ -230,9 +229,7 @@ void main() {
       expect(target.promptPresets.single.content, 'tidy the tags');
 
       expect(report.danbooruRecordsWritten, 2);
-      expect(target.danbooruMeta.lookup('long_hair')?.otherNames, [
-        'ロングヘア',
-      ]);
+      expect(target.danbooruMeta.lookup('long_hair')?.otherNames, ['ロングヘア']);
       expect(
         target.danbooruMeta.lookup('long_hair')?.wikiExcerpt,
         'Hair below the shoulder blades.',
@@ -246,8 +243,9 @@ void main() {
       final source = await freshState();
       await seed(source);
       final bundle = DataBundle.decode(
-        (await DataTransfer(source).collect(sections: {...DataSection.values}))
-            .encode(),
+        (await DataTransfer(
+          source,
+        ).collect(sections: {...DataSection.values})).encode(),
       );
 
       final target = await freshState();
@@ -260,31 +258,34 @@ void main() {
       expect(target.commonTags, isEmpty);
     });
 
-    test('importing the same file twice changes nothing the second time',
-        () async {
-      final source = await freshState();
-      await seed(source);
-      final bundle = DataBundle.decode(
-        (await DataTransfer(source).collect(sections: {...DataSection.values}))
-            .encode(),
-      );
+    test(
+      'importing the same file twice changes nothing the second time',
+      () async {
+        final source = await freshState();
+        await seed(source);
+        final bundle = DataBundle.decode(
+          (await DataTransfer(
+            source,
+          ).collect(sections: {...DataSection.values})).encode(),
+        );
 
-      final target = await freshState();
-      await DataTransfer(
-        target,
-      ).apply(bundle, sections: {...DataSection.values});
-      final second = await DataTransfer(
-        target,
-      ).apply(bundle, sections: {...DataSection.values});
+        final target = await freshState();
+        await DataTransfer(
+          target,
+        ).apply(bundle, sections: {...DataSection.values});
+        final second = await DataTransfer(
+          target,
+        ).apply(bundle, sections: {...DataSection.values});
 
-      expect(second.isEmpty, isTrue);
-      expect(target.llmProviders, hasLength(1));
-      expect(target.llmProviders.single.models, hasLength(1));
-      expect(target.tagGroups, hasLength(1));
-      expect(target.commonTags, hasLength(3));
-      expect(target.promptPresets, hasLength(1));
-      expect(target.tagDictionary.customEntries, hasLength(1));
-    });
+        expect(second.isEmpty, isTrue);
+        expect(target.llmProviders, hasLength(1));
+        expect(target.llmProviders.single.models, hasLength(1));
+        expect(target.tagGroups, hasLength(1));
+        expect(target.commonTags, hasLength(3));
+        expect(target.promptPresets, hasLength(1));
+        expect(target.tagDictionary.customEntries, hasLength(1));
+      },
+    );
   });
 
   group('conflicts', () {
@@ -311,8 +312,9 @@ void main() {
       );
       await source.createPromptPreset(title: 'cleanup', content: 'from file');
       return DataBundle.decode(
-        (await DataTransfer(source).collect(sections: {...DataSection.values}))
-            .encode(),
+        (await DataTransfer(
+          source,
+        ).collect(sections: {...DataSection.values})).encode(),
       );
     }
 
@@ -332,12 +334,17 @@ void main() {
       expect(target.llmProviders.single.baseUrl, 'https://api.openai.com/v1');
       expect(target.llmProviders.single.apiKey, 'sk-secret');
       final models = target.llmProviders.single.models;
-      expect(models.firstWhere((m) => m.modelId == 'gpt-5').contextWindow,
-          200000);
+      expect(
+        models.firstWhere((m) => m.modelId == 'gpt-5').contextWindow,
+        200000,
+      );
       // A model the local side does not have is still added — merge means
       // "keep what is here", not "ignore the file".
       expect(report.modelsAdded, 1);
-      expect(models.map((m) => m.modelId), containsAll(['gpt-5', 'gpt-5-mini']));
+      expect(
+        models.map((m) => m.modelId),
+        containsAll(['gpt-5', 'gpt-5-mini']),
+      );
 
       expect(target.tagGroups.single.color, 0xFF6A9BDD);
       expect(target.tagTranslations.glossFor('long_hair'), '长发');
@@ -370,27 +377,29 @@ void main() {
       expect(report.presetsUpdated, 1);
     });
 
-    test('a key-stripped export never blanks a key that is already here',
-        () async {
-      final source = await freshState();
-      await source.updateLlmProviders([provider]);
-      final bundle = DataBundle.decode(
-        (await DataTransfer(source).collect(
+    test(
+      'a key-stripped export never blanks a key that is already here',
+      () async {
+        final source = await freshState();
+        await source.updateLlmProviders([provider]);
+        final bundle = DataBundle.decode(
+          (await DataTransfer(source).collect(
+            sections: {DataSection.llm},
+            includeApiKeys: false,
+          )).encode(),
+        );
+
+        final target = await freshState();
+        await target.updateLlmProviders([provider]);
+        await DataTransfer(target).apply(
+          bundle,
           sections: {DataSection.llm},
-          includeApiKeys: false,
-        )).encode(),
-      );
+          mode: DataImportMode.overwrite,
+        );
 
-      final target = await freshState();
-      await target.updateLlmProviders([provider]);
-      await DataTransfer(target).apply(
-        bundle,
-        sections: {DataSection.llm},
-        mode: DataImportMode.overwrite,
-      );
-
-      expect(target.llmProviders.single.apiKey, 'sk-secret');
-    });
+        expect(target.llmProviders.single.apiKey, 'sk-secret');
+      },
+    );
 
     test('neither mode deletes anything the file does not mention', () async {
       final bundle = await conflictingBundle();
@@ -427,9 +436,7 @@ void main() {
       ]);
       await target.setActiveLlmProfile('local/l');
 
-      await DataTransfer(
-        target,
-      ).apply(bundle, sections: {DataSection.llm});
+      await DataTransfer(target).apply(bundle, sections: {DataSection.llm});
 
       expect(target.llmProviders, hasLength(2));
       expect(target.activeLlmProfile?.model, 'qwen3');

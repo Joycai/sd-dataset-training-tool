@@ -1,11 +1,10 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:dataset_training_tool/theme/app_theme.dart';
 
 /// The disabled-chip dim used to be an `Opacity(0.55)` around each chip; it
 /// is now mixed into the colours with [dimDisabled]. This renders the same

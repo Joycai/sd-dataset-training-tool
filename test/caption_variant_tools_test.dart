@@ -1,15 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
-
 import 'package:dataset_training_tool/models/caption_type.dart';
 import 'package:dataset_training_tool/services/agent/agent_tools.dart';
 import 'package:dataset_training_tool/services/agent/caption_variant_tools.dart';
 import 'package:dataset_training_tool/services/agent/dataset_tools.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 // 1x1 transparent PNG.
 const _pngBytes = [
@@ -198,38 +197,35 @@ void main() {
       expect(await File(cap('002', '.txt')).readAsString(), 'trigger, 1boy');
     });
 
-    test(
-      'two concurrent non-active-type writes to the same file do not race '
-      '— one wins, one is refused',
-      () async {
-        // This branch writes the variant file itself instead of going
-        // through TagOps.rewriteOne (only the active-type branch does), so
-        // before the fix nothing held TagOps.busy for it and two overlapping
-        // calls could both "succeed": last write on disk wins silently, and
-        // both push a TagOperation onto the undo stack from a `before`
-        // snapshot the other call had already invalidated. Dispatching both
-        // without awaiting exercises that overlap; whichever one reaches
-        // TagOps.runExclusive first must make the other bounce off busy.
-        final results = await Future.wait([
-          call('write_caption_file', {
-            'path': '002.png',
-            'extension': '.ntxt',
-            'text': 'A boy standing.',
-          }),
-          call('write_caption_file', {
-            'path': '002.png',
-            'extension': '.ntxt',
-            'text': 'A different boy.',
-          }),
-        ]);
-        final errors = results.where((r) => r.containsKey('error')).toList();
-        final writes = results.where((r) => r['written'] == true).toList();
-        expect(errors, hasLength(1));
-        expect(writes, hasLength(1));
-        expect(errors.single['error'], contains('still running'));
-        expect(tagOps.undoLabel, 'AI: write 002.ntxt');
-      },
-    );
+    test('two concurrent non-active-type writes to the same file do not race '
+        '— one wins, one is refused', () async {
+      // This branch writes the variant file itself instead of going
+      // through TagOps.rewriteOne (only the active-type branch does), so
+      // before the fix nothing held TagOps.busy for it and two overlapping
+      // calls could both "succeed": last write on disk wins silently, and
+      // both push a TagOperation onto the undo stack from a `before`
+      // snapshot the other call had already invalidated. Dispatching both
+      // without awaiting exercises that overlap; whichever one reaches
+      // TagOps.runExclusive first must make the other bounce off busy.
+      final results = await Future.wait([
+        call('write_caption_file', {
+          'path': '002.png',
+          'extension': '.ntxt',
+          'text': 'A boy standing.',
+        }),
+        call('write_caption_file', {
+          'path': '002.png',
+          'extension': '.ntxt',
+          'text': 'A different boy.',
+        }),
+      ]);
+      final errors = results.where((r) => r.containsKey('error')).toList();
+      final writes = results.where((r) => r['written'] == true).toList();
+      expect(errors, hasLength(1));
+      expect(writes, hasLength(1));
+      expect(errors.single['error'], contains('still running'));
+      expect(tagOps.undoLabel, 'AI: write 002.ntxt');
+    });
 
     test('identical content reports unchanged without history', () async {
       final out = await call('write_caption_file', {
@@ -297,19 +293,21 @@ void main() {
         '"series": [], "artist": "", "appearance": [], "tags": ["smile"], '
         '"environment": [], "nl": "a girl smiling"}';
 
-    test('a lossless JSON conversion passes and reports the tag count',
-        () async {
-      final out = await call('write_caption_file', {
-        'path': '001.png',
-        'extension': '.json',
-        'text': animaJson,
-        'expect_tags_from': '.txt',
-        'ignore_keys': ['nl'],
-      });
-      expect(out['written'], isTrue);
-      expect(out['tags_verified'], 3);
-      expect(await File(cap('001', '.json')).readAsString(), animaJson);
-    });
+    test(
+      'a lossless JSON conversion passes and reports the tag count',
+      () async {
+        final out = await call('write_caption_file', {
+          'path': '001.png',
+          'extension': '.json',
+          'text': animaJson,
+          'expect_tags_from': '.txt',
+          'ignore_keys': ['nl'],
+        });
+        expect(out['written'], isTrue);
+        expect(out['tags_verified'], 3);
+        expect(await File(cap('001', '.json')).readAsString(), animaJson);
+      },
+    );
 
     test('matching folds case and underscore style', () async {
       final out = await call('write_caption_file', {
@@ -503,12 +501,9 @@ void main() {
       expect(dataset.tagsOf(img('001')), ['trigger', '1girl', 'smile']);
     });
 
-    test('strips caption-style escaping and reports unassigned tags',
-        () async {
+    test('strips caption-style escaping and reports unassigned tags', () async {
       await File(img('004')).writeAsBytes(_pngBytes);
-      await File(
-        cap('004', '.txt'),
-      ).writeAsString(r'trigger, smile \(happy\)');
+      await File(cap('004', '.txt')).writeAsString(r'trigger, smile \(happy\)');
       await dataset.scan(
         directoryPath: tempDir.path,
         recursive: false,
@@ -520,7 +515,9 @@ void main() {
         'name_query': '004',
       });
       expect(out['written'], 1);
-      final decoded = jsonDecode(await File(cap('004', '.json')).readAsString());
+      final decoded = jsonDecode(
+        await File(cap('004', '.json')).readAsString(),
+      );
       expect(decoded['tags'], ['smile (happy)']);
       expect(out['unassigned_tags_seen'], [r'smile \(happy\)']);
     });
@@ -539,26 +536,28 @@ void main() {
       expect(rebuilt['unchanged'], 2);
     });
 
-    test('two tags landing in one string field fails that image only',
-        () async {
-      final out = await call('convert_captions_to_json', {
-        ...animaArgs,
-        'assign': {
-          '1girl': 'count',
-          '1boy': 'count',
-          'smile': 'count',
-          'trigger': 'character',
-        },
-      });
-      // 001 puts both 1girl and smile into "count"; 002 is fine.
-      expect(out['written'], 1);
-      expect(out['failed_images'], 1);
-      final failure = (out['failures'] as List).single as Map;
-      expect(failure['path'], '001.png');
-      expect(failure['error'], contains('"count"'));
-      expect(File(cap('001', '.json')).existsSync(), isFalse);
-      expect(File(cap('002', '.json')).existsSync(), isTrue);
-    });
+    test(
+      'two tags landing in one string field fails that image only',
+      () async {
+        final out = await call('convert_captions_to_json', {
+          ...animaArgs,
+          'assign': {
+            '1girl': 'count',
+            '1boy': 'count',
+            'smile': 'count',
+            'trigger': 'character',
+          },
+        });
+        // 001 puts both 1girl and smile into "count"; 002 is fine.
+        expect(out['written'], 1);
+        expect(out['failed_images'], 1);
+        final failure = (out['failures'] as List).single as Map;
+        expect(failure['path'], '001.png');
+        expect(failure['error'], contains('"count"'));
+        expect(File(cap('001', '.json')).existsSync(), isFalse);
+        expect(File(cap('002', '.json')).existsSync(), isTrue);
+      },
+    );
 
     test('source and target are validated by configured format', () async {
       final source = await registry.dispatch(

@@ -228,7 +228,9 @@ _RulesResult _buildRules(Map<String, dynamic> args) {
     error: null,
     rules: _Rules(
       add: add,
-      addIndex: hasIndex ? optInt(args, 'add_index', fallback: 0, min: 0) : null,
+      addIndex: hasIndex
+          ? optInt(args, 'add_index', fallback: 0, min: 0)
+          : null,
       addAnchor: anchor == null ? null : tagLookupKey(anchor),
       addAfter: optBool(args, 'add_after', fallback: true),
       remove: remove,
@@ -282,7 +284,9 @@ List<String>? _editTags(
     if (fresh.isNotEmpty) {
       int? at;
       if (rules.addAnchor != null) {
-        final index = out.indexWhere((e) => tagLookupKey(e.$1) == rules.addAnchor);
+        final index = out.indexWhere(
+          (e) => tagLookupKey(e.$1) == rules.addAnchor,
+        );
         // A caption without the anchor is not a caption to append to: that
         // was insert_beside_tag's whole contract.
         if (index >= 0) at = rules.addAfter ? index + 1 : index;
@@ -403,7 +407,8 @@ Future<AgentToolResult> _edit(
       failures.add((path: rel, error: 'cannot read: $e'));
       continue;
     }
-    if (before.trim().isEmpty && !(rules.add.isNotEmpty && rules.createMissing)) {
+    if (before.trim().isEmpty &&
+        !(rules.add.isNotEmpty && rules.createMissing)) {
       skippedUncaptioned++;
       continue;
     }

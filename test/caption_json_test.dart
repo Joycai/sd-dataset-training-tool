@@ -1,15 +1,14 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
-
 import 'package:dataset_training_tool/models/caption_type.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/editor_session.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
 import 'package:dataset_training_tool/utils/tag_text.dart';
 import 'package:dataset_training_tool/widgets/json_caption_view.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 // 1x1 transparent PNG.
 const _pngBytes = [
@@ -50,10 +49,7 @@ void main() {
     });
 
     test('parseCaptionText routes the json format here', () {
-      expect(
-        parseCaptionText('{"a": "x"}', format: CaptionFormat.json),
-        ['x'],
-      );
+      expect(parseCaptionText('{"a": "x"}', format: CaptionFormat.json), ['x']);
     });
   });
 
@@ -108,8 +104,7 @@ void main() {
 
     test('keys, strings and literals carry their own styles', () {
       final result = spans({'k': 'v', 'n': null}).cast<TextSpan>();
-      TextSpan byText(String text) =>
-          result.firstWhere((s) => s.text == text);
+      TextSpan byText(String text) => result.firstWhere((s) => s.text == text);
       expect(byText('"k"').style, keyStyle);
       expect(byText('"v"').style, stringStyle);
       expect(byText('null').style, literalStyle);
@@ -158,51 +153,55 @@ void main() {
       ]);
     });
 
-    test('tag-level batch rewrites refuse to run and leave the file alone',
-        () async {
-      final dataset = await scan();
-      final tagOps = TagOps(dataset: dataset);
-      addTearDown(tagOps.dispose);
-      final result = await tagOps.deleteEverywhere('1girl', label: 'del');
-      expect(result.changed, 0);
-      expect(result.failed, 1);
-      expect(result.failures.single.error, contains('JSON'));
-      expect(
-        await File(p.join(tempDir.path, '001.json')).readAsString(),
-        _animaJson,
-      );
-      expect(tagOps.canUndo, isFalse);
-    });
+    test(
+      'tag-level batch rewrites refuse to run and leave the file alone',
+      () async {
+        final dataset = await scan();
+        final tagOps = TagOps(dataset: dataset);
+        addTearDown(tagOps.dispose);
+        final result = await tagOps.deleteEverywhere('1girl', label: 'del');
+        expect(result.changed, 0);
+        expect(result.failed, 1);
+        expect(result.failures.single.error, contains('JSON'));
+        expect(
+          await File(p.join(tempDir.path, '001.json')).readAsString(),
+          _animaJson,
+        );
+        expect(tagOps.canUndo, isFalse);
+      },
+    );
 
-    test('editor session disables tag edits but still saves text edits',
-        () async {
-      final session = EditorSession();
-      addTearDown(session.dispose);
-      session.autoSaveEnabled = false;
-      await session.load(
-        File(img('001')),
-        '.json',
-        format: CaptionFormat.json,
-      );
-      expect(session.tagsEditable, isFalse);
-      expect(session.tags, contains('blue eyes'));
+    test(
+      'editor session disables tag edits but still saves text edits',
+      () async {
+        final session = EditorSession();
+        addTearDown(session.dispose);
+        session.autoSaveEnabled = false;
+        await session.load(
+          File(img('001')),
+          '.json',
+          format: CaptionFormat.json,
+        );
+        expect(session.tagsEditable, isFalse);
+        expect(session.tags, contains('blue eyes'));
 
-      // Tag mutators bail: the document cannot be rebuilt from a tag list.
-      session.removeTag('blue eyes');
-      session.addTagsFromInput('new tag');
-      session.applyTag('another');
-      expect(session.captionController.text, _animaJson);
-      expect(session.tags, contains('blue eyes'));
+        // Tag mutators bail: the document cannot be rebuilt from a tag list.
+        session.removeTag('blue eyes');
+        session.addTagsFromInput('new tag');
+        session.applyTag('another');
+        expect(session.captionController.text, _animaJson);
+        expect(session.tags, contains('blue eyes'));
 
-      // Raw text edits are the JSON editing path and still save.
-      const edited = '{"count": "1girl", "tags": ["smile"]}';
-      session.captionController.text = edited;
-      await session.save();
-      expect(
-        await File(p.join(tempDir.path, '001.json')).readAsString(),
-        edited,
-      );
-      expect(session.tags, ['1girl', 'smile']);
-    });
+        // Raw text edits are the JSON editing path and still save.
+        const edited = '{"count": "1girl", "tags": ["smile"]}';
+        session.captionController.text = edited;
+        await session.save();
+        expect(
+          await File(p.join(tempDir.path, '001.json')).readAsString(),
+          edited,
+        );
+        expect(session.tags, ['1girl', 'smile']);
+      },
+    );
   });
 }

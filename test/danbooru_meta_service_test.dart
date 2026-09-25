@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:dataset_training_tool/models/tag_dictionary.dart';
 import 'package:dataset_training_tool/services/danbooru_api.dart';
 import 'package:dataset_training_tool/services/danbooru_meta_service.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   late Directory temp;

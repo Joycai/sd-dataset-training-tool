@@ -1,16 +1,15 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/editor_session.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/views/panels/preview_panel.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // 1x1 transparent PNG.
 const _pngBytes = [
@@ -166,8 +165,7 @@ void main() {
     await tester.pumpWidget(harness());
     await tester.pump();
 
-    ImageProvider provider() =>
-        tester.widget<Image>(find.byType(Image)).image;
+    ImageProvider provider() => tester.widget<Image>(find.byType(Image)).image;
 
     // The fitted view shows a viewport-bounded decode, never the raw file.
     expect(provider(), isA<ResizeImage>());

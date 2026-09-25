@@ -26,10 +26,9 @@ Future<void> showDataExportDialog(BuildContext context) async {
   );
   if (choice == null || choice.sections.isEmpty) return;
 
-  final bundle = await DataTransfer(appState).collect(
-    sections: choice.sections,
-    includeApiKeys: choice.includeApiKeys,
-  );
+  final bundle = await DataTransfer(
+    appState,
+  ).collect(sections: choice.sections, includeApiKeys: choice.includeApiKeys);
   final path = await FilePicker.saveFile(
     fileName: 'dataset_tool_settings.json',
     type: FileType.custom,
@@ -106,11 +105,9 @@ Future<void> runDataImport(BuildContext context, String text) async {
   );
   if (choice == null || choice.sections.isEmpty) return;
 
-  final report = await DataTransfer(appState).apply(
-    bundle,
-    sections: choice.sections,
-    mode: choice.mode,
-  );
+  final report = await DataTransfer(
+    appState,
+  ).apply(bundle, sections: choice.sections, mode: choice.mode);
   if (!context.mounted) return;
   await _showReport(context, bundle, choice, report);
 }
@@ -267,8 +264,7 @@ class _ExportDialogState extends State<_ExportDialog> {
                 label: l10n.dataExportApiKeys,
                 summary: l10n.dataExportApiKeysHint,
                 value: _includeApiKeys,
-                onChanged: (v) =>
-                    setState(() => _includeApiKeys = v ?? false),
+                onChanged: (v) => setState(() => _includeApiKeys = v ?? false),
               ),
             ),
           _SectionCheckbox(

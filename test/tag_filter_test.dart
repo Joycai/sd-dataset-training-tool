@@ -1,6 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:dataset_training_tool/models/tag_filter.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 TagFilterCondition has(String tag) =>
     TagFilterCondition.create(tag, exclude: false);

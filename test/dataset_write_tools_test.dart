@@ -1,14 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
-
 import 'package:dataset_training_tool/services/agent/agent_tools.dart';
 import 'package:dataset_training_tool/services/agent/caption_edit_tools.dart';
 import 'package:dataset_training_tool/services/agent/dataset_tools.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 // 1x1 transparent PNG.
 const _pngBytes = [
@@ -146,33 +145,30 @@ void main() {
       expect(dataset.tagsOf(img('001')), contains('watermark'));
     });
 
-    test(
-      'edit_captions holds TagOps.busy for the whole sweep, not just on '
-      'entry',
-      () async {
-        // edit_captions writes files itself instead of going through
-        // TagOps.rewriteOne/_rewriteAll, so nothing else marks TagOps busy
-        // for it. Without the fix, TagOps.busy stayed false for the whole
-        // call, so canUndo/canRedo (what gates the UI's undo/redo buttons)
-        // stayed true and a concurrent undo could race a mid-sweep write.
-        // Seed undo history first — an empty stack would make canUndo false
-        // regardless of busy, which would not exercise the fix.
-        await tagOps.rewriteOne(img('003'), 'seed', label: 'seed');
-        expect(tagOps.canUndo, isTrue);
+    test('edit_captions holds TagOps.busy for the whole sweep, not just on '
+        'entry', () async {
+      // edit_captions writes files itself instead of going through
+      // TagOps.rewriteOne/_rewriteAll, so nothing else marks TagOps busy
+      // for it. Without the fix, TagOps.busy stayed false for the whole
+      // call, so canUndo/canRedo (what gates the UI's undo/redo buttons)
+      // stayed true and a concurrent undo could race a mid-sweep write.
+      // Seed undo history first — an empty stack would make canUndo false
+      // regardless of busy, which would not exercise the fix.
+      await tagOps.rewriteOne(img('003'), 'seed', label: 'seed');
+      expect(tagOps.canUndo, isTrue);
 
-        final future = registry.dispatch(
-          'edit_captions',
-          jsonEncode({
-            'remove': ['watermark'],
-          }),
-        );
-        expect(tagOps.busy, isTrue);
-        expect(tagOps.canUndo, isFalse);
-        await future;
-        expect(tagOps.busy, isFalse);
-        expect(tagOps.canUndo, isTrue);
-      },
-    );
+      final future = registry.dispatch(
+        'edit_captions',
+        jsonEncode({
+          'remove': ['watermark'],
+        }),
+      );
+      expect(tagOps.busy, isTrue);
+      expect(tagOps.canUndo, isFalse);
+      await future;
+      expect(tagOps.busy, isFalse);
+      expect(tagOps.canUndo, isTrue);
+    });
 
     test('edit_captions renames in place, folding case', () async {
       final out = await call('edit_captions', {
@@ -193,17 +189,19 @@ void main() {
       expect(await readCap('001'), 'trigger, 1girl, watermark');
     });
 
-    test('edit_captions respects filters and creates missing captions',
-        () async {
-      final out = await call('edit_captions', {
-        'add': ['masterpiece'],
-        'untagged_only': true,
-      });
-      expect(out['written'], 1);
-      expect(out['added_tags'], {'masterpiece': 1});
-      expect(await readCap('003'), 'masterpiece');
-      expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
-    });
+    test(
+      'edit_captions respects filters and creates missing captions',
+      () async {
+        final out = await call('edit_captions', {
+          'add': ['masterpiece'],
+          'untagged_only': true,
+        });
+        expect(out['written'], 1);
+        expect(out['added_tags'], {'masterpiece': 1});
+        expect(await readCap('003'), 'masterpiece');
+        expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
+      },
+    );
 
     test('edit_captions places added tags by index or anchor', () async {
       await call('edit_captions', {
@@ -226,21 +224,23 @@ void main() {
       expect(File(cap('003')).existsSync(), isFalse);
     });
 
-    test('edit_captions applies all three rules in one undoable pass',
-        () async {
-      final out = await call('edit_captions', {
-        'remove': ['watermark'],
-        'rename': {'1girl': '1woman'},
-        'add': ['masterpiece'],
-      });
-      expect(out['written'], 3);
-      expect(await readCap('001'), 'trigger, 1woman, smile, masterpiece');
-      expect(await readCap('003'), 'masterpiece');
+    test(
+      'edit_captions applies all three rules in one undoable pass',
+      () async {
+        final out = await call('edit_captions', {
+          'remove': ['watermark'],
+          'rename': {'1girl': '1woman'},
+          'add': ['masterpiece'],
+        });
+        expect(out['written'], 3);
+        expect(await readCap('001'), 'trigger, 1woman, smile, masterpiece');
+        expect(await readCap('003'), 'masterpiece');
 
-      await tagOps.undo();
-      expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
-      expect(await readCap('003'), '');
-    });
+        await tagOps.undo();
+        expect(await readCap('001'), 'trigger, 1girl, smile, watermark');
+        expect(await readCap('003'), '');
+      },
+    );
 
     test('edit_captions rejects contradictory rules before writing', () async {
       final both = await call('edit_captions', {

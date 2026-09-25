@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../app_state.dart';
 import '../../l10n/app_localizations.dart';
-import '../../models/tag_group.dart';
 import '../../models/llm_models.dart';
+import '../../models/tag_group.dart';
 import '../../services/llm/llm_client.dart';
 import '../../services/tag_ai_group.dart';
 import '../../theme/app_theme.dart';

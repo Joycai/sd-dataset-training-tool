@@ -1,6 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:dataset_training_tool/models/merge_rules.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// The rule set most tests use: a blonde twintailed character in a dress,
 /// gloves and high heel boots, where the tagger habitually undersells the

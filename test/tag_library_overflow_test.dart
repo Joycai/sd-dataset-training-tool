@@ -1,8 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
@@ -12,6 +7,10 @@ import 'package:dataset_training_tool/state/tag_ops.dart';
 import 'package:dataset_training_tool/state/workbench_layout.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/views/panels/tag_library_panel.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// The panel gained three bands of chrome — status pills, the dataset switch,
 /// the organize action bar — on top of a toolbar that was already tight. All

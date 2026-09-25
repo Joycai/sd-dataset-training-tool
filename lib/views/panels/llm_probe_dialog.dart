@@ -24,11 +24,8 @@ Future<LlmModelConfig?> showLlmProbeDialog(
 }) => showDialog<LlmModelConfig>(
   context: context,
   barrierDismissible: false,
-  builder: (_) => _LlmProbeDialog(
-    provider: provider,
-    model: model,
-    inspector: inspector,
-  ),
+  builder: (_) =>
+      _LlmProbeDialog(provider: provider, model: model, inspector: inspector),
 );
 
 class _LlmProbeDialog extends StatefulWidget {
@@ -181,7 +178,11 @@ class _LlmProbeDialogState extends State<_LlmProbeDialog> {
               ],
               if (_finished) ...[
                 const SizedBox(height: 14),
-                Container(width: double.infinity, height: 1, color: semantic.line),
+                Container(
+                  width: double.infinity,
+                  height: 1,
+                  color: semantic.line,
+                ),
                 const SizedBox(height: 12),
                 if (hasResult)
                   _Findings(report: report)
@@ -415,10 +416,7 @@ class _ResultLine extends StatelessWidget {
           if (evidence != null)
             Text(
               evidence!,
-              style: TextStyle(
-                fontSize: AppText.small,
-                color: semantic.muted,
-              ),
+              style: TextStyle(fontSize: AppText.small, color: semantic.muted),
             ),
         ],
       ),
@@ -449,10 +447,7 @@ class _TruncationVerdictLine extends StatelessWidget {
         padding: const EdgeInsets.only(top: 8),
         child: Text(
           l10n.llmDetectTruncationNotDetected,
-          style: TextStyle(
-            fontSize: AppText.small,
-            color: semantic.muted,
-          ),
+          style: TextStyle(fontSize: AppText.small, color: semantic.muted),
         ),
       ),
       TruncationVerdict.inconclusive => const SizedBox.shrink(),

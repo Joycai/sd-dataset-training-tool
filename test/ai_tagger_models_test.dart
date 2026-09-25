@@ -1,9 +1,8 @@
 import 'dart:convert';
 
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:dataset_training_tool/models/ai_tagger_models.dart';
 import 'package:dataset_training_tool/services/ai_tagger_service.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('AiServerConfig', () {

@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'dart:async';
 
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/widgets/panel_widgets.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// GlassSurface shares one backdrop snapshot with its siblings under a
 /// BackdropGroup, and keeps its own filter everywhere else. The second half
@@ -70,12 +71,14 @@ void main() {
       ),
     );
 
-    showDialog<void>(
-      context: shell,
-      builder: (_) => const GlassDialog(
-        width: 300,
-        header: Text('dialog'),
-        body: SizedBox(height: 40),
+    unawaited(
+      showDialog<void>(
+        context: shell,
+        builder: (_) => const GlassDialog(
+          width: 300,
+          header: Text('dialog'),
+          body: SizedBox(height: 40),
+        ),
       ),
     );
     await tester.pumpAndSettle();

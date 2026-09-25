@@ -1,9 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
-
 import 'package:dataset_training_tool/models/caption_type.dart';
 import 'package:dataset_training_tool/services/agent/agent_tools.dart';
 import 'package:dataset_training_tool/services/agent/caption_edit_tools.dart';
@@ -12,6 +9,8 @@ import 'package:dataset_training_tool/services/agent/dataset_tools.dart';
 import 'package:dataset_training_tool/services/agent/json_caption_tools.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
 import 'package:dataset_training_tool/state/tag_ops.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 
 // 1x1 transparent PNG.
 const _pngBytes = [
@@ -455,34 +454,31 @@ void main() {
       expect(dataset.tagsOf(img('001')), contains('1girl'));
     });
 
-    test(
-      'holds TagOps.busy for the whole sweep, not just on entry',
-      () async {
-        // edit_json_captions writes files itself instead of going through
-        // TagOps.rewriteOne/_rewriteAll, so nothing else marks TagOps busy
-        // for it. Without the fix, TagOps.busy stayed false for the whole
-        // call, so the UI's undo/redo (gated on canUndo/canRedo, which only
-        // check TagOps.busy) could run concurrently with this sweep and
-        // race it. Not awaiting the dispatch lets us observe the lock while
-        // the sweep is still in flight. Seed undo history first — an empty
-        // stack would make canUndo false regardless of busy.
-        await tagOps.rewriteOne(img('003'), 'seed', label: 'seed');
-        expect(tagOps.canUndo, isTrue);
+    test('holds TagOps.busy for the whole sweep, not just on entry', () async {
+      // edit_json_captions writes files itself instead of going through
+      // TagOps.rewriteOne/_rewriteAll, so nothing else marks TagOps busy
+      // for it. Without the fix, TagOps.busy stayed false for the whole
+      // call, so the UI's undo/redo (gated on canUndo/canRedo, which only
+      // check TagOps.busy) could run concurrently with this sweep and
+      // race it. Not awaiting the dispatch lets us observe the lock while
+      // the sweep is still in flight. Seed undo history first — an empty
+      // stack would make canUndo false regardless of busy.
+      await tagOps.rewriteOne(img('003'), 'seed', label: 'seed');
+      expect(tagOps.canUndo, isTrue);
 
-        final future = registry.dispatch(
-          'edit_json_captions',
-          jsonEncode({
-            'extension': '.json',
-            'remove': ['masterpiece'],
-          }),
-        );
-        expect(tagOps.busy, isTrue);
-        expect(tagOps.canUndo, isFalse);
-        await future;
-        expect(tagOps.busy, isFalse);
-        expect(tagOps.canUndo, isTrue);
-      },
-    );
+      final future = registry.dispatch(
+        'edit_json_captions',
+        jsonEncode({
+          'extension': '.json',
+          'remove': ['masterpiece'],
+        }),
+      );
+      expect(tagOps.busy, isTrue);
+      expect(tagOps.canUndo, isFalse);
+      await future;
+      expect(tagOps.busy, isFalse);
+      expect(tagOps.canUndo, isTrue);
+    });
 
     test('a rename onto a tag the field already has merges into it', () async {
       final out = await call('edit_json_captions', {
@@ -574,29 +570,37 @@ void main() {
       ]);
     });
 
-    test('a missing add target is created, a non-array one is reported',
-        () async {
-      final created = await call('edit_json_captions', {
-        'extension': '.json',
-        'add': {
-          'environment': ['outdoors'],
-        },
-      });
-      expect(created['written'], 2);
-      expect(created['fields_created'], 2);
-      final one = jsonDecode(await readCap('001')) as Map<String, dynamic>;
-      expect(one.keys.toList(), ['chara', 'quality', 'tags', 'nl', 'environment']);
-      expect(one['environment'], ['outdoors']);
+    test(
+      'a missing add target is created, a non-array one is reported',
+      () async {
+        final created = await call('edit_json_captions', {
+          'extension': '.json',
+          'add': {
+            'environment': ['outdoors'],
+          },
+        });
+        expect(created['written'], 2);
+        expect(created['fields_created'], 2);
+        final one = jsonDecode(await readCap('001')) as Map<String, dynamic>;
+        expect(one.keys.toList(), [
+          'chara',
+          'quality',
+          'tags',
+          'nl',
+          'environment',
+        ]);
+        expect(one['environment'], ['outdoors']);
 
-      final scalar = await call('edit_json_captions', {
-        'extension': '.json',
-        'add': {
-          'nl': ['outdoors'],
-        },
-      });
-      expect(scalar['error'], contains('not an array'));
-      expect(jsonDecode(await readCap('001'))['nl'], isA<String>());
-    });
+        final scalar = await call('edit_json_captions', {
+          'extension': '.json',
+          'add': {
+            'nl': ['outdoors'],
+          },
+        });
+        expect(scalar['error'], contains('not an array'));
+        expect(jsonDecode(await readCap('001'))['nl'], isA<String>());
+      },
+    );
 
     test('skip_fields keeps a prose field out of the tag grammar', () async {
       final hit = await call('edit_json_captions', {
@@ -616,39 +620,43 @@ void main() {
       expect(jsonDecode(await readCap('002'))['nl'], 'A blonde girl.');
     });
 
-    test('contradictory rules fail the call before anything is written',
-        () async {
-      final both = await call('edit_json_captions', {
-        'extension': '.json',
-        'remove': ['1girl'],
-        'rename': {'1girl': '1boy'},
-      });
-      expect(both['error'], contains('pick one'));
+    test(
+      'contradictory rules fail the call before anything is written',
+      () async {
+        final both = await call('edit_json_captions', {
+          'extension': '.json',
+          'remove': ['1girl'],
+          'rename': {'1girl': '1boy'},
+        });
+        expect(both['error'], contains('pick one'));
 
-      final fighting = await call('edit_json_captions', {
-        'extension': '.json',
-        'remove': ['solo'],
-        'add': {
-          'tags': ['solo'],
-        },
-      });
-      expect(fighting['error'], contains('fight over it'));
+        final fighting = await call('edit_json_captions', {
+          'extension': '.json',
+          'remove': ['solo'],
+          'add': {
+            'tags': ['solo'],
+          },
+        });
+        expect(fighting['error'], contains('fight over it'));
 
-      final nothing = await call('edit_json_captions', {'extension': '.json'});
-      expect(nothing['error'], contains('nothing to do'));
+        final nothing = await call('edit_json_captions', {
+          'extension': '.json',
+        });
+        expect(nothing['error'], contains('nothing to do'));
 
-      final tagList = await call('edit_json_captions', {
-        'extension': '.txt',
-        'remove': ['1girl'],
-      });
-      expect(tagList['error'], contains('edit_captions'));
+        final tagList = await call('edit_json_captions', {
+          'extension': '.txt',
+          'remove': ['1girl'],
+        });
+        expect(tagList['error'], contains('edit_captions'));
 
-      expect(jsonDecode(await readCap('001'))['tags'], [
-        '1girl',
-        'smile',
-        'long hair',
-      ]);
-    });
+        expect(jsonDecode(await readCap('001'))['tags'], [
+          '1girl',
+          'smile',
+          'long hair',
+        ]);
+      },
+    );
   });
 
   group('JSON guards on the tag tools', () {

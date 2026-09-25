@@ -112,7 +112,10 @@ void main() {
 
     test('status 0 splits timeout from network by message', () {
       expect(
-        classifyFailure(statusCode: 0, message: 'Connection timed out after 30s.'),
+        classifyFailure(
+          statusCode: 0,
+          message: 'Connection timed out after 30s.',
+        ),
         ProbeFailure.timeout,
       );
       expect(
@@ -239,8 +242,10 @@ void main() {
 
     test('accepts a numeric string', () {
       expect(
-        limitsFromModelEntry({'id': 'x', 'context_length': '65536'})
-            .contextWindow,
+        limitsFromModelEntry({
+          'id': 'x',
+          'context_length': '65536',
+        }).contextWindow,
         65536,
       );
     });
@@ -263,7 +268,8 @@ void main() {
           "model_info": {"qwen2.context_length": 131072, "general.name": "q"},
           "parameters": "stop \\"<|im_end|>\\"\\nnum_ctx 4096"
         }
-        ''') as Map<String, dynamic>,
+        ''')
+            as Map<String, dynamic>,
       );
       expect(info.modelContextLength, 131072);
       expect(info.numCtx, 4096);
@@ -544,49 +550,43 @@ void main() {
       baseUrl: 'https://api.anthropic.com',
     );
 
-    test(
-      'skips the truncation test when the detected window dwarfs the '
-      'configured one',
-      () async {
-        // The listing reports a window the user never saw an estimate for —
-        // spending at that size would bill for far more than the number
-        // they approved before starting the run.
-        const model = LlmModelConfig(id: 'm', modelId: 'x', contextWindow: 8192);
-        final inspector = _FakeInspector(listingContextLength: 1000000);
-        final report = await EndpointProbeService().run(
-          provider: provider,
-          model: model,
-          inspector: inspector,
-          includeTruncationTest: true,
-        );
-        expect(
-          report.notes.any((n) => n.contains('Truncation test skipped')),
-          isTrue,
-        );
-        // Only the error-probe step's request went out — calibration, which
-        // would spend real tokens at the claimed size, must never start.
-        expect(inspector.sendProbeCalls, 1);
-      },
-    );
+    test('skips the truncation test when the detected window dwarfs the '
+        'configured one', () async {
+      // The listing reports a window the user never saw an estimate for —
+      // spending at that size would bill for far more than the number
+      // they approved before starting the run.
+      const model = LlmModelConfig(id: 'm', modelId: 'x', contextWindow: 8192);
+      final inspector = _FakeInspector(listingContextLength: 1000000);
+      final report = await EndpointProbeService().run(
+        provider: provider,
+        model: model,
+        inspector: inspector,
+        includeTruncationTest: true,
+      );
+      expect(
+        report.notes.any((n) => n.contains('Truncation test skipped')),
+        isTrue,
+      );
+      // Only the error-probe step's request went out — calibration, which
+      // would spend real tokens at the claimed size, must never start.
+      expect(inspector.sendProbeCalls, 1);
+    });
 
-    test(
-      'runs the truncation test normally when the windows agree',
-      () async {
-        const model = LlmModelConfig(id: 'm', modelId: 'x', contextWindow: 100);
-        final inspector = _FakeInspector();
-        final report = await EndpointProbeService().run(
-          provider: provider,
-          model: model,
-          inspector: inspector,
-          includeTruncationTest: true,
-        );
-        expect(
-          report.notes.any((n) => n.contains('Truncation test skipped')),
-          isFalse,
-        );
-        // Calibration was attempted, not short-circuited by the guard.
-        expect(inspector.sendProbeCalls, greaterThan(1));
-      },
-    );
+    test('runs the truncation test normally when the windows agree', () async {
+      const model = LlmModelConfig(id: 'm', modelId: 'x', contextWindow: 100);
+      final inspector = _FakeInspector();
+      final report = await EndpointProbeService().run(
+        provider: provider,
+        model: model,
+        inspector: inspector,
+        includeTruncationTest: true,
+      );
+      expect(
+        report.notes.any((n) => n.contains('Truncation test skipped')),
+        isFalse,
+      );
+      // Calibration was attempted, not short-circuited by the guard.
+      expect(inspector.sendProbeCalls, greaterThan(1));
+    });
   });
 }

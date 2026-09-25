@@ -19,12 +19,11 @@ const _profile = LlmProviderProfile(
   model: 'm',
 );
 
-String _openAiSse({Map<String, dynamic>? usage}) =>
-    [
-      'data: {"choices":[{"delta":{"content":"hi"},"finish_reason":"stop"}]}',
-      if (usage != null) 'data: ${jsonEncode({'usage': usage, 'choices': []})}',
-      'data: [DONE]',
-    ].map((l) => '$l\n\n').join();
+String _openAiSse({Map<String, dynamic>? usage}) => [
+  'data: {"choices":[{"delta":{"content":"hi"},"finish_reason":"stop"}]}',
+  if (usage != null) 'data: ${jsonEncode({'usage': usage, 'choices': []})}',
+  'data: [DONE]',
+].map((l) => '$l\n\n').join();
 
 void main() {
   group('remembered 4xx repairs', () {
@@ -44,17 +43,17 @@ void main() {
         }),
       );
 
-      await client.chat(profile: _profile, messages: [
-        ChatMessage.user('one'),
-      ]).toList();
+      await client
+          .chat(profile: _profile, messages: [ChatMessage.user('one')])
+          .toList();
       // Round one paid the discovery round-trip: reject, then repaired.
       expect(bodies, hasLength(2));
       expect(bodies[0].containsKey('temperature'), isTrue);
       expect(bodies[1].containsKey('temperature'), isFalse);
 
-      await client.chat(profile: _profile, messages: [
-        ChatMessage.user('two'),
-      ]).toList();
+      await client
+          .chat(profile: _profile, messages: [ChatMessage.user('two')])
+          .toList();
       // Round two sends the accepted shape on the first try.
       expect(bodies, hasLength(3));
       expect(bodies[2].containsKey('temperature'), isFalse);
@@ -73,15 +72,17 @@ void main() {
         }),
       );
 
-      await client.chat(profile: _profile, messages: [
-        ChatMessage.user('one'),
-      ]).toList();
+      await client
+          .chat(profile: _profile, messages: [ChatMessage.user('one')])
+          .toList();
       bodies.clear();
       // A different profile has not earned the repair.
-      await client.chat(
-        profile: _profile.copyWith(name: 'other') /* same id! */,
-        messages: [ChatMessage.user('x')],
-      ).toList();
+      await client
+          .chat(
+            profile: _profile.copyWith(name: 'other') /* same id! */,
+            messages: [ChatMessage.user('x')],
+          )
+          .toList();
       expect(bodies.first.containsKey('temperature'), isFalse);
 
       bodies.clear();
@@ -91,9 +92,9 @@ void main() {
         baseUrl: 'https://relay.example/v1',
         model: 'm',
       );
-      await client.chat(profile: fresh, messages: [
-        ChatMessage.user('x'),
-      ]).toList();
+      await client
+          .chat(profile: fresh, messages: [ChatMessage.user('x')])
+          .toList();
       // New profile pays its own discovery round-trip.
       expect(bodies, hasLength(2));
       expect(bodies.first.containsKey('temperature'), isTrue);
@@ -116,10 +117,9 @@ void main() {
           ),
         ),
       );
-      final events = await client.chat(
-        profile: _profile,
-        messages: [ChatMessage.user('hi')],
-      ).toList();
+      final events = await client
+          .chat(profile: _profile, messages: [ChatMessage.user('hi')])
+          .toList();
       final usage = events.whereType<StreamDone>().single.usage!;
       // prompt_tokens already includes the cached subset.
       expect(usage.prompt, 100);
@@ -142,10 +142,9 @@ void main() {
         clientFactory: () =>
             MockClient((request) async => http.Response(sse, 200)),
       );
-      final events = await client.chat(
-        profile: _profile,
-        messages: [ChatMessage.user('hi')],
-      ).toList();
+      final events = await client
+          .chat(profile: _profile, messages: [ChatMessage.user('hi')])
+          .toList();
       final usage = events.whereType<StreamDone>().single.usage!;
       // input_tokens excludes the cache counters; TokenUsage.prompt is the
       // full context, so the client sums them back in.
@@ -162,10 +161,7 @@ void main() {
       final client = AnthropicClient(
         clientFactory: () => MockClient((request) async {
           seen = jsonDecode(request.body) as Map<String, dynamic>;
-          return http.Response(
-            'data: {"type":"message_stop"}\n\n',
-            200,
-          );
+          return http.Response('data: {"type":"message_stop"}\n\n', 200);
         }),
       );
       const tools = [
@@ -180,11 +176,13 @@ void main() {
           parametersSchema: {'type': 'object', 'properties': {}},
         ),
       ];
-      await client.chat(
-        profile: _profile,
-        messages: [ChatMessage.system('sys'), ChatMessage.user('hi')],
-        tools: tools,
-      ).toList();
+      await client
+          .chat(
+            profile: _profile,
+            messages: [ChatMessage.system('sys'), ChatMessage.user('hi')],
+            tools: tools,
+          )
+          .toList();
 
       final system = seen!['system'] as List;
       expect((system.single as Map)['cache_control'], {'type': 'ephemeral'});
@@ -206,18 +204,14 @@ void main() {
         clientFactory: () =>
             MockClient((request) async => http.Response(sse, 200)),
       );
-      final events = await client.chat(
-        profile: _profile,
-        messages: [ChatMessage.user('hi')],
-      ).toList();
+      final events = await client
+          .chat(profile: _profile, messages: [ChatMessage.user('hi')])
+          .toList();
       expect(
         events.whereType<ReasoningDelta>().map((e) => e.text).join(),
         'let me think',
       );
-      expect(
-        events.whereType<TextDelta>().map((e) => e.text).join(),
-        'answer',
-      );
+      expect(events.whereType<TextDelta>().map((e) => e.text).join(), 'answer');
     });
 
     test('anthropic thinking_delta becomes ReasoningDelta', () async {
@@ -232,18 +226,14 @@ void main() {
         clientFactory: () =>
             MockClient((request) async => http.Response(sse, 200)),
       );
-      final events = await client.chat(
-        profile: _profile,
-        messages: [ChatMessage.user('hi')],
-      ).toList();
+      final events = await client
+          .chat(profile: _profile, messages: [ChatMessage.user('hi')])
+          .toList();
       expect(
         events.whereType<ReasoningDelta>().map((e) => e.text).join(),
         'let me think',
       );
-      expect(
-        events.whereType<TextDelta>().map((e) => e.text).join(),
-        'answer',
-      );
+      expect(events.whereType<TextDelta>().map((e) => e.text).join(), 'answer');
     });
   });
 

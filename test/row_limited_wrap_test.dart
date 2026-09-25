@@ -1,7 +1,6 @@
+import 'package:dataset_training_tool/widgets/row_limited_wrap.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:dataset_training_tool/widgets/row_limited_wrap.dart';
 
 /// Fixed-size boxes: the packing is what is under test, not text metrics.
 Widget _harness({
@@ -54,7 +53,7 @@ void main() {
   });
 
   testWidgets('a cut child is not hit-testable', (tester) async {
-    var tapped = <String>[];
+    final tapped = <String>[];
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(

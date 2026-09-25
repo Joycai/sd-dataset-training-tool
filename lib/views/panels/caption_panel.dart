@@ -488,7 +488,8 @@ class _CaptionPanelState extends State<CaptionPanel> {
     // Compare mode is a global flag, but it only makes sense for images that
     // actually have (or are getting) a result — other images keep the normal
     // tags view.
-    if (ai.compareMode && (ai.running || ai.hasResultFor(session.image!.path))) {
+    if (ai.compareMode &&
+        (ai.running || ai.hasResultFor(session.image!.path))) {
       return AiCompareView(onRunAi: _runAi);
     }
     return _buildTagsView(session, ai, l10n, semantic);

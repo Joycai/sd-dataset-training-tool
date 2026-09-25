@@ -1,14 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:path/path.dart' as p;
-import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/l10n/app_localizations.dart';
 import 'package:dataset_training_tool/models/caption_type.dart';
@@ -19,6 +11,13 @@ import 'package:dataset_training_tool/state/editor_session.dart';
 import 'package:dataset_training_tool/state/shortcut_relay.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/views/panels/caption_panel.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:path/path.dart' as p;
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // 1x1 transparent PNG.
 const _pngBytes = [
@@ -186,35 +185,36 @@ void main() {
     expect(ai.hasResultFor(image.path), isFalse);
   });
 
-  testWidgets('a tagger model is refused instead of writing tags as sentences', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1400, 900);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'a tagger model is refused instead of writing tags as sentences',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-    final ai = buildAi(description: '1girl, smile, outdoors');
-    addTearDown(ai.dispose);
-    await ai.refreshModels();
-    await ai.setModelName('wd-tagger');
-    final relay = ShortcutRelay();
+      final ai = buildAi(description: '1girl, smile, outdoors');
+      addTearDown(ai.dispose);
+      await ai.refreshModels();
+      await ai.setModelName('wd-tagger');
+      final relay = ShortcutRelay();
 
-    final session = await open(
-      tester,
-      ai: ai,
-      relay: relay,
-      format: CaptionFormat.prose,
-      captionText: 'A girl smiles.',
-    );
+      final session = await open(
+        tester,
+        ai: ai,
+        relay: relay,
+        format: CaptionFormat.prose,
+        captionText: 'A girl smiles.',
+      );
 
-    await runAi(tester, relay);
+      await runAi(tester, relay);
 
-    expect(session.captionController.text, 'A girl smiles.');
-    expect(
-      find.textContaining('outputs tags, not sentences'),
-      findsOneWidget,
-    );
-  });
+      expect(session.captionController.text, 'A girl smiles.');
+      expect(
+        find.textContaining('outputs tags, not sentences'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('JSON captions keep the AI button disabled', (tester) async {
     tester.view.physicalSize = const Size(1400, 900);

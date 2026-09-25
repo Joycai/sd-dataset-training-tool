@@ -1,14 +1,13 @@
 import 'dart:convert';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:dataset_training_tool/app_state.dart';
 import 'package:dataset_training_tool/models/merge_rules.dart';
 import 'package:dataset_training_tool/services/agent/agent_tools.dart';
 import 'package:dataset_training_tool/services/agent/character_sheet.dart';
 import 'package:dataset_training_tool/services/agent/merge_rule_tools.dart';
 import 'package:dataset_training_tool/services/settings_service.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 CharacterMergeRules _rules({
   String character = 'Aoi',

@@ -1,11 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:path/path.dart' as p;
-
 import 'package:dataset_training_tool/models/tag_translation.dart';
 import 'package:dataset_training_tool/services/agent/agent_tools.dart';
 import 'package:dataset_training_tool/services/agent/tag_translation_tools.dart';
@@ -13,6 +8,10 @@ import 'package:dataset_training_tool/services/danbooru_api.dart';
 import 'package:dataset_training_tool/services/tag_dictionary_service.dart';
 import 'package:dataset_training_tool/services/tag_translation_service.dart';
 import 'package:dataset_training_tool/state/dataset_state.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:path/path.dart' as p;
 
 // 1x1 transparent PNG.
 const _pngBytes = [
@@ -147,27 +146,30 @@ void main() {
       expect(result['translated_total'], 1);
     });
 
-    test('only_missing:false reports the existing translation and source', () async {
-      await glossary.upsertAll(const [
-        TagTranslation(
-          tag: 'long_hair',
-          text: '长发',
-          note: '过肩',
-          source: TagTranslationSource.llm,
-        ),
-      ]);
+    test(
+      'only_missing:false reports the existing translation and source',
+      () async {
+        await glossary.upsertAll(const [
+          TagTranslation(
+            tag: 'long_hair',
+            text: '长发',
+            note: '过肩',
+            source: TagTranslationSource.llm,
+          ),
+        ]);
 
-      final result = await call('list_tag_translations', {
-        'only_missing': false,
-      });
+        final result = await call('list_tag_translations', {
+          'only_missing': false,
+        });
 
-      final row = (result['tags'] as List)
-          .cast<Map<String, dynamic>>()
-          .firstWhere((t) => t['tag'] == 'long hair');
-      expect(row['translation'], '长发');
-      expect(row['note'], '过肩');
-      expect(row['source'], 'llm');
-    });
+        final row = (result['tags'] as List)
+            .cast<Map<String, dynamic>>()
+            .firstWhere((t) => t['tag'] == 'long hair');
+        expect(row['translation'], '长发');
+        expect(row['note'], '过肩');
+        expect(row['source'], 'llm');
+      },
+    );
 
     test('the library scope lists library tags, not dataset ones', () async {
       final result = await call('list_tag_translations', {'scope': 'library'});
@@ -176,15 +178,18 @@ void main() {
       expect(tags.map((t) => t['tag']), ['1girl', 'my_trigger_word']);
     });
 
-    test('the dictionary scope walks the vocabulary popularity-first', () async {
-      final result = await call('list_tag_translations', {
-        'scope': 'dictionary',
-        'limit': 2,
-      });
+    test(
+      'the dictionary scope walks the vocabulary popularity-first',
+      () async {
+        final result = await call('list_tag_translations', {
+          'scope': 'dictionary',
+          'limit': 2,
+        });
 
-      final tags = (result['tags'] as List).cast<Map<String, dynamic>>();
-      expect(tags.map((t) => t['tag']), ['1girl', 'long_hair']);
-    });
+        final tags = (result['tags'] as List).cast<Map<String, dynamic>>();
+        expect(tags.map((t) => t['tag']), ['1girl', 'long_hair']);
+      },
+    );
 
     test('explicit tags come back whether translated or not', () async {
       final result = await call('list_tag_translations', {
@@ -286,7 +291,9 @@ void main() {
         'tags': ['hatsune_miku'],
       });
 
-      final row = (result['results'] as List).cast<Map<String, dynamic>>().single;
+      final row = (result['results'] as List)
+          .cast<Map<String, dynamic>>()
+          .single;
       expect(row['tag'], 'hatsune_miku');
       expect(row['known_to_danbooru'], isTrue);
       expect(row['other_names'], ['初音ミク']);
@@ -303,24 +310,27 @@ void main() {
       expect(danbooruRequests, 0);
     });
 
-    test('the session budget stops a scrape and says what to do instead', () async {
-      // Six tags a call would exceed the arg cap, so spend the budget five at
-      // a time — the shape a model looping over a big glossary would produce.
-      for (var i = 0; i < maxDanbooruLookupsPerSession / 5; i++) {
-        await call('fetch_danbooru_tag', {
-          'tags': [for (var j = 0; j < 5; j++) 'tag_${i}_$j'],
+    test(
+      'the session budget stops a scrape and says what to do instead',
+      () async {
+        // Six tags a call would exceed the arg cap, so spend the budget five at
+        // a time — the shape a model looping over a big glossary would produce.
+        for (var i = 0; i < maxDanbooruLookupsPerSession / 5; i++) {
+          await call('fetch_danbooru_tag', {
+            'tags': [for (var j = 0; j < 5; j++) 'tag_${i}_$j'],
+          });
+        }
+        // Two requests per tag (tag record + wiki page).
+        expect(danbooruRequests, maxDanbooruLookupsPerSession * 2);
+
+        final result = await call('fetch_danbooru_tag', {
+          'tags': ['one_more'],
         });
-      }
-      // Two requests per tag (tag record + wiki page).
-      expect(danbooruRequests, maxDanbooruLookupsPerSession * 2);
 
-      final result = await call('fetch_danbooru_tag', {
-        'tags': ['one_more'],
-      });
-
-      expect(result['error'], contains('budget'));
-      // And no request went out past the cap.
-      expect(danbooruRequests, maxDanbooruLookupsPerSession * 2);
-    });
+        expect(result['error'], contains('budget'));
+        // And no request went out past the cap.
+        expect(danbooruRequests, maxDanbooruLookupsPerSession * 2);
+      },
+    );
   });
 }

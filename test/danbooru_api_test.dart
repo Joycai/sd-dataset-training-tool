@@ -1,11 +1,10 @@
 import 'dart:convert';
 
+import 'package:dataset_training_tool/models/tag_dictionary.dart';
+import 'package:dataset_training_tool/services/danbooru_api.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-
-import 'package:dataset_training_tool/models/tag_dictionary.dart';
-import 'package:dataset_training_tool/services/danbooru_api.dart';
 
 /// Serves the two endpoints `fetch` calls. [tag] null means danbooru has no
 /// tag record; [wiki] null means no wiki page (404).
@@ -42,13 +41,18 @@ void main() {
     test('a bare tag is normalized to danbooru spelling', () {
       expect(DanbooruApi.parseQuery('long hair'), 'long_hair');
       expect(DanbooruApi.parseQuery('  Long_Hair '), 'Long_Hair');
-      expect(DanbooruApi.parseQuery(r'smile \(expression\)'), 'smile_(expression)');
+      expect(
+        DanbooruApi.parseQuery(r'smile \(expression\)'),
+        'smile_(expression)',
+      );
       expect(DanbooruApi.parseQuery('   '), isNull);
     });
 
     test('a wiki page URL yields its title', () {
       expect(
-        DanbooruApi.parseQuery('https://danbooru.donmai.us/wiki_pages/long_hair'),
+        DanbooruApi.parseQuery(
+          'https://danbooru.donmai.us/wiki_pages/long_hair',
+        ),
         'long_hair',
       );
       // Tag names can contain a slash, which arrives percent-encoded.
@@ -179,25 +183,31 @@ void main() {
       expect(urls, isEmpty);
     });
 
-    test('rate limiting says so rather than looking like a missing tag', () async {
-      final api = DanbooruApi(clientFactory: () => _client(status: 429));
+    test(
+      'rate limiting says so rather than looking like a missing tag',
+      () async {
+        final api = DanbooruApi(clientFactory: () => _client(status: 429));
 
-      await expectLater(
-        () => api.fetch('long_hair'),
-        throwsA(
-          isA<DanbooruApiException>().having(
-            (e) => e.message,
-            'message',
-            contains('429'),
+        await expectLater(
+          () => api.fetch('long_hair'),
+          throwsA(
+            isA<DanbooruApiException>().having(
+              (e) => e.message,
+              'message',
+              contains('429'),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   });
 
   group('stripDText', () {
     test('wiki links reduce to their readable half', () {
-      expect(stripDText('a [[long hair|long-haired]] girl'), 'a long-haired girl');
+      expect(
+        stripDText('a [[long hair|long-haired]] girl'),
+        'a long-haired girl',
+      );
       expect(stripDText('a [[long_hair]] girl'), 'a long_hair girl');
     });
 

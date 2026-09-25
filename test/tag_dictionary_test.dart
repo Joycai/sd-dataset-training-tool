@@ -1,11 +1,10 @@
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:dataset_training_tool/models/tag_dictionary.dart';
 import 'package:dataset_training_tool/services/tag_dictionary_service.dart';
 import 'package:dataset_training_tool/utils/external_links.dart';
 import 'package:dataset_training_tool/utils/tag_text.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// WD label layout: `tag_id,name,category,count`, with a header row and the
 /// four rating pseudo-tags the model emits alongside real tags.

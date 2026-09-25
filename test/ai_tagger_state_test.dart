@@ -1,14 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dataset_training_tool/services/ai_tagger_service.dart';
+import 'package:dataset_training_tool/services/settings_service.dart';
+import 'package:dataset_training_tool/state/ai_tagger_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:dataset_training_tool/services/ai_tagger_service.dart';
-import 'package:dataset_training_tool/services/settings_service.dart';
-import 'package:dataset_training_tool/state/ai_tagger_state.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -160,9 +159,7 @@ void main() {
     AiTaggerState buildState(Map<String, dynamic> interrogateResponse) {
       final client = MockClient((request) async {
         if (request.url.path == '/interrogateimage') {
-          sentRequests.add(
-            jsonDecode(request.body) as Map<String, dynamic>,
-          );
+          sentRequests.add(jsonDecode(request.body) as Map<String, dynamic>);
           return http.Response(
             jsonEncode(interrogateResponse),
             200,
@@ -190,21 +187,24 @@ void main() {
       ],
     };
 
-    test('returns the description verbatim, with no tag normalization', () async {
-      final state = buildState(
-        response([r'A girl with long_hair smiles (softly), outdoors.']),
-      );
-      await state.setModelName('joycaption');
-      await state.setUnderscoreToSpaces(true);
-      await state.setEscapeParentheses(true);
+    test(
+      'returns the description verbatim, with no tag normalization',
+      () async {
+        final state = buildState(
+          response([r'A girl with long_hair smiles (softly), outdoors.']),
+        );
+        await state.setModelName('joycaption');
+        await state.setUnderscoreToSpaces(true);
+        await state.setEscapeParentheses(true);
 
-      // The tag path would have rewritten the underscore and escaped the
-      // parentheses; this is prose, so both stay as the model wrote them.
-      expect(
-        await state.describe(image),
-        r'A girl with long_hair smiles (softly), outdoors.',
-      );
-    });
+        // The tag path would have rewritten the underscore and escaped the
+        // parentheses; this is prose, so both stay as the model wrote them.
+        expect(
+          await state.describe(image),
+          r'A girl with long_hair smiles (softly), outdoors.',
+        );
+      },
+    );
 
     test('sends no threshold and leaves the compare cache alone', () async {
       final state = buildState(response(['A girl smiles.']));
