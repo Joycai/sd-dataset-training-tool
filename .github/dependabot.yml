@@ -1,0 +1,24 @@
+# Dependency update PRs. AiApiServer's pip requirements are deliberately not
+# covered: torch / transformers upgrades need a GPU environment to validate,
+# so automated PRs for them would only pile up unreviewed.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      # One PR for all minor/patch bumps; majors still arrive individually
+      # because they usually need code changes.
+      pub-minor-and-patch:
+        update-types: [minor, patch]

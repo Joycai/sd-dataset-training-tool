@@ -1,0 +1,41 @@
+# Cheapest possible signal for AiApiServer: the sources compile and have no
+# undefined names. Nothing from requirements.txt is installed (torch alone is
+# gigabytes), so this is deliberately a syntax-level gate, not a test run.
+name: Server
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'AiApiServer/**'
+      - '.github/workflows/server.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'AiApiServer/**'
+      - '.github/workflows/server.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Byte-compile all sources
+        run: python -m compileall -q AiApiServer
+
+      # Rule set lives in AiApiServer/ruff.toml.
+      - name: Lint
+        run: pipx run ruff check AiApiServer

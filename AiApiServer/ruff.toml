@@ -1,0 +1,12 @@
+# Starter rule set for CI (.github/workflows/server.yml): syntax errors,
+# undefined names, and the handful of F-rules that are always real bugs.
+# Style rules are intentionally off until the codebase is cleaned up for them.
+target-version = "py311"
+
+[lint]
+select = [
+  "E9",   # syntax / IO errors
+  "F63",  # invalid comparisons (is with literal, etc.)
+  "F7",   # misplaced break/continue/return/yield
+  "F82",  # undefined names
+]
