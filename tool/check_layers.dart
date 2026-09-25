@@ -14,6 +14,10 @@
 /// Directives are read with a small scanner rather than a regex: Dart only
 /// allows them before the first declaration, so scanning stops there, and
 /// comments, raw strings and annotations are lexed instead of pattern-matched.
+///
+/// It also flags direct file I/O outside `services/` ([checkDirectIo]): only
+/// services read or write files, everything else holds `File` objects as
+/// paths and calls a service.
 library;
 
 import 'dart:io';
@@ -83,16 +87,21 @@ class Directive {
 }
 
 class Violation {
-  const Violation(this.file, this.uri, this.message);
+  const Violation(this.file, this.uri, this.message, {this.line});
 
   /// Path relative to `lib/`, `/`-separated.
   final String file;
   final String? uri;
   final String message;
 
+  /// 1-based line of the offending code, when the check knows it.
+  final int? line;
+
   @override
-  String toString() =>
-      uri == null ? 'lib/$file: $message' : "lib/$file -> '$uri': $message";
+  String toString() {
+    final at = line == null ? 'lib/$file' : 'lib/$file:$line';
+    return uri == null ? '$at: $message' : "$at -> '$uri': $message";
+  }
 }
 
 /// Every `import`/`export`/`part`/`part of` directive in [source].
@@ -398,15 +407,21 @@ String? resolveTopLevel(String file, String uri) {
 /// Files directly under `lib/` form one group; each directory is its own.
 String _group(String entry) => entry.endsWith('.dart') ? '' : entry;
 
-/// Checks every `.dart` file under [lib] against [allowedImports].
-List<Violation> checkLayers(Directory lib) {
-  final violations = <Violation>[];
+/// Every `.dart` file under [lib], keyed by its `/`-separated path relative
+/// to [lib].
+Map<String, File> _dartFiles(Directory lib) {
   final root = lib.absolute.uri;
-  final files = {
+  return {
     for (final f in lib.listSync(recursive: true).whereType<File>())
       if (f.path.endsWith('.dart'))
         Uri.decodeComponent(f.absolute.uri.path.substring(root.path.length)): f,
   };
+}
+
+/// Checks every `.dart` file under [lib] against [allowedImports].
+List<Violation> checkLayers(Directory lib) {
+  final violations = <Violation>[];
+  final files = _dartFiles(lib);
   for (final file in files.keys.toList()..sort()) {
     final entry = file.split('/').first;
     final allowed = allowedImports[entry];
@@ -462,6 +477,53 @@ List<Violation> checkLayers(Directory lib) {
   return violations;
 }
 
+/// The only top-level `lib/` entry allowed to touch the file system.
+const String ioLayer = 'services';
+
+/// A call to a `dart:io` file or directory method that reads, writes, lists
+/// or inspects the disk. Matched by name, not by type: a tripwire for the
+/// common spellings, not a proof. If an unrelated type ever needs one of
+/// these names outside `services/`, drop the name here rather than adding
+/// an escape hatch.
+final RegExp directIoCall = RegExp(
+  r'\.(readAsString|readAsBytes|readAsLines|writeAsString|writeAsBytes|'
+  r'openRead|openWrite|exists|existsSync|length|list|listSync|delete|'
+  r'deleteSync|rename|renameSync|createSync|stat|statSync)\(',
+);
+
+/// Flags [directIoCall]s in every file under [lib] outside `services/`.
+/// Line comments (doc comments included) are ignored; so holding a `File`
+/// and passing it around is fine, only calling I/O on it is not.
+List<Violation> checkDirectIo(Directory lib) {
+  final violations = <Violation>[];
+  final files = _dartFiles(lib);
+  for (final file in files.keys.toList()..sort()) {
+    if (file.split('/').first == ioLayer) continue;
+    final List<String> lines;
+    try {
+      lines = files[file]!.readAsLinesSync();
+    } on Object catch (e) {
+      violations.add(Violation(file, null, 'could not read source: $e'));
+      continue;
+    }
+    for (var i = 0; i < lines.length; i++) {
+      final comment = lines[i].indexOf('//');
+      final code = comment < 0 ? lines[i] : lines[i].substring(0, comment);
+      for (final m in directIoCall.allMatches(code)) {
+        violations.add(
+          Violation(
+            file,
+            null,
+            'file I/O belongs in $ioLayer/: ${m.group(0)}',
+            line: i + 1,
+          ),
+        );
+      }
+    }
+  }
+  return violations;
+}
+
 /// Runs the check on `args.first` (default `lib`) and returns the exit code:
 /// 0 clean, 1 violations, 2 no such directory.
 int run(List<String> args, {StringSink? out, StringSink? err}) {
@@ -474,7 +536,7 @@ int run(List<String> args, {StringSink? out, StringSink? err}) {
     );
     return 2;
   }
-  final violations = checkLayers(lib);
+  final violations = [...checkLayers(lib), ...checkDirectIo(lib)];
   for (final v in violations) {
     out.writeln('VIOLATION $v');
   }

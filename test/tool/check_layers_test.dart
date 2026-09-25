@@ -288,6 +288,60 @@ import '../../test/helpers.dart';
     });
   });
 
+  group('checkDirectIo', () {
+    late Directory lib;
+
+    setUp(() => lib = Directory.systemTemp.createTempSync('check_io_'));
+    tearDown(() => lib.deleteSync(recursive: true));
+
+    void write(String path, String source) => File('${lib.path}/$path')
+      ..createSync(recursive: true)
+      ..writeAsStringSync(source);
+
+    List<String> found() => [for (final v in checkDirectIo(lib)) v.toString()];
+
+    test('reports each I/O call outside services/ with its line', () {
+      write('state/s.dart', '''
+final f = File(path);
+final text = await f.readAsString();
+await File(p).writeAsString(t); await d.list(recursive: true).toList();
+if (Directory(p).existsSync()) {}
+''');
+      write('main.dart', 'final n = await File(p).length();');
+      expect(found(), [
+        'lib/main.dart:1: file I/O belongs in services/: .length(',
+        'lib/state/s.dart:2: file I/O belongs in services/: .readAsString(',
+        'lib/state/s.dart:3: file I/O belongs in services/: .writeAsString(',
+        'lib/state/s.dart:3: file I/O belongs in services/: .list(',
+        'lib/state/s.dart:4: file I/O belongs in services/: .existsSync(',
+      ]);
+    });
+
+    test('services/, comments and plain File handles pass', () {
+      write('services/store.dart', 'await File(p).readAsString();');
+      write('views/v.dart', '''
+/// Unlike [File.readAsString], this never touches the disk.
+final image = File(path); // was: await image.exists()
+Image.file(image);
+final n = items.lengthInBytes + name.length;
+''');
+      expect(found(), isEmpty);
+    });
+
+    test('run fails on I/O violations alone', () {
+      write('agent/a.dart', 'await File(p).delete();');
+      final out = StringBuffer();
+      expect(run([lib.path], out: out, err: StringBuffer()), 1);
+      expect(
+        out.toString(),
+        contains(
+          'VIOLATION lib/agent/a.dart:1: file I/O belongs in services/: '
+          '.delete(',
+        ),
+      );
+    });
+  });
+
   group('run', () {
     late Directory lib;
 

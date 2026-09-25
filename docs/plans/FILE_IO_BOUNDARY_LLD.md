@@ -206,7 +206,7 @@ Future<String?> saveJson({required String fileName, required String contents});
 - **违规信息**：`file I/O belongs in services/: .readAsString(`，行号精确到调用处。
 - **误报与漏报**：
   - 这是按方法名的启发式检查，不是类型分析，属于"绊线"：挡住常见写法，剩下的靠 review。
-  - 在基线上试跑，命中的 59 处正好是 §2 列出的全部目标，其他层没有误报。
+  - 在基线上试跑，命中 59 行（62 个调用，有 3 行各含两个）正好是 §2 列出的全部目标，其他层没有误报。
   - 以后若误报（比如某个非 I/O 类型恰好有 `.list(` 方法），把该方法名从正则里删掉，或者改写调用。不设白名单注释，以免有人拿注释绕过检查。
   - `File(...)` 本身不算违规，只持有句柄是允许的。
 - **为什么放在 `check_layers` 而不是单独的测试**：这条规则本质上是分层约束（I/O 只属于 `services/`），放在一起能共用同一条 CI 命令和同一套退出码，`docs/ARCHITECTURE.md` 也只需要写一处。
