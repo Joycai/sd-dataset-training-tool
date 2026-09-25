@@ -174,7 +174,7 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 | B-8 | 4 个只在本文件使用的公开顶层函数 | 改为私有 |
 | B-9 | `model_picker.dart` 的主类是 `ModelPickerField` | 文件改名 `model_picker_field.dart` |
 | B-10 | `test/state/state_test.dart` 不对应任何 lib 文件 | 拆为 `dataset_state_test.dart`、`editor_session_test.dart` |
-| B-11 | 部分跨层特性测试按名字归到 `test/models/` | `tag_group_test`（22 例中 20 例测 AppState）移到 `test/state/app_state_tag_groups_test.dart`；其余写入约定“按主要断言对象归类”，不拆 |
+| B-11 | 部分跨层特性测试按名字归到 `test/models/` | `tag_group_test`（22 例中 20 例测 AppState）移到 `test/state/app_state_tag_groups_test.dart`；其余是以模型命名的端到端特性测试（`caption_*`、`prompt_preset`），按约定留在 `test/models/`，不拆 |
 | B-12/13/15 | `panel_widgets` 多个公开组件；面板内私有对话框；service 是 `ChangeNotifier` | 约定写入 ARCHITECTURE，不改代码 |
 | B-14 | `ShortcutRelay` 不是状态 | 移到 `views/workbench/` |
 
@@ -267,4 +267,4 @@ dart run tool/check_layers.dart   # 打印每条 VIOLATION，末行 violations: 
 - `lib/` 下出现矩阵里没有的新顶层目录或根文件时报错，避免绕开检查；
 - CI（`.github/workflows/dart.yml`）在 `flutter analyze` 之后运行；测试见 `test/tool/check_layers_test.dart`，其中一条测试解析 `docs/ARCHITECTURE.md` 的分层表并与 `allowedImports` 逐行比对。
 
-矩阵改动时同步改 `docs/ARCHITECTURE.md` 表格、LLD §3 与脚本里的 `allowedImports`（前两者不一致时测试会失败）。
+矩阵改动时同步改 `docs/ARCHITECTURE.md` 表格、LLD §3 与脚本里的 `allowedImports`。ARCHITECTURE 表与 `allowedImports` 不一致时测试会失败；LLD §3 不在测试范围内，需手工同步。

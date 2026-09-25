@@ -71,6 +71,41 @@ import '../views/in_a_string.dart';
 """;
       expect(directiveUris(source), ['kept.dart']);
     });
+
+    test('decodes escapes and joins adjacent string literals', () {
+      const source = r'''
+import '\x2e\x2e/views/hex.dart';
+import '../views/unicode.dart';
+import '..\u{2F}views/braced.dart';
+import '../vi' 'ews/adjacent.dart';
+''';
+      expect(directiveUris(source), [
+        '../views/hex.dart',
+        '../views/unicode.dart',
+        '../views/braced.dart',
+        '../views/adjacent.dart',
+      ]);
+    });
+
+    test('annotations of any shape do not end the directive section', () {
+      const source = r'''
+@Ann<int>.named()
+import 'generic.dart';
+@Deprecated('x${"'"}')
+import 'interpolated.dart';
+@prefix.Ann(['a', ('b')])
+import 'nested.dart';
+''';
+      expect(directiveUris(source), [
+        'generic.dart',
+        'interpolated.dart',
+        'nested.dart',
+      ]);
+    });
+
+    test('a bare carriage return ends a line comment', () {
+      expect(directiveUris("// note\rimport 'a.dart';"), ['a.dart']);
+    });
   });
 
   group('parseDirectives', () {
@@ -108,6 +143,10 @@ import '../views/in_a_string.dart';
         isNull,
       );
       expect(resolveTopLevel('widgets/a.dart', 'dart:io'), isNull);
+      expect(
+        resolveTopLevel('widgets/a.dart', 'file:///repo/lib/views/v.dart'),
+        outsideLib,
+      );
     });
   });
 

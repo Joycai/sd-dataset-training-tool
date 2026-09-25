@@ -45,8 +45,10 @@ Inside `views/`:
   Tests import `lib/` with `package:dataset_training_tool/...`; `test/tool/`
   imports the script it tests relatively, since `tool/` has no package URI.
 - `test/` mirrors `lib/`: a test for `lib/state/tag_ops.dart` lives at
-  `test/state/tag_ops_test.dart`. A feature test that drives several layers
-  goes with the file whose behaviour it mainly asserts on.
+  `test/state/tag_ops_test.dart`. A test named after a class sits with that
+  class; an end-to-end feature test named after a model (`caption_json_test`,
+  `prompt_preset_test`) sits with that model in `test/models/`, even though it
+  also drives `state/` and `views/`.
   `test/widget_test.dart` is the app smoke test; `test/tool/` tests `tool/`.
 - Before pushing, run the same checks CI runs (after `flutter pub get`, so the
   formatter sees the package's language version):

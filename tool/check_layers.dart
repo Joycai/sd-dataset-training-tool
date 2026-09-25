@@ -153,36 +153,50 @@ class _DirectiveScanner {
 
   /// Consumes up to and including the next top-level `;`, returning the
   /// string literals outside parentheses — the URIs, not the `if (…)`
-  /// conditions of a conditional import.
+  /// conditions of a conditional import. Adjacent literals are one string.
   List<String> _clause() {
     final uris = <String>[];
+    var afterString = false;
     while (true) {
       _skipTrivia();
       if (_atEnd) return uris;
       final c = _at(0);
+      if (_atString) {
+        final part = _string();
+        if (afterString) {
+          uris.last += part;
+        } else {
+          uris.add(part);
+        }
+        afterString = true;
+        continue;
+      }
+      afterString = false;
       if (c == ';') {
         _i++;
         return uris;
       } else if (c == '(') {
         _skipBalanced('(', ')');
-      } else if (_atString) {
-        uris.add(_string());
       } else if (_identifier() == null) {
         _i++; // `,`, `.`, `==` and the like.
       }
     }
   }
 
+  /// Skips `@name`, `@prefix.Name<T>.named(...)` and the like.
   void _skipAnnotation() {
     _i++; // @
     while (true) {
       _skipTrivia();
       if (_identifier() == null) break;
       _skipTrivia();
+      if (_at(0) == '<') {
+        _skipBalanced('<', '>');
+        _skipTrivia();
+      }
       if (_at(0) != '.') break;
       _i++;
     }
-    if (_at(0) == '<') _skipBalanced('<', '>');
     _skipTrivia();
     if (_at(0) == '(') _skipBalanced('(', ')');
   }
@@ -234,7 +248,7 @@ class _DirectiveScanner {
   }
 
   void _skipLine() {
-    while (!_atEnd && _at(0) != '\n') {
+    while (!_atEnd && _at(0) != '\n' && _at(0) != '\r') {
       _i++;
     }
   }
@@ -259,25 +273,77 @@ class _DirectiveScanner {
   }
 
   /// Reads a single, raw or triple-quoted string literal and returns its
-  /// contents. URIs cannot contain interpolation, so none is interpreted.
+  /// value with escapes decoded, so `'\x2e\x2e/views/a.dart'` is seen as
+  /// `../views/a.dart`. `${…}` interpolations (legal in annotation arguments,
+  /// never in a URI) are skipped, nested strings and all.
   String _string() {
     final raw = _at(0) == 'r';
     if (raw) _i++;
     final q = _at(0);
-    final quote = _s.startsWith('$q$q$q', _i) ? '$q$q$q' : q;
+    final triple = _s.startsWith('$q$q$q', _i);
+    final quote = triple ? '$q$q$q' : q;
     _i += quote.length;
     final buf = StringBuffer();
     while (!_atEnd && !_s.startsWith(quote, _i)) {
-      if (!raw && _at(0) == r'\' && _i + 1 < _s.length) {
-        buf.write(_at(1));
-        _i += 2;
+      final c = _at(0);
+      if (!triple && (c == '\n' || c == '\r')) {
+        return buf.toString(); // Unterminated: stop at the line end.
+      } else if (!raw && c == r'\') {
+        _i++;
+        buf.write(_escape());
+      } else if (!raw && c == r'$' && _at(1) == '{') {
+        _i++;
+        _skipBalanced('{', '}');
       } else {
-        buf.write(_at(0));
+        buf.write(c);
         _i++;
       }
     }
     _i += quote.length;
     return buf.toString();
+  }
+
+  /// Decodes the escape sequence after a backslash.
+  String _escape() {
+    if (_atEnd) return '';
+    final c = _at(0);
+    _i++;
+    switch (c) {
+      case 'n':
+        return '\n';
+      case 'r':
+        return '\r';
+      case 't':
+        return '\t';
+      case 'b':
+        return '\b';
+      case 'f':
+        return '\f';
+      case 'v':
+        return '\v';
+      case 'x':
+        return _hex(2) ?? 'x';
+      case 'u':
+        if (_at(0) == '{') {
+          final end = _s.indexOf('}', _i);
+          if (end < 0) return 'u';
+          final code = int.tryParse(_s.substring(_i + 1, end), radix: 16);
+          if (code == null) return 'u';
+          _i = end + 1;
+          return String.fromCharCode(code);
+        }
+        return _hex(4) ?? 'u';
+      default:
+        return c;
+    }
+  }
+
+  String? _hex(int digits) {
+    if (_i + digits > _s.length) return null;
+    final code = int.tryParse(_s.substring(_i, _i + digits), radix: 16);
+    if (code == null) return null;
+    _i += digits;
+    return String.fromCharCode(code);
   }
 }
 
@@ -293,7 +359,9 @@ String? resolveTopLevel(String file, String uri) {
       'file:///lib/${uri.substring(prefix.length)}',
     ).pathSegments;
   } else if (Uri.parse(uri).hasScheme) {
-    return null; // dart:, and anything else with a scheme.
+    // dart: and other schemes are not ours; an absolute file: URI is never
+    // a portable way into lib/.
+    return uri.startsWith('file:') ? outsideLib : null;
   } else {
     segments = Uri.parse('file:///lib/$file').resolve(uri).pathSegments;
   }
