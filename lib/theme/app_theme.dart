@@ -375,21 +375,21 @@ List<String> _cjkFallback() {
   return const ['Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC'];
 }
 
-/// [fontFamily] 为 null 时用系统默认字体；否则用 FontLoader 注册的家族名。
-/// [accent] 是主题基色：不仅决定强调色（选中/焦点），整套中性色阶也由
-/// [AppPalette] 从它的色相派生,界面各处随之改变色调。
 /// The colour a disabled chip element ends up as when the whole chip is
 /// composited at 55% over [backdrop]: [color] resolved over [over] (what it is
 /// painted on inside the chip, the fill by default), then mixed 55/45 with the
 /// backdrop. Pre-mixing this into the colours is pixel-equivalent to wrapping
-/// the chip in `Opacity(opacity: 0.55)`, minus the saveLayer: a panel of a few
-/// hundred dimmed chips paid one offscreen pass per chip, about 10 ms per
-/// frame at 4K.
+/// the chip in `Opacity(opacity: 0.55)`, bar a one-pixel fringe on glyph
+/// edges, minus the saveLayer: a panel of a few hundred dimmed chips paid one
+/// offscreen pass per chip, about 10 ms per frame at 4K.
 Color dimDisabled(Color color, {required Color backdrop, Color? over}) {
   final resolved = Color.alphaBlend(color, over ?? backdrop);
   return Color.alphaBlend(resolved.withAlpha(140), backdrop);
 }
 
+/// [fontFamily] 为 null 时用系统默认字体；否则用 FontLoader 注册的家族名。
+/// [accent] 是主题基色：不仅决定强调色（选中/焦点），整套中性色阶也由
+/// [AppPalette] 从它的色相派生,界面各处随之改变色调。
 ThemeData buildAppTheme(
   Brightness brightness, {
   String? fontFamily,
