@@ -1,16 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'app_state.dart';
+
 import 'l10n/app_localizations.dart';
 import 'services/settings_service.dart';
+import 'state/app_state.dart';
 import 'theme/app_theme.dart';
 import 'views/image_preview_window.dart';
-import 'views/workbench_view.dart';
+import 'views/workbench/workbench_view.dart';
 import 'widgets/tag_gloss.dart';
 
 bool get _isDesktop =>
@@ -66,7 +68,10 @@ void main(List<String> args) async {
 
   runApp(
     _withoutSemantics(
-      ChangeNotifierProvider.value(value: appState, child: const MyApp()),
+      ChangeNotifierProvider.value(
+        value: appState,
+        child: const DatasetToolkitApp(),
+      ),
     ),
   );
 }
@@ -95,8 +100,8 @@ void main(List<String> args) async {
 /// has never actually provided. Remove this once the upstream fix lands.
 Widget _withoutSemantics(Widget child) => ExcludeSemantics(child: child);
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class DatasetToolkitApp extends StatelessWidget {
+  const DatasetToolkitApp({super.key});
 
   @override
   Widget build(BuildContext context) {

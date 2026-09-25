@@ -37,6 +37,7 @@ class EditorSession extends ChangeNotifier {
     _tagList = value;
     _tagSet = null;
   }
+
   String? _anchorTag;
   SaveState _saveState = SaveState.clean;
   DateTime? _lastSavedAt;

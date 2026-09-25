@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import '../state/dataset_state.dart';
+import 'image_formats.dart';
 
 /// How a caption type's file content is structured. The format — not the
 /// file extension — is what decides how the app parses, displays and
@@ -148,7 +148,7 @@ String? normalizeCaptionExtension(String input) {
   }
   if (value.isEmpty ||
       value.contains(RegExp(r'[\\/\s.]')) ||
-      DatasetState.supportedExtensions.contains('.$value')) {
+      supportedImageExtensions.contains('.$value')) {
     return null;
   }
   return '.$value';

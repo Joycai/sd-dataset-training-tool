@@ -1,5 +1,5 @@
 name: dataset_training_tool
-description: "A new Flutter project."
+description: "Desktop toolkit for building and captioning Stable Diffusion training datasets."
 publish_to: 'none'
 version: 1.17.1+19
 
@@ -31,7 +31,6 @@ dependencies:
   file_saver: ^0.4.0
   reorderable_grid_view: ^2.2.8
   cupertino_icons: ^1.0.9
-  msix: ^3.18.0
   pinyin: ^3.3.0
 
 dev_dependencies:
@@ -39,6 +38,8 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+  # Windows installer packaging (`dart run msix:create`); build-time only.
+  msix: ^3.18.0
 
 flutter:
   uses-material-design: true

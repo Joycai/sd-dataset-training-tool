@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/caption_type.dart';
+import '../models/image_formats.dart';
 import '../models/tag_filter.dart';
 import '../utils/tag_text.dart';
 
@@ -34,14 +35,7 @@ class DatasetSubdirectory {
 /// Scans a dataset directory and tracks per-image caption status and tags,
 /// the search/filter state of the assets panel, and the current selection.
 class DatasetState extends ChangeNotifier {
-  static const supportedExtensions = {
-    '.jpg',
-    '.jpeg',
-    '.png',
-    '.gif',
-    '.bmp',
-    '.webp',
-  };
+  static const supportedExtensions = supportedImageExtensions;
 
   List<File> _files = [];
   // Path index over _files: [selectedFile] is read from per-row builders, so

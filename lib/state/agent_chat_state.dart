@@ -2,26 +2,26 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../app_state.dart';
+import '../agent/agent_session.dart';
+import '../agent/agent_tools.dart';
+import '../agent/caption_edit_tools.dart';
+import '../agent/caption_variant_tools.dart';
+import '../agent/character_sheet.dart';
+import '../agent/dataset_tools.dart';
+import '../agent/json_caption_tools.dart';
+import '../agent/media_tools.dart';
+import '../agent/merge_rule_tools.dart';
+import '../agent/tag_library_tools.dart';
+import '../agent/tag_translation_tools.dart';
 import '../models/agent_tool_pack.dart';
 import '../models/caption_type.dart';
 import '../models/llm_models.dart';
 import '../models/merge_rules.dart';
-import '../services/agent/agent_session.dart';
-import '../services/agent/agent_tools.dart';
-import '../services/agent/caption_edit_tools.dart';
-import '../services/agent/caption_variant_tools.dart';
-import '../services/agent/character_sheet.dart';
-import '../services/agent/dataset_tools.dart';
-import '../services/agent/json_caption_tools.dart';
-import '../services/agent/media_tools.dart';
-import '../services/agent/merge_rule_tools.dart';
-import '../services/agent/tag_library_tools.dart';
-import '../services/agent/tag_translation_tools.dart';
 import '../services/llm/anthropic_client.dart';
 import '../services/llm/llm_client.dart';
 import '../services/llm/openai_compat_client.dart';
 import 'ai_tagger_state.dart';
+import 'app_state.dart';
 import 'dataset_state.dart';
 import 'tag_ops.dart';
 

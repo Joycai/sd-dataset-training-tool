@@ -142,3 +142,6 @@ doc/api/
 AiApiServer/vips-dev-8.16/
 __pycache__/
 *.pyc
+
+# Claude Code task workspaces (dev-workflow)
+.claude/tasks/

@@ -124,7 +124,8 @@ class DanbooruMetaService extends ChangeNotifier {
     final stamp = DateTime.now().toUtc().toIso8601String();
     _store(info.name, info, stamp);
     final queried = queriedAs == null ? '' : danbooruTagName(queriedAs);
-    if (queried.isNotEmpty && tagLookupKey(queried) != tagLookupKey(info.name)) {
+    if (queried.isNotEmpty &&
+        tagLookupKey(queried) != tagLookupKey(info.name)) {
       _store(queried, info, stamp);
     }
     notifyListeners();
@@ -206,10 +207,7 @@ class DanbooruMetaService extends ChangeNotifier {
       final file = await _file();
       await file.parent.create(recursive: true);
       final text =
-          '${const JsonEncoder.withIndent('  ').convert({
-            'schema': schemaVersion,
-            'entries': exportEntries(),
-          })}\n';
+          '${const JsonEncoder.withIndent('  ').convert({'schema': schemaVersion, 'entries': exportEntries()})}\n';
       // Write-then-rename, like every other tag store: a half-written file
       // that still parses would silently lose the other half of the records.
       final temp = File('${file.path}.part');

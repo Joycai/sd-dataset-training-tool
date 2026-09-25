@@ -41,12 +41,16 @@ Future<void> main(List<String> args) async {
 
     // 3. model params
     final params = await service.getModelParams(baseUrl, model);
-    print('[3] getmodelparams: success=${params.success} '
-        'type=${params.type} threshold=${params.threshold}');
+    print(
+      '[3] getmodelparams: success=${params.success} '
+      'type=${params.type} threshold=${params.threshold}',
+    );
 
     // 4. interrogate
-    print('[4] interrogating $imagePath '
-        '(first call may download/load the model — please wait)...');
+    print(
+      '[4] interrogating $imagePath '
+      '(first call may download/load the model — please wait)...',
+    );
     final sw = Stopwatch()..start();
     final tags = await service.interrogateTags(
       baseUrl,

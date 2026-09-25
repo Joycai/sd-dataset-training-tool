@@ -252,7 +252,11 @@ class EndpointProbeService {
   ) async {
     final base = Uri.tryParse(provider.baseUrl.trim());
     if (base == null || !base.hasScheme || base.host.isEmpty) return null;
-    final root = Uri(scheme: base.scheme, host: base.host, port: base.hasPort ? base.port : null);
+    final root = Uri(
+      scheme: base.scheme,
+      host: base.host,
+      port: base.hasPort ? base.port : null,
+    );
 
     final client = http.Client();
     try {
@@ -362,15 +366,9 @@ class EndpointProbeService {
 
     TokenCalibration calibration;
     try {
-      final small = await promptTokensFor(
-        _calibrationSmallWords,
-        probeTimeout,
-      );
+      final small = await promptTokensFor(_calibrationSmallWords, probeTimeout);
       if (cancelled()) return;
-      final large = await promptTokensFor(
-        _calibrationLargeWords,
-        probeTimeout,
-      );
+      final large = await promptTokensFor(_calibrationLargeWords, probeTimeout);
       if (small == null || large == null) {
         step(
           ProbeStep.calibration,
@@ -416,7 +414,11 @@ class EndpointProbeService {
     } on _ProbeAborted catch (e) {
       step(ProbeStep.calibration, ProbeStepStatus.failed, e.describe());
       report.notes.add(e.describe());
-      step(ProbeStep.truncationTest, ProbeStepStatus.skipped, 'calibration failed');
+      step(
+        ProbeStep.truncationTest,
+        ProbeStepStatus.skipped,
+        'calibration failed',
+      );
       return;
     }
     if (cancelled()) return;
