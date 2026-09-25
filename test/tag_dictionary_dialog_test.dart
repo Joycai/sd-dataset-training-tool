@@ -162,13 +162,30 @@ void main() {
   /// lookup renders a progress indicator while in flight, and `pumpAndSettle`
   /// can never settle against a spinning one — it would sit there until its own
   /// ten-minute timeout.
+  ///
+  /// It waits for the update's closing snack bar rather than for a fixed
+  /// stretch of real time: the lookup and the writes after it are real file
+  /// IO, which under a loaded full-suite run outlasted any delay short enough
+  /// to keep the tests quick. Nor is the spinner going away the signal — it
+  /// stops once the lookup returns, while the aliases and the note are still
+  /// being written. Every way the update ends (done, marked missing, failed)
+  /// raises a snack bar, so none may be showing when this is called.
   Future<void> fetch(WidgetTester tester) async {
+    final snack = find.byType(SnackBar);
+    expect(snack, findsNothing, reason: 'a stale snack bar would end the wait');
     await tester.runAsync(() async {
       // The header actions are bare tap targets, not buttons: they sit beside
       // the tag name, where a Material button's padding would dominate.
       await tester.tap(find.text('Update from danbooru'));
+      final clock = Stopwatch()..start();
       await tester.pump();
-      await Future<void>.delayed(const Duration(milliseconds: 80));
+      while (snack.evaluate().isEmpty) {
+        if (clock.elapsed > const Duration(seconds: 10)) {
+          fail('the danbooru update never finished');
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        await tester.pump();
+      }
     });
     await tester.pumpAndSettle();
   }
