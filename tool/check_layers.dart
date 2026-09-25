@@ -283,6 +283,7 @@ class _DirectiveScanner {
     final triple = _s.startsWith('$q$q$q', _i);
     final quote = triple ? '$q$q$q' : q;
     _i += quote.length;
+    if (triple) _skipBlankFirstLine();
     final buf = StringBuffer();
     while (!_atEnd && !_s.startsWith(quote, _i)) {
       final c = _at(0);
@@ -301,6 +302,20 @@ class _DirectiveScanner {
     }
     _i += quote.length;
     return buf.toString();
+  }
+
+  /// Dart ignores the first line of a triple-quoted string, terminator
+  /// included, when it holds nothing but whitespace.
+  void _skipBlankFirstLine() {
+    var j = _i;
+    while (j < _s.length && (_s[j] == ' ' || _s[j] == '\t')) {
+      j++;
+    }
+    if (_s.startsWith('\r\n', j)) {
+      _i = j + 2;
+    } else if (j < _s.length && (_s[j] == '\n' || _s[j] == '\r')) {
+      _i = j + 1;
+    }
   }
 
   /// Decodes the escape sequence after a backslash.
@@ -327,10 +342,10 @@ class _DirectiveScanner {
         if (_at(0) == '{') {
           final end = _s.indexOf('}', _i);
           if (end < 0) return 'u';
-          final code = int.tryParse(_s.substring(_i + 1, end), radix: 16);
+          final code = _codePoint(_s.substring(_i + 1, end));
           if (code == null) return 'u';
           _i = end + 1;
-          return String.fromCharCode(code);
+          return code;
         }
         return _hex(4) ?? 'u';
       default:
@@ -340,10 +355,20 @@ class _DirectiveScanner {
 
   String? _hex(int digits) {
     if (_i + digits > _s.length) return null;
-    final code = int.tryParse(_s.substring(_i, _i + digits), radix: 16);
+    final code = _codePoint(_s.substring(_i, _i + digits));
     if (code == null) return null;
     _i += digits;
-    return String.fromCharCode(code);
+    return code;
+  }
+
+  static final RegExp _hexDigits = RegExp(r'^[0-9a-fA-F]{1,6}$');
+
+  /// The character for a hex code point, or null if [hex] is not a valid one
+  /// (`int.parse` alone would accept `-1` and `+1`).
+  static String? _codePoint(String hex) {
+    if (!_hexDigits.hasMatch(hex)) return null;
+    final code = int.parse(hex, radix: 16);
+    return code <= 0x10FFFF ? String.fromCharCode(code) : null;
   }
 }
 
@@ -351,17 +376,18 @@ class _DirectiveScanner {
 /// written in the file at [file] (relative to `lib/`), refers to. Null for
 /// `dart:` and other packages; [outsideLib] if it resolves outside `lib/`.
 String? resolveTopLevel(String file, String uri) {
+  final parsed = Uri.parse(uri); // Lowercases the scheme, as Dart does.
   final List<String> segments;
-  if (uri.startsWith('package:')) {
-    final prefix = 'package:$packageName/';
-    if (!uri.startsWith(prefix)) return null;
+  if (parsed.scheme == 'package') {
+    final prefix = '$packageName/';
+    if (!parsed.path.startsWith(prefix)) return null;
     segments = Uri.parse(
-      'file:///lib/${uri.substring(prefix.length)}',
+      'file:///lib/${parsed.path.substring(prefix.length)}',
     ).pathSegments;
-  } else if (Uri.parse(uri).hasScheme) {
+  } else if (parsed.hasScheme) {
     // dart: and other schemes are not ours; an absolute file: URI is never
     // a portable way into lib/.
-    return uri.startsWith('file:') ? outsideLib : null;
+    return parsed.scheme == 'file' ? outsideLib : null;
   } else {
     segments = Uri.parse('file:///lib/$file').resolve(uri).pathSegments;
   }
@@ -397,9 +423,22 @@ List<Violation> checkLayers(Directory lib) {
       continue;
     }
     final name = isFile ? entry : '$entry/';
-    for (final d in parseDirectives(files[file]!.readAsStringSync())) {
+    final List<Directive> directives;
+    try {
+      directives = parseDirectives(files[file]!.readAsStringSync());
+    } on Object catch (e) {
+      violations.add(Violation(file, null, 'could not read directives: $e'));
+      continue;
+    }
+    for (final d in directives) {
       for (final uri in d.uris) {
-        final target = resolveTopLevel(file, uri);
+        final String? target;
+        try {
+          target = resolveTopLevel(file, uri);
+        } on FormatException catch (e) {
+          violations.add(Violation(file, uri, 'not a valid URI: ${e.message}'));
+          continue;
+        }
         if (target == null) continue;
         if (d.kind == DirectiveKind.part || d.kind == DirectiveKind.partOf) {
           if (_group(target) != _group(entry)) {

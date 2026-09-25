@@ -106,6 +106,25 @@ import 'nested.dart';
     test('a bare carriage return ends a line comment', () {
       expect(directiveUris("// note\rimport 'a.dart';"), ['a.dart']);
     });
+
+    test('drops a blank first line of a triple-quoted URI, as Dart does', () {
+      expect(directiveUris("import '''  \n../views/v.dart''';"), [
+        '../views/v.dart',
+      ]);
+    });
+
+    test('invalid escapes are kept literally instead of throwing', () {
+      const source = r'''
+import '\u{110000}.dart';
+import '\x-1.dart';
+import '\u{-1}.dart';
+''';
+      expect(directiveUris(source), [
+        'u{110000}.dart',
+        'x-1.dart',
+        'u{-1}.dart',
+      ]);
+    });
   });
 
   group('parseDirectives', () {
@@ -146,6 +165,15 @@ import 'nested.dart';
       expect(
         resolveTopLevel('widgets/a.dart', 'file:///repo/lib/views/v.dart'),
         outsideLib,
+      );
+      // Schemes are case-insensitive in Dart.
+      expect(
+        resolveTopLevel('widgets/a.dart', 'FILE:///repo/lib/views/v.dart'),
+        outsideLib,
+      );
+      expect(
+        resolveTopLevel('widgets/a.dart', 'PACKAGE:$packageName/views/v.dart'),
+        'views',
       );
     });
   });
@@ -241,6 +269,13 @@ import '../../test/helpers.dart';
         'views/v.dart ../widgets/p.dart',
         'widgets/p.dart ../views/v.dart',
       ]);
+    });
+
+    test('an unparsable URI is reported against its file, not a crash', () {
+      write('widgets/w.dart', "import 'http://[bad';");
+      final v = checkLayers(lib).single;
+      expect(v.file, 'widgets/w.dart');
+      expect(v.message, startsWith('not a valid URI'));
     });
 
     test('reports entries missing from the layer table', () {
