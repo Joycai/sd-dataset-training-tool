@@ -20,8 +20,6 @@
 /// unconditionally all the same — it is a core write tool, not a variant one.
 library;
 
-import 'dart:io';
-
 import 'package:path/path.dart' as p;
 
 import '../models/caption_type.dart';
@@ -397,12 +395,12 @@ Future<AgentToolResult> _edit(
 
   for (final f in files) {
     final rel = p.relative(f.path, from: root);
-    final file = File(
-      active ? d.captionPathFor(f.path) : captionVariantPath(f.path, type!),
-    );
+    final captionPath = active
+        ? d.captionPathFor(f.path)
+        : captionVariantPath(f.path, type!);
     String before;
     try {
-      before = await file.exists() ? await file.readAsString() : '';
+      before = await d.store.readCaption(captionPath) ?? '';
     } catch (e) {
       failures.add((path: rel, error: 'cannot read: $e'));
       continue;
@@ -443,7 +441,7 @@ Future<AgentToolResult> _edit(
       continue;
     }
     try {
-      await file.writeAsString(text);
+      await d.store.writeCaption(captionPath, text);
     } catch (e) {
       failures.add((path: rel, error: 'cannot write: $e'));
       continue;
@@ -462,7 +460,7 @@ Future<AgentToolResult> _edit(
     edits.add(
       CaptionEdit(
         imagePath: f.path,
-        captionPath: file.path,
+        captionPath: captionPath,
         before: before,
         after: text,
       ),

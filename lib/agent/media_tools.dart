@@ -210,7 +210,9 @@ List<AgentTool> buildVisionTools(DatasetToolsDeps deps) => [
         }
         Uint8List? jpeg;
         try {
-          jpeg = await compressForVision(await File(key).readAsBytes());
+          jpeg = await compressForVision(
+            await deps.dataset.store.readImageBytes(key),
+          );
         } catch (e) {
           failed.add({'path': rel, 'error': 'cannot read image: $e'});
           continue;

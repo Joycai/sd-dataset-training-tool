@@ -14,11 +14,11 @@
 library;
 
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
 import '../models/caption_type.dart';
+import '../services/dataset_store.dart';
 import '../state/dataset_state.dart';
 import '../state/tag_ops.dart';
 import '../utils/tag_text.dart';
@@ -185,13 +185,12 @@ List<AgentTool> buildCaptionVariantTools(
           out.add({'path': rel, 'error': notFoundMessage(d, rel)});
           continue;
         }
-        final file = File(captionVariantPath(key, type));
         try {
-          if (!await file.exists()) {
+          final text = await d.store.readCaption(captionVariantPath(key, type));
+          if (text == null) {
             out.add({'path': rel, 'exists': false, 'text': ''});
             continue;
           }
-          final text = await file.readAsString();
           out.add({
             'path': rel,
             'exists': true,
@@ -325,6 +324,7 @@ List<AgentTool> buildCaptionVariantTools(
       }
       if (expectSame) {
         final guard = await _checkUnchangedTags(
+          store: d.store,
           target: type,
           key: key,
           rel: rel,
@@ -374,12 +374,9 @@ List<AgentTool> buildCaptionVariantTools(
       }
 
       final captionPath = captionVariantPath(key, type);
-      final file = File(captionPath);
-      var before = '';
+      final String before;
       try {
-        if (await file.exists()) {
-          before = await file.readAsString();
-        }
+        before = await d.store.readCaption(captionPath) ?? '';
       } catch (e) {
         return toolError(
           'nothing was written for $rel: cannot read "$captionPath": $e',
@@ -399,7 +396,7 @@ List<AgentTool> buildCaptionVariantTools(
       // the UI's undo/redo stays enabled and could pop the stack mid-write.
       final result = await tagOps.runExclusive(() async {
         try {
-          await file.writeAsString(text);
+          await d.store.writeCaption(captionPath, text);
         } catch (e) {
           return toolError(
             'nothing was written for $rel: cannot write "$captionPath": $e',
@@ -753,13 +750,12 @@ List<AgentTool> buildCaptionVariantTools(
           parts = d.tagsOf(f.path);
         } else {
           try {
-            final sourceFile = File(captionVariantPath(f.path, source));
-            parts = await sourceFile.exists()
-                ? parseCaptionText(
-                    await sourceFile.readAsString(),
-                    format: source.format,
-                  )
-                : const [];
+            final text = await d.store.readCaption(
+              captionVariantPath(f.path, source),
+            );
+            parts = text == null
+                ? const []
+                : parseCaptionText(text, format: source.format);
           } catch (e) {
             failures.add((path: rel, error: 'cannot read source: $e'));
             continue;
@@ -779,11 +775,12 @@ List<AgentTool> buildCaptionVariantTools(
         }
         if (sourceNl != null && nlField == null) droppedDescriptions++;
 
-        final targetFile = File(captionVariantPath(f.path, target));
+        final targetPath = captionVariantPath(f.path, target);
         var before = '';
         try {
-          if (await targetFile.exists()) {
-            before = await targetFile.readAsString();
+          final existing = await d.store.readCaption(targetPath);
+          if (existing != null) {
+            before = existing;
             if (!overwrite && before.trim().isNotEmpty) {
               skippedExisting++;
               continue;
@@ -838,7 +835,7 @@ List<AgentTool> buildCaptionVariantTools(
           continue;
         }
         try {
-          await targetFile.writeAsString(text);
+          await d.store.writeCaption(targetPath, text);
         } catch (e) {
           failures.add((path: rel, error: 'cannot write: $e'));
           continue;
@@ -847,7 +844,7 @@ List<AgentTool> buildCaptionVariantTools(
         edits.add(
           CaptionEdit(
             imagePath: f.path,
-            captionPath: targetFile.path,
+            captionPath: targetPath,
             before: before,
             after: text,
           ),
@@ -1222,10 +1219,9 @@ AgentTool _convertCaptionsToTags(
         // exist to preserve.
         String text;
         try {
-          final sourceFile = File(captionVariantPath(f.path, source));
-          text = await sourceFile.exists()
-              ? await sourceFile.readAsString()
-              : '';
+          text =
+              await d.store.readCaption(captionVariantPath(f.path, source)) ??
+              '';
         } catch (e) {
           failures.add((path: rel, error: 'cannot read source: $e'));
           continue;
@@ -1259,13 +1255,12 @@ AgentTool _convertCaptionsToTags(
           parts = d.tagsOf(f.path);
         } else {
           try {
-            final sourceFile = File(captionVariantPath(f.path, source));
-            parts = await sourceFile.exists()
-                ? parseCaptionText(
-                    await sourceFile.readAsString(),
-                    format: source.format,
-                  )
-                : const [];
+            final text = await d.store.readCaption(
+              captionVariantPath(f.path, source),
+            );
+            parts = text == null
+                ? const []
+                : parseCaptionText(text, format: source.format);
           } catch (e) {
             failures.add((path: rel, error: 'cannot read source: $e'));
             continue;
@@ -1319,11 +1314,12 @@ AgentTool _convertCaptionsToTags(
         if (nl != null) '$animaNlPrefix$nl',
       ], format: target.format);
 
-      final targetFile = File(captionVariantPath(f.path, target));
+      final targetPath = captionVariantPath(f.path, target);
       var before = '';
       try {
-        if (await targetFile.exists()) {
-          before = await targetFile.readAsString();
+        final existing = await d.store.readCaption(targetPath);
+        if (existing != null) {
+          before = existing;
           if (!overwrite && before.trim().isNotEmpty) {
             skippedExisting++;
             continue;
@@ -1338,7 +1334,7 @@ AgentTool _convertCaptionsToTags(
         continue;
       }
       try {
-        await targetFile.writeAsString(text);
+        await d.store.writeCaption(targetPath, text);
       } catch (e) {
         failures.add((path: rel, error: 'cannot write: $e'));
         continue;
@@ -1347,7 +1343,7 @@ AgentTool _convertCaptionsToTags(
       edits.add(
         CaptionEdit(
           imagePath: f.path,
-          captionPath: targetFile.path,
+          captionPath: targetPath,
           before: before,
           after: text,
         ),
@@ -1450,6 +1446,7 @@ typedef _LosslessCheck = ({AgentToolResult? error, int verified});
 /// no tags, so any non-empty write is rejected — creating a caption is not
 /// reshaping one.
 Future<_LosslessCheck> _checkUnchangedTags({
+  required DatasetStore store,
   required CaptionType target,
   required String key,
   required String rel,
@@ -1461,8 +1458,7 @@ Future<_LosslessCheck> _checkUnchangedTags({
   final path = captionVariantPath(key, target);
   String current;
   try {
-    final file = File(path);
-    current = await file.exists() ? await file.readAsString() : '';
+    current = await store.readCaption(path) ?? '';
   } catch (e) {
     return (
       error: toolError(
@@ -1568,10 +1564,10 @@ Future<_LosslessCheck> _checkLossless({
     sourceTags = d.tagsOf(key);
   } else {
     try {
-      final file = File(captionVariantPath(key, source));
-      sourceTags = await file.exists()
-          ? parseCaptionText(await file.readAsString(), format: source.format)
-          : const [];
+      final text = await d.store.readCaption(captionVariantPath(key, source));
+      sourceTags = text == null
+          ? const []
+          : parseCaptionText(text, format: source.format);
     } catch (e) {
       return (
         error: toolError(
@@ -1616,7 +1612,7 @@ Future<_LosslessCheck> _checkLossless({
 }
 
 String captionVariantPath(String imagePath, CaptionType type) =>
-    '${p.withoutExtension(imagePath)}${type.extension}';
+    captionPathOf(imagePath, type.extension);
 
 /// Whether the image has a non-empty caption file of this type. The active
 /// type answers from the dataset state (the scan's authority); other types
@@ -1629,9 +1625,10 @@ Future<bool> _hasVariant(
   if (type.extension == dataset.captionExtension) {
     return dataset.hasCaption(imagePath);
   }
-  final file = File(captionVariantPath(imagePath, type));
   try {
-    return await file.exists() && await file.length() > 0;
+    return await dataset.store.isNonEmptyFile(
+      captionVariantPath(imagePath, type),
+    );
   } catch (_) {
     return false;
   }

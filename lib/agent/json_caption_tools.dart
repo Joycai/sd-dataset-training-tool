@@ -17,7 +17,6 @@
 library;
 
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
@@ -126,20 +125,17 @@ AgentTool _inspectTool(DatasetToolsDeps deps) => AgentTool(
     var missingFile = 0;
 
     for (final f in files) {
-      final file = File(captionVariantPath(f.path, type));
       final rel = p.relative(f.path, from: root);
-      String text;
+      String? text;
       try {
-        if (!await file.exists()) {
-          missingFile++;
-          continue;
-        }
-        text = await file.readAsString();
+        text = await deps.dataset.store.readCaption(
+          captionVariantPath(f.path, type),
+        );
       } catch (e) {
         unparseable.add((path: rel, error: 'cannot read: $e'));
         continue;
       }
-      if (text.trim().isEmpty) {
+      if (text == null || text.trim().isEmpty) {
         missingFile++;
         continue;
       }
@@ -766,19 +762,15 @@ Future<AgentToolResult> _edit(
 
   for (final f in files) {
     final rel = p.relative(f.path, from: root);
-    final file = File(captionVariantPath(f.path, type));
-    String before;
+    final captionPath = captionVariantPath(f.path, type);
+    final String? before;
     try {
-      if (!await file.exists()) {
-        skippedNoCaption++;
-        continue;
-      }
-      before = await file.readAsString();
+      before = await d.store.readCaption(captionPath);
     } catch (e) {
       failures.add((path: rel, error: 'cannot read: $e'));
       continue;
     }
-    if (before.trim().isEmpty) {
+    if (before == null || before.trim().isEmpty) {
       skippedNoCaption++;
       continue;
     }
@@ -816,7 +808,7 @@ Future<AgentToolResult> _edit(
       continue;
     }
     try {
-      await file.writeAsString(text);
+      await d.store.writeCaption(captionPath, text);
     } catch (e) {
       failures.add((path: rel, error: 'cannot write: $e'));
       continue;
@@ -835,7 +827,7 @@ Future<AgentToolResult> _edit(
     edits.add(
       CaptionEdit(
         imagePath: f.path,
-        captionPath: file.path,
+        captionPath: captionPath,
         before: before,
         after: text,
       ),
@@ -990,19 +982,15 @@ Future<AgentToolResult> _restructure(
 
   for (final f in files) {
     final rel = p.relative(f.path, from: root);
-    final file = File(captionVariantPath(f.path, type));
-    String before;
+    final captionPath = captionVariantPath(f.path, type);
+    final String? before;
     try {
-      if (!await file.exists()) {
-        skippedNoCaption++;
-        continue;
-      }
-      before = await file.readAsString();
+      before = await d.store.readCaption(captionPath);
     } catch (e) {
       failures.add((path: rel, error: 'cannot read: $e'));
       continue;
     }
-    if (before.trim().isEmpty) {
+    if (before == null || before.trim().isEmpty) {
       skippedNoCaption++;
       continue;
     }
@@ -1055,7 +1043,7 @@ Future<AgentToolResult> _restructure(
       continue;
     }
     try {
-      await file.writeAsString(text);
+      await d.store.writeCaption(captionPath, text);
     } catch (e) {
       failures.add((path: rel, error: 'cannot write: $e'));
       continue;
@@ -1064,7 +1052,7 @@ Future<AgentToolResult> _restructure(
     edits.add(
       CaptionEdit(
         imagePath: f.path,
-        captionPath: file.path,
+        captionPath: captionPath,
         before: before,
         after: text,
       ),
