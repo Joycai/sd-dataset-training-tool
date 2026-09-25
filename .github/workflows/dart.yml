@@ -35,5 +35,8 @@ jobs:
       - name: Analyze project source
         run: flutter analyze
 
+      - name: Check layer dependencies
+        run: dart run tool/check_layers.dart
+
       - name: Run tests
         run: flutter test
