@@ -134,7 +134,7 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
    - **Verify localizations**：本次未改 arb，应无差异。
    - **Verify formatting**：新增步骤，CI 用 Flutter 3.44.7 的 formatter。若与本地 3.47.5 结果不一致 → 在 3.44.7 下重跑 `dart format` 追加提交，并在 PR 中注明。
    - **Run tests**：合入 main（含 PR #106 对 `chip_dim_test` 的修复）后本地 `+923` 全绿，CI 应一致。
-3. 合入策略：**Create a merge commit**（与仓库现有的 “Merge pull request #…” 一致）。不要 squash，也不要 rebase merge：GitHub 的 rebase merge 总会重写 commit hash，squash 会把 C1 并入别的改动，两者都会使 `.git-blame-ignore-revs` 里记录的 C1 hash 失效。
+3. 合入策略：**Create a merge commit**（与仓库现有的 “Merge pull request #…” 一致）。不要 squash，也不要 rebase merge：GitHub 的 rebase merge 总会重写 commit hash，squash 会把 C1 并入别的改动，两者都会使 `.git-blame-ignore-revs` 里记录的 C1 hash 失效。PR 开着期间同步 main 同样只用 merge（GitHub 的 “Update with merge commit” 或本地 `git merge origin/main`），不要 rebase：rebase 也会重写 C1 hash，而 git 遇到不存在的 hash 不报错，blame-ignore 会静默失效。
 4. 合入后通知进行中的分支 rebase；被移动文件上的冲突按新路径解决。
 
 **回滚**：C2–C4 以文件重命名为主，`git revert` 可干净回退；C1 独立，可单独回退而不影响结构调整。
@@ -147,7 +147,7 @@ C1 的 commit hash 写入 `.git-blame-ignore-revs`（随 C6 一起提交），�
 | --- | --- | --- |
 | `settings_view.dart` 移入 `views/dialogs/` | 它只作为设置对话框使用，按 ARCHITECTURE 规则应在 `dialogs/`；见 LLD §9 | 低 |
 | 修复 `test/views/dialogs/tag_dictionary_dialog_test.dart` 偶发失败 | danbooru 查询用例在全量并行运行时约 1/7 概率失败、单跑稳定通过；`fetch()` 用固定 80 ms 真实时间等待含文件 I/O 的往返，基线即如此。改为等待实际完成；已开独立任务 | 中 |
-| 统一本地与 CI 的 Flutter 版本 | CI 3.44.7 vs 本地 3.47.5 是像素测试与格式校验不一致的根源；考虑 `.fvmrc` 或升级 CI | 中 |
+| 统一本地与 CI 的 Flutter 版本 | CI 3.44.7 vs 本地 3.47.5 可能导致格式校验结果不一致；考虑 `.fvmrc` 或升级 CI | 中 |
 | 拆分超大 UI 文件 | `tag_dictionary_dialog.dart` 等，切分点见 LLD §9 | 低 |
 | 分层规则进 CI | 目前靠附录 B 脚本手工校验，且只查 `import`；应把脚本放进 `tool/`、扩展到 `export`，在 CI analyze 后执行，并写入 ARCHITECTURE 的提交前检查；已开独立任务 | 中 |
 | 评估剩余 lint | `avoid_dynamic_calls`（20 处，JSON 解析）可配合类型化解析逐步启用 | 低 |
