@@ -67,18 +67,26 @@ class DatasetStore {
   /// truncated one. Throws [FileSystemException]; the temporary file is
   /// removed on failure.
   ///
-  /// Accepted trade-offs of the rename: the new file gets default
-  /// permissions rather than the old file's, and a [captionPath] that is a
-  /// symlink is replaced by a regular file instead of written through.
+  /// Accepted trade-offs of the rename: the directory must be writable even
+  /// when the file itself is; the new file gets default permissions rather
+  /// than the old file's; other hard links to the old file keep the old
+  /// text; and a [captionPath] that is a symlink is replaced by a regular
+  /// file instead of written through.
   Future<void> writeCaption(String captionPath, String text) async {
+    final target = File(captionPath);
+    // A rename ignores the target's own permissions, so check them the way a
+    // plain write would: a read-only caption stays a refused write.
+    if (await target.exists()) {
+      final probe = await target.open(mode: FileMode.append);
+      await probe.close();
+    }
     // Hidden and with an extension no scan looks for, so a leftover never
     // shows up as an image or a caption. The pid and counter keep concurrent
-    // writers, in this process or another, off each other's file.
+    // writers, in this process or another, off each other's file. The target
+    // name is left out so that a long caption name cannot push this one past
+    // the file system's limit.
     final temp = File(
-      p.join(
-        p.dirname(captionPath),
-        '.${p.basename(captionPath)}.$pid-${_nextTempId++}.tmp',
-      ),
+      p.join(p.dirname(captionPath), '.caption-$pid-${_nextTempId++}.tmp'),
     );
     try {
       await temp.writeAsString(text, flush: true);
