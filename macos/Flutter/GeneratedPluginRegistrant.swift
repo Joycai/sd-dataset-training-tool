@@ -6,7 +6,7 @@ import FlutterMacOS
 import Foundation
 
 import desktop_multi_window
-import file_picker
+import file_picker_darwin
 import file_saver
 import shared_preferences_foundation
 import url_launcher_macos
