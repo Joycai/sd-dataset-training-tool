@@ -19,6 +19,11 @@ import '../theme/app_theme.dart';
 class AppState extends ChangeNotifier {
   final SettingsService _settingsService;
 
+  /// The settings store this state was built with. Views take it from here
+  /// instead of constructing their own, so `main.dart` stays the only place
+  /// that creates one.
+  SettingsService get settingsService => _settingsService;
+
   /// 字体下载/注册状态。下载进度只由进度对话框直接监听 FontService；
   /// AppState 仅在解析出的字体家族真正变化时才转发通知，否则下载期间
   /// 每个进度包都会重建 MaterialApp 整树。

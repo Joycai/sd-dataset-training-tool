@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../services/settings_service.dart';
 import '../../state/agent_chat_state.dart';
+import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
 import 'agent_chat_panel.dart';
@@ -35,7 +36,7 @@ class _AgentDockState extends State<AgentDock> {
   static const double _minWidth = 280;
   static const double _minHeight = 220;
 
-  final SettingsService _settings = SettingsService();
+  late final SettingsService _settings;
 
   double _width = SettingsService.defaultAgentPanelWidth;
   double _height = SettingsService.defaultAgentPanelHeight;
@@ -46,6 +47,7 @@ class _AgentDockState extends State<AgentDock> {
   @override
   void initState() {
     super.initState();
+    _settings = context.read<AppState>().settingsService;
     _settings.loadAgentPanelWidth().then((v) {
       if (mounted) setState(() => _width = v);
     });
