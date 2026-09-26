@@ -5,6 +5,10 @@ version: 1.17.1+19
 
 environment:
   sdk: '>=3.9.0 <4.0.0'
+  # Exact version on purpose: CI and release.yml install this via
+  # subosito/flutter-action's flutter-version-file, and `flutter pub get`
+  # refuses a mismatched local SDK, so all three toolchains stay identical.
+  flutter: 3.47.5
 
 dependencies:
   flutter:

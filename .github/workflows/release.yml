@@ -1,25 +1,36 @@
-# Release pipeline: builds desktop bundles for Windows/macOS/Linux plus the
-# AiApiServer source package, then creates a GitHub Release tagged from the
-# version in pubspec.yaml (the single source of truth — see the bump-version
-# skill in .claude/skills/).
+# Release pipeline: runs the CI gate (ci.yml), builds desktop bundles for
+# Windows/macOS/Linux plus the AiApiServer source package, then creates a
+# GitHub Release tagged from the version in pubspec.yaml (the single source
+# of truth — see the bump-version skill in .claude/skills/).
 #
 # Trigger manually from the Actions tab once the version bump has landed on
-# the target branch. The run fails fast if the release already exists or if
-# lib/app_info.dart has drifted from pubspec.yaml.
+# the target branch. The run fails fast if the release already exists, and
+# the CI gate fails it if the commit does not pass analysis and tests (which
+# include test/app_info_test.dart, the pubspec ↔ AppInfo ↔ msix version
+# check).
+#
+# `dry_run: true` runs everything except tagging and publishing: the four
+# packages are still uploaded as workflow artifacts, which is how workflow
+# changes get validated on a branch before they reach main.
 name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and upload artifacts but do not create the release
+        type: boolean
+        default: false
 
+# Only the final job needs to write (tag + release); everything else is
+# read-only, including the reusable CI workflow.
 permissions:
-  contents: write
-
-env:
-  FLUTTER_VERSION: 3.44.7
+  contents: read
 
 jobs:
   version:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       version: ${{ steps.read.outputs.version }}
     steps:
@@ -36,15 +47,8 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Releasing version $VERSION"
 
-      - name: Verify AppInfo.version matches pubspec.yaml
-        run: |
-          APP_VERSION=$(grep -oP "version = '\K[^']+" lib/app_info.dart)
-          if [ "$APP_VERSION" != "${{ steps.read.outputs.version }}" ]; then
-            echo "::error::lib/app_info.dart ($APP_VERSION) != pubspec.yaml (${{ steps.read.outputs.version }}). Run the bump-version skill."
-            exit 1
-          fi
-
       - name: Ensure release does not already exist
+        if: ${{ !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -54,15 +58,21 @@ jobs:
             exit 1
           fi
 
-  build-windows:
+  # Same checks as a pull request: formatting, analysis, layer rules, tests.
+  check:
     needs: version
+    uses: ./.github/workflows/ci.yml
+
+  build-windows:
+    needs: [version, check]
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+          flutter-version-file: pubspec.yaml
           cache: true
       - run: flutter pub get
       - run: flutter build windows --release
@@ -78,14 +88,15 @@ jobs:
           if-no-files-found: error
 
   build-macos:
-    needs: version
+    needs: [version, check]
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+          flutter-version-file: pubspec.yaml
           cache: true
       - run: flutter pub get
       - run: flutter build macos --release
@@ -94,7 +105,7 @@ jobs:
         # plain zip would mangle. The build is unsigned — first launch needs
         # right-click > Open (or `xattr -cr`), noted in the release body.
         run: |
-          APP=$(ls -d build/macos/Build/Products/Release/*.app | head -1)
+          APP=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
           ditto -c -k --keepParent "$APP" \
             "dataset-training-tool-${{ needs.version.outputs.version }}-macos-universal.zip"
       - uses: actions/upload-artifact@v4
@@ -104,8 +115,9 @@ jobs:
           if-no-files-found: error
 
   build-linux:
-    needs: version
+    needs: [version, check]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Install Linux desktop build dependencies
@@ -115,7 +127,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+          flutter-version-file: pubspec.yaml
           cache: true
       - run: flutter pub get
       - run: flutter build linux --release
@@ -130,8 +142,9 @@ jobs:
           if-no-files-found: error
 
   package-server:
-    needs: version
+    needs: [version, check]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Package AiApiServer source
@@ -149,8 +162,12 @@ jobs:
           if-no-files-found: error
 
   release:
+    if: ${{ !inputs.dry_run }}
     needs: [version, build-windows, build-macos, build-linux, package-server]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:

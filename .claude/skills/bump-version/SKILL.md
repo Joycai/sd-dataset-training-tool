@@ -20,10 +20,10 @@ description: 升级/同步 app 版本号的完整流程:版本号写在哪几处
 
 **msix_version 要单独提醒的原因**:`.github/workflows/release.yml` 只出
 Windows/macOS/Linux 的 zip/tar 包和 AiApiServer 源码包,不会触发
-`dart run msix:create`,也就不会在 CI 里校验 msix 版本号是否同步——
-msix 安装包是本地手动打的(见 [msix 打包配置](../../../pubspec.yaml)
-里的 `msix_config`),漏改了不会有任何报错,只会在装完之后看着不对劲
-才发现。
+`dart run msix:create`——msix 安装包是本地手动打的(见
+[msix 打包配置](../../../pubspec.yaml) 里的 `msix_config`)。三处是否
+一致由 `test/app_info_test.dart` 在每次 CI 里校验,漏改会让 CI 变红,
+但不会阻止本地 `dart run msix:create` 打出一个版本号错误的包。
 
 ## 步骤
 
@@ -39,20 +39,25 @@ msix 安装包是本地手动打的(见 [msix 打包配置](../../../pubspec.yam
 5. **校验**(三处版本号必须逐字对应):
 
    ```bash
-   grep "^version:" pubspec.yaml && grep "version = " lib/app_info.dart && grep "msix_version:" pubspec.yaml
+   flutter test test/app_info_test.dart
    ```
 
-   然后跑 `flutter analyze --no-pub` 确认无告警。
+   该测试读 pubspec 与 `AppInfo.version`、`msix_version` 逐字比对,
+   与 CI 跑的是同一份校验。然后跑 `flutter analyze --no-pub` 确认无告警。
 
 ## 发版(版本号合入后)
 
 `.github/workflows/release.yml` 负责出包:在 GitHub Actions 页对目标分支
 手动触发 **Release** workflow 即可,它会:
 
-1. 从 `pubspec.yaml` 读版本号,并校验与 `AppInfo.version` 一致(不一致直接失败);
-2. 校验 release `vX.Y.Z` 尚不存在;
+1. 从 `pubspec.yaml` 读版本号,校验 release `vX.Y.Z` 尚不存在;
+2. 跑一遍完整 CI(`ci.yml`:格式、analyze、分层、全部测试,其中
+   `test/app_info_test.dart` 校验三处版本号一致),不过直接失败;
 3. 并行构建 Windows/macOS/Linux 桌面包 + AiApiServer 源码包;
 4. 自动打 tag `vX.Y.Z` 并创建 GitHub Release 挂上四个产物。
+
+勾选 `dry_run` 触发则只做前三步,四个包作为 workflow artifact 上传但不
+打 tag、不建 release,用于在分支上验证 workflow 改动。
 
 因此本 skill 只管改这三处版本号;tag 与 release 由 workflow 生成,**不要
 手动打版本 tag**。
