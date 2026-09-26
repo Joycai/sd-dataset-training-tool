@@ -17,6 +17,11 @@ void main() {
     await file.writeAsString(text);
   }
 
+  /// Names in [dir] (relative to the temp root), sorted.
+  Future<List<String>> entries([String dir = '']) async =>
+      [await for (final e in Directory(path(dir)).list()) p.basename(e.path)]
+        ..sort();
+
   Future<Map<String, String>> scan({
     String? root,
     bool recursive = false,
@@ -168,6 +173,8 @@ void main() {
         store.writeCaption(path('a.txt'), 'x'),
         throwsA(isA<FileSystemException>()),
       );
+      // The temporary file must not outlive the failed rename.
+      expect(await entries(), ['a.txt']);
     });
 
     test('writeCaption creates and overwrites', () async {
@@ -175,7 +182,39 @@ void main() {
       expect(await store.readCaption(path('a.txt')), 'one');
       await store.writeCaption(path('a.txt'), 'two');
       expect(await File(path('a.txt')).readAsString(), 'two');
+      expect(await entries(), ['a.txt']);
     });
+
+    test('writeCaption replaces a longer caption without a tail', () async {
+      await write('a.txt', 'a much longer caption than the next one');
+      await store.writeCaption(path('a.txt'), 'short');
+      expect(await File(path('a.txt')).readAsString(), 'short');
+    });
+
+    test(
+      'writeCaption keeps the old caption when the directory is read-only',
+      () async {
+        await write('sub/a.txt', 'old');
+        final dir = Directory(path('sub'));
+        await Process.run('chmod', ['555', dir.path]);
+        addTearDown(() => Process.run('chmod', ['755', dir.path]));
+
+        Object? error;
+        try {
+          await store.writeCaption(path('sub/a.txt'), 'new');
+        } catch (e) {
+          error = e;
+        }
+        if (error == null) {
+          markTestSkipped('chmod 555 did not block writing (running as root?)');
+          return;
+        }
+        expect(error, isA<FileSystemException>());
+        expect(await File(path('sub/a.txt')).readAsString(), 'old');
+        expect(await entries('sub'), ['a.txt']);
+      },
+      skip: Platform.isWindows ? 'relies on chmod' : false,
+    );
 
     test('isNonEmptyFile', () async {
       await write('empty.txt');

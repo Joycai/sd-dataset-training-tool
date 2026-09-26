@@ -61,9 +61,39 @@ class DatasetStore {
     return file.readAsString();
   }
 
-  /// Creates or overwrites the caption file. Throws [FileSystemException].
-  Future<void> writeCaption(String captionPath, String text) =>
-      File(captionPath).writeAsString(text);
+  /// Creates or overwrites the caption file. The text is written to a
+  /// temporary file in the same directory and renamed over [captionPath], so
+  /// a crash mid-write leaves the previous caption intact rather than a
+  /// truncated one. Throws [FileSystemException]; the temporary file is
+  /// removed on failure.
+  ///
+  /// Accepted trade-offs of the rename: the new file gets default
+  /// permissions rather than the old file's, and a [captionPath] that is a
+  /// symlink is replaced by a regular file instead of written through.
+  Future<void> writeCaption(String captionPath, String text) async {
+    // Hidden and with an extension no scan looks for, so a leftover never
+    // shows up as an image or a caption. The pid and counter keep concurrent
+    // writers, in this process or another, off each other's file.
+    final temp = File(
+      p.join(
+        p.dirname(captionPath),
+        '.${p.basename(captionPath)}.$pid-${_nextTempId++}.tmp',
+      ),
+    );
+    try {
+      await temp.writeAsString(text, flush: true);
+      await temp.rename(captionPath);
+    } catch (_) {
+      try {
+        await temp.delete();
+      } on FileSystemException {
+        // Never created, or gone already: nothing to clean up.
+      }
+      rethrow;
+    }
+  }
+
+  static int _nextTempId = 0;
 
   /// Whether [path] exists and is larger than zero bytes.
   Future<bool> isNonEmptyFile(String path) async {
