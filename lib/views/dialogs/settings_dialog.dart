@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../app_info.dart';
-import '../l10n/app_localizations.dart';
-import '../models/agent_tool_pack.dart';
-import '../models/llm_models.dart';
-import '../models/tag_translation.dart';
-import '../services/external_url_opener.dart';
-import '../services/font_service.dart';
-import '../services/tag_dictionary_service.dart';
-import '../state/app_state.dart';
-import '../theme/app_theme.dart';
-import '../utils/platform_shortcuts.dart';
-import '../widgets/panel_widgets.dart';
-import 'dialogs/caption_type_dialog.dart';
-import 'dialogs/data_transfer_dialog.dart';
-import 'dialogs/llm_profile_dialog.dart';
-import 'dialogs/prompt_preset_dialog.dart';
-import 'dialogs/tag_dictionary_dialog.dart';
+import '../../app_info.dart';
+import '../../l10n/app_localizations.dart';
+import '../../models/agent_tool_pack.dart';
+import '../../models/llm_models.dart';
+import '../../models/tag_translation.dart';
+import '../../services/external_url_opener.dart';
+import '../../services/font_service.dart';
+import '../../services/tag_dictionary_service.dart';
+import '../../state/app_state.dart';
+import '../../theme/app_theme.dart';
+import '../../utils/platform_shortcuts.dart';
+import '../../widgets/panel_widgets.dart';
+import 'caption_type_dialog.dart';
+import 'data_transfer_dialog.dart';
+import 'llm_profile_dialog.dart';
+import 'prompt_preset_dialog.dart';
+import 'tag_dictionary_dialog.dart';
 
 /// Opens settings as a fixed-size modal, macOS System Settings style: a
 /// source list on the left, one group of cards at a time on the right.

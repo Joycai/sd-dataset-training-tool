@@ -10,7 +10,7 @@ import 'package:dataset_training_tool/state/app_state.dart';
 import 'package:dataset_training_tool/state/data_transfer.dart';
 import 'package:dataset_training_tool/theme/app_theme.dart';
 import 'package:dataset_training_tool/views/dialogs/data_transfer_dialog.dart';
-import 'package:dataset_training_tool/views/settings_view.dart';
+import 'package:dataset_training_tool/views/dialogs/settings_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';

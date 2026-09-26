@@ -10,8 +10,8 @@ import '../../state/workbench_layout.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/platform_shortcuts.dart';
 import '../dialogs/batch_tag_dialog.dart';
+import '../dialogs/settings_dialog.dart';
 import '../dialogs/tag_dictionary_dialog.dart';
-import '../settings_view.dart';
 
 /// The vertical icon rail: one entry per workbench area, settings pinned to
 /// the bottom.
