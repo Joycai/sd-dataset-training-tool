@@ -29,8 +29,7 @@ Inside `views/`:
   `tag_context_menu.dart`) or that only one of them uses (`subdirectory_picker.dart`).
 - `dialogs/`: every modal opened via a public `show…Dialog` function. A small
   dialog that one panel opens and nothing else needs can stay private in that
-  panel's file. `views/settings_view.dart` (`showSettingsDialog`) predates this
-  rule and has not been moved yet; new dialogs go in `dialogs/`.
+  panel's file.
 - `image_preview_window.dart`: the root widget of the separate preview window,
   which `main.dart` runs in its own engine.
 

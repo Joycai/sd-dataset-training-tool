@@ -16,7 +16,7 @@ import '../../theme/app_theme.dart';
 import '../dialogs/character_sheet_dialog.dart';
 import '../dialogs/llm_profile_dialog.dart';
 import '../dialogs/prompt_preset_dialog.dart';
-import '../settings_view.dart';
+import '../dialogs/settings_dialog.dart';
 
 /// The chat bubbles' base text style; the streaming bubble renders with it
 /// directly so the switch to markdown at the end doesn't visibly reflow.

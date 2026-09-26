@@ -51,7 +51,9 @@ class _WorkbenchViewState extends State<WorkbenchView> {
 
   final DatasetState _dataset = DatasetState();
   late final EditorSession _session = EditorSession(store: _dataset.store);
-  final AiTaggerState _aiTagger = AiTaggerState(SettingsService());
+  // Both need the settings store from AppState, so initState builds them
+  // once the provider is reachable.
+  late final AiTaggerState _aiTagger;
   late final TagOps _tagOps = TagOps(
     dataset: _dataset,
     // Flush pending editor changes before any batch rewrite so they can't be
@@ -59,16 +61,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     beforeMutate: () => _session.flush(),
     onCaptionsChanged: _reloadSessionIfTouched,
   );
-  late final BatchTagState _batchTag = BatchTagState(
-    dataset: _dataset,
-    ai: _aiTagger,
-    settings: SettingsService(),
-    beforeMutate: () => _session.flush(),
-    // The run rewrites files itself; the finished operation joins the same
-    // undo history as the manual batch edits.
-    onOperation: _tagOps.pushOperation,
-    onCaptionsChanged: _reloadSessionIfTouched,
-  );
+  late final BatchTagState _batchTag;
   final PreviewWindowLauncher _previewWindow = PreviewWindowLauncher();
   final FocusNode _libraryFilterFocus = FocusNode();
   final ShortcutRelay _shortcutRelay = ShortcutRelay();
@@ -98,6 +91,18 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     // Held as a field, not re-read on demand: dispose() unsubscribes from it,
     // and by then the element is deactivated and an ancestor lookup throws.
     final appState = _appState = context.read<AppState>();
+    final settings = appState.settingsService;
+    _aiTagger = AiTaggerState(settings);
+    _batchTag = BatchTagState(
+      dataset: _dataset,
+      ai: _aiTagger,
+      settings: settings,
+      beforeMutate: () => _session.flush(),
+      // The run rewrites files itself; the finished operation joins the same
+      // undo history as the manual batch edits.
+      onOperation: _tagOps.pushOperation,
+      onCaptionsChanged: _reloadSessionIfTouched,
+    );
     _leftWidth = ValueNotifier(appState.leftPanelWidth);
     _rightWidth = ValueNotifier(appState.rightPanelWidth);
     _centerSplit = ValueNotifier(appState.centerSplit);
@@ -126,7 +131,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
       tagOps: _tagOps,
       aiTagger: _aiTagger,
     );
-    SettingsService().loadAgentPanelOpen().then((value) {
+    settings.loadAgentPanelOpen().then((value) {
       if (mounted) setState(() => _agentOpen = value);
     });
 
@@ -329,7 +334,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
 
   void _toggleAgentPanel() {
     setState(() => _agentOpen = !_agentOpen);
-    SettingsService().saveAgentPanelOpen(_agentOpen);
+    _appState.settingsService.saveAgentPanelOpen(_agentOpen);
   }
 
   // Workbench shortcuts, dispatched from the root Focus node instead of a

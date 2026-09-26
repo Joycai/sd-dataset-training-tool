@@ -17,6 +17,11 @@ void main() {
     await file.writeAsString(text);
   }
 
+  /// Names in [dir] (relative to the temp root), sorted.
+  Future<List<String>> entries([String dir = '']) async =>
+      [await for (final e in Directory(path(dir)).list()) p.basename(e.path)]
+        ..sort();
+
   Future<Map<String, String>> scan({
     String? root,
     bool recursive = false,
@@ -168,6 +173,8 @@ void main() {
         store.writeCaption(path('a.txt'), 'x'),
         throwsA(isA<FileSystemException>()),
       );
+      // The temporary file must not outlive the failed rename.
+      expect(await entries(), ['a.txt']);
     });
 
     test('writeCaption creates and overwrites', () async {
@@ -175,7 +182,63 @@ void main() {
       expect(await store.readCaption(path('a.txt')), 'one');
       await store.writeCaption(path('a.txt'), 'two');
       expect(await File(path('a.txt')).readAsString(), 'two');
+      expect(await entries(), ['a.txt']);
     });
+
+    test('writeCaption replaces a longer caption without a tail', () async {
+      await write('a.txt', 'a much longer caption than the next one');
+      await store.writeCaption(path('a.txt'), 'short');
+      expect(await File(path('a.txt')).readAsString(), 'short');
+    });
+
+    test('writeCaption accepts a name near the file system limit', () async {
+      // The temporary file's name must not grow past what the target's may.
+      final name = '${'a' * 240}.txt';
+      await store.writeCaption(path(name), 'x');
+      expect(await File(path(name)).readAsString(), 'x');
+      expect(await entries(), [name]);
+    });
+
+    test('writeCaption refuses a read-only caption', () async {
+      await write('a.txt', 'old');
+      await Process.run('chmod', ['444', path('a.txt')]);
+      addTearDown(() => Process.run('chmod', ['644', path('a.txt')]));
+      if (await _canWrite(File(path('a.txt')))) {
+        markTestSkipped('chmod 444 did not block writing (running as root?)');
+        return;
+      }
+
+      await expectLater(
+        store.writeCaption(path('a.txt'), 'new'),
+        throwsA(isA<FileSystemException>()),
+      );
+      expect(await File(path('a.txt')).readAsString(), 'old');
+      expect(await entries(), ['a.txt']);
+    }, skip: Platform.isWindows ? 'relies on chmod' : false);
+
+    test(
+      'writeCaption keeps the old caption when the directory is read-only',
+      () async {
+        await write('sub/a.txt', 'old');
+        final dir = Directory(path('sub'));
+        await Process.run('chmod', ['555', dir.path]);
+        addTearDown(() => Process.run('chmod', ['755', dir.path]));
+        // Probed separately from the call under test: an in-place write
+        // would succeed here, and must fail the test rather than skip it.
+        if (await _canCreateIn(dir)) {
+          markTestSkipped('chmod 555 did not block writing (running as root?)');
+          return;
+        }
+
+        await expectLater(
+          store.writeCaption(path('sub/a.txt'), 'new'),
+          throwsA(isA<FileSystemException>()),
+        );
+        expect(await File(path('sub/a.txt')).readAsString(), 'old');
+        expect(await entries('sub'), ['a.txt']);
+      },
+      skip: Platform.isWindows ? 'relies on chmod' : false,
+    );
 
     test('isNonEmptyFile', () async {
       await write('empty.txt');
@@ -208,4 +271,24 @@ void main() {
       expect(await store.directoryExists(path('missing')), isFalse);
     });
   });
+}
+
+Future<bool> _canWrite(File file) async {
+  try {
+    await (await file.open(mode: FileMode.append)).close();
+    return true;
+  } on FileSystemException {
+    return false;
+  }
+}
+
+Future<bool> _canCreateIn(Directory dir) async {
+  final probe = File(p.join(dir.path, 'probe'));
+  try {
+    await probe.create();
+    await probe.delete();
+    return true;
+  } on FileSystemException {
+    return false;
+  }
 }
