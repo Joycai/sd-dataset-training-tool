@@ -41,7 +41,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # This is a Flutter app (flutter/flutter_localizations SDK deps), so it
       # needs the Flutter toolchain rather than a bare Dart SDK.
