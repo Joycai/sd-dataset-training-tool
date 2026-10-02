@@ -4,7 +4,7 @@ Cross-checks MODEL_METADATA keys against every model name list, and checks
 the index-aligned parallel lists for length drift. Parses the file as AST so
 it runs without torch or any server dependency.
 
-Usage: python .claude/skills/update-models/scripts/check_metadata.py
+Usage: python .agents/skills/update-models/scripts/check_metadata.py
 Exit code 0 = consistent, 1 = problems printed.
 """
 import ast

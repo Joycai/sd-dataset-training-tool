@@ -145,3 +145,10 @@ __pycache__/
 
 # Claude Code task workspaces (dev-workflow)
 .claude/tasks/
+
+# Local agent state; shared instructions, skills and Codex config stay tracked
+.claude/settings.local.json
+.claude/worktrees/
+.codex/config.local.toml
+.codex/logs/
+.codex/sessions/

@@ -1,0 +1,4 @@
+# Migrated from .mcp.json. Requires the local IntelliJ MCP server and
+# a trusted Codex project; host model and approval settings are inherited.
+[mcp_servers.idea]
+url = "http://127.0.0.1:64342/stream"

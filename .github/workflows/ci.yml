@@ -11,7 +11,8 @@ on:
       - 'wiki/**'
       - '**.md'
       - 'AiApiServer/**'
-      - '.claude/**'
+      - '.agents/**'
+      - '.codex/**'
   pull_request:
     branches: [ "main" ]
     paths-ignore:
@@ -19,7 +20,8 @@ on:
       - 'wiki/**'
       - '**.md'
       - 'AiApiServer/**'
-      - '.claude/**'
+      - '.agents/**'
+      - '.codex/**'
   # Reused by release.yml as its pre-build gate. paths-ignore does not apply
   # to calls, so a release always runs the full set.
   workflow_call:

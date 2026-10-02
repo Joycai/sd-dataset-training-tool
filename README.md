@@ -2,7 +2,7 @@
 
 <div align="center">
   <a href="https://flutter.dev" target="_blank">
-    <img src="https://img.shields.io/badge/Framework-Flutter_3.35%2B-02569B?logo=flutter" alt="Flutter">
+    <img src="https://img.shields.io/badge/Framework-Flutter_3.47.5-02569B?logo=flutter" alt="Flutter">
   </a>
   <a href="https://dart.dev" target="_blank">
     <img src="https://img.shields.io/badge/Language-Dart-0175C2?logo=dart" alt="Dart">
@@ -160,3 +160,8 @@ python main.py    # 监听 0.0.0.0:50051
 
 - **[Joycai](https://github.com/Joycai)** - 初始想法与贡献
 - **Gemini (Google)** / **Claude (Anthropic)** - 编码与实现
+
+## Codex 开发工作流
+
+仓库开发规范见 [AGENTS.md](AGENTS.md)，可复用技能在 `.agents/skills/`。
+迁移计划、验证结果与回退方式见 [Codex 迁移计划](docs/plans/CODEX_MIGRATION_PLAN.md)。

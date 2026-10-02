@@ -2,7 +2,7 @@
 
 > 目标：为 Flutter 桌面应用 **DataSetTrainingTool** 增加"调用 AiApiServer 识别当前图片、生成 WD14 风格 tag"的**后台能力**。
 > 本阶段**只做 service 层（网络 + 数据模型 + 设置持久化）**，不涉及 UI / 交互——UI 待产品确定后另行开发。
-> 本文档供 Claude Code 在本机（可运行 `flutter` / `dart`）执行。
+> 本文档供 Codex 在本机（可运行 `flutter` / `dart`）执行。
 
 ---
 
@@ -739,7 +739,7 @@ service 层与现有状态对接非常直接，供后续参考：
 
 ---
 
-## 7. 待办清单（Claude Code 执行）
+## 7. 待办清单（Codex 执行）
 
 - [ ] 1. `pubspec.yaml` 增加 `http: ^1.2.2`，运行 `flutter pub get`。
 - [ ] 2. 新建 `lib/models/ai_tagger_models.dart`（第 4.1 节完整内容）。

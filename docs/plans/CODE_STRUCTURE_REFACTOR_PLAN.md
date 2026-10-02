@@ -47,7 +47,7 @@
 | 2.3 | 修排序、格式化 | `dart fix --apply --code=directives_ordering && dart format lib test tool` |
 | 2.4 | 删除空目录 | `lib/services/agent/` |
 | 2.5 | 常量下沉（P1） | 新建 `models/image_formats.dart`；改 `caption_type.dart`、`dataset_state.dart`（LLD §4.1） |
-| 2.6 | 同步非代码引用 | `models/data_bundle.dart` 注释路径；`.claude/skills/update-models/SKILL.md` 中 dialog 路径 |
+| 2.6 | 同步非代码引用 | `models/data_bundle.dart` 注释路径；`.agents/skills/update-models/SKILL.md` 中 dialog 路径 |
 | 2.7 | 分层校验 | 运行附录 B 脚本，要求 0 violation |
 
 **试过但放弃**：删掉 `settings_service.dart` 对 `theme/` 的 import。它实际使用 `AppMetrics` 作默认面板宽度，删后编译失败；按 LLD §3 判定为合法依赖，已还原。

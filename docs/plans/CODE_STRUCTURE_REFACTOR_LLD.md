@@ -205,7 +205,7 @@ const Set<String> supportedImageExtensions = {
 | `l10n.yaml` | 删除残留注释行 |
 | `.github/workflows/dart.yml` | analyze 之前新增 `dart format --output=none --set-exit-if-changed lib test tool` |
 | 根目录方案文档 | `AI_TAGGER_INTEGRATION_PLAN.md`、`LLM_AGENT_INTEGRATION_PLAN.md` → `docs/plans/`（历史文档，正文中的旧路径不改写） |
-| `.claude/skills/update-models/SKILL.md` | `ai_params_dialog.dart` 路径同步为 `views/dialogs/` |
+| `.agents/skills/update-models/SKILL.md` | `ai_params_dialog.dart` 路径同步为 `views/dialogs/` |
 | `docs/ARCHITECTURE.md` | 新增：分层规则与约定的长期入口 |
 
 ---

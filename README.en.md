@@ -2,7 +2,7 @@
 
 <div align="center">
   <a href="https://flutter.dev" target="_blank">
-    <img src="https://img.shields.io/badge/Framework-Flutter_3.35%2B-02569B?logo=flutter" alt="Flutter">
+    <img src="https://img.shields.io/badge/Framework-Flutter_3.47.5-02569B?logo=flutter" alt="Flutter">
   </a>
   <a href="https://dart.dev" target="_blank">
     <img src="https://img.shields.io/badge/Language-Dart-0175C2?logo=dart" alt="Dart">
@@ -160,3 +160,8 @@ This project is licensed under the **GNU General Public License v3.0**. See the 
 
 - **[Joycai](https://github.com/Joycai)** - Initial idea and contributions
 - **Gemini (Google)** / **Claude (Anthropic)** - Coding and implementation
+
+## Codex development workflow
+
+See [AGENTS.md](AGENTS.md) for repository guidance and `.agents/skills/` for reusable workflows.
+The [Codex migration plan](docs/plans/CODEX_MIGRATION_PLAN.md) records setup, validation and rollback.
