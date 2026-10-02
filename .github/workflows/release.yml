@@ -1,7 +1,7 @@
 # Release pipeline: runs the CI gate (ci.yml), builds desktop bundles for
 # Windows/macOS/Linux plus the AiApiServer source package, then creates a
 # GitHub Release tagged from the version in pubspec.yaml (the single source
-# of truth — see the bump-version skill in .claude/skills/).
+# of truth — see the bump-version skill in .agents/skills/).
 #
 # Trigger manually from the Actions tab once the version bump has landed on
 # the target branch. The run fails fast if the release already exists, and

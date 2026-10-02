@@ -77,7 +77,7 @@ description: 向 AiApiServer 添加/更新/下架 AI 模型(打标、描述、�
 ## 5. 校验(改完必跑)
 
 ```bash
-python .claude/skills/update-models/scripts/check_metadata.py
+python .agents/skills/update-models/scripts/check_metadata.py
 python -m py_compile AiApiServer/models.py AiApiServer/main.py
 ```
 

@@ -51,12 +51,12 @@
 | 1.2 | 权限 | 顶层 `permissions: { contents: read }` |
 | 1.3 | 并发 | 顶层 `concurrency: { group: ${{ github.workflow }}-${{ github.ref }}, cancel-in-progress: true }` |
 | 1.4 | 超时 | job 级 `timeout-minutes: 15`（当前 3.5 分钟，留 4 倍余量） |
-| 1.5 | 路径过滤 | `push` 与 `pull_request` 各加 `paths-ignore: ['docs/**', 'wiki/**', '**.md', 'AiApiServer/**', '.claude/**']` |
+| 1.5 | 路径过滤 | `push` 与 `pull_request` 各加 `paths-ignore: ['docs/**', 'wiki/**', '**.md', 'AiApiServer/**', '.agents/**', '.codex/**']` |
 | 1.6 | l10n 校验 | 步骤改为 `flutter gen-l10n && test -z "$(git status --porcelain lib/l10n)"`，失败时先 `git status lib/l10n` 打印差异 |
 | 1.7 | 测试报告 | **不改**。`flutter test` 在 `GITHUB_ACTIONS` 环境下已默认使用 `github` reporter（现有日志里的 ✅ 标记即其输出），显式传参无收益 |
 
 **说明**：
-- 1.5 的 `.claude/**` 是 skills 与本地配置，不影响构建；若后续把 `bump-version` 等 skill 的校验脚本纳入 CI，再从列表移除。
+- 1.5 的 `.agents/**` 与 `.codex/**` 是 skills 与本地配置，不影响构建；若后续把 `bump-version` 等 skill 的校验脚本纳入 CI，再从列表移除。
 - 1.5 在以后启用分支保护 required check 时会出现 "expected" 挂起。届时改为 `dorny/paths-filter` 在 job 内跳过步骤，而不是在触发层过滤。
 
 **验收**：PR 上连续推两次，第一次 run 状态为 `cancelled`；只改 `README.md` 的提交不触发 CI；Actions 列表中工作流名为 `CI`。
@@ -106,7 +106,7 @@
 | --- | --- | --- |
 | 3.2.1 | 新建 `test/app_info_test.dart` | 读 `pubspec.yaml`（测试运行时 cwd 为项目根），解析 `version: X.Y.Z+N`，断言 `AppInfo.version == 'X.Y.Z'`，断言 `msix_config.msix_version == 'X.Y.Z.N'` |
 | 3.2.2 | 解析方式 | 不引入 `yaml` 包，用正则逐行匹配 `^version:` 与 `^\s+msix_version:`，与 release.yml 现有 grep 逻辑等价 |
-| 3.2.3 | 更新 skill | `.claude/skills/bump-version/SKILL.md` 的校验一节加一句：`flutter test test/app_info_test.dart` 可一次验证三处一致 |
+| 3.2.3 | 更新 skill | `.agents/skills/bump-version/SKILL.md` 的校验一节加一句：`flutter test test/app_info_test.dart` 可一次验证三处一致 |
 
 **验收**：手改 `AppInfo.version` 为错误值时该测试失败，改回后通过。
 
