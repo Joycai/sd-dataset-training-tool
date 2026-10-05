@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
@@ -8,6 +9,7 @@ import '../agent/caption_edit_tools.dart';
 import '../agent/caption_variant_tools.dart';
 import '../agent/character_sheet.dart';
 import '../agent/dataset_tools.dart';
+import '../agent/image_preprocess_tools.dart';
 import '../agent/json_caption_tools.dart';
 import '../agent/media_tools.dart';
 import '../agent/merge_rule_tools.dart';
@@ -23,6 +25,7 @@ import '../services/llm/openai_compat_client.dart';
 import 'ai_tagger_state.dart';
 import 'app_state.dart';
 import 'dataset_state.dart';
+import 'image_operation_state.dart';
 import 'tag_ops.dart';
 
 enum AgentEntryKind { user, assistant, tool, notice, rules, reasoning }
@@ -106,7 +109,9 @@ class AgentChatEntry {
 /// A write tool call waiting for the user's go-ahead; the panel renders it
 /// as a confirmation bar and resolves the completer.
 class PendingWriteConfirm {
-  PendingWriteConfirm(this.toolName, this.argsJson);
+  PendingWriteConfirm(this.toolName, this.argsJson, {this.scope = ''});
+
+  final String scope;
 
   final String toolName;
   final String argsJson;
@@ -144,21 +149,28 @@ class AgentChatState extends ChangeNotifier {
     required this.dataset,
     required this.tagOps,
     required this.aiTagger,
-  });
+    this.imageOperations,
+    Map<LlmApiKind, LlmClient>? clients,
+  }) : _clients =
+           clients ??
+           {
+             LlmApiKind.openaiCompat: OpenAiCompatClient(),
+             LlmApiKind.anthropic: AnthropicClient(),
+           };
 
   final AppState app;
   final DatasetState dataset;
   final TagOps tagOps;
   final AiTaggerState aiTagger;
+  final ImageOperationState? imageOperations;
 
-  final Map<LlmApiKind, LlmClient> _clients = {
-    LlmApiKind.openaiCompat: OpenAiCompatClient(),
-    LlmApiKind.anthropic: AnthropicClient(),
-  };
+  final Map<LlmApiKind, LlmClient> _clients;
 
   final List<AgentChatEntry> entries = [];
   AgentSession? _session;
   bool _busy = false;
+  bool _disposed = false;
+  Completer<void>? _settled;
   bool _allowAllWrites = false;
 
   /// Non-null while a write tool waits for the user's decision.
@@ -234,6 +246,7 @@ class AgentChatState extends ChangeNotifier {
   static const _streamNotifyInterval = Duration(milliseconds: 33);
 
   void _touch() {
+    if (_disposed) return;
     revision++;
     // A structural change must not be reordered behind a pending delta tick.
     _streamNotifyTimer?.cancel();
@@ -244,6 +257,7 @@ class AgentChatState extends ChangeNotifier {
   /// [_touch] for text/reasoning deltas: coalesces bursts into at most one
   /// notification per [_streamNotifyInterval].
   void _touchCoalesced() {
+    if (_disposed) return;
     revision++;
     if (_streamNotifyTimer != null) return;
     _streamNotifyTimer = Timer(_streamNotifyInterval, () {
@@ -305,6 +319,7 @@ class AgentChatState extends ChangeNotifier {
       _consume(events);
 
   Future<void> _consume(Stream<AgentUiEvent> events) async {
+    _settled = Completer<void>();
     AgentChatEntry? assistant;
     AgentChatEntry? reasoning;
     // The entry AgentToolStarted created, held directly: execution is
@@ -314,6 +329,7 @@ class AgentChatState extends ChangeNotifier {
     AgentChatEntry? runningTool;
     try {
       await for (final event in events) {
+        if (_disposed) continue;
         var isDelta = false;
         switch (event) {
           case AgentTextDelta(:final text):
@@ -379,6 +395,8 @@ class AgentChatState extends ChangeNotifier {
       }
     } finally {
       _busy = false;
+      _settled?.complete();
+      _settled = null;
       // Drop a tool entry left spinning by an abnormal end.
       for (final e in entries) {
         e.running = false;
@@ -416,15 +434,74 @@ class AgentChatState extends ChangeNotifier {
   /// Gate for write tools: transparent when confirmation is off or the user
   /// chose "allow all" for this conversation; otherwise blocks until the
   /// panel's confirmation bar resolves.
+  Future<String> _captionSnapshot() async {
+    final identity = dataset.scopeIdentity;
+    final captions = <String, String?>{};
+    for (final file in dataset.scopedFiles) {
+      for (final type in app.captionTypes) {
+        final path = captionPathOf(file.path, type.extension);
+        captions[path] = await dataset.store.readCaption(path);
+      }
+    }
+    if (identity != dataset.scopeIdentity) {
+      throw StateError('Dataset scope changed');
+    }
+    return jsonEncode({
+      'identity': identity,
+      'root': app.browsingDirectory,
+      'type': app.captionExtension,
+      'captions': captions,
+    });
+  }
+
   Future<bool> _confirmWrite(AgentTool tool, ChatToolCall call) async {
     if (!app.agentConfirmWrites || _allowAllWrites) return true;
-    final pending = PendingWriteConfirm(call.name, call.argumentsJson);
-    pendingConfirm = pending;
-    _touch();
-    final allowed = await pending.completer.future;
-    pendingConfirm = null;
-    _touch();
-    return allowed;
+    final session = _session;
+    try {
+      await tagOps.beforeMutate?.call();
+      final before = await _captionSnapshot();
+      if (session != _session || session?.cancelled == true || _disposed) {
+        return false;
+      }
+      final pending = PendingWriteConfirm(
+        call.name,
+        call.argumentsJson,
+        scope:
+            '${dataset.rootPath ?? ''} / ${dataset.activeSubdirectory ?? '*'} '
+            '(${dataset.scopedFiles.length}, ${dataset.captionExtension})',
+      );
+      pendingConfirm = pending;
+      _touch();
+      final allowed = await pending.completer.future;
+      pendingConfirm = null;
+      _touch();
+      if (!allowed ||
+          session != _session ||
+          session?.cancelled == true ||
+          _disposed) {
+        return false;
+      }
+      await tagOps.beforeMutate?.call();
+      final unchanged = before == await _captionSnapshot();
+      if (!unchanged) {
+        _allowAllWrites = false;
+        entries.add(
+          AgentChatEntry.notice(
+            AgentNoticeType.error,
+            'Dataset scope or captions changed while approval was pending; prepare the operation again.',
+          ),
+        );
+        _touch();
+      }
+      return unchanged;
+    } catch (e) {
+      pendingConfirm = null;
+      if (!_disposed) {
+        entries.add(AgentChatEntry.notice(AgentNoticeType.error, '$e'));
+        _touch();
+      }
+      return false;
+    }
   }
 
   /// Called by the confirmation bar. [allowAll] upgrades this conversation
@@ -552,6 +629,11 @@ class AgentChatState extends ChangeNotifier {
     );
     return ToolRegistry([
       ...buildReadOnlyTools(deps),
+      if (imageOperations case final operations?)
+        ...buildImagePreprocessTools(
+          operations,
+          supportsVision: profile.supportsVision,
+        ),
       ...buildWriteTools(deps, tagOps),
       // Unconditional despite living beside the variant tools: editing tags in
       // bulk is core, and it takes an extension only so a non-active type is
@@ -645,6 +727,7 @@ class AgentChatState extends ChangeNotifier {
             : null,
         jsonToolsEnabled: jsonTypes,
         visionEnabled: profile.supportsVision,
+        imagePreprocessEnabled: imageOperations != null,
         libraryToolsEnabled: app.isAgentToolPackEnabled(
           AgentToolPack.tagLibrary,
         ),
@@ -652,9 +735,22 @@ class AgentChatState extends ChangeNotifier {
           AgentToolPack.tagTranslation,
         ),
       ),
+      captureExecutionGuard: () {
+        final generation = dataset.generation;
+        final runRoot = app.browsingDirectory;
+        return () =>
+            generation != dataset.generation || runRoot != app.browsingDirectory
+            ? 'dataset changed during this run; send a new request'
+            : null;
+      },
       confirmWrite: _confirmWrite,
       confirmContinue: _confirmContinue,
     );
+  }
+
+  Future<void> stopAndWait() async {
+    stopRun();
+    await _settled?.future;
   }
 
   void stopRun() {
@@ -683,6 +779,7 @@ class AgentChatState extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _streamNotifyTimer?.cancel();
     resolveConfirm(allow: false);
     resolveQuestion(null);

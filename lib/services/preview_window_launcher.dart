@@ -7,6 +7,19 @@ import 'package:desktop_multi_window/desktop_multi_window.dart';
 class PreviewWindowLauncher {
   WindowController? _window;
 
+  Future<void> refreshIfOpen(List<String> imagePaths) async {
+    final window = _window;
+    if (window == null) return;
+    try {
+      await window.invokeMethod(
+        'update_image',
+        jsonEncode({'imagePaths': imagePaths, 'currentIndex': 0}),
+      );
+    } on WindowChannelException {
+      _window = null;
+    }
+  }
+
   Future<void> show(List<String> imagePaths, int currentIndex) async {
     final args = jsonEncode({
       'imagePaths': imagePaths,

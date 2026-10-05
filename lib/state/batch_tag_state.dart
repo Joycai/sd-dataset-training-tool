@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -128,12 +129,14 @@ class BatchTagState extends ChangeNotifier {
     required SettingsService settings,
     AiTaggerService? service,
     this.beforeMutate,
+    this.mutationBusy,
     this.onOperation,
     this.onCaptionsChanged,
   }) : _settings = settings,
        _service = service ?? AiTaggerService();
 
   final DatasetState dataset;
+  final bool Function()? mutationBusy;
   final AiTaggerState ai;
   final SettingsService _settings;
   final AiTaggerService _service;
@@ -190,6 +193,20 @@ class BatchTagState extends ChangeNotifier {
   int _failed = 0;
   String? _currentPath;
   String? _lastError;
+
+  Future<void> get whenIdle {
+    if (!_running) return Future.value();
+    final done = Completer<void>();
+    void changed() {
+      if (!_running) {
+        removeListener(changed);
+        done.complete();
+      }
+    }
+
+    addListener(changed);
+    return done.future;
+  }
 
   bool get running => _running;
   bool get cancelRequested => _cancelRequested;
@@ -320,7 +337,9 @@ class BatchTagState extends ChangeNotifier {
     String? unsupportedFormatMessage,
     String? wrongModelMessage,
   }) async {
-    if (_running || files.isEmpty) return false;
+    if (_running || files.isEmpty || (mutationBusy?.call() ?? false)) {
+      return false;
+    }
     final model = ai.modelName;
     if (model == null) return false;
     // The dialog shows the refusal for an unsupported caption type and never

@@ -1,6 +1,5 @@
-# Cheapest possible signal for AiApiServer: the sources compile and have no
-# undefined names. Nothing from requirements.txt is installed (torch alone is
-# gigabytes), so this is deliberately a syntax-level gate, not a test run.
+# Lightweight backend checks. Contract tests use Pillow and stub inference;
+# model weights and GPU dependencies are not installed.
 name: Server
 
 on:
@@ -39,3 +38,8 @@ jobs:
       # Rule set lives in AiApiServer/ruff.toml.
       - name: Lint
         run: pipx run ruff check AiApiServer
+
+      - name: Image processing contract tests
+        run: |
+          python -m pip install Pillow==11.3.0
+          python -m unittest discover -s AiApiServer/tests -p 'test_*.py'

@@ -21,6 +21,7 @@ import 'dart:convert';
 import 'package:path/path.dart' as p;
 
 import '../models/caption_type.dart';
+import '../models/operation_context.dart';
 import '../state/tag_ops.dart';
 import '../utils/tag_text.dart';
 import 'agent_tools.dart';
@@ -125,6 +126,7 @@ AgentTool _inspectTool(DatasetToolsDeps deps) => AgentTool(
     var missingFile = 0;
 
     for (final f in files) {
+      if (OperationContext.stopped) break;
       final rel = p.relative(f.path, from: root);
       String? text;
       try {
@@ -761,6 +763,7 @@ Future<AgentToolResult> _edit(
   final edits = <CaptionEdit>[];
 
   for (final f in files) {
+    if (OperationContext.stopped) break;
     final rel = p.relative(f.path, from: root);
     final captionPath = captionVariantPath(f.path, type);
     final String? before;
@@ -981,6 +984,7 @@ Future<AgentToolResult> _restructure(
   final edits = <CaptionEdit>[];
 
   for (final f in files) {
+    if (OperationContext.stopped) break;
     final rel = p.relative(f.path, from: root);
     final captionPath = captionVariantPath(f.path, type);
     final String? before;

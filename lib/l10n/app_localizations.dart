@@ -4834,6 +4834,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Prompt presets: {added} added, {updated} updated'**
   String dataImportReportPresets(int added, int updated);
+
+  /// No description provided for @imageProcessingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Image preprocessing'**
+  String get imageProcessingTitle;
+
+  /// No description provided for @imageProcessingReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Prepare and review'**
+  String get imageProcessingReview;
+
+  /// No description provided for @imageProcessingImages.
+  ///
+  /// In en, this message translates to:
+  /// **'images'**
+  String get imageProcessingImages;
+
+  /// No description provided for @imageProcessingCaptions.
+  ///
+  /// In en, this message translates to:
+  /// **'sidecars'**
+  String get imageProcessingCaptions;
+
+  /// No description provided for @imageProcessingReplaceWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace originals. Recoverable backups will be kept in .dataset-toolkit.'**
+  String get imageProcessingReplaceWarning;
+
+  /// No description provided for @imageProcessingCopyWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Create a separate dataset. Originals remain unchanged.'**
+  String get imageProcessingCopyWarning;
+
+  /// No description provided for @imageProcessingCaptionWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Captions are copied unchanged. Review captions after cropping or removing backgrounds. JPEG and padding use white in this dialog.'**
+  String get imageProcessingCaptionWarning;
+
+  /// No description provided for @imageProcessingForegroundWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses foreground mask bounds, not named-object detection. Preview shows up to four samples; inspect all outputs before training.'**
+  String get imageProcessingForegroundWarning;
+
+  /// No description provided for @imageProcessingBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'Before'**
+  String get imageProcessingBefore;
+
+  /// No description provided for @imageProcessingAfter.
+  ///
+  /// In en, this message translates to:
+  /// **'After'**
+  String get imageProcessingAfter;
+
+  /// No description provided for @imageProcessingApprove.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve this plan'**
+  String get imageProcessingApprove;
+
+  /// No description provided for @imageProcessingScope.
+  ///
+  /// In en, this message translates to:
+  /// **'Processes the active folder scope (up to 200 images). Narrow the folder scope for larger datasets.'**
+  String get imageProcessingScope;
+
+  /// No description provided for @imageProcessingResize.
+  ///
+  /// In en, this message translates to:
+  /// **'Resize'**
+  String get imageProcessingResize;
+
+  /// No description provided for @imageProcessingWidth.
+  ///
+  /// In en, this message translates to:
+  /// **'Width'**
+  String get imageProcessingWidth;
+
+  /// No description provided for @imageProcessingHeight.
+  ///
+  /// In en, this message translates to:
+  /// **'Height'**
+  String get imageProcessingHeight;
+
+  /// No description provided for @imageProcessingFit.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit within dimensions'**
+  String get imageProcessingFit;
+
+  /// No description provided for @imageProcessingCenterCrop.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill dimensions and center crop'**
+  String get imageProcessingCenterCrop;
+
+  /// No description provided for @imageProcessingPad.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit and pad with white'**
+  String get imageProcessingPad;
+
+  /// No description provided for @imageProcessingPrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename prefix (optional)'**
+  String get imageProcessingPrefix;
+
+  /// No description provided for @imageProcessingCrop.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop x, y, width, height (optional)'**
+  String get imageProcessingCrop;
+
+  /// No description provided for @imageProcessingUpscale.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow upscaling'**
+  String get imageProcessingUpscale;
+
+  /// No description provided for @imageProcessingLoadModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Load AI foreground models'**
+  String get imageProcessingLoadModels;
+
+  /// No description provided for @imageProcessingRemoveBackground.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove background'**
+  String get imageProcessingRemoveBackground;
+
+  /// No description provided for @imageProcessingCropForeground.
+  ///
+  /// In en, this message translates to:
+  /// **'Crop around foreground'**
+  String get imageProcessingCropForeground;
+
+  /// No description provided for @imageProcessingReplace.
+  ///
+  /// In en, this message translates to:
+  /// **'Replace originals instead of creating a separate dataset'**
+  String get imageProcessingReplace;
+
+  /// No description provided for @imageProcessingOperationId.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation ID (also works after restart)'**
+  String get imageProcessingOperationId;
+
+  /// No description provided for @imageProcessingUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo / recover this operation'**
+  String get imageProcessingUndo;
+
+  /// No description provided for @imageProcessingOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep original bytes (rename / copy only)'**
+  String get imageProcessingOriginal;
+
+  /// No description provided for @imageProcessingSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Find saved operations'**
+  String get imageProcessingSaved;
 }
 
 class _AppLocalizationsDelegate

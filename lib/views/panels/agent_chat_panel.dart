@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +18,7 @@ import '../dialogs/character_sheet_dialog.dart';
 import '../dialogs/llm_profile_dialog.dart';
 import '../dialogs/prompt_preset_dialog.dart';
 import '../dialogs/settings_dialog.dart';
+import 'image_operation_review.dart';
 
 /// The chat bubbles' base text style; the streaming bubble renders with it
 /// directly so the switch to markdown at the end doesn't visibly reflow.
@@ -250,6 +252,14 @@ class _AgentChatPanelState extends State<AgentChatPanel> {
           ),
         if (chat.pendingQuestion != null) _QuestionCard(chat: chat),
         if (chat.pendingContinue != null) _ContinueCard(chat: chat),
+        if (chat.imageOperations case final operations?)
+          TextButton.icon(
+            onPressed: chat.busy || operations.busy
+                ? null
+                : () => showImageProcessingDialog(context, operations),
+            icon: const Icon(Icons.crop, size: 16),
+            label: Text(l10n.imageProcessingTitle),
+          ),
         if (chat.pendingConfirm != null) _ConfirmBar(chat: chat),
         _InputRow(
           controller: _input,
@@ -1242,6 +1252,39 @@ class _ConfirmBar extends StatelessWidget {
 
   final AgentChatState chat;
 
+  Future<void> _approve(BuildContext context, {bool all = false}) async {
+    final pending = chat.pendingConfirm;
+    if (pending == null) return;
+    if (pending.toolName == 'apply_image_operation_plan') {
+      final operations = chat.imageOperations;
+      Object? decoded;
+      try {
+        decoded = jsonDecode(pending.argsJson);
+      } on FormatException {
+        chat.resolveConfirm(allow: false);
+        return;
+      }
+      if (decoded is! Map<String, dynamic>) {
+        chat.resolveConfirm(allow: false);
+        return;
+      }
+      final plan = operations?.plans[decoded['id']];
+      if (operations == null || plan == null) {
+        chat.resolveConfirm(allow: false);
+        return;
+      }
+      final approved = await showImageOperationReview(
+        context,
+        operations,
+        plan,
+      );
+      if (!identical(chat.pendingConfirm, pending)) return;
+      chat.resolveConfirm(allow: approved, allowAll: all && approved);
+    } else {
+      chat.resolveConfirm(allow: true, allowAll: all);
+    }
+  }
+
   static String _clip(String s) =>
       s.length <= 300 ? s : '${s.substring(0, 300)}…';
 
@@ -1280,6 +1323,7 @@ class _ConfirmBar extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(pending.toolName, style: monoStyle(context, size: 11.5)),
+          if (pending.scope.isNotEmpty) Text(pending.scope),
           if (pending.argsJson.isNotEmpty && pending.argsJson != '{}')
             Padding(
               padding: const EdgeInsets.only(top: 2),
@@ -1299,7 +1343,7 @@ class _ConfirmBar extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                onPressed: () => chat.resolveConfirm(allow: true),
+                onPressed: () => _approve(context),
                 child: Text(l10n.agentConfirmAllow),
               ),
               const SizedBox(width: 6),
@@ -1308,8 +1352,7 @@ class _ConfirmBar extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   textStyle: const TextStyle(fontSize: 11.5),
                 ),
-                onPressed: () =>
-                    chat.resolveConfirm(allow: true, allowAll: true),
+                onPressed: () => _approve(context, all: true),
                 child: Text(l10n.agentConfirmAllowAll),
               ),
               const Spacer(),

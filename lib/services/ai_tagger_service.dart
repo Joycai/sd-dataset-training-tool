@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
 import '../models/ai_tagger_models.dart';
+import '../models/operation_context.dart';
 
 /// Raised when the AI tagging server is unreachable or returns an error.
 class AiTaggerException implements Exception {
@@ -82,12 +83,18 @@ class AiTaggerService {
     Duration timeout,
   ) async {
     try {
+      OperationContext.check();
+      final request =
+          http.AbortableRequest(
+              'POST',
+              _uri(baseUrl, path),
+              abortTrigger: OperationContext.current?.cancelSignal,
+            )
+            ..headers['Content-Type'] = 'application/json'
+            ..body = jsonEncode(body);
       return await _client
-          .post(
-            _uri(baseUrl, path),
-            headers: const {'Content-Type': 'application/json'},
-            body: jsonEncode(body),
-          )
+          .send(request)
+          .then(http.Response.fromStream)
           .timeout(timeout);
     } on TimeoutException {
       throw AiTaggerException('Request timed out after ${timeout.inSeconds}s.');

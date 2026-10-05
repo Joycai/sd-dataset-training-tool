@@ -11,7 +11,7 @@ against current code before treating old checklists as unfinished work.
 
 ## Toolchain and validation
 
-Use the exact Flutter version pinned in `pubspec.yaml` (currently 3.47.5),
+Use the exact Flutter version pinned in `pubspec.yaml` (currently 3.47.6),
 including its bundled Dart SDK. Do not upgrade dependencies to solve a local SDK
 mismatch. Run commands from the repository root unless stated otherwise.
 

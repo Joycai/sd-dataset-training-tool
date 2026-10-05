@@ -14,7 +14,7 @@
 
 | 项目 | 要求 |
 |------|------|
-| Flutter SDK | **3.47.5（精确版本）**（Dart SDK `>=3.9.0`，见 [pubspec.yaml](../pubspec.yaml)） |
+| Flutter SDK | **3.47.6（精确版本）**（Dart SDK `>=3.9.0`，见 [pubspec.yaml](../pubspec.yaml)） |
 | 渠道 | stable |
 
 获取依赖：

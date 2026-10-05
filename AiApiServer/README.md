@@ -70,3 +70,30 @@ pip install "onnxruntime-gpu==1.22.0"
 
 装依赖时若 pip 解析出过新的 onnxruntime-gpu，参照 torch 的 `+cuXXX` 后缀
 选择匹配的大版本即可。
+
+
+### 图像预处理接口 v1
+
+保留 `/editimage` 的历史格式行为。新的桌面图像预处理使用：
+
+- `GET /v1/imageprocessing/capabilities`：返回 `version: 1`、
+  `foreground_models`、`output_formats: ["png"]` 和
+  `named_object_detection: false`。
+- `POST /v1/imageprocessing/foreground`：JSON 字段为 `version: 1`、
+  `model`（从 capabilities 选择）、`image`（base64 图片字节）。
+  返回 `image`（RGBA PNG base64）、`mime_type: "image/png"`、
+  `width`、`height`、`coordinate_frame: "exif_normalized_pixels"` 和
+  `foreground_bounds`（左、上、右、下；无前景时为 null）。
+
+接口先应用 EXIF 方向，拒绝多帧图像、超过 40 百万像素或 100 MiB 的输入。
+PNG alpha 不受输入文件扩展名影响。当前仅支持前景蒙版；不声称支持任意
+指定物体检测。客户端负责裁剪、调整尺寸、转换格式、预览和可恢复文件事务。
+客户端取消 HTTP 后，已经开始的模型推理可能继续；返回结果不会自动写入数据集。
+
+无需 GPU 的协议回归测试：
+
+```bash
+python -m unittest discover -s AiApiServer/tests -p 'test_*.py'
+```
+
+测试需要 Pillow；使用替身模型，不验证真实模型质量。

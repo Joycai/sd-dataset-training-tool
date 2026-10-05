@@ -8,7 +8,7 @@ environment:
   # Exact version on purpose: CI and release.yml install this via
   # subosito/flutter-action's flutter-version-file, and `flutter pub get`
   # refuses a mismatched local SDK, so all three toolchains stay identical.
-  flutter: 3.47.5
+  flutter: 3.47.6
 
 dependencies:
   flutter:
@@ -20,10 +20,12 @@ dependencies:
   file_picker: ^13.1.0
   path: ^1.9.1
   path_provider: ^2.1.5
-  http: ^1.2.2
+  # AbortableRequest is used for cooperative AI request cancellation.
+  http: ^1.5.0
   image: ^4.10.1
   markdown_widget: ^2.3.2
   archive: ^4.3.0
+  crypto: ^3.0.7
   desktop_multi_window: ^0.3.1
   file_saver: ^0.6.0
   reorderable_grid_view: ^2.2.8

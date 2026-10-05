@@ -2784,4 +2784,99 @@ class AppLocalizationsEn extends AppLocalizations {
   String dataImportReportPresets(int added, int updated) {
     return 'Prompt presets: $added added, $updated updated';
   }
+
+  @override
+  String get imageProcessingTitle => 'Image preprocessing';
+
+  @override
+  String get imageProcessingReview => 'Prepare and review';
+
+  @override
+  String get imageProcessingImages => 'images';
+
+  @override
+  String get imageProcessingCaptions => 'sidecars';
+
+  @override
+  String get imageProcessingReplaceWarning =>
+      'Replace originals. Recoverable backups will be kept in .dataset-toolkit.';
+
+  @override
+  String get imageProcessingCopyWarning =>
+      'Create a separate dataset. Originals remain unchanged.';
+
+  @override
+  String get imageProcessingCaptionWarning =>
+      'Captions are copied unchanged. Review captions after cropping or removing backgrounds. JPEG and padding use white in this dialog.';
+
+  @override
+  String get imageProcessingForegroundWarning =>
+      'Uses foreground mask bounds, not named-object detection. Preview shows up to four samples; inspect all outputs before training.';
+
+  @override
+  String get imageProcessingBefore => 'Before';
+
+  @override
+  String get imageProcessingAfter => 'After';
+
+  @override
+  String get imageProcessingApprove => 'Approve this plan';
+
+  @override
+  String get imageProcessingScope =>
+      'Processes the active folder scope (up to 200 images). Narrow the folder scope for larger datasets.';
+
+  @override
+  String get imageProcessingResize => 'Resize';
+
+  @override
+  String get imageProcessingWidth => 'Width';
+
+  @override
+  String get imageProcessingHeight => 'Height';
+
+  @override
+  String get imageProcessingFit => 'Fit within dimensions';
+
+  @override
+  String get imageProcessingCenterCrop => 'Fill dimensions and center crop';
+
+  @override
+  String get imageProcessingPad => 'Fit and pad with white';
+
+  @override
+  String get imageProcessingPrefix => 'Rename prefix (optional)';
+
+  @override
+  String get imageProcessingCrop => 'Crop x, y, width, height (optional)';
+
+  @override
+  String get imageProcessingUpscale => 'Allow upscaling';
+
+  @override
+  String get imageProcessingLoadModels => 'Load AI foreground models';
+
+  @override
+  String get imageProcessingRemoveBackground => 'Remove background';
+
+  @override
+  String get imageProcessingCropForeground => 'Crop around foreground';
+
+  @override
+  String get imageProcessingReplace =>
+      'Replace originals instead of creating a separate dataset';
+
+  @override
+  String get imageProcessingOperationId =>
+      'Operation ID (also works after restart)';
+
+  @override
+  String get imageProcessingUndo => 'Undo / recover this operation';
+
+  @override
+  String get imageProcessingOriginal =>
+      'Keep original bytes (rename / copy only)';
+
+  @override
+  String get imageProcessingSaved => 'Find saved operations';
 }

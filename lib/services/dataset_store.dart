@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/caption_type.dart';
 import '../models/image_formats.dart';
+import '../models/operation_context.dart';
 
 /// One image found by [DatasetStore.scan], with the raw text of its caption
 /// file: '' when the caption is missing or cannot be read.
@@ -35,6 +37,11 @@ class DatasetStore {
     ).list(recursive: recursive, followLinks: false);
     await for (final entity in entries) {
       if (entity is! File) continue;
+      if (p
+          .split(p.relative(entity.path, from: root))
+          .contains('.dataset-toolkit')) {
+        continue;
+      }
       if (!supportedImageExtensions.contains(
         p.extension(entity.path).toLowerCase(),
       )) {
@@ -73,6 +80,7 @@ class DatasetStore {
   /// text; and a [captionPath] that is a symlink is replaced by a regular
   /// file instead of written through.
   Future<void> writeCaption(String captionPath, String text) async {
+    OperationContext.check();
     final target = File(captionPath);
     // A rename ignores the target's own permissions, so check them the way a
     // plain write would: a read-only caption stays a refused write.
@@ -90,6 +98,7 @@ class DatasetStore {
     );
     try {
       await temp.writeAsString(text, flush: true);
+      OperationContext.check();
       await temp.rename(captionPath);
     } catch (_) {
       try {
@@ -118,4 +127,120 @@ class DatasetStore {
 
   /// Whether [path] is an existing directory.
   Future<bool> directoryExists(String path) => Directory(path).exists();
+
+  /// Refuse symlinks in every existing path component, including the root.
+  /// Lexical containment alone is not sufficient at a filesystem boundary.
+  Future<void> validateAssetPath(String root, String path) async {
+    final base = p.normalize(p.absolute(root));
+    final target = p.normalize(p.absolute(path));
+    if (base.isEmpty || !(p.equals(base, target) || p.isWithin(base, target))) {
+      throw FileSystemException(
+        'Path is outside the dataset/output root',
+        path,
+      );
+    }
+    var component = target;
+    while (true) {
+      if (await FileSystemEntity.type(component, followLinks: false) ==
+          FileSystemEntityType.link) {
+        throw FileSystemException('Symlink paths are not supported', component);
+      }
+      if (p.equals(component, base)) break;
+      final parent = p.dirname(component);
+      if (parent == component) break;
+      component = parent;
+    }
+  }
+
+  Future<bool> assetExists(String path) async =>
+      await FileSystemEntity.type(path, followLinks: false) !=
+      FileSystemEntityType.notFound;
+
+  Future<String> fingerprint(String path) async =>
+      (await sha256.bind(File(path).openRead()).first).toString();
+
+  Future<Uint8List> readAsset(String root, String path) async {
+    await validateAssetPath(root, path);
+    if (await File(path).length() > 100 * 1024 * 1024) {
+      throw FileSystemException('Asset exceeds 100 MiB', path);
+    }
+    return File(path).readAsBytes();
+  }
+
+  Future<void> writeAsset(
+    String root,
+    String path,
+    List<int> bytes, {
+    bool overwrite = false,
+  }) async {
+    await validateAssetPath(root, path);
+    if (!overwrite && await assetExists(path)) {
+      throw FileSystemException('Destination already exists', path);
+    }
+    await Directory(p.dirname(path)).create(recursive: true);
+    final temp = File('$path.dataset-tmp-$pid-${_nextTempId++}');
+    try {
+      await temp.writeAsBytes(bytes, flush: true);
+      await validateAssetPath(root, path);
+      if (!overwrite && await assetExists(path)) {
+        throw FileSystemException('Destination appeared during commit', path);
+      }
+      await temp.rename(path);
+    } finally {
+      if (await temp.exists()) await temp.delete();
+    }
+  }
+
+  Future<void> deleteAsset(String root, String path) async {
+    await validateAssetPath(root, path);
+    if (await File(path).exists()) await File(path).delete();
+  }
+
+  /// Every same-stem companion, not only the active/enabled caption type.
+  /// Ambiguous stems are rejected instead of sharing one caption implicitly.
+  Future<List<String>> sidecars(String root, String imagePath) async {
+    await validateAssetPath(root, imagePath);
+    final stem = p.basenameWithoutExtension(imagePath).toLowerCase();
+    final result = <String>[];
+    await for (final entry in Directory(
+      p.dirname(imagePath),
+    ).list(followLinks: false)) {
+      if (p.equals(entry.path, imagePath)) continue;
+      if (p.basenameWithoutExtension(entry.path).toLowerCase() != stem) {
+        continue;
+      }
+      if (supportedImageExtensions.contains(
+        p.extension(entry.path).toLowerCase(),
+      )) {
+        throw FileSystemException(
+          'Ambiguous image stem; rename duplicate stems first',
+          imagePath,
+        );
+      }
+      if (entry is! File) {
+        throw FileSystemException('Unsupported sidecar', entry.path);
+      }
+      await validateAssetPath(root, entry.path);
+      result.add(entry.path);
+    }
+    result.sort();
+    return result;
+  }
+
+  Future<void> checkPortableCollision(String path, {String? sameSource}) async {
+    final directory = Directory(p.dirname(path));
+    if (!await directory.exists()) return;
+    await for (final entry in directory.list(followLinks: false)) {
+      if (p.basename(entry.path).toLowerCase() ==
+              p.basename(path).toLowerCase() &&
+          !(sameSource != null &&
+              p.equals(entry.path, sameSource) &&
+              p.equals(path, sameSource))) {
+        throw FileSystemException(
+          'Destination collision (including case-only names)',
+          path,
+        );
+      }
+    }
+  }
 }

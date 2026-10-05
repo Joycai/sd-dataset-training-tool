@@ -14,6 +14,7 @@ import '../../state/app_state.dart';
 import '../../state/batch_tag_state.dart';
 import '../../state/dataset_state.dart';
 import '../../state/editor_session.dart';
+import '../../state/image_operation_state.dart';
 import '../../state/tag_ops.dart';
 import '../../state/workbench_layout.dart';
 import '../../utils/platform_shortcuts.dart';
@@ -68,6 +69,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   final WorkbenchLayout _layout = WorkbenchLayout();
   late final AppState _appState;
   late final AgentChatState _agentChat;
+  late final ImageOperationState _imageOperations;
   bool _agentOpen = false;
   String? _lastLoadedPath;
   // ValueNotifiers, not setState: a resize drag fires per pointer event, and
@@ -95,6 +97,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     _aiTagger = AiTaggerState(settings);
     _batchTag = BatchTagState(
       dataset: _dataset,
+      mutationBusy: () => _tagOps.busy || _imageOperations.busy,
       ai: _aiTagger,
       settings: settings,
       beforeMutate: () => _session.flush(),
@@ -125,11 +128,39 @@ class _WorkbenchViewState extends State<WorkbenchView> {
       return null;
     };
     _batchTag.loadSettings();
+    _imageOperations = ImageOperationState(
+      dataset: _dataset,
+      tagOps: _tagOps,
+      serverUrl: () => _aiTagger.serverUrl,
+      externalBusy: () => _batchTag.running || _aiTagger.running,
+      checkEditor: () {
+        if (_session.saveState == SaveState.error) {
+          throw StateError(
+            _session.lastError ?? 'Cannot save pending caption edits',
+          );
+        }
+      },
+      onApplied: (paths) async {
+        final selected = _dataset.selectedFile?.path;
+        PaintingBinding.instance.imageCache.clear();
+        PaintingBinding.instance.imageCache.clearLiveImages();
+        _lastLoadedPath = null;
+        _aiTagger.clearResults();
+        await _refresh();
+        if (selected != null && paths.containsKey(selected)) {
+          _dataset.select(paths[selected]);
+        }
+        await _previewWindow.refreshIfOpen(
+          _dataset.visibleFiles.map((f) => f.path).toList(),
+        );
+      },
+    );
     _agentChat = AgentChatState(
       app: appState,
       dataset: _dataset,
       tagOps: _tagOps,
       aiTagger: _aiTagger,
+      imageOperations: _imageOperations,
     );
     settings.loadAgentPanelOpen().then((value) {
       if (mounted) setState(() => _agentOpen = value);
@@ -152,6 +183,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     _appState.removeListener(_syncLocalTags);
     _appState.removeListener(_rescanIfCaptionTypeChanged);
     _dataset.removeListener(_onDatasetChanged);
+    _imageOperations.dispose();
     _dataset.dispose();
     _session.dispose();
     _aiTagger.dispose();
@@ -274,7 +306,15 @@ class _WorkbenchViewState extends State<WorkbenchView> {
     // The tag filter and the undo history both reference the previous
     // dataset's contents; a running batch would keep writing into it. The
     // agent conversation is likewise about the old dataset.
+    _imageOperations.cancel();
     _batchTag.requestCancel();
+    await _agentChat.stopAndWait();
+    await Future.wait([
+      _imageOperations.whenIdle,
+      _tagOps.whenIdle,
+      _batchTag.whenIdle,
+    ]);
+    if (!mounted) return;
     _dataset.clearTagFilter();
     // A scope named for the previous dataset's folder would otherwise
     // survive into the new one if both happen to have a folder by that name.
@@ -443,6 +483,7 @@ class _WorkbenchViewState extends State<WorkbenchView> {
   ]);
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (_imageOperations.busy) return KeyEventResult.ignored;
     for (final entry in _globalShortcuts.entries) {
       if (entry.key.accepts(event, HardwareKeyboard.instance)) {
         entry.value();
@@ -509,164 +550,177 @@ class _WorkbenchViewState extends State<WorkbenchView> {
                   child: Stack(
                     children: [
                       Positioned.fill(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const IconNavRail(),
-                            Expanded(
-                              // The rail sits outside the inner LayoutBuilder so
-                              // `total` is already the width the resizable
-                              // columns get to share.
-                              child: ListenableBuilder(
-                                listenable: _splitterListenable,
-                                builder: (context, _) => LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    final total = constraints.maxWidth;
-                                    final showNavigator =
-                                        _layout.navigatorVisible;
-                                    final showInspector =
-                                        _layout.inspectorVisible;
-                                    // A hidden column contributes nothing to the other's clamp.
-                                    final left = showNavigator
-                                        ? _clampPanelWidth(
-                                            _leftWidth.value,
-                                            showInspector
-                                                ? _rightWidth.value
-                                                : 0,
-                                            total,
-                                          )
-                                        : 0.0;
-                                    final right = showInspector
-                                        ? _clampPanelWidth(
-                                            _rightWidth.value,
-                                            left,
-                                            total,
-                                          )
-                                        : 0.0;
-                                    return Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        if (showNavigator) ...[
-                                          SizedBox(
-                                            width: left,
-                                            child: _assetsPanel,
+                        child: ListenableBuilder(
+                          listenable: _imageOperations,
+                          builder: (_, child) => AbsorbPointer(
+                            absorbing: _imageOperations.busy,
+                            child: ExcludeFocus(
+                              excluding: _imageOperations.busy,
+                              child: child!,
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const IconNavRail(),
+                              Expanded(
+                                // The rail sits outside the inner LayoutBuilder so
+                                // `total` is already the width the resizable
+                                // columns get to share.
+                                child: ListenableBuilder(
+                                  listenable: _splitterListenable,
+                                  builder: (context, _) => LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final total = constraints.maxWidth;
+                                      final showNavigator =
+                                          _layout.navigatorVisible;
+                                      final showInspector =
+                                          _layout.inspectorVisible;
+                                      // A hidden column contributes nothing to the other's clamp.
+                                      final left = showNavigator
+                                          ? _clampPanelWidth(
+                                              _leftWidth.value,
+                                              showInspector
+                                                  ? _rightWidth.value
+                                                  : 0,
+                                              total,
+                                            )
+                                          : 0.0;
+                                      final right = showInspector
+                                          ? _clampPanelWidth(
+                                              _rightWidth.value,
+                                              left,
+                                              total,
+                                            )
+                                          : 0.0;
+                                      return Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          if (showNavigator) ...[
+                                            SizedBox(
+                                              width: left,
+                                              child: _assetsPanel,
+                                            ),
+                                            ResizeHandle(
+                                              onDragStart: (x) {
+                                                _dragAnchorX = x;
+                                                _dragStartWidth = left;
+                                              },
+                                              onDragUpdate: (x) {
+                                                _leftWidth.value =
+                                                    _clampPanelWidth(
+                                                      _dragStartWidth +
+                                                          (x - _dragAnchorX),
+                                                      right,
+                                                      total,
+                                                    );
+                                              },
+                                              onDragEnd: _persistPanelWidths,
+                                              onReset: () {
+                                                _leftWidth.value =
+                                                    SettingsService
+                                                        .defaultLeftPanelWidth;
+                                                _persistPanelWidths();
+                                              },
+                                            ),
+                                          ],
+                                          Expanded(
+                                            child: LayoutBuilder(
+                                              builder: (context, center) {
+                                                final totalHeight =
+                                                    center.maxHeight;
+                                                final topHeight =
+                                                    _clampTopHeight(
+                                                      _centerSplit.value *
+                                                          totalHeight,
+                                                      totalHeight,
+                                                    );
+                                                return Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment
+                                                          .stretch,
+                                                  children: [
+                                                    SizedBox(
+                                                      height: topHeight,
+                                                      // No padding: the canvas *is* the
+                                                      // window background, and the image
+                                                      // carries its own radius + shadow.
+                                                      child: _previewPanel,
+                                                    ),
+                                                    ResizeHandle(
+                                                      axis: Axis.vertical,
+                                                      onDragStart: (y) {
+                                                        _dragAnchorY = y;
+                                                        _dragStartTopHeight =
+                                                            topHeight;
+                                                      },
+                                                      onDragUpdate: (y) {
+                                                        _centerSplit.value =
+                                                            _clampTopHeight(
+                                                              _dragStartTopHeight +
+                                                                  (y -
+                                                                      _dragAnchorY),
+                                                              totalHeight,
+                                                            ) /
+                                                            totalHeight;
+                                                      },
+                                                      onDragEnd:
+                                                          _persistCenterSplit,
+                                                      onReset: () {
+                                                        _centerSplit.value =
+                                                            SettingsService
+                                                                .defaultCenterSplit;
+                                                        _persistCenterSplit();
+                                                      },
+                                                    ),
+                                                    Expanded(
+                                                      // Flush like the canvas: the editor
+                                                      // is a panel, and its own top
+                                                      // hairline is the only separator.
+                                                      child: _captionPanel,
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            ),
                                           ),
-                                          ResizeHandle(
-                                            onDragStart: (x) {
-                                              _dragAnchorX = x;
-                                              _dragStartWidth = left;
-                                            },
-                                            onDragUpdate: (x) {
-                                              _leftWidth.value =
-                                                  _clampPanelWidth(
-                                                    _dragStartWidth +
-                                                        (x - _dragAnchorX),
-                                                    right,
-                                                    total,
-                                                  );
-                                            },
-                                            onDragEnd: _persistPanelWidths,
-                                            onReset: () {
-                                              _leftWidth.value = SettingsService
-                                                  .defaultLeftPanelWidth;
-                                              _persistPanelWidths();
-                                            },
-                                          ),
+                                          if (showInspector) ...[
+                                            ResizeHandle(
+                                              onDragStart: (x) {
+                                                _dragAnchorX = x;
+                                                _dragStartWidth = right;
+                                              },
+                                              onDragUpdate: (x) {
+                                                _rightWidth.value =
+                                                    _clampPanelWidth(
+                                                      _dragStartWidth -
+                                                          (x - _dragAnchorX),
+                                                      left,
+                                                      total,
+                                                    );
+                                              },
+                                              onDragEnd: _persistPanelWidths,
+                                              onReset: () {
+                                                _rightWidth.value =
+                                                    SettingsService
+                                                        .defaultRightPanelWidth;
+                                                _persistPanelWidths();
+                                              },
+                                            ),
+                                            SizedBox(
+                                              width: right,
+                                              child: _tagLibraryPanel,
+                                            ),
+                                          ],
                                         ],
-                                        Expanded(
-                                          child: LayoutBuilder(
-                                            builder: (context, center) {
-                                              final totalHeight =
-                                                  center.maxHeight;
-                                              final topHeight = _clampTopHeight(
-                                                _centerSplit.value *
-                                                    totalHeight,
-                                                totalHeight,
-                                              );
-                                              return Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.stretch,
-                                                children: [
-                                                  SizedBox(
-                                                    height: topHeight,
-                                                    // No padding: the canvas *is* the
-                                                    // window background, and the image
-                                                    // carries its own radius + shadow.
-                                                    child: _previewPanel,
-                                                  ),
-                                                  ResizeHandle(
-                                                    axis: Axis.vertical,
-                                                    onDragStart: (y) {
-                                                      _dragAnchorY = y;
-                                                      _dragStartTopHeight =
-                                                          topHeight;
-                                                    },
-                                                    onDragUpdate: (y) {
-                                                      _centerSplit.value =
-                                                          _clampTopHeight(
-                                                            _dragStartTopHeight +
-                                                                (y -
-                                                                    _dragAnchorY),
-                                                            totalHeight,
-                                                          ) /
-                                                          totalHeight;
-                                                    },
-                                                    onDragEnd:
-                                                        _persistCenterSplit,
-                                                    onReset: () {
-                                                      _centerSplit.value =
-                                                          SettingsService
-                                                              .defaultCenterSplit;
-                                                      _persistCenterSplit();
-                                                    },
-                                                  ),
-                                                  Expanded(
-                                                    // Flush like the canvas: the editor
-                                                    // is a panel, and its own top
-                                                    // hairline is the only separator.
-                                                    child: _captionPanel,
-                                                  ),
-                                                ],
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                        if (showInspector) ...[
-                                          ResizeHandle(
-                                            onDragStart: (x) {
-                                              _dragAnchorX = x;
-                                              _dragStartWidth = right;
-                                            },
-                                            onDragUpdate: (x) {
-                                              _rightWidth.value =
-                                                  _clampPanelWidth(
-                                                    _dragStartWidth -
-                                                        (x - _dragAnchorX),
-                                                    left,
-                                                    total,
-                                                  );
-                                            },
-                                            onDragEnd: _persistPanelWidths,
-                                            onReset: () {
-                                              _rightWidth.value =
-                                                  SettingsService
-                                                      .defaultRightPanelWidth;
-                                              _persistPanelWidths();
-                                            },
-                                          ),
-                                          SizedBox(
-                                            width: right,
-                                            child: _tagLibraryPanel,
-                                          ),
-                                        ],
-                                      ],
-                                    );
-                                  },
+                                      );
+                                    },
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                       if (_agentOpen)

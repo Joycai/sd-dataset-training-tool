@@ -2689,4 +2689,94 @@ class AppLocalizationsZh extends AppLocalizations {
   String dataImportReportPresets(int added, int updated) {
     return '预置提示词：新增 $added 条，更新 $updated 条';
   }
+
+  @override
+  String get imageProcessingTitle => '图像预处理';
+
+  @override
+  String get imageProcessingReview => '生成并预览';
+
+  @override
+  String get imageProcessingImages => '张图像';
+
+  @override
+  String get imageProcessingCaptions => '个附属文件';
+
+  @override
+  String get imageProcessingReplaceWarning =>
+      '替换原文件。可恢复备份将保存在 .dataset-toolkit。';
+
+  @override
+  String get imageProcessingCopyWarning => '创建独立数据集，原文件保持不变。';
+
+  @override
+  String get imageProcessingCaptionWarning =>
+      '描述文件原样复制。裁剪或去背景后请检查描述是否准确。此对话框的 JPEG 和补边使用白色。';
+
+  @override
+  String get imageProcessingForegroundWarning =>
+      '根据前景蒙版边界裁剪，不支持指定物体检测。预览最多显示四个样本；训练前请检查全部输出。';
+
+  @override
+  String get imageProcessingBefore => '处理前';
+
+  @override
+  String get imageProcessingAfter => '处理后';
+
+  @override
+  String get imageProcessingApprove => '批准此方案';
+
+  @override
+  String get imageProcessingScope => '处理当前文件夹范围（最多 200 张）。较大数据集请缩小文件夹范围。';
+
+  @override
+  String get imageProcessingResize => '调整尺寸';
+
+  @override
+  String get imageProcessingWidth => '宽度';
+
+  @override
+  String get imageProcessingHeight => '高度';
+
+  @override
+  String get imageProcessingFit => '保持比例缩放';
+
+  @override
+  String get imageProcessingCenterCrop => '填满尺寸并居中裁剪';
+
+  @override
+  String get imageProcessingPad => '缩放并补白边';
+
+  @override
+  String get imageProcessingPrefix => '重命名前缀（可选）';
+
+  @override
+  String get imageProcessingCrop => '裁剪 x, y, 宽, 高（可选）';
+
+  @override
+  String get imageProcessingUpscale => '允许放大';
+
+  @override
+  String get imageProcessingLoadModels => '加载 AI 前景模型';
+
+  @override
+  String get imageProcessingRemoveBackground => '移除背景';
+
+  @override
+  String get imageProcessingCropForeground => '围绕前景裁剪';
+
+  @override
+  String get imageProcessingReplace => '替换原文件，而非创建独立数据集';
+
+  @override
+  String get imageProcessingOperationId => '操作 ID（重启后也可恢复）';
+
+  @override
+  String get imageProcessingUndo => '撤销 / 恢复此操作';
+
+  @override
+  String get imageProcessingOriginal => '保留原始字节（仅重命名 / 复制）';
+
+  @override
+  String get imageProcessingSaved => '查找已保存操作';
 }

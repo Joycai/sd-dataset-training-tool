@@ -334,7 +334,17 @@ class EditorSession extends ChangeNotifier {
 
   // --- Saving ---------------------------------------------------------
 
-  Future<void> save() async {
+  Future<void>? _pendingSave;
+
+  Future<void> save() {
+    final existing = _pendingSave;
+    if (existing != null) return existing;
+    final pending = _save();
+    _pendingSave = pending;
+    return pending.whenComplete(() => _pendingSave = null);
+  }
+
+  Future<void> _save() async {
     if (_image == null || _captionPath.isEmpty) return;
     _autoSaveTimer?.cancel();
     final path = _captionPath;
@@ -359,6 +369,7 @@ class EditorSession extends ChangeNotifier {
   /// Writes pending changes immediately (used before switching images and on
   /// window-level shortcuts).
   Future<void> flush() async {
+    await _pendingSave;
     if (_saveState == SaveState.dirty) {
       await save();
     }

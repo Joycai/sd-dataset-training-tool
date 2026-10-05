@@ -8,6 +8,7 @@ library;
 import 'dart:convert';
 
 import '../models/llm_models.dart';
+import '../models/operation_context.dart';
 import 'context_budget.dart';
 
 export '../models/llm_models.dart' show AgentToolSpec;
@@ -147,6 +148,7 @@ class ToolRegistry {
       return toolError('invalid JSON arguments: ${e.message}');
     }
     try {
+      OperationContext.check();
       return await tool.handler(args);
     } on ToolArgError catch (e) {
       return toolError(e.message);
