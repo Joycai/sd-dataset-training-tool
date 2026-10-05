@@ -18,6 +18,7 @@ import 'dart:convert';
 import 'package:path/path.dart' as p;
 
 import '../models/caption_type.dart';
+import '../models/operation_context.dart';
 import '../services/dataset_store.dart';
 import '../state/dataset_state.dart';
 import '../state/tag_ops.dart';
@@ -78,6 +79,7 @@ List<AgentTool> buildCaptionVariantTools(
         final canonical = canonicalIndex(d);
         final out = <Map<String, dynamic>>[];
         for (final rel in paths) {
+          if (OperationContext.stopped) break;
           final resolved = resolveDatasetPath(root, rel);
           final key = resolved == null ? null : canonical[resolved];
           if (key == null) {
@@ -179,6 +181,7 @@ List<AgentTool> buildCaptionVariantTools(
       final canonical = canonicalIndex(d);
       final out = <Map<String, dynamic>>[];
       for (final rel in paths) {
+        if (OperationContext.stopped) break;
         final resolved = resolveDatasetPath(root, rel);
         final key = resolved == null ? null : canonical[resolved];
         if (key == null) {
@@ -743,6 +746,7 @@ List<AgentTool> buildCaptionVariantTools(
       final edits = <CaptionEdit>[];
 
       for (final f in files) {
+        if (OperationContext.stopped) break;
         final rel = p.relative(f.path, from: root);
 
         List<String> parts;
@@ -1209,6 +1213,7 @@ AgentTool _convertCaptionsToTags(
     var skippedFieldTags = 0;
 
     for (final f in files) {
+      if (OperationContext.stopped) break;
       final rel = p.relative(f.path, from: root);
 
       ({List<String> tags, String? nl}) split;

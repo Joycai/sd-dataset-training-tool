@@ -23,6 +23,7 @@ settings.load()
 
 import models
 from modules import utilities
+from modules.image_processing import process_foreground
 from modules.server_dataclasses import *
 
 INTERROGATOR_LOCK = threading.Lock()
@@ -604,6 +605,28 @@ class TranslateText(Resource):
         return ret
 
 
+class ImageProcessingCapabilities(Resource):
+    def get(self):
+        return {"version": 1, "foreground_models": list(models.EDITOR_MAP),
+                "output_formats": ["png"], "coordinate_frame": "exif_normalized_pixels",
+                "named_object_detection": False}, 200
+
+
+class ProcessForeground(Resource):
+    def post(self):
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or data.get("model") not in models.EDITOR_MAP:
+            return {"error": "Choose an available foreground model"}, 400
+        try:
+            return process_foreground(data, lambda name, image: edit_image(name, image, {}, False)), 200
+        except (ValueError, TypeError, OSError) as exc:
+            return {"error": str(exc)}, 400
+        except Exception as exc:
+            return {"error": str(exc)}, 500
+
+
+api.add_resource(ImageProcessingCapabilities, '/v1/imageprocessing/capabilities')
+api.add_resource(ProcessForeground, '/v1/imageprocessing/foreground')
 api.add_resource(GetConfig, '/getconfig')
 api.add_resource(ListModelsByType, '/listmodelsbytype')
 api.add_resource(GetModelParams, '/getmodelparams')

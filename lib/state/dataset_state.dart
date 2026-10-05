@@ -97,6 +97,13 @@ class DatasetState extends ChangeNotifier {
   /// The directory of the last scan, or null when nothing is open.
   String? get rootPath => _rootPath;
 
+  /// Changes when a scan starts, including rescans of the same directory.
+  int get generation => _scanGeneration;
+
+  String get scopeIdentity =>
+      '$generation|$_rootPath|$_activeSubdirectory|'
+      '$_captionExtension|${_captionFormat.name}';
+
   /// Directories holding images, root first then alphabetical.
   List<DatasetSubdirectory> get subdirectories => _subdirectories;
 

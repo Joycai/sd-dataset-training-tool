@@ -18,6 +18,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../models/caption_type.dart';
+import '../models/operation_context.dart';
 import '../models/tag_group.dart';
 import '../state/dataset_state.dart';
 import '../state/tag_ops.dart';
@@ -260,6 +261,7 @@ List<AgentTool> buildReadOnlyTools(DatasetToolsDeps deps) => [
       final canonical = canonicalIndex(d);
       final out = <Map<String, dynamic>>[];
       for (final rel in paths) {
+        if (OperationContext.stopped) break;
         final resolved = resolveDatasetPath(root, rel);
         final key = resolved == null ? null : canonical[resolved];
         if (key == null) {

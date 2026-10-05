@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
 import '../models/caption_type.dart';
+import '../models/operation_context.dart';
 import '../utils/tag_text.dart';
 import 'dataset_state.dart';
 
@@ -153,6 +155,20 @@ class TagOps extends ChangeNotifier {
   final List<TagOperation> _undoStack = [];
   final List<TagOperation> _redoStack = [];
   bool _busy = false;
+
+  Future<void> get whenIdle {
+    if (!_busy) return Future.value();
+    final done = Completer<void>();
+    void changed() {
+      if (!_busy) {
+        removeListener(changed);
+        done.complete();
+      }
+    }
+
+    addListener(changed);
+    return done.future;
+  }
 
   bool get busy => _busy;
   bool get canUndo => !_busy && _undoStack.isNotEmpty;
@@ -482,6 +498,7 @@ class TagOps extends ChangeNotifier {
     try {
       await beforeMutate?.call();
       for (final file in files ?? dataset.scopedFiles) {
+        if (OperationContext.stopped) break;
         final captionPath = dataset.captionPathFor(file.path);
         final String? existing;
         try {

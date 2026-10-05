@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import '../models/llm_models.dart';
+import '../models/operation_context.dart';
 import '../services/llm/llm_client.dart';
 import 'agent_tools.dart';
 import 'context_budget.dart';
@@ -143,6 +144,7 @@ class AgentSession {
     this.sessionTokenCap = 1000000,
     this.confirmWrite,
     this.confirmContinue,
+    this.captureExecutionGuard,
   }) : budget = ContextBudget(
          contextWindow: _effectiveWindow(profile),
          maxOutputTokens: profile.maxOutputTokens,
@@ -163,6 +165,8 @@ class AgentSession {
         ? profile.measuredContextWindow
         : profile.contextWindow;
   }
+
+  final String? Function() Function()? captureExecutionGuard;
 
   final LlmClient client;
   final ToolRegistry registry;
@@ -194,6 +198,7 @@ class AgentSession {
   CancellationToken? _cancel;
 
   bool get busy => _busy;
+  bool get cancelled => _cancel?.isCancelled ?? false;
 
   void stop() => _cancel?.cancel();
 
@@ -228,6 +233,7 @@ class AgentSession {
   Stream<AgentUiEvent> _loop() async* {
     _busy = true;
     final cancel = _cancel = CancellationToken();
+    final executionInvalidReason = captureExecutionGuard?.call();
     try {
       // Belt-and-suspenders: a no-op unless some unforeseen path left an
       // unpaired tool_call behind, which would poison every later request.
@@ -408,7 +414,16 @@ class AgentSession {
               result = toolError('the user rejected this operation');
               excludedFromStreak = true;
             } else {
-              result = await registry.dispatch(call.name, call.argumentsJson);
+              result = cancel.isCancelled
+                  ? toolError('cancelled by user')
+                  : await OperationContext(
+                      cancelled: () => cancel.isCancelled,
+                      cancelSignal: cancel.whenCancelled,
+                      writeAuthorized: confirmWrite != null,
+                      invalidReason: executionInvalidReason,
+                    ).run(
+                      () => registry.dispatch(call.name, call.argumentsJson),
+                    );
             }
             yield AgentToolFinished(call, result);
           }
@@ -524,6 +539,7 @@ String buildAgentSystemPrompt({
   String? captionTypesSummary,
   bool jsonToolsEnabled = false,
   bool visionEnabled = false,
+  bool imagePreprocessEnabled = false,
   bool libraryToolsEnabled = true,
   bool translationToolsEnabled = true,
 }) {
@@ -617,6 +633,20 @@ String buildAgentSystemPrompt({
             'images with it, never sweep\n  the dataset — bulk visual tagging '
             'belongs to run_wd_tagger.'
       : '';
+  final imageGuideline = imagePreprocessEnabled
+      ? '\n- For crop, resize, format conversion or image renaming, inspect_images '
+            'first, then plan_image_operations, review preview_image_operations, '
+            'and apply_image_operation_plan with its exact id and digest. '
+            'Default to a separate derived dataset. Use oriented source pixel '
+            'coordinates, never guess them from downscaled chat previews. '
+            'Preserve aspect ratios and avoid upscaling unless requested. '
+            'Discover list_image_processing_models before AI operations. '
+            'crop_foreground encloses the whole foreground mask, not a named '
+            'object. Captions travel unchanged; flag them for review after visual '
+            'changes. Check actual completed counts and status; recover partial '
+            'failures via undo_image_operation. Image undo uses its saved operation '
+            'ID, not Ctrl+Z. List saved IDs with list_image_operations after restart.'
+      : '';
   return '''
 You are an assistant embedded in DataSetTrainingTool, a desktop app for
 curating image datasets used to train SDXL / anime LoRA models. Each image
@@ -659,7 +689,7 @@ Guidelines:
   require their confirmation first.
 - run_wd_tagger produces booru-style tags for images via the local tagger
   server. Results are returned to you, not written to disk — filter them,
-  then apply with the write tools.$libraryGuideline$glossaryGuideline$captionTypesGuideline$jsonGuideline$visionGuideline
+  then apply with the write tools.$libraryGuideline$glossaryGuideline$captionTypesGuideline$jsonGuideline$visionGuideline$imageGuideline
 - When you need the user to make a decision mid-task, call the ask_user
   tool with short concrete options instead of ending your reply with an
   open question — that keeps the task running once they answer.

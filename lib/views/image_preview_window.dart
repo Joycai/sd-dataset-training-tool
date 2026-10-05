@@ -33,6 +33,8 @@ class _ImagePreviewWindowState extends State<ImagePreviewWindow> {
 
     widget.windowController.setWindowMethodHandler((call) async {
       if (call.method == 'update_image') {
+        PaintingBinding.instance.imageCache.clear();
+        PaintingBinding.instance.imageCache.clearLiveImages();
         final args = jsonDecode(call.arguments) as Map<String, dynamic>;
         setState(() {
           _imagePaths = List<String>.from(args['imagePaths']);
@@ -58,6 +60,7 @@ class _ImagePreviewWindowState extends State<ImagePreviewWindow> {
   }
 
   Future<void> _saveImage() async {
+    if (_imagePaths.isEmpty) return;
     final currentPath = _imagePaths[_currentIndex];
     final fileName = p.basename(currentPath);
     await FileSaver.instance.saveFile(name: fileName, file: File(currentPath));
@@ -65,6 +68,9 @@ class _ImagePreviewWindowState extends State<ImagePreviewWindow> {
 
   @override
   Widget build(BuildContext context) {
+    if (_imagePaths.isEmpty) {
+      return const MaterialApp(home: Scaffold(backgroundColor: Colors.black));
+    }
     final currentImagePath = _imagePaths[_currentIndex];
     final imageFile = File(currentImagePath);
 

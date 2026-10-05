@@ -17,6 +17,7 @@ import 'package:image/image.dart' as img;
 
 import '../models/ai_tagger_models.dart';
 import '../models/llm_models.dart';
+import '../models/operation_context.dart';
 import '../services/ai_tagger_service.dart';
 import '../state/ai_tagger_state.dart';
 import 'agent_tools.dart';
@@ -98,6 +99,7 @@ List<AgentTool> buildTaggerTools(DatasetToolsDeps deps, AiTaggerState ai) => [
 
       final out = <Map<String, dynamic>>[];
       for (final rel in paths) {
+        if (OperationContext.stopped) break;
         final resolved = resolveDatasetPath(root, rel);
         final key = resolved == null ? null : canonical[resolved];
         if (key == null) {
@@ -112,6 +114,7 @@ List<AgentTool> buildTaggerTools(DatasetToolsDeps deps, AiTaggerState ai) => [
           );
           // Feed the UI cache too: the user can audit these runs in the
           // compare view.
+          if (OperationContext.stopped) break;
           ai.storeResult(key, resp);
           final tags = resp.allTags
               .map(
@@ -130,7 +133,17 @@ List<AgentTool> buildTaggerTools(DatasetToolsDeps deps, AiTaggerState ai) => [
           out.add({'path': rel, 'error': e.message});
         }
       }
-      return toolOk({'model': model, 'results': out});
+      final succeeded = out.where((r) => !r.containsKey('error')).length;
+      return AgentToolResult(
+        jsonEncode({
+          'model': model,
+          'results': out,
+          'succeeded': succeeded,
+          'failed': out.length - succeeded,
+          'cancelled': OperationContext.stopped,
+        }),
+        isError: succeeded == 0,
+      );
     },
   ),
 ];
@@ -199,6 +212,7 @@ List<AgentTool> buildVisionTools(DatasetToolsDeps deps) => [
       final failed = <Map<String, String>>[];
       final parts = <ChatContentPart>[];
       for (final rel in paths) {
+        if (OperationContext.stopped) break;
         final resolved = resolveDatasetPath(root, rel);
         final key = resolved == null ? null : canonical[resolved];
         if (key == null) {

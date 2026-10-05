@@ -1,6 +1,8 @@
 /// The protocol-neutral LLM client interface. Pure Dart.
 library;
 
+import 'dart:async';
+
 import '../../models/llm_models.dart';
 
 /// Raised on transport failure or a non-2xx API response. [message] is safe
@@ -18,6 +20,8 @@ class LlmException implements Exception {
 /// underlying connection; the stream then ends with an [LlmException].
 class CancellationToken {
   bool _cancelled = false;
+  final Completer<void> _cancelSignal = Completer<void>();
+  Future<void> get whenCancelled => _cancelSignal.future;
   final List<void Function()> _listeners = [];
 
   bool get isCancelled => _cancelled;
@@ -25,6 +29,7 @@ class CancellationToken {
   void cancel() {
     if (_cancelled) return;
     _cancelled = true;
+    _cancelSignal.complete();
     for (final l in List.of(_listeners)) {
       l();
     }
