@@ -5,7 +5,7 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = dataset_training_tool
+PRODUCT_NAME = Dataset Toolkit
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = joycai.datasettool.datasetTrainingTool
