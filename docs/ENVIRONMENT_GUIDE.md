@@ -61,7 +61,7 @@ flutter build windows --release
 flutter build macos --release
 ```
 
-产物：`build/macos/Build/Products/Release/dataset_training_tool.app`。
+产物：`build/macos/Build/Products/Release/Dataset Toolkit.app`。
 如需分发给他人，还需自行完成签名与公证（codesign / notarytool）。
 
 ### 1.4 Linux

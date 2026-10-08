@@ -105,7 +105,8 @@ jobs:
         # plain zip would mangle. The build is unsigned — first launch needs
         # right-click > Open (or `xattr -cr`), noted in the release body.
         run: |
-          APP=$(find build/macos/Build/Products/Release -maxdepth 1 -name '*.app' | head -1)
+          APP="build/macos/Build/Products/Release/Dataset Toolkit.app"
+          test -d "$APP"
           ditto -c -k --keepParent "$APP" \
             "dataset-training-tool-${{ needs.version.outputs.version }}-macos-universal.zip"
       - uses: actions/upload-artifact@v7
