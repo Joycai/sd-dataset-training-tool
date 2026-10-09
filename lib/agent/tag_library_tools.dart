@@ -70,6 +70,9 @@ const int maxLibraryTagsPerCall = 300;
 /// Most groups one `organize_tag_library` call may address.
 const int maxAssignmentsPerCall = 40;
 
+/// Maximum palette size per call; larger libraries can use multiple batches.
+const int maxGroupColorsPerCall = 100;
+
 /// Names for [kTagGroupPresetColors], in the same order.
 ///
 /// The picker in the panel shows swatches; a model cannot point at one, and
@@ -461,16 +464,20 @@ List<AgentTool> buildTagLibraryTools(TagLibraryToolsDeps deps) {
             'recolor it, set the order they appear in, or delete one. Tags '
             'and group membership are never touched here: use '
             'organize_tag_library to move tags between groups.\n'
+            'For automatic group colors, first read get_tag_library, choose '
+            'a coordinated, distinguishable palette based on group names and '
+            'tags, then use "recolor" to apply the whole palette in one call. '
             'Pick one "action" per call.',
         parametersSchema: {
           'type': 'object',
           'properties': {
             'action': {
               'type': 'string',
-              'enum': ['update', 'reorder', 'delete'],
+              'enum': ['update', 'recolor', 'reorder', 'delete'],
               'description':
                   '"update": rename and/or recolor the group named by '
-                  '"group". "reorder": set the panel order from "order". '
+                  '"group". "recolor": apply the "colors" batch. '
+                  '"reorder": set the panel order from "order". '
                   '"delete": remove the group named by "group" — its tags '
                   'fall back to the ungrouped bucket, and there is no undo, '
                   'so only do it when the user has said so.',
@@ -487,6 +494,25 @@ List<AgentTool> buildTagLibraryTools(TagLibraryToolsDeps deps) {
                   'or a hex value like "#6A9BDD". Group colors are only a '
                   'visual aid in the panel; pick one that reads as the '
                   'group\'s theme and keep sibling groups distinguishable.',
+            },
+            'colors': {
+              'type': 'array',
+              'minItems': 1,
+              'maxItems': maxGroupColorsPerCall,
+              'description':
+                  'For recolor: existing group names and chosen colors, up to '
+                  '$maxGroupColorsPerCall per call. Omitted groups keep their '
+                  'colors. Use preset names or opaque #RRGGBB hex colors; '
+                  'custom hex colors allow more than eight distinct colors. '
+                  'All entries are validated before any change.',
+              'items': {
+                'type': 'object',
+                'properties': {
+                  'group': {'type': 'string'},
+                  'color': {'type': 'string'},
+                },
+                'required': ['group', 'color'],
+              },
             },
             'order': {
               'type': 'array',
@@ -510,6 +536,41 @@ List<AgentTool> buildTagLibraryTools(TagLibraryToolsDeps deps) {
         );
 
         switch (action) {
+          case 'recolor':
+            final raw = args['colors'];
+            if (raw is! List ||
+                raw.isEmpty ||
+                raw.length > maxGroupColorsPerCall) {
+              throw ToolArgError(
+                '"colors" must contain 1 to $maxGroupColorsPerCall entries',
+              );
+            }
+            final palette = <({TagGroup group, int color})>[];
+            final seen = <String>{};
+            for (final entry in raw) {
+              if (entry is! Map<String, dynamic>) {
+                throw ToolArgError('each color entry must be an object');
+              }
+              final name = requireString(entry, 'group');
+              final group = findGroup(name);
+              if (group == null) return noSuchGroup(name);
+              if (!seen.add(group.id)) {
+                throw ToolArgError('group "${group.name}" is listed twice');
+              }
+              final color = parseTagGroupColor(requireString(entry, 'color'));
+              if ((color >> 24) != 0xFF) {
+                throw ToolArgError('batch group colors must be fully opaque');
+              }
+              palette.add((group: group, color: color));
+            }
+            var changed = 0;
+            for (final item in palette) {
+              if (item.group.color == item.color) continue;
+              await deps.updateGroup(item.group.id, color: item.color);
+              changed++;
+            }
+            return toolOk({'recolored': changed, 'library': librarySummary()});
+
           case 'update':
             final name = requireString(args, 'group');
             final next = optString(args, 'new_name');
@@ -584,7 +645,7 @@ List<AgentTool> buildTagLibraryTools(TagLibraryToolsDeps deps) {
 
           default:
             return toolError(
-              '"action" must be "update", "reorder" or "delete"; got '
+              '"action" must be "update", "recolor", "reorder" or "delete"; got '
               '"$action"',
             );
         }
