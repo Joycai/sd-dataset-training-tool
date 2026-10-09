@@ -302,6 +302,7 @@ void main() {
     final groups = registry.find('manage_tag_groups')!;
     expect(groups.needsConfirmation('{"action":"delete"}'), isTrue);
     expect(groups.needsConfirmation('{"action":"update"}'), isFalse);
+    expect(groups.needsConfirmation('{"action":"recolor"}'), isFalse);
     expect(groups.needsConfirmation('{"action":"reorder"}'), isFalse);
     // Arguments nobody can read are not assumed harmless.
     expect(groups.needsConfirmation('{not json'), isTrue);
@@ -435,6 +436,92 @@ void main() {
         jsonEncode({'group': 'nope'}),
       );
       expect(result.isError, isTrue);
+    });
+  });
+
+  group('manage_tag_groups recolor', () {
+    setUp(() async {
+      await library.create('Clothing', 0xFF000000);
+      await library.create('Expression', 0xFF000000);
+      await library.create('Background', 0xFF000000);
+      await library.move(['boots', 'gloves'], library.groups.first.id);
+    });
+
+    test('applies a palette without changing names, order or tags', () async {
+      final before = library.groups.toList();
+      final out = await call('manage_tag_groups', {
+        'action': 'recolor',
+        'colors': [
+          {'group': ' clothing ', 'color': 'orange'},
+          {'group': 'Expression', 'color': '#AB78C9'},
+        ],
+      });
+      expect(out['recolored'], 2);
+      expect(library.groups.map((g) => g.color), [
+        kTagGroupColorNames['orange'],
+        0xFFAB78C9,
+        0xFF000000,
+      ]);
+      for (var i = 0; i < before.length; i++) {
+        expect(library.groups[i].id, before[i].id);
+        expect(library.groups[i].name, before[i].name);
+        expect(library.groups[i].tags, before[i].tags);
+      }
+      expect((out['library'] as Map)['groups'], hasLength(3));
+    });
+
+    for (final badEntry in <Object?>[
+      {'group': 'Expression', 'color': 'not-a-color'},
+      {'group': 'Missing', 'color': 'blue'},
+      {'group': ' CLOTHING ', 'color': 'blue'},
+      {'group': 'Expression', 'color': '#00123456'},
+      {'group': 'Expression', 'color': 123},
+      {'color': 'blue'},
+      'blue',
+    ]) {
+      test('rejects invalid entry $badEntry before any changes', () async {
+        final result = await registry.dispatch(
+          'manage_tag_groups',
+          jsonEncode({
+            'action': 'recolor',
+            'colors': [
+              {'group': 'Clothing', 'color': 'orange'},
+              badEntry,
+            ],
+          }),
+        );
+        expect(result.isError, isTrue);
+        expect(library.groups.every((g) => g.color == 0xFF000000), isTrue);
+      });
+    }
+
+    test('rejects missing, empty, malformed and oversized batches', () async {
+      for (final colors in <Object?>[
+        null,
+        [],
+        'blue',
+        List.filled(maxGroupColorsPerCall + 1, {
+          'group': 'Clothing',
+          'color': 'blue',
+        }),
+      ]) {
+        final result = await registry.dispatch(
+          'manage_tag_groups',
+          jsonEncode({'action': 'recolor', 'colors': colors}),
+        );
+        expect(result.isError, isTrue);
+      }
+      expect(library.groups.every((g) => g.color == 0xFF000000), isTrue);
+    });
+
+    test('counts only changed colors', () async {
+      final out = await call('manage_tag_groups', {
+        'action': 'recolor',
+        'colors': [
+          {'group': 'Clothing', 'color': '#000000'},
+        ],
+      });
+      expect(out['recolored'], 0);
     });
   });
 

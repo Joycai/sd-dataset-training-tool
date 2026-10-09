@@ -11,7 +11,7 @@ import '../services/llm/llm_client.dart';
 import 'agent_tools.dart';
 import 'context_budget.dart';
 import 'tag_library_tools.dart'
-    show maxAssignmentsPerCall, maxLibraryTagsPerCall;
+    show maxAssignmentsPerCall, maxGroupColorsPerCall, maxLibraryTagsPerCall;
 import 'tag_translation_tools.dart' show maxTranslationEntries;
 
 enum AgentStopReason { completed, cancelled, maxTurns, tokenCap, error }
@@ -613,7 +613,17 @@ String buildAgentSystemPrompt({
             'None of this touches a caption file, so a\n  library change '
             'never alters the dataset — and none of it is covered by\n  undo, '
             'which is why remove_library_tags and the delete action of\n  '
-            'manage_tag_groups are confirmation-gated.'
+            'manage_tag_groups are confirmation-gated.\n'
+            '- When asked to automatically color tag-library groups, read '
+            'get_tag_library, choose colors yourself from the group names '
+            'and tags, and apply them with manage_tag_groups action "recolor" '
+            'and a "colors" array of {group, color}. Do not just suggest a '
+            'palette or ask the user to choose each color. Respect any '
+            'requested style and scope; otherwise use distinguishable, '
+            'balanced colors, using opaque #RRGGBB values when the eight '
+            'presets are insufficient. Keep adjacent groups distinguishable. '
+            'Send up to $maxGroupColorsPerCall groups per batch and continue '
+            'until the requested groups are done. Report the applied result.'
       : '';
   final glossaryGuideline = translationToolsEnabled
       ? '\n- The tag glossary is display-only: translations are shown beside '
