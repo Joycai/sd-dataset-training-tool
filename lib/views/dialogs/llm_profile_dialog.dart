@@ -1186,13 +1186,12 @@ class _ModelFormState extends State<_ModelForm> {
           ],
         ),
         const SizedBox(height: 12),
-        DropdownButtonFormField<LlmApiKind>(
-          isExpanded: true,
+        _LabeledDropdown<LlmApiKind>(
           key: ValueKey(
             '${model.id}-${model.protocol?.id}-${widget.provider.kind.id}',
           ),
           initialValue: model.protocol ?? widget.provider.kind,
-          decoration: InputDecoration(labelText: l10n.llmProtocol),
+          label: l10n.llmProtocol,
           items: [
             for (final kind in LlmApiKind.values)
               DropdownMenuItem(
@@ -1550,6 +1549,56 @@ class _LabeledField extends StatelessWidget {
   }
 }
 
+/// Matches the labels and typography of the adjacent text fields while keeping
+/// the input border, focus and fill supplied by the application theme.
+class _LabeledDropdown<T> extends StatelessWidget {
+  const _LabeledDropdown({
+    super.key,
+    required this.label,
+    required this.initialValue,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T initialValue;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final semantic = context.semantic;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: AppText.secondary, color: semantic.muted),
+        ),
+        const SizedBox(height: 5),
+        Semantics(
+          label: label,
+          child: DropdownButtonFormField<T>(
+            initialValue: initialValue,
+            isExpanded: true,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontSize: AppText.base,
+              color: theme.colorScheme.onSurface,
+            ),
+            icon: const Icon(Icons.expand_more, size: 16),
+            iconEnabledColor: semantic.muted,
+            dropdownColor: semantic.raised,
+            borderRadius: BorderRadius.circular(AppRadii.control),
+            items: items,
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Filterable list of the model names the server reported.
 class _ModelNamePicker extends StatefulWidget {
   const _ModelNamePicker({required this.names});
@@ -1638,13 +1687,12 @@ class _ReasoningSettings extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        DropdownButtonFormField<LlmEffort>(
-          isExpanded: true,
+        _LabeledDropdown<LlmEffort>(
           key: ValueKey('${model.id}-${model.effort}-${efforts.join()}'),
           initialValue: efforts.contains(model.effort)
               ? model.effort
               : LlmEffort.defaultValue,
-          decoration: InputDecoration(labelText: l10n.llmEffort),
+          label: l10n.llmEffort,
           items: [
             for (final effort in efforts)
               DropdownMenuItem(
@@ -1665,11 +1713,10 @@ class _ReasoningSettings extends StatelessWidget {
         if (kind == LlmApiKind.openaiCompat ||
             kind == LlmApiKind.anthropic) ...[
           const SizedBox(height: 8),
-          DropdownButtonFormField<LlmReasoningDialect>(
-            isExpanded: true,
+          _LabeledDropdown<LlmReasoningDialect>(
             key: ValueKey('${model.id}-${model.reasoningDialect}-$kind'),
             initialValue: model.reasoningDialect,
-            decoration: InputDecoration(labelText: l10n.llmReasoningDialect),
+            label: l10n.llmReasoningDialect,
             items: [
               for (final d in LlmReasoningDialect.values.where(
                 (d) =>
