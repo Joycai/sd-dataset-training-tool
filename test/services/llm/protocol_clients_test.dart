@@ -31,6 +31,74 @@ ChatContentPart picture() => ChatContentPart.image(
 );
 
 void main() {
+  for (final wireId in <String?>[null, 'reused-upstream-id']) {
+    test('Gemini associates multi-round calls with wire ID $wireId', () async {
+      final p = profile.copyWith(kind: LlmApiKind.gemini);
+      final history = <ChatMessage>[ChatMessage.user('work')];
+      final ids = <String>[];
+      final originals = <Map<String, dynamic>>[];
+      for (final name in ['inspect', 'edit']) {
+        final part = <String, dynamic>{
+          'thoughtSignature': 'signature-$name',
+          'functionCall': {
+            'id': ?wireId,
+            'name': name,
+            'args': <String, dynamic>{},
+          },
+        };
+        originals.add(part);
+        // Also exercise a fresh client between turns.
+        final events = await GeminiClient()
+            .decodeEvents(
+              p,
+              Stream.value({
+                'candidates': [
+                  {
+                    'content': {
+                      'parts': [part],
+                    },
+                    'finishReason': 'STOP',
+                  },
+                ],
+              }),
+            )
+            .toList();
+        final calls = events.whereType<ToolCallsReady>().single.calls;
+        ids.add(calls.single.id);
+        history.add(
+          ChatMessage.assistant(
+            '',
+            toolCalls: calls,
+            replay: events.whereType<StreamDone>().single.replay,
+          ),
+        );
+        history.add(
+          ChatMessage.toolResult(toolCallId: calls.single.id, text: 'ok-$name'),
+        );
+      }
+      if (wireId == null) expect(ids.toSet(), hasLength(2));
+      final body = GeminiClient().buildBody(p, history, [], stream: true);
+      final contents = body['contents'] as List;
+      final results = [
+        for (final c in contents)
+          for (final part in c['parts'])
+            if (part['functionResponse'] != null) part['functionResponse'],
+      ];
+      expect(results.map((dynamic r) => r['name']), ['inspect', 'edit']);
+      expect(results.map((dynamic r) => r['response']['result']), [
+        'ok-inspect',
+        'ok-edit',
+      ]);
+      for (final result in results) {
+        expect(result.containsKey('id'), wireId != null);
+        expect(result['id'], wireId);
+      }
+      expect([
+        for (final c in contents)
+          if (c['role'] == 'model') ...(c['parts'] as List),
+      ], originals);
+    });
+  }
   test(
     'Responses effort, signed output replay, tools, image and usage',
     () async {

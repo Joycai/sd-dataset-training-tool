@@ -1451,6 +1451,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentSwitchProfile => '切换后端';
 
   @override
+  String get agentRetrySettingsChangedNotice =>
+      '模型配置已修改或移除，未重试旧请求。请重新发送请求以开启新会话；此前已完成的操作仍然有效。';
+
+  @override
   String agentProfileSwitchedNotice(String name) {
     return '已切换到「$name」，下一条消息将开启新会话，不带上面的上下文。';
   }

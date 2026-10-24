@@ -6,6 +6,7 @@ import 'llm_client.dart';
 
 /// Native generateContent protocol, including signed thought parts.
 class GeminiClient extends JsonProtocolClient {
+  static int _nextCallId = 0;
   GeminiClient({super.clientFactory, super.connectTimeout, super.idleTimeout});
   String _base(LlmProviderProfile p) {
     final base = JsonProtocolClient.base(p);
@@ -47,10 +48,7 @@ class GeminiClient extends JsonProtocolClient {
     List<ChatMessage> messages,
   ) {
     final out = <Map<String, dynamic>>[];
-    final names = {
-      for (final m in messages)
-        for (final c in m.toolCalls) c.id: c.name,
-    };
+    final bindings = <String, ({String name, String? wireId})>{};
     void emit(String role, List<dynamic> parts) {
       if (parts.isEmpty) return;
       if (out.isNotEmpty && out.last['role'] == role) {
@@ -67,6 +65,25 @@ class GeminiClient extends JsonProtocolClient {
         case ChatRole.user:
           emit('user', _parts(m));
         case ChatRole.assistant:
+          // Resolve results against the preceding assistant, not later turns.
+          // Signed replay remains untouched; synthetic IDs are internal only.
+          final replayParts = (m.replay?.matches(profile) ?? false)
+              ? m.replay!.data['parts'] as List?
+              : null;
+          final wireCalls = replayParts
+              ?.whereType<Map>()
+              .map((p) => p['functionCall'])
+              .whereType<Map>()
+              .toList();
+          for (var i = 0; i < m.toolCalls.length; i++) {
+            final c = m.toolCalls[i];
+            bindings[c.id] = (
+              name: c.name,
+              wireId: wireCalls != null && i < wireCalls.length
+                  ? wireCalls[i]['id'] as String?
+                  : c.id,
+            );
+          }
           if ((m.replay?.matches(profile) ?? false) &&
               m.replay!.data['parts'] is List) {
             emit('model', m.replay!.data['parts'] as List);
@@ -84,15 +101,15 @@ class GeminiClient extends JsonProtocolClient {
             ]);
           }
         case ChatRole.tool:
-          final name = names[m.toolCallId];
-          if (name == null) {
+          final binding = bindings[m.toolCallId];
+          if (binding == null) {
             throw LlmException('Missing function call for ${m.toolCallId}.');
           }
           emit('user', [
             {
               'functionResponse': {
-                'name': name,
-                'id': m.toolCallId,
+                'name': binding.name,
+                if (binding.wireId != null) 'id': binding.wireId,
                 'response': {'result': m.text},
                 if (m.imageCount > 0)
                   'parts': _parts(
@@ -208,7 +225,7 @@ class GeminiClient extends JsonProtocolClient {
         if (call is Map<String, dynamic>) {
           calls.add(
             ChatToolCall(
-              id: call['id'] as String? ?? 'gemini_${calls.length}',
+              id: call['id'] as String? ?? 'gemini_local_${_nextCallId++}',
               name: call['name'] as String,
               argumentsJson: jsonEncode(call['args'] ?? {}),
             ),

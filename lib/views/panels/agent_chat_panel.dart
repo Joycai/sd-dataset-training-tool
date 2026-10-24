@@ -769,6 +769,8 @@ class _EntryRow extends StatelessWidget {
         final text = switch (entry.noticeType) {
           AgentNoticeType.cancelled => l10n.agentStoppedNotice,
           AgentNoticeType.reset => l10n.agentSessionResetNotice,
+          AgentNoticeType.retrySettingsChanged =>
+            l10n.agentRetrySettingsChangedNotice,
           AgentNoticeType.tokenCap => l10n.agentTokenCapNotice,
           AgentNoticeType.profileSwitched => l10n.agentProfileSwitchedNotice(
             entry.text,

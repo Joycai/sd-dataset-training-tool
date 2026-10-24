@@ -2664,6 +2664,12 @@ abstract class AppLocalizations {
   /// **'Switch backend'**
   String get agentSwitchProfile;
 
+  /// No description provided for @agentRetrySettingsChangedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Model settings changed or were removed. The old request was not retried. Send your request again to start a new conversation; previously completed actions remain in effect.'**
+  String get agentRetrySettingsChangedNotice;
+
   /// No description provided for @agentProfileSwitchedNotice.
   ///
   /// In en, this message translates to:

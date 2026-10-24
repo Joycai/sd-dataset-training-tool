@@ -829,6 +829,7 @@
   "agentStoppedNotice": "Stopped.",
   "agentSessionResetNotice": "Dataset changed — conversation reset.",
   "agentSwitchProfile": "Switch backend",
+  "agentRetrySettingsChangedNotice": "Model settings changed or were removed. The old request was not retried. Send your request again to start a new conversation; previously completed actions remain in effect.",
   "agentProfileSwitchedNotice": "Switched to \"{name}\" — the next message starts a new conversation, without the context above.",
   "@agentProfileSwitchedNotice": {
     "placeholders": {

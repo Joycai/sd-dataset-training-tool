@@ -36,6 +36,7 @@ enum AgentNoticeType {
   reset,
   tokenCap,
   profileSwitched,
+  retrySettingsChanged,
   turnLimitStopped,
   turnLimitContinued,
 
@@ -307,6 +308,19 @@ class AgentChatState extends ChangeNotifier {
     if (!canRetry) return;
     final session = _session;
     if (session == null) return;
+    final profile = app.activeLlmProfile;
+    if (profile == null ||
+        jsonEncode(session.profile.toJson()) != jsonEncode(profile.toJson())) {
+      // Restarting the task automatically could repeat completed writes.
+      // A new request must explicitly begin a conversation with new settings.
+      session.stop();
+      _session = null;
+      _allowAllWrites = false;
+      entries.last.retryable = false;
+      entries.add(AgentChatEntry.notice(AgentNoticeType.retrySettingsChanged));
+      _touch();
+      return;
+    }
     // The notice stays as the record of the failed attempt; only its button
     // goes, so a second failure gets its own row and its own button.
     entries.last.retryable = false;
