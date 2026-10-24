@@ -24,9 +24,8 @@ import 'dart:math' as math;
 
 import '../models/llm_models.dart';
 import '../utils/tag_text.dart';
-import 'llm/anthropic_client.dart';
 import 'llm/llm_client.dart';
-import 'llm/openai_compat_client.dart';
+import 'llm/llm_client_factory.dart';
 
 /// A proposed home for one tag.
 class TagGroupSuggestion {
@@ -156,10 +155,7 @@ Future<List<TagGroupSuggestion>> suggestTagGroupsWithLlm({
   // Annotated, not inferred: both concrete clients implement two interfaces,
   // so their least upper bound is no longer LlmClient.
   final LlmClient llm =
-      client ??
-      (profile.kind == LlmApiKind.anthropic
-          ? AnthropicClient(idleTimeout: _idleTimeout)
-          : OpenAiCompatClient(idleTimeout: _idleTimeout));
+      client ?? createLlmClient(profile.kind, idleTimeout: _idleTimeout);
   final budgeted = profile.copyWith(
     maxOutputTokens: math.max(profile.maxOutputTokens, _minOutputTokens),
   );

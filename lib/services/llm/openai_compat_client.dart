@@ -18,7 +18,7 @@ import 'sse.dart';
 /// profile once it works, so the next turn sends the accepted shape directly
 /// instead of paying a doomed round-trip per turn — an agent run re-sends
 /// the request up to 24 times.
-enum _BodyRepair { renameMaxTokens, dropStreamOptions, dropTemperature }
+enum _BodyRepair { renameMaxTokens, dropStreamOptions }
 
 class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
   OpenAiCompatClient({
@@ -68,11 +68,19 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
     int? maxTokensOverride,
   }) => _applyRepairs({
     'model': profile.model,
-    'messages': _convertMessages(messages),
+    'messages': _convertMessages(profile, messages),
     'stream': stream,
     if (stream) 'stream_options': {'include_usage': true},
-    'max_tokens': maxTokensOverride ?? profile.maxOutputTokens,
-    'temperature': profile.temperature,
+    (profile.model.startsWith('gpt-5') || profile.model.startsWith('gpt-6')
+            ? 'max_completion_tokens'
+            : 'max_tokens'):
+        maxTokensOverride ?? profile.maxOutputTokens,
+    ...validatedReasoningParameters(
+      effort: profile.effort,
+      dialect: profile.reasoningDialect,
+      model: profile.model,
+      anthropic: false,
+    ),
     if (tools.isNotEmpty)
       'tools': [
         for (final t in tools)
@@ -85,11 +93,19 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
             },
           },
       ],
-  }, _knownRepairs[profile.id] ?? const {});
+  }, _knownRepairs[LlmReplay.keyFor(profile)] ?? const {});
 
-  List<Map<String, dynamic>> _convertMessages(List<ChatMessage> messages) {
+  List<Map<String, dynamic>> _convertMessages(
+    LlmProviderProfile profile,
+    List<ChatMessage> messages,
+  ) {
     final out = <Map<String, dynamic>>[];
+    final pendingImages = <Map<String, dynamic>>[];
     for (final m in messages) {
+      if (m.role != ChatRole.tool && pendingImages.isNotEmpty) {
+        out.add({'role': 'user', 'content': List.of(pendingImages)});
+        pendingImages.clear();
+      }
       switch (m.role) {
         case ChatRole.system:
           out.add({'role': 'system', 'content': m.text});
@@ -98,6 +114,8 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
         case ChatRole.assistant:
           out.add({
             'role': 'assistant',
+            if (m.replay?.matches(profile) ?? false)
+              ...?m.replay?.data['chat'] as Map<String, dynamic>?,
             // Tool-call turns may carry no text (null is the protocol's
             // shape); a plain empty reply becomes '' for relays that
             // reject null content.
@@ -122,19 +140,11 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
             'tool_call_id': m.toolCallId ?? '',
             'content': m.text,
           });
-          if (m.imageCount > 0) {
-            out.add({
-              'role': 'user',
-              'content': [
-                {
-                  'type': 'text',
-                  'text': '[images returned by the previous tool call]',
-                },
-                ..._imageParts(m),
-              ],
-            });
-          }
+          pendingImages.addAll(_imageParts(m));
       }
+    }
+    if (pendingImages.isNotEmpty) {
+      out.add({'role': 'user', 'content': pendingImages});
     }
     return out;
   }
@@ -172,8 +182,6 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
         _BodyRepair.renameMaxTokens,
       if (e.contains('stream_options') && body.containsKey('stream_options'))
         _BodyRepair.dropStreamOptions,
-      if (e.contains('temperature') && body.containsKey('temperature'))
-        _BodyRepair.dropTemperature,
     };
   }
 
@@ -189,9 +197,6 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
     }
     if (repairs.contains(_BodyRepair.dropStreamOptions)) {
       next.remove('stream_options');
-    }
-    if (repairs.contains(_BodyRepair.dropTemperature)) {
-      next.remove('temperature');
     }
     return next;
   }
@@ -254,7 +259,9 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
       if (repairs.isNotEmpty) {
         resp = await _send(client, profile, _applyRepairs(body, repairs));
         if (resp.statusCode >= 200 && resp.statusCode < 300) {
-          _knownRepairs.putIfAbsent(profile.id, () => {}).addAll(repairs);
+          _knownRepairs
+              .putIfAbsent(LlmReplay.keyFor(profile), () => {})
+              .addAll(repairs);
           return resp;
         }
         throw LlmException(
@@ -285,10 +292,22 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
     // unregistration a 24-turn run leaves 24 dead listeners on it.
     final unregister = cancel?.onCancel(client.close);
     try {
+      validateLlmImages(profile, messages);
+      if (tools.isNotEmpty &&
+          Uri.tryParse(profile.baseUrl)?.host == 'api.openai.com' &&
+          profile.model.startsWith('gpt-6') &&
+          (profile.model.startsWith('gpt-6.1') ||
+              profile.model.contains('astra') ||
+              profile.effort != LlmEffort.off)) {
+        throw LlmException(
+          'Select Responses protocol for GPT-6 reasoning with tools.',
+        );
+      }
       final body = _buildBody(profile, messages, tools, stream: true);
       final resp = await _sendWithRepair(client, profile, body);
 
       final acc = _ToolCallAccumulator();
+      final replayFields = <String, dynamic>{};
       var finishReason = '';
       TokenUsage? usage;
 
@@ -315,6 +334,9 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
           } on FormatException {
             continue;
           }
+          if (obj['error'] != null) {
+            throw LlmException('API error: ${obj['error']}');
+          }
           final u = obj['usage'];
           if (u is Map<String, dynamic>) {
             // `prompt_tokens` already includes the cached subset reported
@@ -339,9 +361,26 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
           // `reasoning_content` is the de-facto field for thinking models
           // behind OpenAI-compatible relays (DeepSeek-R, Qwen, MiniMax…);
           // a few relays shorten it to `reasoning`.
-          final reasoning = delta['reasoning_content'] ?? delta['reasoning'];
+          for (final key in ['reasoning_content', 'reasoning']) {
+            final value = delta[key];
+            if (value is String && value.isNotEmpty) {
+              replayFields[key] = '${replayFields[key] ?? ''}$value';
+            }
+          }
+          final primary = delta['reasoning_content'];
+          final reasoning = primary is String && primary.isNotEmpty
+              ? primary
+              : delta['reasoning'];
           if (reasoning is String && reasoning.isNotEmpty) {
             yield ReasoningDelta(reasoning);
+          }
+          if (delta['reasoning_details'] is List) {
+            (replayFields['reasoning_details'] ??= <dynamic>[]).addAll(
+              delta['reasoning_details'],
+            );
+          }
+          if (delta['encrypted_content'] != null) {
+            replayFields['encrypted_content'] = delta['encrypted_content'];
           }
           final content = delta['content'];
           if (content is String && content.isNotEmpty) {
@@ -367,7 +406,10 @@ class OpenAiCompatClient implements LlmClient, LlmEndpointInspector {
             ? 'tool_calls'
             : finishReason,
         usage: usage,
+        replay: LlmReplay(profile, {'chat': replayFields}),
       );
+    } on ArgumentError catch (e) {
+      throw LlmException(e.message.toString());
     } on LlmException {
       if (cancel?.isCancelled ?? false) return;
       rethrow;

@@ -19,9 +19,8 @@ import '../models/agent_tool_pack.dart';
 import '../models/caption_type.dart';
 import '../models/llm_models.dart';
 import '../models/merge_rules.dart';
-import '../services/llm/anthropic_client.dart';
 import '../services/llm/llm_client.dart';
-import '../services/llm/openai_compat_client.dart';
+import '../services/llm/llm_client_factory.dart';
 import 'ai_tagger_state.dart';
 import 'app_state.dart';
 import 'dataset_state.dart';
@@ -37,6 +36,7 @@ enum AgentNoticeType {
   reset,
   tokenCap,
   profileSwitched,
+  retrySettingsChanged,
   turnLimitStopped,
   turnLimitContinued,
 
@@ -153,10 +153,7 @@ class AgentChatState extends ChangeNotifier {
     Map<LlmApiKind, LlmClient>? clients,
   }) : _clients =
            clients ??
-           {
-             LlmApiKind.openaiCompat: OpenAiCompatClient(),
-             LlmApiKind.anthropic: AnthropicClient(),
-           };
+           {for (final kind in LlmApiKind.values) kind: createLlmClient(kind)};
 
   final AppState app;
   final DatasetState dataset;
@@ -283,8 +280,15 @@ class AgentChatState extends ChangeNotifier {
 
     // Model switch invalidates the conversation (history was built for the
     // previous backend); start fresh.
-    if (_session != null && _session!.profile.id != profile.id) {
+    if (_session != null &&
+        jsonEncode(_session!.profile.toJson()) !=
+            jsonEncode(profile.toJson())) {
+      _session!.stop();
       _session = null;
+      _allowAllWrites = false;
+      entries.add(
+        AgentChatEntry.notice(AgentNoticeType.profileSwitched, profile.name),
+      );
     }
     _session ??= _createSession(profile);
 
@@ -304,6 +308,19 @@ class AgentChatState extends ChangeNotifier {
     if (!canRetry) return;
     final session = _session;
     if (session == null) return;
+    final profile = app.activeLlmProfile;
+    if (profile == null ||
+        jsonEncode(session.profile.toJson()) != jsonEncode(profile.toJson())) {
+      // Restarting the task automatically could repeat completed writes.
+      // A new request must explicitly begin a conversation with new settings.
+      session.stop();
+      _session = null;
+      _allowAllWrites = false;
+      entries.last.retryable = false;
+      entries.add(AgentChatEntry.notice(AgentNoticeType.retrySettingsChanged));
+      _touch();
+      return;
+    }
     // The notice stays as the record of the failed attempt; only its button
     // goes, so a second failure gets its own row and its own button.
     entries.last.retryable = false;

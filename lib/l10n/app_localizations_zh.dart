@@ -1451,6 +1451,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get agentSwitchProfile => '切换后端';
 
   @override
+  String get agentRetrySettingsChangedNotice =>
+      '模型配置已修改或移除，未重试旧请求。请重新发送请求以开启新会话；此前已完成的操作仍然有效。';
+
+  @override
   String agentProfileSwitchedNotice(String name) {
     return '已切换到「$name」，下一条消息将开启新会话，不带上面的上下文。';
   }
@@ -2779,4 +2783,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get imageProcessingSaved => '查找已保存操作';
+
+  @override
+  String get llmProtocol => '协议';
+
+  @override
+  String get llmEffort => '推理强度';
+
+  @override
+  String get llmEffortDefault => '跟随端点默认';
+
+  @override
+  String get llmEffortOff => '关闭';
+
+  @override
+  String get llmReasoningDialect => '推理参数类型';
+
+  @override
+  String get llmReasoningDisabled => '不发送推理参数';
 }

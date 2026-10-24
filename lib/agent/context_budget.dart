@@ -2,6 +2,8 @@
 /// Pure Dart.
 library;
 
+import 'dart:convert';
+
 import '../models/llm_models.dart';
 
 /// What one [ContextBudget.compact] pass did, so the session can tell the
@@ -97,6 +99,7 @@ class ContextBudget {
   int estimate(List<ChatMessage> history) {
     var tokens = 0;
     for (final m in history) {
+      if (m.replay != null) tokens += estimateText(jsonEncode(m.replay!.data));
       tokens += 4; // per-message protocol overhead
       for (final p in m.parts) {
         if (p.isImage) {
@@ -163,6 +166,31 @@ class ContextBudget {
 
     if (estimate(history) <= inputBudget) return result();
 
+    // Signed protocol output is indivisible. Retire a whole old exchange,
+    // including every tool result, instead of eliding text while replaying
+    // its hidden original. Keep the protected tail and pinned source data.
+    while (estimate(history) > inputBudget) {
+      final start = history.isNotEmpty && history.first.role == ChatRole.system
+          ? 1
+          : 0;
+      var boundary = -1;
+      for (var i = start + 1; i < history.length - protectedTail; i++) {
+        if (history[i].role == ChatRole.user) {
+          boundary = i;
+          break;
+        }
+      }
+      if (boundary < 0) break;
+      final exchange = history.sublist(start, boundary);
+      if (exchange.any((m) => m.pinned) ||
+          !exchange.any((m) => m.replay != null)) {
+        break;
+      }
+      folded += exchange.length;
+      history.removeRange(start, boundary);
+    }
+    if (estimate(history) <= inputBudget) return result();
+
     bool isProtected(int i) => i == 0 || i >= history.length - protectedTail;
 
     /// Folds tool results oldest first, returning true once history fits.
@@ -187,7 +215,11 @@ class ContextBudget {
     for (var i = 0; i < history.length; i++) {
       if (isProtected(i)) continue;
       final m = history[i];
-      if (m.role == ChatRole.tool || m.role == ChatRole.system) continue;
+      if (m.role == ChatRole.tool ||
+          m.role == ChatRole.system ||
+          m.replay != null) {
+        continue;
+      }
       if (_isElided(m)) continue;
       _elide(m, m.role == ChatRole.user ? 'user message' : 'assistant message');
       folded++;

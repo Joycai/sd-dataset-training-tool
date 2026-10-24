@@ -2664,6 +2664,12 @@ abstract class AppLocalizations {
   /// **'Switch backend'**
   String get agentSwitchProfile;
 
+  /// No description provided for @agentRetrySettingsChangedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Model settings changed or were removed. The old request was not retried. Send your request again to start a new conversation; previously completed actions remain in effect.'**
+  String get agentRetrySettingsChangedNotice;
+
   /// No description provided for @agentProfileSwitchedNotice.
   ///
   /// In en, this message translates to:
@@ -5008,6 +5014,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Find saved operations'**
   String get imageProcessingSaved;
+
+  /// No description provided for @llmProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'Protocol'**
+  String get llmProtocol;
+
+  /// No description provided for @llmEffort.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning effort'**
+  String get llmEffort;
+
+  /// No description provided for @llmEffortDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoint default'**
+  String get llmEffortDefault;
+
+  /// No description provided for @llmEffortOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get llmEffortOff;
+
+  /// No description provided for @llmReasoningDialect.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning parameters'**
+  String get llmReasoningDialect;
+
+  /// No description provided for @llmReasoningDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Do not send reasoning parameters'**
+  String get llmReasoningDisabled;
 }
 
 class _AppLocalizationsDelegate

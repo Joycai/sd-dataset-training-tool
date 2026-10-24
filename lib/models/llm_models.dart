@@ -8,6 +8,9 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'llm_reasoning.dart';
+export 'llm_reasoning.dart';
+
 /// Which wire protocol a provider speaks.
 ///
 /// [openaiCompat] covers OpenAI, newapi/one-api style relays, Ollama's
@@ -15,6 +18,8 @@ import 'dart:typed_data';
 /// [anthropic] is the native Anthropic Messages API.
 enum LlmApiKind {
   openaiCompat('openai'),
+  responses('responses'),
+  gemini('gemini'),
   anthropic('anthropic');
 
   const LlmApiKind(this.id);
@@ -41,6 +46,8 @@ class LlmProviderProfile {
     this.contextWindow = 32768,
     this.maxOutputTokens = 4096,
     this.temperature = 0.7,
+    this.effort = LlmEffort.defaultValue,
+    this.reasoningDialect = LlmReasoningDialect.automatic,
     this.measuredContextWindow = 0,
     this.silentTruncation = false,
     this.pricing,
@@ -52,8 +59,9 @@ class LlmProviderProfile {
 
   /// For [LlmApiKind.openaiCompat] this is the URL up to and including the
   /// version segment (e.g. `https://api.openai.com/v1`); the client appends
-  /// `/chat/completions`. For [LlmApiKind.anthropic] the host root
-  /// (`https://api.anthropic.com`).
+  /// `/chat/completions`. Responses uses the same base with `/responses`.
+  /// Messages accepts the host root or `/v1`; Gemini accepts the host root
+  /// or `/v1beta` and appends `/models/<id>:streamGenerateContent`.
   final String baseUrl;
 
   /// May be empty for local backends (Ollama).
@@ -68,7 +76,9 @@ class LlmProviderProfile {
   final int contextWindow;
 
   final int maxOutputTokens;
-  final double temperature;
+  final double temperature; // Legacy storage only; never sent.
+  final LlmEffort effort;
+  final LlmReasoningDialect reasoningDialect;
 
   /// Context window the capability probe measured, 0 when never detected.
   /// Carried from [LlmModelConfig.measuredContextWindow] by
@@ -97,6 +107,8 @@ class LlmProviderProfile {
     int? contextWindow,
     int? maxOutputTokens,
     double? temperature,
+    LlmEffort? effort,
+    LlmReasoningDialect? reasoningDialect,
     int? measuredContextWindow,
     bool? silentTruncation,
     LlmPricing? pricing,
@@ -111,6 +123,8 @@ class LlmProviderProfile {
     contextWindow: contextWindow ?? this.contextWindow,
     maxOutputTokens: maxOutputTokens ?? this.maxOutputTokens,
     temperature: temperature ?? this.temperature,
+    effort: effort ?? this.effort,
+    reasoningDialect: reasoningDialect ?? this.reasoningDialect,
     measuredContextWindow: measuredContextWindow ?? this.measuredContextWindow,
     silentTruncation: silentTruncation ?? this.silentTruncation,
     pricing: pricing ?? this.pricing,
@@ -127,6 +141,8 @@ class LlmProviderProfile {
     'contextWindow': contextWindow,
     'maxOutputTokens': maxOutputTokens,
     'temperature': temperature,
+    'effort': effort.name,
+    'reasoningDialect': reasoningDialect.name,
   };
 
   factory LlmProviderProfile.fromJson(Map<String, dynamic> json) =>
@@ -141,14 +157,33 @@ class LlmProviderProfile {
         contextWindow: (json['contextWindow'] as num?)?.toInt() ?? 32768,
         maxOutputTokens: (json['maxOutputTokens'] as num?)?.toInt() ?? 4096,
         temperature: (json['temperature'] as num?)?.toDouble() ?? 0.7,
+        effort: enumByName(
+          LlmEffort.values,
+          json['effort'],
+          LlmEffort.defaultValue,
+        ),
+        reasoningDialect: enumByName(
+          LlmReasoningDialect.values,
+          json['reasoningDialect'],
+          LlmReasoningDialect.automatic,
+        ),
       );
 
   /// Base URL presets offered by the settings UI, keyed by display label.
   static const Map<String, (LlmApiKind, String)> presets = {
-    'OpenAI': (LlmApiKind.openaiCompat, 'https://api.openai.com/v1'),
+    'OpenAI Responses': (LlmApiKind.responses, 'https://api.openai.com/v1'),
     'Gemini (OpenAI compat)': (
       LlmApiKind.openaiCompat,
       'https://generativelanguage.googleapis.com/v1beta/openai',
+    ),
+    'Gemini (native)': (
+      LlmApiKind.gemini,
+      'https://generativelanguage.googleapis.com/v1beta',
+    ),
+    'DeepSeek': (LlmApiKind.openaiCompat, 'https://api.deepseek.com/v1'),
+    'Qwen': (
+      LlmApiKind.openaiCompat,
+      'https://dashscope.aliyuncs.com/compatible-mode/v1',
     ),
     'Ollama': (LlmApiKind.openaiCompat, 'http://127.0.0.1:11434/v1'),
     'Anthropic': (LlmApiKind.anthropic, 'https://api.anthropic.com'),
@@ -229,9 +264,12 @@ class LlmModelConfig {
     required this.id,
     required this.modelId,
     this.displayName = '',
+    this.protocol,
     this.contextWindow = 32768,
     this.maxOutputTokens = 4096,
     this.temperature = 0.7,
+    this.effort = LlmEffort.defaultValue,
+    this.reasoningDialect = LlmReasoningDialect.automatic,
     this.supportsVision = false,
     this.pricing,
     this.measuredContextWindow = 0,
@@ -247,9 +285,12 @@ class LlmModelConfig {
   final String modelId;
 
   final String displayName;
+  final LlmApiKind? protocol;
   final int contextWindow;
   final int maxOutputTokens;
-  final double temperature;
+  final double temperature; // Legacy storage only; never sent.
+  final LlmEffort effort;
+  final LlmReasoningDialect reasoningDialect;
   final bool supportsVision;
   final LlmPricing? pricing;
 
@@ -283,9 +324,13 @@ class LlmModelConfig {
   LlmModelConfig copyWith({
     String? modelId,
     String? displayName,
+    LlmApiKind? protocol,
+    bool inheritProtocol = false,
     int? contextWindow,
     int? maxOutputTokens,
     double? temperature,
+    LlmEffort? effort,
+    LlmReasoningDialect? reasoningDialect,
     bool? supportsVision,
     LlmPricing? pricing,
     bool clearPricing = false,
@@ -297,9 +342,12 @@ class LlmModelConfig {
     id: id,
     modelId: modelId ?? this.modelId,
     displayName: displayName ?? this.displayName,
+    protocol: inheritProtocol ? null : protocol ?? this.protocol,
     contextWindow: contextWindow ?? this.contextWindow,
     maxOutputTokens: maxOutputTokens ?? this.maxOutputTokens,
     temperature: temperature ?? this.temperature,
+    effort: effort ?? this.effort,
+    reasoningDialect: reasoningDialect ?? this.reasoningDialect,
     supportsVision: supportsVision ?? this.supportsVision,
     pricing: clearPricing ? null : (pricing ?? this.pricing),
     measuredContextWindow: measuredContextWindow ?? this.measuredContextWindow,
@@ -312,9 +360,12 @@ class LlmModelConfig {
     'id': id,
     'modelId': modelId,
     'displayName': displayName,
+    if (protocol != null) 'protocol': protocol!.id,
     'contextWindow': contextWindow,
     'maxOutputTokens': maxOutputTokens,
     'temperature': temperature,
+    'effort': effort.name,
+    'reasoningDialect': reasoningDialect.name,
     'supportsVision': supportsVision,
     if (pricing != null && !pricing!.isEmpty) 'pricing': pricing!.toJson(),
     if (measuredContextWindow > 0)
@@ -328,9 +379,22 @@ class LlmModelConfig {
     id: (json['id'] as String?) ?? '',
     modelId: (json['modelId'] as String?) ?? '',
     displayName: (json['displayName'] as String?) ?? '',
+    protocol: json['protocol'] is String
+        ? LlmApiKind.fromId(json['protocol'] as String)
+        : null,
     contextWindow: (json['contextWindow'] as num?)?.toInt() ?? 32768,
     maxOutputTokens: (json['maxOutputTokens'] as num?)?.toInt() ?? 4096,
     temperature: (json['temperature'] as num?)?.toDouble() ?? 0.7,
+    effort: enumByName(
+      LlmEffort.values,
+      json['effort'],
+      LlmEffort.defaultValue,
+    ),
+    reasoningDialect: enumByName(
+      LlmReasoningDialect.values,
+      json['reasoningDialect'],
+      LlmReasoningDialect.automatic,
+    ),
     supportsVision: (json['supportsVision'] as bool?) ?? false,
     pricing: json['pricing'] is Map<String, dynamic>
         ? LlmPricing.fromJson(json['pricing'] as Map<String, dynamic>)
@@ -383,7 +447,7 @@ class LlmProvider {
   LlmProviderProfile resolve(LlmModelConfig model) => LlmProviderProfile(
     id: '$id/${model.id}',
     name: models.length <= 1 ? name : '$name · ${model.label}',
-    kind: kind,
+    kind: model.protocol ?? kind,
     baseUrl: baseUrl,
     apiKey: apiKey,
     model: model.modelId,
@@ -391,6 +455,8 @@ class LlmProvider {
     contextWindow: model.contextWindow,
     maxOutputTokens: model.maxOutputTokens,
     temperature: model.temperature,
+    effort: model.effort,
+    reasoningDialect: model.reasoningDialect,
     measuredContextWindow: model.measuredContextWindow,
     silentTruncation: model.silentTruncation,
     pricing: model.pricing,
@@ -435,6 +501,8 @@ class LlmProvider {
           contextWindow: profile.contextWindow,
           maxOutputTokens: profile.maxOutputTokens,
           temperature: profile.temperature,
+          effort: profile.effort,
+          reasoningDialect: profile.reasoningDialect,
           supportsVision: profile.supportsVision,
         ),
       ],
@@ -505,6 +573,7 @@ class ChatMessage {
     this.toolCalls = const [],
     this.toolCallId,
     this.pinned = false,
+    this.replay,
   }) : parts = parts ?? [];
 
   factory ChatMessage.system(String text) =>
@@ -516,10 +585,12 @@ class ChatMessage {
   factory ChatMessage.assistant(
     String text, {
     List<ChatToolCall> toolCalls = const [],
+    LlmReplay? replay,
   }) => ChatMessage(
     role: ChatRole.assistant,
     parts: [if (text.isNotEmpty) ChatContentPart.text(text)],
     toolCalls: toolCalls,
+    replay: replay,
   );
 
   factory ChatMessage.toolResult({
@@ -535,6 +606,7 @@ class ChatMessage {
   );
 
   final ChatRole role;
+  final LlmReplay? replay;
 
   /// Mutable on purpose: [ContextBudget.compact] replaces elided content.
   List<ChatContentPart> parts;
@@ -614,7 +686,7 @@ class TextDelta extends LlmStreamEvent {
 
 /// A fragment of the model's reasoning/thinking stream (`reasoning_content`
 /// on OpenAI-compatible relays, `thinking_delta` on Anthropic). Display
-/// only — never part of the answer and never re-sent. Consuming it matters
+/// only; protocol replay is carried separately by StreamDone. Consuming it matters
 /// beyond display: a reasoning model can think for minutes, and a UI that
 /// drops these fragments shows a dead connection the whole time.
 class ReasoningDelta extends LlmStreamEvent {
@@ -632,8 +704,20 @@ class ToolCallsReady extends LlmStreamEvent {
 }
 
 class StreamDone extends LlmStreamEvent {
-  StreamDone({this.finishReason = '', this.usage});
+  StreamDone({this.finishReason = '', this.usage, this.replay});
+
+  final LlmReplay? replay;
 
   final String finishReason;
   final TokenUsage? usage;
+}
+
+/// Opaque protocol data, scoped to one endpoint and model. Never translate it.
+class LlmReplay {
+  LlmReplay(LlmProviderProfile profile, this.data) : scope = keyFor(profile);
+  final String scope;
+  final Map<String, dynamic> data;
+  static String keyFor(LlmProviderProfile p) =>
+      '${p.id}|${p.kind.id}|${p.baseUrl}|${p.model}';
+  bool matches(LlmProviderProfile profile) => scope == keyFor(profile);
 }

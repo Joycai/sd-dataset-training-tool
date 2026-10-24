@@ -1495,6 +1495,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get agentSwitchProfile => 'Switch backend';
 
   @override
+  String get agentRetrySettingsChangedNotice =>
+      'Model settings changed or were removed. The old request was not retried. Send your request again to start a new conversation; previously completed actions remain in effect.';
+
+  @override
   String agentProfileSwitchedNotice(String name) {
     return 'Switched to \"$name\" — the next message starts a new conversation, without the context above.';
   }
@@ -2879,4 +2883,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get imageProcessingSaved => 'Find saved operations';
+
+  @override
+  String get llmProtocol => 'Protocol';
+
+  @override
+  String get llmEffort => 'Reasoning effort';
+
+  @override
+  String get llmEffortDefault => 'Endpoint default';
+
+  @override
+  String get llmEffortOff => 'Off';
+
+  @override
+  String get llmReasoningDialect => 'Reasoning parameters';
+
+  @override
+  String get llmReasoningDisabled => 'Do not send reasoning parameters';
 }

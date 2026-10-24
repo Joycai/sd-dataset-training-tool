@@ -3,9 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../models/llm_models.dart';
-import '../../services/llm/anthropic_client.dart';
 import '../../services/llm/llm_client.dart';
-import '../../services/llm/openai_compat_client.dart';
+import '../../services/llm/llm_client_factory.dart';
 import '../../state/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/panel_widgets.dart';
@@ -51,8 +50,9 @@ class _LlmProvidersDialog extends StatefulWidget {
 }
 
 class _LlmProvidersDialogState extends State<_LlmProvidersDialog> {
-  final _openaiClient = OpenAiCompatClient();
-  final _anthropicClient = AnthropicClient();
+  final _clients = {
+    for (final kind in LlmApiKind.values) kind: createLlmClient(kind),
+  };
 
   String? _selectedProviderId;
   String? _selectedModelId;
@@ -85,11 +85,10 @@ class _LlmProvidersDialogState extends State<_LlmProvidersDialog> {
     return null;
   }
 
-  LlmClient _clientFor(LlmApiKind kind) =>
-      kind == LlmApiKind.anthropic ? _anthropicClient : _openaiClient;
+  LlmClient _clientFor(LlmApiKind kind) => _clients[kind]!;
 
   LlmEndpointInspector _inspectorFor(LlmApiKind kind) =>
-      kind == LlmApiKind.anthropic ? _anthropicClient : _openaiClient;
+      _clients[kind]! as LlmEndpointInspector;
 
   Future<void> _save(List<LlmProvider> next) =>
       context.read<AppState>().updateLlmProviders(next);
@@ -177,7 +176,7 @@ class _LlmProvidersDialogState extends State<_LlmProvidersDialog> {
           : const LlmModelConfig(id: 'probe', modelId: ''),
     );
     final watch = Stopwatch()..start();
-    final error = await _clientFor(provider.kind).probe(probeProfile);
+    final error = await _clientFor(probeProfile.kind).probe(probeProfile);
     watch.stop();
     if (!mounted) return;
     setState(() {
@@ -197,7 +196,7 @@ class _LlmProvidersDialogState extends State<_LlmProvidersDialog> {
       context,
       provider: provider,
       model: model,
-      inspector: _inspectorFor(provider.kind),
+      inspector: _inspectorFor(provider.resolve(model).kind),
     );
     if (updated == null || !mounted) return;
     await _replaceProvider(
@@ -218,7 +217,7 @@ class _LlmProvidersDialogState extends State<_LlmProvidersDialog> {
     List<String> names;
     try {
       names = await _clientFor(
-        provider.kind,
+        provider.resolve(model).kind,
       ).listModels(provider.resolve(model));
     } on LlmException catch (e) {
       if (!mounted) return;
@@ -245,7 +244,10 @@ class _LlmProvidersDialogState extends State<_LlmProvidersDialog> {
       provider.copyWith(
         models: [
           for (final m in provider.models)
-            if (m.id == model.id) m.copyWith(modelId: picked) else m,
+            if (m.id == model.id)
+              m.copyWith(modelId: picked, effort: LlmEffort.defaultValue)
+            else
+              m,
         ],
       ),
     );
@@ -495,8 +497,12 @@ class _ProviderTree extends StatelessWidget {
   }
 }
 
-String _kindLabel(AppLocalizations l10n, LlmApiKind kind) =>
-    kind == LlmApiKind.anthropic ? l10n.llmKindAnthropic : l10n.llmKindOpenAi;
+String _kindLabel(AppLocalizations l10n, LlmApiKind kind) => switch (kind) {
+  LlmApiKind.anthropic => 'Messages (Anthropic)',
+  LlmApiKind.openaiCompat => 'Chat Completions',
+  LlmApiKind.responses => 'Responses',
+  LlmApiKind.gemini => 'Gemini',
+};
 
 class _TreeRow extends StatelessWidget {
   const _TreeRow({
@@ -573,11 +579,15 @@ class _TreeRow extends StatelessWidget {
                 ],
                 if (detail != null) ...[
                   const SizedBox(width: 8),
-                  Text(
-                    detail!,
-                    style: TextStyle(
-                      fontSize: AppText.micro,
-                      color: semantic.muted,
+                  Flexible(
+                    child: Text(
+                      detail!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: AppText.micro,
+                        color: semantic.muted,
+                      ),
                     ),
                   ),
                 ],
@@ -1066,8 +1076,12 @@ class _ModelFormState extends State<_ModelForm> {
                 label: l10n.llmModel,
                 controller: _modelId,
                 mono: true,
-                onChanged: (value) =>
-                    widget.onChanged(model.copyWith(modelId: value.trim())),
+                onChanged: (value) => widget.onChanged(
+                  model.copyWith(
+                    modelId: value.trim(),
+                    effort: LlmEffort.defaultValue,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -1163,37 +1177,42 @@ class _ModelFormState extends State<_ModelForm> {
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        l10n.llmTemperature,
-                        style: TextStyle(
-                          fontSize: AppText.secondary,
-                          color: semantic.muted,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        model.temperature.toStringAsFixed(2),
-                        style: monoStyle(context, size: AppText.secondary),
-                      ),
-                    ],
-                  ),
-                  Slider(
-                    value: model.temperature.clamp(0, 2),
-                    max: 2,
-                    divisions: 20,
-                    onChanged: (value) =>
-                        widget.onChanged(model.copyWith(temperature: value)),
-                  ),
-                ],
+              child: _ReasoningSettings(
+                model: model,
+                kind: model.protocol ?? widget.provider.kind,
+                onChanged: widget.onChanged,
               ),
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<LlmApiKind>(
+          isExpanded: true,
+          key: ValueKey(
+            '${model.id}-${model.protocol?.id}-${widget.provider.kind.id}',
+          ),
+          initialValue: model.protocol ?? widget.provider.kind,
+          decoration: InputDecoration(labelText: l10n.llmProtocol),
+          items: [
+            for (final kind in LlmApiKind.values)
+              DropdownMenuItem(
+                value: kind,
+                child: Text(_kindLabel(l10n, kind)),
+              ),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              widget.onChanged(
+                model.copyWith(
+                  protocol: value,
+                  effort: LlmEffort.defaultValue,
+                  reasoningDialect: LlmReasoningDialect.automatic,
+                ),
+              );
+            }
+          },
+        ),
+        const SizedBox(height: 12),
         if (model.hasMeasurement) _MeasurementNote(model: model),
         _InlineSwitchRow(
           label: l10n.llmSupportsVision,
@@ -1586,6 +1605,104 @@ class _ModelNamePickerState extends State<_ModelNamePicker> {
           onPressed: () => Navigator.of(context).pop(),
           child: Text(l10n.cancel),
         ),
+      ],
+    );
+  }
+}
+
+class _ReasoningSettings extends StatelessWidget {
+  const _ReasoningSettings({
+    required this.model,
+    required this.kind,
+    required this.onChanged,
+  });
+  final LlmModelConfig model;
+  final LlmApiKind kind;
+  final ValueChanged<LlmModelConfig> onChanged;
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final dialect = resolveReasoningDialect(
+      model.reasoningDialect,
+      model.modelId,
+      anthropic: kind == LlmApiKind.anthropic,
+    );
+    final efforts = kind == LlmApiKind.gemini
+        ? [
+            LlmEffort.defaultValue,
+            LlmEffort.low,
+            LlmEffort.medium,
+            LlmEffort.high,
+          ]
+        : availableEfforts(dialect, model.modelId);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<LlmEffort>(
+          isExpanded: true,
+          key: ValueKey('${model.id}-${model.effort}-${efforts.join()}'),
+          initialValue: efforts.contains(model.effort)
+              ? model.effort
+              : LlmEffort.defaultValue,
+          decoration: InputDecoration(labelText: l10n.llmEffort),
+          items: [
+            for (final effort in efforts)
+              DropdownMenuItem(
+                value: effort,
+                child: Text(
+                  effort == LlmEffort.defaultValue
+                      ? l10n.llmEffortDefault
+                      : effort == LlmEffort.off
+                      ? l10n.llmEffortOff
+                      : effort.name,
+                ),
+              ),
+          ],
+          onChanged: (value) {
+            if (value != null) onChanged(model.copyWith(effort: value));
+          },
+        ),
+        if (kind == LlmApiKind.openaiCompat ||
+            kind == LlmApiKind.anthropic) ...[
+          const SizedBox(height: 8),
+          DropdownButtonFormField<LlmReasoningDialect>(
+            isExpanded: true,
+            key: ValueKey('${model.id}-${model.reasoningDialect}-$kind'),
+            initialValue: model.reasoningDialect,
+            decoration: InputDecoration(labelText: l10n.llmReasoningDialect),
+            items: [
+              for (final d in LlmReasoningDialect.values.where(
+                (d) =>
+                    kind != LlmApiKind.anthropic ||
+                    d == LlmReasoningDialect.automatic ||
+                    d == LlmReasoningDialect.adaptive ||
+                    d == LlmReasoningDialect.disabled ||
+                    d == model.reasoningDialect,
+              ))
+                DropdownMenuItem(
+                  value: d,
+                  child: Text(switch (d) {
+                    LlmReasoningDialect.automatic => l10n.llmEffortDefault,
+                    LlmReasoningDialect.standard => 'reasoning_effort',
+                    LlmReasoningDialect.deepseek => 'DeepSeek',
+                    LlmReasoningDialect.qwen => 'Qwen 3.8',
+                    LlmReasoningDialect.adaptive => 'Adaptive (Claude)',
+                    LlmReasoningDialect.disabled => l10n.llmReasoningDisabled,
+                  }),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                onChanged(
+                  model.copyWith(
+                    reasoningDialect: value,
+                    effort: LlmEffort.defaultValue,
+                  ),
+                );
+              }
+            },
+          ),
+        ],
       ],
     );
   }

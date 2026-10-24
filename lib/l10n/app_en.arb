@@ -829,6 +829,7 @@
   "agentStoppedNotice": "Stopped.",
   "agentSessionResetNotice": "Dataset changed — conversation reset.",
   "agentSwitchProfile": "Switch backend",
+  "agentRetrySettingsChangedNotice": "Model settings changed or were removed. The old request was not retried. Send your request again to start a new conversation; previously completed actions remain in effect.",
   "agentProfileSwitchedNotice": "Switched to \"{name}\" — the next message starts a new conversation, without the context above.",
   "@agentProfileSwitchedNotice": {
     "placeholders": {
@@ -1586,5 +1587,11 @@
   "imageProcessingOperationId": "Operation ID (also works after restart)",
   "imageProcessingUndo": "Undo / recover this operation",
   "imageProcessingOriginal": "Keep original bytes (rename / copy only)",
-  "imageProcessingSaved": "Find saved operations"
+  "imageProcessingSaved": "Find saved operations",
+  "llmProtocol": "Protocol",
+  "llmEffort": "Reasoning effort",
+  "llmEffortDefault": "Endpoint default",
+  "llmEffortOff": "Off",
+  "llmReasoningDialect": "Reasoning parameters",
+  "llmReasoningDisabled": "Do not send reasoning parameters"
 }

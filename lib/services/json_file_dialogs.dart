@@ -30,8 +30,6 @@ Future<String?> saveJson({
     fileName: fileName,
     bytes: utf8.encode(contents),
     mimeType: 'application/json',
-    type: FileType.custom,
-    allowedExtensions: ['json'],
   );
   return uri?.toFilePath();
 }

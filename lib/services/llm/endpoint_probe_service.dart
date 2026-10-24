@@ -121,7 +121,7 @@ class EndpointProbeService {
     // speak that protocol. Failures are expected on any other host and are
     // reported as "skipped", not as an error.
     if (report.contextWindow == null &&
-        provider.kind == LlmApiKind.openaiCompat) {
+        profile.kind == LlmApiKind.openaiCompat) {
       step(ProbeStep.backendApi, ProbeStepStatus.running);
       final found = await _probeBackendApis(provider, model, report);
       step(

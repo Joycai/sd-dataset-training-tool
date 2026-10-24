@@ -130,3 +130,32 @@ abstract class LlmEndpointInspector {
     LlmProviderProfile profile,
   );
 }
+
+/// Reject images explicitly rather than silently dropping them on a text route.
+void validateLlmImages(LlmProviderProfile profile, List<ChatMessage> messages) {
+  if (!profile.supportsVision && messages.any((m) => m.imageCount > 0)) {
+    throw LlmException(
+      'Image input is disabled for this model. Enable vision or start a text-only conversation.',
+    );
+  }
+}
+
+Map<String, dynamic> validatedReasoningParameters({
+  required LlmEffort effort,
+  required LlmReasoningDialect dialect,
+  required String model,
+  required bool anthropic,
+  bool responses = false,
+}) {
+  try {
+    return reasoningParameters(
+      effort: effort,
+      dialect: dialect,
+      model: model,
+      anthropic: anthropic,
+      responses: responses,
+    );
+  } on ArgumentError catch (e) {
+    throw LlmException(e.message.toString());
+  }
+}
