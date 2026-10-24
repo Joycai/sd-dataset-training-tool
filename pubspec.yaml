@@ -8,7 +8,7 @@ environment:
   # Exact version on purpose: CI and release.yml install this via
   # subosito/flutter-action's flutter-version-file, and `flutter pub get`
   # refuses a mismatched local SDK, so all three toolchains stay identical.
-  flutter: 3.47.6
+  flutter: 3.47.8
 
 dependencies:
   flutter:
