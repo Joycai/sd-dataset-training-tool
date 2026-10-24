@@ -33,9 +33,9 @@ void main() {
         clientFactory: () => MockClient((request) async {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           bodies.add(body);
-          if (body.containsKey('temperature')) {
+          if (body.containsKey('stream_options')) {
             return http.Response(
-              '{"error": {"message": "temperature is not supported"}}',
+              '{"error": {"message": "stream_options is not supported"}}',
               400,
             );
           }
@@ -48,15 +48,15 @@ void main() {
           .toList();
       // Round one paid the discovery round-trip: reject, then repaired.
       expect(bodies, hasLength(2));
-      expect(bodies[0].containsKey('temperature'), isTrue);
-      expect(bodies[1].containsKey('temperature'), isFalse);
+      expect(bodies[0].containsKey('stream_options'), isTrue);
+      expect(bodies[1].containsKey('stream_options'), isFalse);
 
       await client
           .chat(profile: _profile, messages: [ChatMessage.user('two')])
           .toList();
       // Round two sends the accepted shape on the first try.
       expect(bodies, hasLength(3));
-      expect(bodies[2].containsKey('temperature'), isFalse);
+      expect(bodies[2].containsKey('stream_options'), isFalse);
     });
 
     test('repairs are per profile, not global', () async {
@@ -65,8 +65,8 @@ void main() {
         clientFactory: () => MockClient((request) async {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           bodies.add(body);
-          if (body.containsKey('temperature')) {
-            return http.Response('temperature rejected', 400);
+          if (body.containsKey('stream_options')) {
+            return http.Response('stream_options rejected', 400);
           }
           return http.Response(_openAiSse(), 200);
         }),
@@ -83,7 +83,7 @@ void main() {
             messages: [ChatMessage.user('x')],
           )
           .toList();
-      expect(bodies.first.containsKey('temperature'), isFalse);
+      expect(bodies.first.containsKey('stream_options'), isFalse);
 
       bodies.clear();
       const fresh = LlmProviderProfile(
@@ -97,7 +97,7 @@ void main() {
           .toList();
       // New profile pays its own discovery round-trip.
       expect(bodies, hasLength(2));
-      expect(bodies.first.containsKey('temperature'), isTrue);
+      expect(bodies.first.containsKey('stream_options'), isTrue);
     });
   });
 

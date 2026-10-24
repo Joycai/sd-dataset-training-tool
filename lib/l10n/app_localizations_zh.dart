@@ -2779,4 +2779,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get imageProcessingSaved => '查找已保存操作';
+
+  @override
+  String get llmProtocol => '协议';
+
+  @override
+  String get llmEffort => '推理强度';
+
+  @override
+  String get llmEffortDefault => '跟随端点默认';
+
+  @override
+  String get llmEffortOff => '关闭';
+
+  @override
+  String get llmReasoningDialect => '推理参数类型';
+
+  @override
+  String get llmReasoningDisabled => '不发送推理参数';
 }

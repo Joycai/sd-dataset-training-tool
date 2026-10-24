@@ -5008,6 +5008,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Find saved operations'**
   String get imageProcessingSaved;
+
+  /// No description provided for @llmProtocol.
+  ///
+  /// In en, this message translates to:
+  /// **'Protocol'**
+  String get llmProtocol;
+
+  /// No description provided for @llmEffort.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning effort'**
+  String get llmEffort;
+
+  /// No description provided for @llmEffortDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Endpoint default'**
+  String get llmEffortDefault;
+
+  /// No description provided for @llmEffortOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get llmEffortOff;
+
+  /// No description provided for @llmReasoningDialect.
+  ///
+  /// In en, this message translates to:
+  /// **'Reasoning parameters'**
+  String get llmReasoningDialect;
+
+  /// No description provided for @llmReasoningDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Do not send reasoning parameters'**
+  String get llmReasoningDisabled;
 }
 
 class _AppLocalizationsDelegate

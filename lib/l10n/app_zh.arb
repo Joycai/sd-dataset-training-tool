@@ -1162,5 +1162,11 @@
   "imageProcessingOperationId": "操作 ID（重启后也可恢复）",
   "imageProcessingUndo": "撤销 / 恢复此操作",
   "imageProcessingOriginal": "保留原始字节（仅重命名 / 复制）",
-  "imageProcessingSaved": "查找已保存操作"
+  "imageProcessingSaved": "查找已保存操作",
+  "llmProtocol": "协议",
+  "llmEffort": "推理强度",
+  "llmEffortDefault": "跟随端点默认",
+  "llmEffortOff": "关闭",
+  "llmReasoningDialect": "推理参数类型",
+  "llmReasoningDisabled": "不发送推理参数"
 }

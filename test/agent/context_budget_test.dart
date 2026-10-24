@@ -5,6 +5,38 @@ import 'package:dataset_training_tool/models/llm_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('signed history is counted and retired as whole paired exchanges', () {
+    const profile = LlmProviderProfile(id: 'p', name: 'p');
+    final history = [
+      ChatMessage.system('system'),
+      ChatMessage.user('old'),
+      ChatMessage.assistant(
+        'old answer',
+        replay: LlmReplay(profile, {'content': 'x' * 40000}),
+        toolCalls: [
+          const ChatToolCall(id: 'old-call', name: 'echo', argumentsJson: '{}'),
+        ],
+      ),
+      ChatMessage.toolResult(toolCallId: 'old-call', text: 'old result'),
+      ChatMessage.user('new'),
+      ChatMessage.assistant('new answer'),
+      ChatMessage.user('latest'),
+    ];
+    final budget = ContextBudget(
+      contextWindow: 4096,
+      maxOutputTokens: 1024,
+      protectedTail: 1,
+    );
+    final result = budget.compact(history);
+    expect(result.stillOverBudget, false);
+    expect(history.first.text, 'system');
+    expect(
+      history.any((m) => m.toolCallId == 'old-call' || m.replay != null),
+      false,
+    );
+    expect(history.last.text, 'latest');
+  });
+
   group('estimateText', () {
     test('ascii is ~4 chars per token', () {
       expect(ContextBudget.estimateText('a' * 400), 100);

@@ -2879,4 +2879,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get imageProcessingSaved => 'Find saved operations';
+
+  @override
+  String get llmProtocol => 'Protocol';
+
+  @override
+  String get llmEffort => 'Reasoning effort';
+
+  @override
+  String get llmEffortDefault => 'Endpoint default';
+
+  @override
+  String get llmEffortOff => 'Off';
+
+  @override
+  String get llmReasoningDialect => 'Reasoning parameters';
+
+  @override
+  String get llmReasoningDisabled => 'Do not send reasoning parameters';
 }

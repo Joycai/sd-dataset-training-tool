@@ -285,7 +285,9 @@ class AgentSession {
             compaction.stillOverBudget,
           );
         }
-        if (compaction.stillOverBudget && profile.silentTruncation) {
+        if (compaction.stillOverBudget &&
+            (profile.silentTruncation ||
+                history.any((m) => m.replay != null))) {
           // This endpoint is known to accept an over-long prompt and drop
           // part of it without saying so. Sending would not fail — it would
           // hand the model a context that differs from the history we hold,
@@ -293,8 +295,7 @@ class AgentSession {
           yield AgentFinished(
             AgentStopReason.error,
             'the conversation no longer fits this endpoint\'s context '
-            'window, and the endpoint is known to truncate over-long '
-            'requests silently; start a new conversation',
+            'window; sending it may truncate required reasoning/tool history; start a new conversation',
           );
           return;
         }
@@ -302,6 +303,7 @@ class AgentSession {
         final textBuffer = StringBuffer();
         var calls = const <ChatToolCall>[];
         TokenUsage? usage;
+        LlmReplay? replay;
         var finishReason = '';
         try {
           await for (final event in client.chat(
@@ -318,7 +320,12 @@ class AgentSession {
                 yield AgentReasoningDelta(text);
               case ToolCallsReady(calls: final ready):
                 calls = ready;
-              case StreamDone(usage: final u, finishReason: final reason):
+              case StreamDone(
+                usage: final u,
+                finishReason: final reason,
+                replay: final r,
+              ):
+                replay = r;
                 usage = u;
                 finishReason = reason;
             }
@@ -370,7 +377,11 @@ class AgentSession {
         }
 
         history.add(
-          ChatMessage.assistant(textBuffer.toString(), toolCalls: calls),
+          ChatMessage.assistant(
+            textBuffer.toString(),
+            toolCalls: calls,
+            replay: replay,
+          ),
         );
         if (calls.isEmpty) {
           yield AgentFinished(AgentStopReason.completed);
@@ -478,6 +489,7 @@ class AgentSession {
     try {
       final textBuffer = StringBuffer();
       TokenUsage? usage;
+      LlmReplay? replay;
       await for (final event in client.chat(
         profile: profile,
         messages: history,
@@ -492,7 +504,8 @@ class AgentSession {
             yield AgentReasoningDelta(text);
           case ToolCallsReady():
             break; // none were offered; ignore an invented one
-          case StreamDone(usage: final u):
+          case StreamDone(usage: final u, replay: final r):
+            replay = r;
             usage = u;
         }
       }
@@ -503,7 +516,9 @@ class AgentSession {
             completion: ContextBudget.estimateText(textBuffer.toString()),
           );
       if (textBuffer.isNotEmpty) {
-        history.add(ChatMessage.assistant(textBuffer.toString()));
+        history.add(
+          ChatMessage.assistant(textBuffer.toString(), replay: replay),
+        );
       }
     } on LlmException {
       // Swallowed by design (see doc comment).

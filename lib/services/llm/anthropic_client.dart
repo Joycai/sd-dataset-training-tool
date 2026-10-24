@@ -68,13 +68,18 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
     return {
       'model': profile.model,
       'max_tokens': maxTokensOverride ?? profile.maxOutputTokens,
-      'temperature': profile.temperature.clamp(0.0, 1.0),
+      ...validatedReasoningParameters(
+        effort: profile.effort,
+        dialect: profile.reasoningDialect,
+        model: profile.model,
+        anthropic: true,
+      ),
       'stream': stream,
       if (system.isNotEmpty)
         'system': [
           {'type': 'text', 'text': system, 'cache_control': cacheControl},
         ],
-      'messages': _convertMessages(messages),
+      'messages': _convertMessages(profile, messages),
       if (tools.isNotEmpty)
         'tools': [
           for (final (i, t) in tools.indexed)
@@ -91,7 +96,10 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
   /// Converts to Anthropic's alternating user/assistant shape: tool results
   /// become `tool_result` blocks in a user message, and consecutive
   /// same-role messages are merged (the API rejects non-alternating roles).
-  List<Map<String, dynamic>> _convertMessages(List<ChatMessage> messages) {
+  List<Map<String, dynamic>> _convertMessages(
+    LlmProviderProfile profile,
+    List<ChatMessage> messages,
+  ) {
     final out = <Map<String, dynamic>>[];
 
     void emit(String role, List<Map<String, dynamic>> blocks) {
@@ -110,16 +118,23 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
         case ChatRole.user:
           emit('user', _contentBlocks(m));
         case ChatRole.assistant:
-          emit('assistant', [
-            ..._contentBlocks(m),
-            for (final c in m.toolCalls)
-              {
-                'type': 'tool_use',
-                'id': c.id,
-                'name': c.name,
-                'input': _parseArgs(c.argumentsJson),
-              },
-          ]);
+          final raw = (m.replay?.matches(profile) ?? false)
+              ? m.replay!.data['content']
+              : null;
+          if (raw is List) {
+            emit('assistant', raw.cast<Map<String, dynamic>>());
+          } else {
+            emit('assistant', [
+              ..._contentBlocks(m),
+              for (final c in m.toolCalls)
+                {
+                  'type': 'tool_use',
+                  'id': c.id,
+                  'name': c.name,
+                  'input': _parseArgs(c.argumentsJson),
+                },
+            ]);
+          }
         case ChatRole.tool:
           emit('user', [
             {
@@ -206,6 +221,7 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
     // unregistration a 24-turn run leaves 24 dead listeners on it.
     final unregister = cancel?.onCancel(client.close);
     try {
+      validateLlmImages(profile, messages);
       final body = _buildBody(profile, messages, tools, stream: true);
       final resp = await _send(client, profile, body);
       if (resp.statusCode < 200 || resp.statusCode >= 300) {
@@ -217,6 +233,8 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
 
       // index → partially assembled tool_use block
       final blocks = <int, ({String id, String name, StringBuffer json})>{};
+      final thinking = <int, Map<String, dynamic>>{};
+      final responseBlocks = <int, Map<String, dynamic>>{};
       var stopReason = '';
       var inputTokens = 0;
       var outputTokens = 0;
@@ -262,12 +280,24 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
             case 'content_block_start':
               final index = (obj['index'] as num?)?.toInt() ?? 0;
               final block = obj['content_block'];
+              if (block is Map<String, dynamic>) {
+                responseBlocks[index] = Map<String, dynamic>.from(block);
+              }
+              if (block is Map<String, dynamic> &&
+                  (block['type'] == 'thinking' ||
+                      block['type'] == 'redacted_thinking')) {
+                thinking[index] = responseBlocks[index]!;
+              }
               if (block is Map<String, dynamic> &&
                   block['type'] == 'tool_use') {
                 blocks[index] = (
                   id: (block['id'] as String?) ?? '',
                   name: (block['name'] as String?) ?? '',
-                  json: StringBuffer(),
+                  json: StringBuffer(
+                    block['input'] is Map && (block['input'] as Map).isNotEmpty
+                        ? jsonEncode(block['input'])
+                        : '',
+                  ),
                 );
               }
             case 'content_block_delta':
@@ -276,14 +306,25 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
               if (delta is! Map<String, dynamic>) continue;
               if (delta['type'] == 'text_delta') {
                 final text = delta['text'];
+                if (responseBlocks[index] != null && text is String) {
+                  responseBlocks[index]!['text'] =
+                      '${responseBlocks[index]!['text'] ?? ''}$text';
+                }
                 if (text is String && text.isNotEmpty) yield TextDelta(text);
               } else if (delta['type'] == 'thinking_delta') {
-                // Extended thinking is never requested by this client, but a
-                // relay may switch it on server-side; showing the stream
-                // beats displaying a stalled connection while it thinks.
                 final text = delta['thinking'];
+                final block = thinking[index];
+                if (block != null && text is String) {
+                  block['thinking'] = '${block['thinking'] ?? ''}$text';
+                }
                 if (text is String && text.isNotEmpty) {
                   yield ReasoningDelta(text);
+                }
+              } else if (delta['type'] == 'signature_delta') {
+                final block = thinking[index];
+                if (block != null) {
+                  block['signature'] =
+                      '${block['signature'] ?? ''}${delta['signature'] ?? ''}';
                 }
               } else if (delta['type'] == 'input_json_delta') {
                 blocks[index]?.json.write(delta['partial_json'] ?? '');
@@ -314,6 +355,10 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
         rethrow;
       }
 
+      for (final entry in blocks.entries) {
+        final raw = responseBlocks[entry.key];
+        if (raw != null) raw['input'] = _parseArgs(entry.value.json.toString());
+      }
       final calls = [
         for (final entry
             in (blocks.entries.toList()..sort((a, b) => a.key - b.key)))
@@ -329,6 +374,12 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
       if (calls.isNotEmpty) yield ToolCallsReady(calls);
       yield StreamDone(
         finishReason: stopReason == 'tool_use' ? 'tool_calls' : stopReason,
+        replay: LlmReplay(profile, {
+          'content': [
+            for (final i in responseBlocks.keys.toList()..sort())
+              responseBlocks[i]!,
+          ],
+        }),
         usage: TokenUsage(
           prompt: inputTokens + cacheReadTokens + cacheWriteTokens,
           completion: outputTokens,
@@ -336,6 +387,8 @@ class AnthropicClient implements LlmClient, LlmEndpointInspector {
           cacheWrite: cacheWriteTokens,
         ),
       );
+    } on ArgumentError catch (e) {
+      throw LlmException(e.message.toString());
     } on LlmException {
       if (cancel?.isCancelled ?? false) return;
       rethrow;

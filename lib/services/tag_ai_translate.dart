@@ -12,9 +12,8 @@ library;
 import 'dart:convert';
 
 import '../models/llm_models.dart';
-import 'llm/anthropic_client.dart';
 import 'llm/llm_client.dart';
-import 'llm/openai_compat_client.dart';
+import 'llm/llm_client_factory.dart';
 
 /// A translation long enough to be prose is not a gloss — it is the model
 /// explaining itself, and it would render as a paragraph beside a tag chip.
@@ -37,11 +36,7 @@ Future<String> translateTagWithLlm({
 }) async {
   // Annotated, not inferred: both concrete clients implement two interfaces,
   // so their least upper bound is no longer LlmClient.
-  final LlmClient llm =
-      client ??
-      (profile.kind == LlmApiKind.anthropic
-          ? AnthropicClient()
-          : OpenAiCompatClient());
+  final LlmClient llm = client ?? createLlmClient(profile.kind);
   final buffer = StringBuffer();
   try {
     final stream = llm.chat(

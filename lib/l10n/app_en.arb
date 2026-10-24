@@ -1586,5 +1586,11 @@
   "imageProcessingOperationId": "Operation ID (also works after restart)",
   "imageProcessingUndo": "Undo / recover this operation",
   "imageProcessingOriginal": "Keep original bytes (rename / copy only)",
-  "imageProcessingSaved": "Find saved operations"
+  "imageProcessingSaved": "Find saved operations",
+  "llmProtocol": "Protocol",
+  "llmEffort": "Reasoning effort",
+  "llmEffortDefault": "Endpoint default",
+  "llmEffortOff": "Off",
+  "llmReasoningDialect": "Reasoning parameters",
+  "llmReasoningDisabled": "Do not send reasoning parameters"
 }

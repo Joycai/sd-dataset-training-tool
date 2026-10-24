@@ -63,6 +63,35 @@ AgentTool _writeTool() => AgentTool(
 );
 
 void main() {
+  test('opaque reasoning survives the agent tool loop', () async {
+    final replay = LlmReplay(_profile, {
+      'chat': {'reasoning_content': 'opaque reasoning'},
+    });
+    final client = FakeLlmClient([
+      [
+        ToolCallsReady([
+          const ChatToolCall(id: 'call', name: 'echo', argumentsJson: '{}'),
+        ]),
+        StreamDone(replay: replay),
+      ],
+      [TextDelta('done'), StreamDone()],
+    ]);
+    final session = AgentSession(
+      client: client,
+      registry: ToolRegistry([_echoTool()]),
+      profile: _profile,
+      systemPrompt: 'sys',
+    );
+    await session.run('go').toList();
+    expect(
+      client.seenMessages[1]
+          .where((m) => m.role == ChatRole.assistant)
+          .single
+          .replay,
+      same(replay),
+    );
+  });
+
   test('the session budget subtracts the registry it was built with', () {
     // A big schema stands in for the real registry (a few thousand tokens).
     final fat = AgentTool(
