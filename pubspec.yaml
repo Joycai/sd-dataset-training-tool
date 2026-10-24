@@ -1,7 +1,7 @@
 name: dataset_training_tool
 description: "Desktop toolkit for building and captioning Stable Diffusion training datasets."
 publish_to: 'none'
-version: 1.18.0+21
+version: 1.19.0+22
 
 environment:
   sdk: '>=3.9.0 <4.0.0'
@@ -53,6 +53,6 @@ msix_config:
   publisher_display_name: joycai
   publisher: CN=joycai
   identity_name: com.joycai.datasettrainingtool
-  msix_version: 1.18.0.21
+  msix_version: 1.19.0.22
   logo_path: assets/icon/icon.png
   capabilities: internetClient
