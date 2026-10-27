@@ -4,7 +4,7 @@
 
 1. **Flutter 桌面客户端**（仓库根目录）— 主程序，Windows / macOS / Linux 三平台。
 2. **AiApiServer**（[`AiApiServer/`](../AiApiServer/) 子目录）— 可选的 Python AI 后端，
-   为客户端提供 AI 打标、去背景、翻译能力。不使用 AI 功能时无需配置。
+   为客户端提供 AI 打标、去背景、翻译能力。手动编辑和本地图像处理无需此服务；AI 助手对话直接连接配置的 LLM 服务商，也不依赖此服务（调用打标或去背景工具时除外）。
 
 ---
 
@@ -14,13 +14,17 @@
 
 | 项目 | 要求 |
 |------|------|
-| Flutter SDK | **3.47.8（精确版本）**（Dart SDK `>=3.9.0`，见 [pubspec.yaml](../pubspec.yaml)） |
+| Flutter SDK | **3.47.8（精确版本）**（使用其自带的 Dart SDK；项目语言约束为 `>=3.9.0 <4.0.0`，见 [pubspec.yaml](../pubspec.yaml)） |
 | 渠道 | stable |
 
-获取依赖：
+CI 与发布工作流都从 `pubspec.yaml` 读取 Flutter 精确版本。本地版本不匹配时请切换 SDK，不要通过升级依赖绕过。
+
+获取依赖并生成本地化：
 
 ```bash
+flutter --version
 flutter pub get
+flutter gen-l10n
 ```
 
 开发调试直接运行：
@@ -50,7 +54,8 @@ flutter build windows --release
 
 **环境要求**
 
-- 最新版 Xcode（含命令行工具：`xcode-select --install`）
+- 应用部署目标为 **macOS 12.0 及以上**。
+- 安装与所用 Flutter SDK 兼容的 Xcode 及命令行工具（`xcode-select --install`），用 `flutter doctor -v` 检查本机配置。
 - 本项目已**移除 CocoaPods**，原生依赖（`desktop_multi_window` 等）全部通过
   **Swift Package Manager** 管理，无需安装 Ruby / CocoaPods，首次构建时 Xcode
   会自动解析 Swift 包。
@@ -79,6 +84,24 @@ flutter build linux --release
 ```
 
 产物目录：`build/linux/x64/release/bundle/`（整个 `bundle` 目录一起分发）。
+
+### 1.5 提交前校验与发布
+
+在仓库根目录运行与 CI 相同的检查（使用上述 Flutter SDK 的 `dart`）：
+
+```bash
+flutter pub get
+flutter gen-l10n
+git status --porcelain lib/l10n
+dart format --output=none --set-exit-if-changed lib test tool
+flutter analyze
+dart run tool/check_layers.dart
+flutter test
+```
+
+本地化状态检查应为空；如有预期生成变更，审查并一并提交。目录分层与文件 I/O 边界见[代码架构](ARCHITECTURE.md)。纯文档修改只需校验路径与内容，不必运行应用测试。
+
+[Release 工作流](../.github/workflows/release.yml)在手动触发后先复用 CI 检查，再构建 Windows x64 ZIP、macOS universal ZIP、Linux x64 tar.gz 和 AI 服务源码 ZIP。`dry_run` 只上传构建产物，不创建标签或发布；正式发布由工作流读取 `pubspec.yaml` 版本并创建标签。macOS 产物未签名，需自行签名与公证以正式分发。
 
 ---
 

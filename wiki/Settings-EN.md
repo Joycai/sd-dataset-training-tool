@@ -1,6 +1,6 @@
 # Settings
 
-Click the **settings icon** in the top-right corner of the main interface to access the settings page. All settings here are **saved automatically** after you change them and will take effect the next time you launch the application.
+Click the **settings icon** in the top-right corner of the main interface to access the settings page. Most settings are **saved automatically** and take effect immediately. Dialogs with a **Done** button require you to save explicitly; session-specific assistant settings apply when you start a new session.
 
 ![Settings Page](https://github.com/user-attachments/assets/57223010-f168-4545-911c-223689433434)
 
@@ -40,8 +40,10 @@ Click the **settings icon** in the top-right corner of the main interface to acc
   - **Fetch from danbooru**: paste a danbooru URL (wiki page / post search / tag listing) or just a tag name to read its public API for category, post count, `other_names` (mostly Japanese alternate names), and a wiki excerpt. These are all candidates — one click adopts one into the translation or note, nothing is written for you automatically.
 
 - **LLM Backends**
-  - The conversation-model configuration used by the **AI Assistant**. Two levels: add a **provider** first (endpoint + API key), then add specific **models** under it (model ID, display name, a context-window stop from 8K up to 1M, max output tokens, temperature, vision support, and optional per-million-token pricing).
-  - Built-in quick-start presets for common providers: OpenAI, Gemini (OpenAI-compatible endpoint), Ollama (local, default `http://127.0.0.1:11434/v1`), Anthropic.
+  - The conversation-model configuration used by the **AI Assistant**. Two levels: add a **provider** first (endpoint + API key), then add specific **models** under it (model ID, display name, protocol override, context window, max output tokens, reasoning effort, vision support, and optional per-million-token pricing).
+  - Built-in presets: OpenAI Responses, Gemini (native and OpenAI-compatible), DeepSeek, Qwen, Ollama (local, default `http://127.0.0.1:11434/v1`), and Anthropic. The supported wire protocols are Chat Completions, Responses, Gemini, and Messages. A model inherits its provider’s protocol unless overridden.
+  - **Reasoning effort**: Default leaves the choice to the endpoint; available levels depend on protocol, model ID, and reasoning parameter format. Chat Completions / Messages also expose a reasoning format selector for compatible endpoints. Temperature is retained only for older saved configurations and is never sent.
+  - **Endpoint URLs**: Chat Completions / Responses use a versioned base such as `https://api.openai.com/v1`; Messages accepts the host root or `/v1`; native Gemini accepts the host root or `/v1beta`. Do not paste a full completion URL. Connection tests, model discovery, and capability detection are available in the backend dialog; capability probes send requests and may incur provider charges.
   - You can also switch between configured models on the fly from the button under the AI Assistant panel's title; switching starts a brand-new session.
 
 - **AI Assistant Settings**

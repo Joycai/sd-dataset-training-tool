@@ -21,7 +21,7 @@
 
 ![preview](./.images/preview_en.png)
 
-A desktop application built with Flutter for efficiently managing and editing image dataset caption files, with an optional bundled Python AI backend ([AiApiServer](AiApiServer/)) for AI auto-tagging, plus a chat-based AI assistant that can operate on your whole dataset — designed for the data preprocessing stage of AI model training.
+**Dataset Toolkit** is a desktop application built with Flutter for efficiently managing and editing image dataset caption files, with an optional bundled Python AI backend ([AiApiServer](AiApiServer/)) for AI auto-tagging, plus a chat-based AI assistant that can operate on your whole dataset — designed for the data preprocessing stage of AI model training.
 
 ## ✨ Features
 
@@ -39,6 +39,7 @@ The main interface is a "browse → preview/edit → tag management" three-colum
 #### Center: Preview & Caption Editor
 - **Image preview above the editor**, with a draggable split.
 - **Multiple caption types**: an image can carry several caption files side by side with different extensions (e.g. a tag-style `.txt` next to a natural-language `.ntxt`), configured in Settings (name, extension, enable/disable). The rest of the app always works against whichever type is currently "active".
+- **Four caption formats**: WD14 tags, Anima Tag (tags plus a preserved trailing description), JSON documents, and natural language. Format is configured separately from the extension. Edit JSON in the text tab or use dedicated assistant tools to inspect its structure, restructure fields, and edit tags in bulk. The assistant can also batch-convert between types, reporting conversion rules and discarded content, with one undo for the batch.
 - **Sentence mode**: flag a caption type as "prose" and the tag view segments its text by comma/period into phrases instead of treating it as comma-separated danbooru tags — a better fit for natural-language descriptions.
 - **Caption editing**: automatically loads the caption file matching the image (extension configurable); save writes it back.
 - **Tag view**: switch a comma-separated caption into chips — double-click to edit, delete, drag to reorder, with bidirectional sync to the text box.
@@ -62,14 +63,24 @@ The main interface is a "browse → preview/edit → tag management" three-colum
 
 A chat panel that can operate on your whole dataset for you — open it with the ✨ icon in the top bar. It's a draggable, resizable **floating** window (docked bottom-right by default, or collapsible to just its title bar) rather than a fourth column, so it never eats into the main workbench's width; its position, size, and open/closed state are all remembered.
 
-- **Multiple backends**: OpenAI, Gemini (via its OpenAI-compatible endpoint), native Anthropic, and locally-run Ollama are all supported. A button under the panel title switches between configured models at any time. Switching backends always starts a brand-new session with no carried-over context, since the tool set and context window are tied to the specific model.
+- **Multiple backends**: OpenAI Chat Completions / Responses, native Gemini / its OpenAI-compatible endpoint, Anthropic Messages, and local Ollama through its OpenAI-compatible endpoint are all supported. A button under the panel title switches between configured models at any time. Switching backends always starts a brand-new session with no carried-over context, since the tool set and context window are tied to the specific model.
 - **What it can do**: read dataset overviews, search and page through images by tag, read multiple images' captions; delete a tag dataset-wide, replace a tag, insert a new tag beside an existing one, add tags at a given position across many images, **re-sort every caption's tag order in one pass** against a priority list (much faster than adjusting images one at a time), or overwrite a single image's caption. With more than one caption type enabled, it can also audit which type each image has and read/write a specific type's files (e.g. "write a natural-language sentence from this image's WD14 tags"). With a vision-capable model configured, it can look at images directly for a spot check. Every write is confirmed one at a time by default (or you can allow all writes for the rest of the conversation), and everything it does can be undone.
 - **Tag library tools**: ask it to categorize your tag library and it reads the current groups, then files every tag in one pass — reusing your groups wherever it can and inventing new ones (with an automatic color) only when a batch really needs them. It can also add tags to the library, rename a group, remove tags, and delete a group (whose tags fall back to Ungrouped). Removing and deleting ask for confirmation; nothing here touches a caption file.
+- **Optional tool groups**: tag library tools are enabled by default; tag translation and character-sheet rule tools start disabled. Enable them in Settings before starting a new session.
 - **Tag translation tools**: it can bulk-fill translations for untranslated tags in the dataset — character/copyright/artist names are looked up on danbooru's `other_names` rather than invented, existing translations are left alone by default, and it writes at most 200 entries per call with a per-conversation cap on how many times it can query danbooru.
 - **Prompt presets**: save prompts you use often and drop them into the input with one click from the panel's bookmark-icon menu — it only fills the input, never auto-sends, so you can still add a detail before running it. The same menu also hosts the built-in "skills" entry.
 - **Character Sheet skill** (built in): fill out a one-shot form describing a character's fixed traits (hair, eyes, etc.), each garment's evidence rule, and any conflicting tags to strip. The assistant samples the dataset with the tagger to learn its actual vocabulary and produces a set of "merge rules" for you to review — nothing is written to any caption at this stage. Once you approve the rules, open Batch Tagging, pick **Sheet mode** and that rule set, and it re-runs the tagger and writes captions across the (optionally filtered) dataset.
 - **Session token budget**: cap how many tokens a single conversation can spend (500K/1M/2M/5M, or 0 for unlimited — default 1M) in Settings. Every turn resends the full history, so batch work burns through it fast; once the cap is hit, start a new conversation. The input footer shows current usage and turns amber near the limit.
 - **Follows the subdirectory scope**: switch to a subdirectory and the assistant can only see and edit images inside it, so it can't accidentally touch the rest of the dataset.
+
+### Image Preprocessing
+
+Use the image-processing button in the AI Assistant panel, or ask the assistant to prepare a plan:
+
+- **Local processing**: resize (fit / crop / pad), crop by coordinates, convert to PNG / JPEG, and add a filename prefix. Same-stem caption files are copied or renamed with the image.
+- **AI processing**: use AiApiServer foreground masks for background removal or foreground-bound cropping. Named-object detection is not supported.
+- **Review before applying**: up to 200 images per plan, with output to a new directory outside the source dataset by default; replacing source files is optional. Review before/after previews and output paths before applying. Caption content is not automatically rewritten to match changed image content.
+- **Recovery and undo**: look up an operation by ID to check its status, recover interrupted work, or undo it. File checks protect later edits; resolve any reported conflicts before continuing.
 
 ### Right: Tag Library & Dataset Tags
 
@@ -93,6 +104,9 @@ A chat panel that can operate on your whole dataset for you — open it with the
 - **Global batch edits**: rename / delete a tag across the whole dataset, with **undo**.
 
 ### Keyboard Shortcuts
+
+On macOS, use `⌘` in place of `Ctrl` below.
+
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+S` | Save current caption |
@@ -115,7 +129,7 @@ A chat panel that can operate on your whole dataset for you — open it with the
 - **Edit the dictionary**: the manager in settings edits any tag's translation and note, adds tags danbooru does not have (with a category, ranked first in completions), imports and exports glossaries, and clears AI-produced translations in one action while keeping the hand-written ones.
 - **Fetch from danbooru**: paste a danbooru URL (wiki page, post search or tag listing) or just a tag name to read its public API for the category, post count, `other_names` (danbooru's own foreign-language names, usually Japanese) and a wiki excerpt. All of it is offered as *candidates* — one click adopts one into the translation or the note, nothing is written for you. A tag danbooru has but the bundled dictionary lacks can be added with its real category in one action.
 - **Let the assistant translate in bulk**: just ask it to translate the dataset's untranslated tags. It lists them busiest-first, looks characters, copyrights and artists up on danbooru's `other_names` rather than inventing a name, and writes back up to 200 at a time. Existing translations are **not** overwritten by default, and everything it writes is recorded as AI-produced — so a run you dislike clears in one action while your hand-written entries stay. These tools never touch a caption file.
-- **LLM backend configuration**: manage multiple providers (endpoint + API key) and, under each, the models available from it (context window, max output, temperature, vision support, optional pricing) for the AI assistant and compare-mode recognition to use.
+- **LLM backend configuration**: manage multiple providers (endpoint + API key) and, under each, the models available from it (protocol, context window, max output, reasoning effort, vision support, optional pricing) for the AI assistant. AiApiServer models are configured separately for recognition.
 - **AI assistant settings**: the session token budget, whether write tools require confirmation, and managing prompt presets.
 - **AI server URL** and **caption file extension** are configurable.
 - **Export / import data**: packs the three things you build up by hand into one JSON file — **LLM backends** (API keys optional), the **tag library** (groups, their tags, the tags you added to the dictionary yourself, and the glossaries for *every* language), and **prompt presets**. Import it on a new machine to pick up where you left off. The bundled tag list and the downloaded full danbooru dictionary are left out — the app can fetch those again. On import you choose whether to keep what is already there or let the file win; **neither option ever deletes anything**.
@@ -123,10 +137,14 @@ A chat panel that can operate on your whole dataset for you — open it with the
 
 ## 🚀 Quick Start
 
+Download desktop packages from [Releases](https://github.com/Joycai/sd-dataset-training-tool/releases), or run from source with **Flutter 3.47.8**, the exact version pinned in `pubspec.yaml`, and its bundled Dart SDK. macOS requires **12.0 or later**.
+
 ```sh
-git clone <your-repository-url>
-cd DataSetTrainingTool
+git clone https://github.com/Joycai/sd-dataset-training-tool.git
+cd sd-dataset-training-tool
+flutter --version
 flutter pub get
+flutter gen-l10n
 flutter run -d windows   # or macos / linux
 ```
 
@@ -138,6 +156,8 @@ For full per-platform environment requirements, release build steps, and the AiA
 
 AI tagging is powered by the [AiApiServer](AiApiServer/) subdirectory: a Python 3.12 + Flask HTTP service supporting Windows / macOS / Linux — CUDA-accelerated with an NVIDIA GPU, automatically falling back to CPU without one. The AI Assistant's chat capability is separate: it connects to whichever LLM provider you configure yourself (OpenAI / Gemini / Anthropic / Ollama, etc.).
 
+The commands below assume an isolated Python 3.12 environment on Windows / Linux with NVIDIA CUDA. For CPU or macOS, follow the dependency adjustments in the environment guide.
+
 ```sh
 cd AiApiServer
 pip install -r requirements.txt
@@ -148,6 +168,7 @@ See the [Environment & Build Guide](docs/ENVIRONMENT_GUIDE.md) for setup details
 
 ## 📚 More Docs
 
+- [Code Architecture](docs/ARCHITECTURE.md) — layer layout, file I/O boundaries, and CI checks
 - [Environment & Build Guide](docs/ENVIRONMENT_GUIDE.md) — per-platform builds, AiApiServer Python setup
 - [Getting Started](wiki/Getting-Started-EN.md) / [Usage Guide](wiki/Usage-Guide-EN.md) / [Settings](wiki/Settings-EN.md)
 - 中文 README: [README.md](README.md)

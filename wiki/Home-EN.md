@@ -8,11 +8,11 @@ This tool is designed to provide an efficient and intuitive interface to help yo
 
 Please use the following links to learn how to use this tool:
 
-- **[[Getting Started|Getting-Started-EN]]**
+- **[Getting Started](Getting-Started-EN.md)**
   - Understand the main interface and learn the basic workflow from opening images to starting your edits.
 
-- **[[Usage Guide|Usage-Guide-EN]]**
+- **[Usage Guide](Usage-Guide-EN.md)**
   - Dive deep into all the advanced features, including the editor, workspace, tag management, and image preview.
 
-- **[[Settings|Settings-EN]]**
+- **[Settings](Settings-EN.md)**
   - Learn how to customize the tool's behavior, including language, theme, and file extensions.
