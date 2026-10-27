@@ -1,5 +1,7 @@
 # Usage Guide
 
+Shortcuts use `Ctrl` on Windows/Linux and `⌘` on macOS.
+
 This page provides a detailed look at the advanced features of the tool to help you maximize your efficiency.
 
 ## Left: Assets Panel
@@ -142,8 +144,19 @@ The ✨ icon in the top bar opens the **AI Assistant** — a chat panel that can
 
 ### Multiple Backends & Switching
 
-- Supports **OpenAI**, **Gemini** (via its OpenAI-compatible endpoint), native **Anthropic**, and locally-run **Ollama**. These are all set up under **LLM Backends** in Settings: add a provider first (endpoint + API key), then add specific models under it (context window, max output, temperature, vision support, optional pricing).
+Reasoning effort follows the selected protocol and model. Leave it at **Default** to use endpoint defaults, or choose an available level. Temperature is no longer sent. Provider credentials are shared; each model can override the provider’s protocol. See [Settings](Settings-EN.md) for endpoint configuration.
+
+- Supports **OpenAI Chat Completions / Responses**, **native Gemini / its OpenAI-compatible endpoint**, **Anthropic Messages**, and local **Ollama** through its OpenAI-compatible endpoint. These are all set up under **LLM Backends** in Settings: add a provider first (endpoint + API key), then add specific models under it (per-model protocol, context window, max output, reasoning effort, vision support, optional pricing).
 - Switching backends from the panel **always starts a brand-new session** with no carried-over context — the tool set and context window are tied to the specific model, so continuing old history across a model switch isn't reliable.
+
+### Image Preprocessing and Recovery
+
+Use the image-processing button in the AI Assistant panel, or ask the assistant to prepare a plan:
+
+- **Local processing**: resize (fit / crop / pad), crop by coordinates, convert to PNG / JPEG, and add a filename prefix. Same-stem caption files are copied or renamed with the image.
+- **AI processing**: use AiApiServer foreground masks for background removal or foreground-bound cropping. Named-object detection is not supported.
+- **Review before applying**: up to 200 images per plan, with output to a new directory outside the source dataset by default; replacing source files is optional. Review before/after previews and output paths before applying. Caption content is not automatically rewritten to match changed image content.
+- **Recovery and undo**: look up an operation by ID to check its status, recover interrupted work, or undo it. File checks protect later edits; resolve any reported conflicts before continuing.
 
 ### What It Can Do
 

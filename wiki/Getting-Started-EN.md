@@ -2,6 +2,10 @@
 
 This guide will walk you through the basic workflow of using the DataSet Training Tool.
 
+Download a desktop package from [Releases](https://github.com/Joycai/sd-dataset-training-tool/releases). To run from source, follow the [Environment & Build Guide](../docs/ENVIRONMENT_GUIDE.md) using Flutter **3.47.8** and its bundled Dart SDK. macOS requires **12.0 or later**.
+
+Shortcuts below use `Ctrl` on Windows/Linux and `⌘` on macOS.
+
 ## 1. Launch the Application
 
 When you first open the application, you'll see a three-column workbench: an Assets panel on the left, a preview/caption editor in the center, and the tag library and dataset tags on the right. All three columns are draggable and remember their width.
@@ -30,7 +34,7 @@ When you first open the application, you'll see a three-column workbench: an Ass
 
 ## 5. Use the Tag Library on the Right
 
-- The **tag library** on the right highlights common tags the current image already has in green, and missing ones in orange — double-click an orange one to add it instantly.
+- The **tag library** on the right highlights common tags the current image already has in green, and missing ones in orange — click an orange one to add it instantly.
 - The **Dataset Tags panel** aggregates every tag used across the whole dataset with counts; clicking a tag filters the gallery on the left.
 
 ## 6. Save Your Work
@@ -40,11 +44,13 @@ When you first open the application, you'll see a three-column workbench: an Ass
 
 ## 7. Try AI-Assisted Tagging and the AI Assistant
 
+Configure AiApiServer for tagging, or an LLM provider for assistant chat; these are separate connections. Tag translation and character-sheet rule tools must be enabled in Settings before starting a new session. The assistant panel also has an image-processing entry for resize/crop/conversion plans with preview and recovery.
+
 - The top of the center column lets you pick a tagger model and run recognition on the current image (`Ctrl+E`); results land in compare mode so you can accept or reject each tag before it's written.
-- The ✨ icon in the top bar opens the **AI Assistant** — a floating chat panel that can operate on your whole dataset for you (retagging, bulk re-sorting, translating tags, and more). See the **[[Usage Guide|Usage-Guide-EN]]** for details.
+- The ✨ icon in the top bar opens the **AI Assistant** — a floating chat panel that can operate on your whole dataset for you (retagging, bulk re-sorting, translating tags, and more). See the **[Usage Guide](Usage-Guide-EN.md)** for details.
 
 ## 8. Switch to Settings
 
 - If you need to adjust the tool's behavior (language, theme, caption types, LLM backends), click the **settings icon** in the top-right of the app bar.
 
-You've now mastered the core workflow! To learn about more advanced features, continue to the **[[Usage Guide|Usage-Guide-EN]]**.
+You've now mastered the core workflow! To learn about more advanced features, continue to the **[Usage Guide](Usage-Guide-EN.md)**.

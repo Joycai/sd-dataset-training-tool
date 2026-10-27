@@ -59,11 +59,16 @@ Inside `views/`:
 
   ```bash
   flutter pub get
-  flutter gen-l10n && git diff --exit-code lib/l10n
+  flutter gen-l10n
+  git status --porcelain lib/l10n
   dart format --output=none --set-exit-if-changed lib test tool
   flutter analyze
   dart run tool/check_layers.dart
   flutter test
   ```
+
+The localization status must be empty, including untracked generated files. Review
+and commit any intended generated output before running the gate again.
+Documentation-only edits require path and content checks rather than app tests.
 
 Lint rules live in `analysis_options.yaml`, on top of `flutter_lints`.
