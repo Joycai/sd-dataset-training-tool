@@ -2,7 +2,7 @@
 
 <div align="center">
   <a href="https://flutter.dev" target="_blank">
-    <img src="https://img.shields.io/badge/Framework-Flutter_3.47.5-02569B?logo=flutter" alt="Flutter">
+    <img src="https://img.shields.io/badge/Framework-Flutter_3.47.8-02569B?logo=flutter" alt="Flutter">
   </a>
   <a href="https://dart.dev" target="_blank">
     <img src="https://img.shields.io/badge/Language-Dart-0175C2?logo=dart" alt="Dart">
