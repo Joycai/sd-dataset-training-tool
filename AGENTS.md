@@ -54,12 +54,10 @@ those changes affect app behavior or build checks. Report unavailable checks.
 
 Reusable workflows live in `.agents/skills/`. Load only skills relevant to the
 request. `$bump-version` covers the three synchronized version fields;
-`$update-models` covers backend model lists and metadata. The 22 upstream
-Flutter/Dart skills retain their provenance in `skills-lock.json`; its
-`skillPath` values describe paths in the upstream source, not this checkout.
-Upstream `metadata.model` fields are provenance, not a request to switch the
-Codex model. Use the current project SDK and actual available tools when a skill
-mentions optional Dart/Flutter MCP tools; CLI checks and focused tests are the
+`$update-models` covers backend model lists and metadata. Upstream Flutter/Dart
+skills are no longer vendored in this repository. Use the current project SDK
+and actual available tools when a skill mentions optional Dart/Flutter MCP
+tools; CLI checks and focused tests are the
 fallback. Do not add packages merely because a generic skill uses them in an
 example.
 
