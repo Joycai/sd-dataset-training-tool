@@ -17,14 +17,14 @@ dependencies:
     sdk: flutter
   provider: ^6.1.5
   shared_preferences: ^2.5.6
-  file_picker: ^13.3.0
+  file_picker: ^13.3.2
   path: ^1.9.1
   path_provider: ^2.1.5
   # AbortableRequest is used for cooperative AI request cancellation.
   http: ^1.5.0
   image: ^4.12.0
   markdown_widget: ^2.3.2
-  archive: ^4.5.2
+  archive: ^4.6.0
   crypto: ^3.0.8
   desktop_multi_window: ^0.3.1
   file_saver: ^0.7.0
