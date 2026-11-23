@@ -22,9 +22,9 @@ dependencies:
   path_provider: ^2.1.5
   # AbortableRequest is used for cooperative AI request cancellation.
   http: ^1.5.0
-  image: ^4.12.0
+  image: ^4.13.1
   markdown_widget: ^2.3.2
-  archive: ^4.5.2
+  archive: ^4.7.1
   crypto: ^3.0.8
   desktop_multi_window: ^0.3.1
   file_saver: ^0.7.0
